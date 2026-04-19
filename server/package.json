@@ -1,0 +1,16 @@
+{
+  "name": "firecheck-server",
+  "version": "1.0.0",
+  "description": "Backend API para o FireCheck",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^1.50.1",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "sqlite3": "^5.1.7"
+  }
+}
