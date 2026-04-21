@@ -7,7 +7,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="animate-fade" style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
       
       {/* NavBar */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 5%', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
@@ -135,7 +135,7 @@ export default function LandingPage() {
           </div>
 
           {/* Plano PRO (Destaque) */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1 }}>
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>MAIS POPULAR</div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro Vision</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para operações de médio porte.</p>
