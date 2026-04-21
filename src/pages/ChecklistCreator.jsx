@@ -296,8 +296,8 @@ export default function ChecklistCreator() {
             <button className="btn-secondary" style={{ padding: '12px 24px' }} onClick={() => navigate('/admin')}>
               Cancelar
             </button>
-            <button className="btn" style={{ padding: '12px 32px', fontSize: '1rem' }} onClick={handleSave}>
-              <Save size={20} /> {isEditing ? 'Salvar Alterações' : 'Salvar e Distribuir'}
+            <button className="btn" style={{ padding: '12px 32px', fontSize: '1rem', cursor: 'pointer' }} onClick={handleSave}>
+              <Save size={20} /> Salvar Checklist
             </button>
           </div>
         </div>
