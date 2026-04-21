@@ -32,14 +32,9 @@ export default function ChecklistExecution() {
     store: userProfile?.store || 'Loja Exemplo'
   };
 
-  // Carregar exemplos profissionais instantaneamente para o simulador
+  // Carregar checklists da loja
   useEffect(() => {
-    // Simulador começa com exemplos reais de varejo
-    // Simulador começa com esqueleto vazio até carregar
     setTasks([]);
-  }, []);
-
-    // Busca os checklists reais da loja do usuário
     const profile = JSON.parse(localStorage.getItem('user') || '{}');
     const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
 
@@ -47,9 +42,8 @@ export default function ChecklistExecution() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          const cl = data[0]; // Pega o checklist mais recente
+          const cl = data[0];
           setTitle(cl.title);
-          // Garante que cada tarefa tenha um ID e os estados iniciais
           setTasks(cl.tasks.map((t, idx) => ({ 
             ...t, 
             id: t.id || `task-${idx}`, 
@@ -114,10 +108,6 @@ export default function ChecklistExecution() {
   const forceAcceptPhoto = (taskId) =>
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, forceOverride: true } : t));
 
-  // ─── Tipos de resposta ────────────────────────────────
-  const handleToggle = (id) =>
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-
   const handleBoolean = (id, value) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: value } : t));
 
@@ -132,6 +122,9 @@ export default function ChecklistExecution() {
 
   const handleText = (id, value) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: value } : t));
+
+  const handleToggle = (id) =>
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
 
   // ─── Assinatura Digital ───────────────────────────────
   const startDraw = (e) => {
@@ -163,7 +156,6 @@ export default function ChecklistExecution() {
     setShowSignature(false);
   };
 
-  // ─── Finalizar ────────────────────────────────────────
   const handleFinish = async () => {
     const pendingPhoto = tasks.filter(t => t.requirePhoto && !t.photo);
     if (pendingPhoto.length > 0) {
@@ -181,17 +173,15 @@ export default function ChecklistExecution() {
     } catch { alert('Erro ao enviar checklist.'); }
   };
 
-  // ─── Progresso ────────────────────────────────────────
   const completedCount = tasks.filter(t => t.done !== null && t.done !== false && t.done !== '').length;
-  const progress = Math.round((completedCount / tasks.length) * 100);
+  const progress = Math.round((completedCount / (tasks.length || 1)) * 100);
 
-  // ─── Tela de Sucesso ──────────────────────────────────
   if (submitted) return (
-    <div className="page-container animate-fade" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>
+    <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>
       <Trophy size={80} color="var(--primary)" style={{ marginBottom: '24px' }} />
       <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>Checklist Enviado!</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-        Parabéns, {EMPLOYEE.name}! O seu checklist foi registrado com sucesso e o dono já foi notificado.
+        Parabéns, {EMPLOYEE.name}! O seu checklist foi registrado com sucesso.
       </p>
       {signature && <img src={signature} alt="Assinatura" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', maxWidth: '300px', marginBottom: '24px' }} />}
       <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
@@ -201,9 +191,7 @@ export default function ChecklistExecution() {
   );
 
   return (
-    <div className="page-container animate-fade" style={{ maxWidth: '600px' }}>
-
-      {/* Header Funcionário */}
+    <div className="page-container" style={{ maxWidth: '600px' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
            <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
@@ -216,7 +204,6 @@ export default function ChecklistExecution() {
         </button>
       </header>
 
-      {/* Título com progresso */}
       <header style={{ textAlign: 'center', marginBottom: '24px' }}>
         <h1 className="page-title" style={{ marginBottom: '4px', fontSize: '1.5rem' }}>{title}</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Responsável: {EMPLOYEE.name}</p>
@@ -230,22 +217,12 @@ export default function ChecklistExecution() {
         {tasks.map((task, index) => {
           const isDone = task.done !== null && task.done !== false && task.done !== '';
           return (
-            <div key={task.id} className="card" style={{ padding: '20px', borderLeft: isDone ? '4px solid var(--success)' : '4px solid var(--border-color)', transition: 'border-color 0.3s' }}>
+            <div key={task.id} className="card" style={{ padding: '20px', borderLeft: isDone ? '4px solid var(--success)' : '4px solid var(--border-color)' }}>
               <h3 style={{ fontSize: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{index + 1}. {task.text}</span>
                 {isDone && <CheckCircle size={20} color="var(--success)" />}
               </h3>
 
-              {/* CHECKBOX */}
-              {task.type === 'check' && (
-                <label className="custom-checkbox" style={{ marginBottom: '8px' }}>
-                  <input type="checkbox" checked={task.done === true} onChange={() => handleToggle(task.id)} />
-                  <span className="checkmark"></span>
-                  <span style={{ fontSize: '1rem' }}>Marcar como concluído</span>
-                </label>
-              )}
-
-              {/* SIM / NÃO */}
               {task.type === 'boolean' && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
                   <button className="btn" style={{ flex: 1, backgroundColor: task.done === true ? 'var(--success)' : 'transparent', border: '1px solid var(--success)', color: task.done === true ? 'white' : 'var(--success)', boxShadow: 'none' }} onClick={() => handleBoolean(task.id, true)}>Sim</button>
@@ -253,46 +230,6 @@ export default function ChecklistExecution() {
                 </div>
               )}
 
-              {/* AVALIAÇÃO POR ESTRELAS */}
-              {task.type === 'rating' && (
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                  {[1,2,3,4,5].map(star => (
-                    <button key={star} onClick={() => handleRating(task.id, star)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-                      <Star size={32} fill={task.done >= star ? '#FFA000' : 'none'} color={task.done >= star ? '#FFA000' : 'var(--text-muted)'} />
-                    </button>
-                  ))}
-                  {task.done && <span style={{ color: 'var(--text-muted)', alignSelf: 'center', fontSize: '0.9rem' }}>{task.done}/5</span>}
-                </div>
-              )}
-
-              {/* NUMÉRICO */}
-              {task.type === 'numeric' && (
-                <input type="number" className="input-field" style={{ marginBottom: '8px' }}
-                  placeholder="Digite o número..." min="0"
-                  value={task.done || ''} onChange={e => handleNumeric(task.id, e.target.value)} />
-              )}
-
-              {/* MÚLTIPLA ESCOLHA */}
-              {task.type === 'multiple' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
-                  {(task.options || []).map((opt, i) => (
-                    <button key={i} onClick={() => handleMultiple(task.id, opt)}
-                      style={{ padding: '10px 16px', borderRadius: '8px', border: `1px solid ${task.done === opt ? 'var(--primary)' : 'var(--border-color)'}`, backgroundColor: task.done === opt ? 'rgba(255,77,0,0.15)' : 'transparent', color: task.done === opt ? 'var(--primary)' : 'white', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}>
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* TEXTO LIVRE */}
-              {task.type === 'text' && (
-                <textarea className="input-field" style={{ marginBottom: '8px', minHeight: '80px', resize: 'vertical' }}
-                  placeholder="Digite sua observação..."
-                  value={task.done || ''} onChange={e => handleText(task.id, e.target.value)} />
-              )}
-
-              {/* FOTO + IA */}
               {task.requirePhoto && (
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', marginBottom: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>
@@ -301,32 +238,10 @@ export default function ChecklistExecution() {
                   {task.photo ? (
                     <div style={{ position: 'relative' }}>
                       <img src={task.photo} alt="Foto" style={{ width: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'cover' }} />
-                      <button style={{ position: 'absolute', top: 10, right: 10, padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', cursor: 'pointer' }}
-                        onClick={() => { setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null, forceOverride: false } : t)); setAIFeedback(prev => ({ ...prev, [task.id]: null })); }}>
+                      <button style={{ position: 'absolute', top: 10, right: 10, padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'white' }}
+                        onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null } : t))}>
                         <X size={16} />
                       </button>
-                      {aiFeedback[task.id]?.status === 'loading' && <div style={{ marginTop: '8px', fontSize: '0.875rem', color: 'var(--text-muted)' }}>🤖 Analisando imagem com IA...</div>}
-                      {aiFeedback[task.id]?.status === 'success' && (
-                        <div style={{ marginTop: '8px', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px', border: '1px solid var(--success)', color: 'var(--success)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <CheckCircle size={18} /> <span style={{ fontSize: '0.875rem' }}>Aprovado pela IA. Perfeito!</span>
-                        </div>
-                      )}
-                      {aiFeedback[task.id]?.status === 'warning' && !task.forceOverride && (
-                        <div style={{ marginTop: '8px', padding: '12px', backgroundColor: 'rgba(255,160,0,0.1)', borderRadius: '8px', border: '1px solid #FFA000', color: '#FFA000', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                            <AlertCircle size={20} style={{ minWidth: '20px' }} />
-                            <span style={{ fontSize: '0.875rem' }}><strong>Atenção:</strong> Não acreditamos que o solicitado foi feito corretamente. ({aiFeedback[task.id].message})</span>
-                          </div>
-                          <button className="btn" style={{ padding: '8px', fontSize: '0.8rem', backgroundColor: '#FFA000' }} onClick={() => forceAcceptPhoto(task.id)}>
-                            Desejo Enviar Assim Mesmo
-                          </button>
-                        </div>
-                      )}
-                      {task.forceOverride && (
-                        <div style={{ marginTop: '8px', padding: '12px', backgroundColor: 'rgba(255,77,0,0.1)', borderRadius: '8px', border: '1px solid var(--primary)', color: 'var(--primary)' }}>
-                          <span style={{ fontSize: '0.875rem' }}>⚠️ Você ignorou o alerta. O dono será notificado pelo WhatsApp.</span>
-                        </div>
-                      )}
                     </div>
                   ) : activeCameraTaskId === task.id ? (
                     <div style={{ width: '100%', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
@@ -353,21 +268,16 @@ export default function ChecklistExecution() {
         })}
       </div>
 
-      {/* Modal de Assinatura Digital */}
       {showSignature && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
           <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '24px' }}>
             <h3 style={{ marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
               <PenLine size={20} color="var(--primary)" /> Assinatura Digital
             </h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem' }}>
-              Assine abaixo para confirmar que você executou este checklist.
-            </p>
             <canvas ref={sigCanvasRef} width={460} height={180}
               style={{ width: '100%', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: '#0D0E12', cursor: 'crosshair', touchAction: 'none' }}
               onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
               onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '8px' }}>Desenhe sua assinatura acima</p>
             <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
               <button className="btn-secondary" style={{ flex: 1 }} onClick={clearSignature}>Limpar</button>
               <button className="btn" style={{ flex: 2 }} onClick={saveSignature}>Confirmar e Enviar</button>
