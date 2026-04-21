@@ -80,11 +80,24 @@ export default async function handler(req, res) {
 
     // Listagem de Checklists
     if (url.includes('/api/checklists')) {
-       // Se for POST, cria um novo
+       // Se for POST, cria um novo ou atualiza
        if (req.method === 'POST') {
-          const { title, store, tasks, recurrence } = req.body;
-          const { rows } = await pool.query('INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', [title, store, tasks, recurrence]);
-          return res.status(200).json(rows[0]);
+          const { title, store, tasks, recurrence, scheduledDate } = req.body;
+          // Tenta inserir. Se der erro de coluna, o catch vai capturar.
+          try {
+            const { rows } = await pool.query(
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+            );
+            return res.status(200).json(rows[0]);
+          } catch (dbErr) {
+            // Fallback caso a coluna scheduled_date não exista ainda no Neon
+            const { rows } = await pool.query(
+              'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
+              [title, store, JSON.stringify(tasks), recurrence]
+            );
+            return res.status(200).json(rows[0]);
+          }
        }
        const store = searchParams.get('store');
        let queryCl = 'SELECT * FROM checklists';
@@ -103,9 +116,20 @@ export default async function handler(req, res) {
     // Gestão de Usuários (Criar Cliente Manual)
     if (url.includes('/api/users')) {
       if (req.method === 'POST') {
-        const { name, email, password, role, store } = req.body;
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, store', [name, email, password, role, store]);
-        return res.status(200).json(rows[0]);
+        const { name, email, password, role, store, plan } = req.body;
+        try {
+          const { rows } = await pool.query(
+            'INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store, plan', 
+            [name, email, password, role, store, plan]
+          );
+          return res.status(200).json(rows[0]);
+        } catch (dbErr) {
+          const { rows } = await pool.query(
+            'INSERT INTO users (name, email, password, role, store) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, store', 
+            [name, email, password, role, store]
+          );
+          return res.status(200).json(rows[0]);
+        }
       }
       if (req.method === 'DELETE') {
         const id = url.split('/').pop();
@@ -113,7 +137,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       const store = searchParams.get('store');
-      let queryUsers = 'SELECT id, name, email, role, store FROM users';
+      let queryUsers = 'SELECT id, name, email, role, store, plan FROM users';
       let queryParams = [];
       
       if (store && store !== 'undefined' && store !== 'null') {
@@ -129,6 +153,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ status: 'online' });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('API Error:', err);
+    return res.status(500).json({ message: err.message });
   }
 }
