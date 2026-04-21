@@ -55,6 +55,10 @@ export default function AdminDashboard() {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
+  const [dateFilter, setDateFilter] = useState({
+    start: new Date().toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -63,14 +67,15 @@ export default function AdminDashboard() {
       setUserProfile(JSON.parse(savedUser));
     }
     fetchData();
-  }, []);
+  }, [dateFilter]); // Recarregar quando a data mudar
 
   const fetchData = async () => {
     try {
+      const query = `?start=${dateFilter.start}&end=${dateFilter.end}`;
       const [clRes, userRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/api/checklists`),
-        fetch(`${API_URL}/api/users`),
-        fetch(`${API_URL}/api/stats`)
+        fetch(`${API_URL}/api/checklists${query}`),
+        fetch(`${API_URL}/api/users${query}`),
+        fetch(`${API_URL}/api/stats${query}`)
       ]);
       setChecklists(await clRes.json());
       setTeam(await userRes.json());
@@ -100,29 +105,54 @@ export default function AdminDashboard() {
     } catch (e) { alert('Erro ao remover.'); }
   };
 
-  const isGestor = userProfile?.role === 'gestor';
+  const isGestor = userProfile?.role === 'gestor' || userProfile?.role === 'admin';
 
   return (
     <div className="page-container animate-fade">
 
       {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '12px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '8px' }}>
               <Flame size={22} color="white" />
             </div>
             <h1 className="page-title" style={{ margin: 0 }}>
-              FireCheck — {isGestor ? 'Painel de Gestor' : 'Painel do Dono'}
+              FireCheck — {isGestor ? 'Painel de Gestão Master' : 'Painel do Dono'}
             </h1>
           </div>
           <p style={{ color: 'var(--text-muted)', paddingLeft: '42px' }}>
-            Loja: {userProfile?.store || 'Filial Centro'} · Hoje, {new Date().toLocaleDateString('pt-BR')}
+            {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
           </p>
         </div>
-        {!isGestor && (
+
+        {/* Filtro de Data com Calendário */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#1A1C23', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <CalendarClock size={18} color="var(--primary)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <input 
+              type="date" 
+              value={dateFilter.start} 
+              onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})}
+              style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }}
+            />
+            <span style={{ color: 'var(--text-muted)' }}>até</span>
+            <input 
+              type="date" 
+              value={dateFilter.end} 
+              onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})}
+              style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }}
+            />
+          </div>
+        </div>
+
+        {!isGestor ? (
           <button className="btn" onClick={() => navigate('/admin/creator')}>
             <Plus size={20} /> Criar Checklist
+          </button>
+        ) : (
+          <button className="btn" style={{ backgroundColor: '#3b82f6' }} onClick={() => setShowUserModal(true)}>
+            <UserPlus size={20} /> Nova Conta Cliente
           </button>
         )}
       </header>
@@ -360,26 +390,44 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Modal de Novo Usuário */}
+      {/* Modal de Novo Usuário / Cliente */}
       {showUserModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
-          <div className="card animate-scale" style={{ maxWidth: '450px', width: '100%', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px', backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-scale" style={{ maxWidth: '450px', width: '100%', position: 'relative', border: '1px solid var(--primary)' }}>
             <button onClick={() => setShowUserModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Fechar</button>
-            <h3 style={{ marginBottom: '24px' }}>Cadastrar Colaborador</h3>
+            <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <UserPlus color="var(--primary)" /> {isGestor ? 'Cadastrar Cliente (Dono)' : 'Cadastrar Colaborador'}
+            </h3>
             <form onSubmit={handleAddUser}>
               <div style={{ marginBottom: '16px' }}>
-                <label className="input-label">Nome Completo</label>
-                <input type="text" className="input-field" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} />
+                <label className="input-label">Nome do Responsável</label>
+                <input type="text" className="input-field" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="Ex: Douglas Hakim" />
               </div>
               <div style={{ marginBottom: '16px' }}>
-                <label className="input-label">E-mail (Login)</label>
-                <input type="email" className="input-field" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} />
+                <label className="input-label">E-mail (Login de Acesso)</label>
+                <input type="email" className="input-field" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="email@cliente.com" />
               </div>
-              <div style={{ marginBottom: '20px' }}>
-                <label className="input-label">Senha Inicial</label>
-                <input type="text" className="input-field" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} />
+              <div style={{ marginBottom: '16px' }}>
+                <label className="input-label">Senha de Acesso</label>
+                <input type="text" className="input-field" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Crie uma senha segura" />
               </div>
-              <button type="submit" className="btn" style={{ width: '100%', padding: '14px' }}>Salvar Colaborador</button>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+                <div>
+                  <label className="input-label">Cargo</label>
+                  <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                    <option value="admin">Dono (Cliente)</option>
+                    <option value="funcionario">Funcionário</option>
+                    {isGestor && <option value="gestor">Gestor Master</option>}
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label">Empresa / Loja</label>
+                  <input type="text" className="input-field" required value={newUser.store} onChange={e => setNewUser({...newUser, store: e.target.value})} placeholder="Nome da Loja" />
+                </div>
+              </div>
+              <button type="submit" className="btn" style={{ width: '100%', padding: '16px', fontWeight: 'bold' }}>
+                Liberar Acesso Agora 🚀
+              </button>
             </form>
           </div>
         </div>
