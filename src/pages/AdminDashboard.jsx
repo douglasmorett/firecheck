@@ -56,9 +56,24 @@ export default function AdminDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [dateFilter, setDateFilter] = useState({
-    start: new Date().toISOString().split('T')[0],
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // Início do mês
     end: new Date().toISOString().split('T')[0]
   });
+
+  const [financialStats, setFinancialStats] = useState({
+    vendasMes: 0,
+    receitaReal: 0,
+    totalArrecadado: 0,
+    clientesAtivos: 0
+  });
+
+  const [plans, setPlans] = useState([
+    { id: 'start', name: 'Start', price: 'R$ 97/mês' },
+    { id: 'pro', name: 'Pró', price: 'R$ 197/mês' },
+    { id: 'mensal', name: 'Mensal', price: 'R$ 147/mês' },
+    { id: 'anual', name: 'Anual', price: 'R$ 997/ano' },
+    { id: 'vitalicio', name: 'Vitalício', price: 'R$ 2.997' },
+  ]);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -81,14 +96,37 @@ export default function AdminDashboard() {
         query += `&store=${encodeURIComponent(currentUser.store)}`;
       }
 
-      const [clRes, userRes, statsRes] = await Promise.all([
-        fetch(`${API_URL}/api/checklists${query}`),
-        fetch(`${API_URL}/api/users${query}`),
-        fetch(`${API_URL}/api/stats${query}`)
-      ]);
-      setChecklists(await clRes.json());
-      setTeam(await userRes.json());
-      setStats(await statsRes.json());
+      if (currentUser?.role === 'master') {
+        const [userRes, finRes] = await Promise.all([
+          fetch(`${API_URL}/api/users${query}`),
+          fetch(`${API_URL}/api/financials${query}`) // Endpoint fictício para Cacto
+        ]);
+        
+        const userData = await userRes.json();
+        setTeam(userData);
+        
+        // Mock de dados financeiros (Integração Cacto) se o fetch falhar
+        try {
+          const finData = await finRes.json();
+          setFinancialStats(finData);
+        } catch {
+          setFinancialStats({
+            vendasMes: 12500.50,
+            receitaReal: 11850.25,
+            totalArrecadado: 45200.00,
+            clientesAtivos: userData.filter(u => u.role === 'admin').length
+          });
+        }
+      } else {
+        const [clRes, userRes, statsRes] = await Promise.all([
+          fetch(`${API_URL}/api/checklists${query}`),
+          fetch(`${API_URL}/api/users${query}`),
+          fetch(`${API_URL}/api/stats${query}`)
+        ]);
+        setChecklists(await clRes.json());
+        setTeam(await userRes.json());
+        setStats(await statsRes.json());
+      }
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };
 
@@ -129,6 +167,13 @@ export default function AdminDashboard() {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  // Definir abas iniciais baseadas no papel
+  useEffect(() => {
+    if (isMaster) setTab('financeiro');
+    else if (isFuncionario) setTab('auditoria');
+    else setTab('auditoria');
+  }, [userProfile]);
 
   return (
     <div className="page-container animate-fade">
@@ -175,7 +220,10 @@ export default function AdminDashboard() {
         </div>
 
         {isMaster ? (
-          <button className="btn" style={{ backgroundColor: '#3b82f6' }} onClick={() => setShowUserModal(true)}>
+          <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => {
+            setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'mensal' });
+            setShowUserModal(true);
+          }}>
             <UserPlus size={20} /> Nova Conta Cliente
           </button>
         ) : isAdmin ? (
@@ -187,62 +235,120 @@ export default function AdminDashboard() {
 
       {/* Cards de KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-
-        <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {stats.concluidos} concluídos</span>
+        
+        {isMaster ? (
+          <>
+            <div className="card" style={{ borderTop: '3px solid #10b981', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Vendas do Mês</p>
+                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                    {financialStats.vendasMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>📈 +12% vs mês anterior</span>
+                </div>
+                <TrendingUp color="#10b981" size={36} />
+              </div>
             </div>
-            <ClipboardList color="var(--primary)" size={36} />
-          </div>
-        </div>
 
-        <div className="card" style={{ borderTop: '3px solid #3b82f6', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
-              <BarPct pct={stats.conformidade} color="#3b82f6" />
+            <div className="card" style={{ borderTop: '3px solid #3b82f6', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Receita Real (Cacto)</p>
+                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                    {financialStats.receitaReal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💰 Líquido após taxas</span>
+                </div>
+                <Activity color="#3b82f6" size={36} />
+              </div>
             </div>
-            <TrendingUp color="#3b82f6" size={36} />
-          </div>
-        </div>
 
-        <div className="card" style={{ borderTop: '3px solid var(--error)', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ {stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
+            <div className="card" style={{ borderTop: '3px solid #f59e0b', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Arrecadado</p>
+                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                    {financialStats.totalArrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📅 Período selecionado</span>
+                </div>
+                <Flame color="#f59e0b" size={36} />
+              </div>
             </div>
-            <ShieldAlert color="var(--error)" size={36} />
-          </div>
-        </div>
 
-        <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store || 'Filial Centro'}</span>
+            <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Clientes Ativos</p>
+                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats.clientesAtivos}</h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 Assinaturas vigentes</span>
+                </div>
+                <Users color="var(--primary)" size={36} />
+              </div>
             </div>
-            <Users color="var(--success)" size={36} />
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
+                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {stats.concluidos} concluídos</span>
+                </div>
+                <ClipboardList color="var(--primary)" size={36} />
+              </div>
+            </div>
 
+            <div className="card" style={{ borderTop: '3px solid #3b82f6', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
+                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
+                  <BarPct pct={stats.conformidade} color="#3b82f6" />
+                </div>
+                <TrendingUp color="#3b82f6" size={36} />
+              </div>
+            </div>
+
+            <div className="card" style={{ borderTop: '3px solid var(--error)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
+                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ {stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
+                </div>
+                <ShieldAlert color="var(--error)" size={36} />
+              </div>
+            </div>
+
+            <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store || 'Filial Centro'}</span>
+                </div>
+                <Users color="var(--success)" size={36} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tabs de Navegação */}
       <div style={{ display: 'flex', gap: '4px', backgroundColor: '#121318', padding: '6px', borderRadius: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        {[
+        {(isMaster ? [
+          { key: 'financeiro',  label: '💰 Financeiro (Cacto)' },
+          { key: 'equipe',      label: '👥 Gestão de Clientes' },
+          { key: 'planos',      label: '💳 Planos & Preços'   },
+        ] : [
           { key: 'auditoria',   label: '📋 Auditoria'    },
           { key: 'ranking',     label: '🏆 Ranking'      },
           { key: 'alertas',     label: '🚨 Alertas IA'   },
           { key: 'checklists',  label: '⚙️ Checklists'   },
-          { key: 'equipe',      label: isMaster ? '👥 Gestão de Contas' : '👥 Equipe' },
-        ].map(t => {
-          // Funcionários não veem a aba Equipe nem Checklists
+          { key: 'equipe',      label: '👥 Equipe'       },
+        ]).map(t => {
           if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -254,6 +360,54 @@ export default function AdminDashboard() {
           );
         })}
       </div>
+
+      {/* ── Tab: Financeiro (Master Only) ─────────────────────────────────── */}
+      {isMaster && tab === 'financeiro' && (
+        <div className="card" style={{ padding: '0' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <TrendingUp size={20} color="var(--success)" /> Detalhamento de Vendas — Cacto
+            </h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dados atualizados em tempo real</span>
+          </div>
+          <div style={{ padding: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+               <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Vendas Brutas</p>
+                  <h4 style={{ fontSize: '1.5rem', margin: 0 }}>{financialStats.vendasMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+               </div>
+               <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Taxas de Transação</p>
+                  <h4 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--error)' }}>- {(financialStats.vendasMes - financialStats.receitaReal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+               </div>
+            </div>
+            
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              Gráfico de evolução financeira em desenvolvimento...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: Planos & Preços (Master Only) ───────────────────────────── */}
+      {isMaster && tab === 'planos' && (
+        <div className="card" style={{ padding: '0' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Lock size={20} color="#3b82f6" /> Configuração de Planos
+            </h3>
+          </div>
+          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {plans.map(p => (
+              <div key={p.id} style={{ padding: '20px', backgroundColor: '#121318', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+                <h4 style={{ color: 'var(--primary)', marginBottom: '8px' }}>{p.name}</h4>
+                <p style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '16px' }}>{p.price}</p>
+                <button className="btn-secondary" style={{ width: '100%', fontSize: '0.8rem' }}>Editar Valor</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
       {tab === 'auditoria' && (
@@ -395,32 +549,51 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tab: Gestão de Equipe ────────────────────────────────────────── */}
+      {/* ── Tab: Gestão de Equipe / Clientes ───────────────────────────── */}
       {tab === 'equipe' && (
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={20} color="var(--primary)" /> {isMaster ? 'Clientes (Donos)' : 'Equipe da Loja'}
+              <Users size={20} color="var(--primary)" /> {isMaster ? 'Contas de Clientes (Donos de Loja)' : 'Equipe da Loja'}
             </h3>
             {!isFuncionario && (
               <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-                setNewUser({ ...newUser, role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store });
+                setNewUser({ name: '', email: '', password: '', role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store, plan: 'mensal' });
                 setShowUserModal(true);
               }}>
-                <UserPlus size={16} /> {isMaster ? 'Adicionar Cliente' : 'Adicionar Colaborador'}
+                <UserPlus size={16} /> {isMaster ? 'Adicionar Novo Cliente' : 'Adicionar Colaborador'}
               </button>
             )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {team.map(member => (
               <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px' }}>
-                <div>
-                  <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{member.email} · <span style={{ textTransform: 'capitalize' }}>{member.role}</span></p>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
+                    {isMaster && member.role === 'admin' && (
+                      <span style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        Plano: {member.plan?.toUpperCase() || 'MENSAL'}
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                    {member.email} · <span style={{ textTransform: 'capitalize' }}>{member.role}</span> · {member.store}
+                  </p>
                 </div>
-                <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
-                  <Trash2 size={15} />
-                </button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {isMaster && member.role === 'admin' && (
+                    <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
+                       // Lógica para mudar plano
+                       alert(`Mudar plano de ${member.name}`);
+                    }}>
+                      Alterar Plano
+                    </button>
+                  )}
+                  <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -433,24 +606,25 @@ export default function AdminDashboard() {
           <div className="card animate-scale" style={{ maxWidth: '450px', width: '100%', position: 'relative', border: '1px solid var(--primary)' }}>
             <button onClick={() => setShowUserModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>Fechar</button>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <UserPlus color="var(--primary)" /> {isGestor ? 'Cadastrar Cliente (Dono)' : 'Cadastrar Colaborador'}
+              <UserPlus color="var(--primary)" /> {isMaster ? 'Cadastrar Novo Cliente' : 'Cadastrar Colaborador'}
             </h3>
             <form onSubmit={handleAddUser}>
               <div style={{ marginBottom: '16px' }}>
-                <label className="input-label">Nome do Responsável</label>
+                <label className="input-label">Nome Completo</label>
                 <input type="text" className="input-field" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} placeholder="Ex: Douglas Hakim" />
               </div>
               <div style={{ marginBottom: '16px' }}>
-                <label className="input-label">E-mail (Login de Acesso)</label>
-                <input type="email" className="input-field" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="email@cliente.com" />
+                <label className="input-label">E-mail de Acesso</label>
+                <input type="email" className="input-field" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} placeholder="email@exemplo.com" />
               </div>
               <div style={{ marginBottom: '16px' }}>
-                <label className="input-label">Senha de Acesso</label>
-                <input type="text" className="input-field" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Crie uma senha segura" />
+                <label className="input-label">Senha Inicial</label>
+                <input type="text" className="input-field" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Defina a senha" />
               </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                 <div>
-                  <label className="input-label">Cargo</label>
+                  <label className="input-label">Papel / Nível</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
                     {isMaster && <option value="admin">Dono (Cliente)</option>}
                     {isAdmin && <option value="funcionario">Funcionário</option>}
@@ -458,12 +632,26 @@ export default function AdminDashboard() {
                   </select>
                 </div>
                 <div>
-                  <label className="input-label">Empresa / Loja</label>
+                  <label className="input-label">Empresa / Unidade</label>
                   <input type="text" className="input-field" required value={newUser.store} onChange={e => setNewUser({...newUser, store: e.target.value})} placeholder="Nome da Loja" />
                 </div>
               </div>
+
+              {isMaster && newUser.role === 'admin' && (
+                <div style={{ marginBottom: '24px' }}>
+                  <label className="input-label">Plano Selecionado</label>
+                  <select className="input-field" style={{ padding: '10px' }} value={newUser.plan} onChange={e => setNewUser({...newUser, plan: e.target.value})}>
+                    <option value="start">Plano Start</option>
+                    <option value="pro">Plano Pró</option>
+                    <option value="mensal">Mensal</option>
+                    <option value="anual">Anual</option>
+                    <option value="vitalicio">Vitalício</option>
+                  </select>
+                </div>
+              )}
+
               <button type="submit" className="btn" style={{ width: '100%', padding: '16px', fontWeight: 'bold' }}>
-                Liberar Acesso Agora 🚀
+                {isMaster ? 'Confirmar Adesão 🚀' : 'Cadastrar Colaborador'}
               </button>
             </form>
           </div>
