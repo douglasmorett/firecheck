@@ -35,28 +35,34 @@ export default function ChecklistExecution() {
   // Carregar exemplos profissionais instantaneamente para o simulador
   useEffect(() => {
     // Simulador começa com exemplos reais de varejo
-    setTitle('Checklist de Abertura - Loja Modelo');
-    setTasks([
-      { id: 1, text: 'Limpeza do Salão: O chão está brilhando e sem resíduos?', type: 'camera', required: true, requirePhoto: true },
-      { id: 2, text: 'Reposição: Gôndolas de bebidas estão com frentes preenchidas?', type: 'boolean', required: true },
-      { id: 3, text: 'Segurança Alimentar: Temperatura do freezer de carnes (Ideal: -18°C)', type: 'numeric', required: true },
-      { id: 4, text: 'Exposição: Avalie a organização das frutas na banca central', type: 'rating', required: true },
-      { id: 5, text: 'Higiene: Funcionário está com uniforme e rede de cabelo?', type: 'camera', required: true, requirePhoto: true }
-    ].map(t => ({ ...t, done: null, photo: null, forceOverride: false })));
-    setLoading(false);
+    // Simulador começa com esqueleto vazio até carregar
+    setTasks([]);
+  }, []);
 
-    // Tenta buscar atualizações do servidor em segundo plano, mas sem travar
-    fetch(`${API_URL}/api/checklists`)
+    // Busca os checklists reais da loja do usuário
+    const profile = JSON.parse(localStorage.getItem('user') || '{}');
+    const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+
+    fetch(`${API_URL}/api/checklists${storeParam}`)
       .then(res => res.json())
       .then(data => {
-        if (data.length > 0) {
-          const cl = data[0];
+        if (Array.isArray(data) && data.length > 0) {
+          const cl = data[0]; // Pega o checklist mais recente
           setTitle(cl.title);
-          setTasks(cl.tasks.map(t => ({ ...t, done: null, photo: null, forceOverride: false })));
+          // Garante que cada tarefa tenha um ID e os estados iniciais
+          setTasks(cl.tasks.map((t, idx) => ({ 
+            ...t, 
+            id: t.id || `task-${idx}`, 
+            done: null, 
+            photo: null, 
+            forceOverride: false 
+          })));
         }
+        setLoading(false);
       })
-      .catch(() => {
-        console.log('Usando modo simulador offline');
+      .catch((err) => {
+        console.error('Erro ao buscar checklists:', err);
+        setLoading(false);
       });
   }, []);
 
