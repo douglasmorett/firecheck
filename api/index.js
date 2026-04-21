@@ -120,7 +120,14 @@ export default async function handler(req, res) {
        
        queryCl += ' ORDER BY id DESC';
        const { rows } = await pool.query(queryCl, queryParams);
-       return res.status(200).json(rows);
+       
+       // Converte tasks de string para objeto se necessário
+       const formattedRows = rows.map(r => ({
+         ...r,
+         tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks
+       }));
+       
+       return res.status(200).json(formattedRows);
     }
 
     // Gestão de Usuários (Criar Cliente Manual)

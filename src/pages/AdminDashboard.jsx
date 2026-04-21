@@ -175,7 +175,7 @@ export default function AdminDashboard() {
     if (isMaster) setTab('financeiro');
     else if (isFuncionario) setTab('auditoria');
     else setTab('auditoria');
-  }, [userProfile]);
+  }, [userProfile, isMaster, isFuncionario]);
 
   return (
     <div className="page-container animate-fade">

@@ -60,6 +60,14 @@ export default function ChecklistCreator() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    // Tenta carregar a loja do perfil do usuário logado
+    try {
+      const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      if (profile.store && !isEditing) {
+        setStore(profile.store);
+      }
+    } catch (e) { console.error('Erro ao ler perfil para loja'); }
+
     if (isEditing) {
       fetch(`${API_URL}/api/checklists`)
         .then(res => res.json())
