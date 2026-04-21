@@ -92,7 +92,30 @@ export default function ChecklistCreator() {
       { ...t, options: (t.options || []).filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
-    if (!title.trim()) { alert('Dê um nome ao checklist antes de salvar.'); return; }
+    // Validação de Título
+    if (!title.trim()) { 
+      alert('⚠️ Falta o nome do checklist. Por favor, dê um título a ele.'); 
+      return; 
+    }
+    
+    // Validação de Data para checklists sem recorrência
+    if (recurrence === '' && !scheduledDate) {
+      alert('⚠️ Você escolheu um checklist único, mas não selecionou a Data de Execução no calendário.');
+      return;
+    }
+
+    // Validação de Tarefas
+    if (tasks.length === 0) {
+      alert('⚠️ O checklist precisa de pelo menos uma tarefa.');
+      return;
+    }
+
+    const taskIncompleta = tasks.find((t, idx) => !t.text.trim());
+    if (taskIncompleta) {
+      const idx = tasks.indexOf(taskIncompleta) + 1;
+      alert(`⚠️ A Tarefa ${idx} está sem descrição. Escreva o que deve ser feito ou remova a tarefa.`);
+      return;
+    }
     
     try {
       const response = await fetch(`${API_URL}/api/checklists`, {
@@ -105,10 +128,10 @@ export default function ChecklistCreator() {
       });
 
       if (response.ok) {
-        alert(isEditing ? 'Checklist atualizado!' : 'Checklist criado!');
+        alert(isEditing ? '✅ Checklist atualizado com sucesso!' : '✅ Checklist criado e salvo!');
         navigate('/admin');
       }
-    } catch (e) { alert('Erro ao salvar no banco de dados.'); }
+    } catch (e) { alert('❌ Erro ao salvar no banco de dados. Verifique sua conexão.'); }
   };
 
   return (
@@ -186,6 +209,8 @@ export default function ChecklistCreator() {
                   value={scheduledDate}
                   min={new Date().toISOString().split('T')[0]}
                   onChange={e => setScheduledDate(e.target.value)}
+                  onClick={(e) => e.target.showPicker?.()}
+                  style={{ cursor: 'pointer' }}
                 />
                 {scheduledDate && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '4px', display: 'block' }}>
