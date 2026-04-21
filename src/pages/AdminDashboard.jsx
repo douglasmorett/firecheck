@@ -140,15 +140,23 @@ export default function AdminDashboard() {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`${API_URL}/api/users`, {
+      const res = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
       });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert(`⚠️ ${data.message || 'Erro ao adicionar usuário.'}`);
+        return;
+      }
+
       setShowUserModal(false);
       setNewUser({ name: '', email: '', password: '', store: isMaster ? '' : userProfile?.store || '' });
       fetchData();
-    } catch (e) { alert('Erro ao adicionar colaborador.'); }
+    } catch (e) { alert('Erro de conexão com o servidor.'); }
   };
 
   const handleDeleteUser = async (id) => {

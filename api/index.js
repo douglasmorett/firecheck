@@ -141,6 +141,12 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { name, email, password, role, store, plan } = req.body;
         try {
+          // Verifica se e-mail já existe (case-insensitive)
+          const checkEmail = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+          if (checkEmail.rows.length > 0) {
+            return res.status(400).json({ message: 'Este e-mail já está cadastrado no sistema.' });
+          }
+
           const { rows } = await pool.query(
             'INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store, plan', 
             [name, email, password, role, store, plan]
