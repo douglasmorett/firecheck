@@ -71,7 +71,16 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const query = `?start=${dateFilter.start}&end=${dateFilter.end}`;
+      const savedUser = localStorage.getItem('user');
+      const currentUser = savedUser ? JSON.parse(savedUser) : null;
+      
+      let query = `?start=${dateFilter.start}&end=${dateFilter.end}`;
+      
+      // Se não for master, filtra pela loja do usuário
+      if (currentUser && currentUser.role !== 'master' && currentUser.store) {
+        query += `&store=${encodeURIComponent(currentUser.store)}`;
+      }
+
       const [clRes, userRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/api/checklists${query}`),
         fetch(`${API_URL}/api/users${query}`),
@@ -92,7 +101,7 @@ export default function AdminDashboard() {
         body: JSON.stringify(newUser)
       });
       setShowUserModal(false);
-      setNewUser({ name: '', email: '', password: '', store: 'Filial Centro' });
+      setNewUser({ name: '', email: '', password: '', store: isMaster ? '' : userProfile?.store || '' });
       fetchData();
     } catch (e) { alert('Erro ao adicionar colaborador.'); }
   };
@@ -105,7 +114,16 @@ export default function AdminDashboard() {
     } catch (e) { alert('Erro ao remover.'); }
   };
 
-  const isGestor = userProfile?.role === 'gestor' || userProfile?.role === 'admin';
+  const isMaster = userProfile?.role === 'master' || 
+                   userProfile?.email?.toLowerCase() === 'douglas@firecheck.com' || 
+                   userProfile?.email?.toLowerCase() === 'contatohakim@gmail.com';
+  const isAdmin = userProfile?.role === 'admin' && !isMaster; // Dono da Loja
+
+  const isFuncionario = userProfile?.role === 'funcionario';
+  
+  // Para compatibilidade com a UI antiga onde se usava isGestor para o Master
+  const isGestor = isMaster; 
+
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -123,7 +141,7 @@ export default function AdminDashboard() {
               <Flame size={22} color="white" />
             </div>
             <h1 className="page-title" style={{ margin: 0 }}>
-              FireCheck — {isGestor ? 'Painel de Gestão Master' : 'Painel do Dono'}
+              FireCheck — {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
             </h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '42px' }}>
@@ -156,15 +174,15 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {!isGestor ? (
-          <button className="btn" onClick={() => navigate('/admin/creator')}>
-            <Plus size={20} /> Criar Checklist
-          </button>
-        ) : (
+        {isMaster ? (
           <button className="btn" style={{ backgroundColor: '#3b82f6' }} onClick={() => setShowUserModal(true)}>
             <UserPlus size={20} /> Nova Conta Cliente
           </button>
-        )}
+        ) : isAdmin ? (
+          <button className="btn" onClick={() => navigate('/admin/creator')}>
+            <Plus size={20} /> Criar Checklist
+          </button>
+        ) : null}
       </header>
 
       {/* Cards de KPIs */}
@@ -222,15 +240,19 @@ export default function AdminDashboard() {
           { key: 'ranking',     label: '🏆 Ranking'      },
           { key: 'alertas',     label: '🚨 Alertas IA'   },
           { key: 'checklists',  label: '⚙️ Checklists'   },
-          { key: 'equipe',      label: isGestor ? '👥 Gestão de Contas' : '👥 Equipe' },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', transition: 'all 0.2s',
-              backgroundColor: tab === t.key ? 'var(--primary)' : 'transparent',
-              color: tab === t.key ? 'white' : 'var(--text-muted)' }}>
-            {t.label}
-          </button>
-        ))}
+          { key: 'equipe',      label: isMaster ? '👥 Gestão de Contas' : '👥 Equipe' },
+        ].map(t => {
+          // Funcionários não veem a aba Equipe nem Checklists
+          if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
+          return (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', transition: 'all 0.2s',
+                backgroundColor: tab === t.key ? 'var(--primary)' : 'transparent',
+                color: tab === t.key ? 'white' : 'var(--text-muted)' }}>
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
@@ -378,11 +400,16 @@ export default function AdminDashboard() {
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={20} color="var(--primary)" /> Equipe da Loja
+              <Users size={20} color="var(--primary)" /> {isMaster ? 'Clientes (Donos)' : 'Equipe da Loja'}
             </h3>
-            <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => setShowUserModal(true)}>
-              <UserPlus size={16} /> Adicionar Colaborador
-            </button>
+            {!isFuncionario && (
+              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
+                setNewUser({ ...newUser, role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store });
+                setShowUserModal(true);
+              }}>
+                <UserPlus size={16} /> {isMaster ? 'Adicionar Cliente' : 'Adicionar Colaborador'}
+              </button>
+            )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {team.map(member => (
@@ -425,9 +452,9 @@ export default function AdminDashboard() {
                 <div>
                   <label className="input-label">Cargo</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
-                    <option value="admin">Dono (Cliente)</option>
-                    <option value="funcionario">Funcionário</option>
-                    {isGestor && <option value="gestor">Gestor Master</option>}
+                    {isMaster && <option value="admin">Dono (Cliente)</option>}
+                    {isAdmin && <option value="funcionario">Funcionário</option>}
+                    {isMaster && <option value="master">Gestor Master</option>}
                   </select>
                 </div>
                 <div>

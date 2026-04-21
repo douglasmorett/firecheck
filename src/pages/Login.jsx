@@ -22,7 +22,12 @@ export default function Login() {
       const data = await response.json();
       if (data.status === 'success') {
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/admin');
+        // Redirecionamento baseado na role
+        if (data.user.role === 'funcionario') {
+          navigate('/funcionario');
+        } else {
+          navigate('/admin');
+        }
       } else {
         alert(data.error);
       }

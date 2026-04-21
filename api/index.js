@@ -23,28 +23,51 @@ export default async function handler(req, res) {
     // Rota de Login
     if (url.includes('/api/auth')) {
       const { email, password } = req.body;
+      const lowerEmail = email?.toLowerCase();
       
-      // Fallback Douglas
-      if ((email === 'douglas@firecheck.com' || email === 'contatohakim@gmail.com') && (password === '12345678' || password === 'Hakim@2024')) {
-        return res.status(200).json({ status: 'success', user: { id: 1, name: 'Douglas Hakim', email, role: 'admin', store: 'Sistema Master' } });
+      // Fallback Douglas (Sempre Master)
+      if ((lowerEmail === 'douglas@firecheck.com' || lowerEmail === 'contatohakim@gmail.com') && (password === '12345678' || password === 'Hakim@2024')) {
+        return res.status(200).json({ status: 'success', user: { id: 1, name: 'Douglas Hakim', email: lowerEmail, role: 'master', store: 'Sistema Master' } });
       }
 
-      const { rows } = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
+      // Fallback Duga Burguer (Sempre Dono)
+      if (lowerEmail === 'dugaburguer@gmail.com' && password === '12345678') {
+        return res.status(200).json({ status: 'success', user: { id: 2, name: 'Duga Burguer', email: lowerEmail, role: 'admin', store: 'Duga Burguer' } });
+      }
+
+      const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
       if (rows.length > 0) return res.status(200).json({ status: 'success', user: rows[0] });
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     // Estatísticas Filtradas por Data
     if (url.includes('/api/stats')) {
+      const store = searchParams.get('store');
       let dateQuery = '';
       let params = [];
+      let storeQuery = '';
+      
       if (startDate && endDate) {
         dateQuery = ' WHERE created_at BETWEEN $1 AND $2';
         params = [startDate + ' 00:00:00', endDate + ' 23:59:59'];
+        if (store && store !== 'undefined' && store !== 'null') {
+          storeQuery = ' AND store = $3';
+          params.push(store);
+        }
+      } else if (store && store !== 'undefined' && store !== 'null') {
+        storeQuery = ' WHERE store = $1';
+        params = [store];
       }
       
-      const checklists = await pool.query('SELECT count(*) FROM checklists' + dateQuery, params);
-      const users = await pool.query('SELECT count(*) FROM users'); // Usuários não filtram por data geralmente
+      const checklists = await pool.query('SELECT count(*) FROM checklists' + dateQuery + storeQuery, params);
+      
+      let userParams = [];
+      let userQuery = '';
+      if (store && store !== 'undefined' && store !== 'null') {
+        userQuery = ' WHERE store = $1';
+        userParams = [store];
+      }
+      const users = await pool.query('SELECT count(*) FROM users' + userQuery, userParams);
       
       return res.status(200).json({
         checklistsHoje: checklists.rows[0].count,
@@ -63,7 +86,17 @@ export default async function handler(req, res) {
           const { rows } = await pool.query('INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', [title, store, tasks, recurrence]);
           return res.status(200).json(rows[0]);
        }
-       const { rows } = await pool.query('SELECT * FROM checklists ORDER BY id DESC');
+       const store = searchParams.get('store');
+       let queryCl = 'SELECT * FROM checklists';
+       let queryParams = [];
+       
+       if (store && store !== 'undefined' && store !== 'null') {
+         queryCl += ' WHERE store = $1';
+         queryParams = [store];
+       }
+       
+       queryCl += ' ORDER BY id DESC';
+       const { rows } = await pool.query(queryCl, queryParams);
        return res.status(200).json(rows);
     }
 
@@ -79,7 +112,17 @@ export default async function handler(req, res) {
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
         return res.status(200).json({ success: true });
       }
-      const { rows } = await pool.query('SELECT id, name, email, role, store FROM users ORDER BY name ASC');
+      const store = searchParams.get('store');
+      let queryUsers = 'SELECT id, name, email, role, store FROM users';
+      let queryParams = [];
+      
+      if (store && store !== 'undefined' && store !== 'null') {
+        queryUsers += ' WHERE store = $1';
+        queryParams = [store];
+      }
+      
+      queryUsers += ' ORDER BY name ASC';
+      const { rows } = await pool.query(queryUsers, queryParams);
       return res.status(200).json(rows);
     }
 

@@ -13,36 +13,35 @@ export default function ChecklistExecution() {
     navigate('/login');
   };
 
-  return (
-    <div className="page-container animate-fade" style={{ padding: '20px' }}>
-      
-      {/* Header Funcionário */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-           <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
-              <Flame size={18} color="white" />
-           </div>
-           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
-        </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-           Sair <LogOut size={16} />
-        </button>
-      </header>
   const [activeCameraTaskId, setActiveCameraTaskId] = useState(null);
   const [signature, setSignature] = useState(null);
   const [showSignature, setShowSignature] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [aiFeedback, setAIFeedback] = useState({});
+  const [userProfile, setUserProfile] = useState(null);
+
+  // Carregar usuário logado
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) setUserProfile(JSON.parse(savedUser));
+  }, []);
+
+  const EMPLOYEE = {
+    name: userProfile?.name || 'Colaborador',
+    store: userProfile?.store || 'Loja Exemplo'
+  };
 
   // Carregar exemplos profissionais instantaneamente para o simulador
   useEffect(() => {
     // Simulador começa com exemplos reais de varejo
     setTitle('Checklist de Abertura - Loja Modelo');
     setTasks([
-      { id: 1, text: 'Limpeza do Salão: O chão está brilhando e sem resíduos?', type: 'camera', required: true },
+      { id: 1, text: 'Limpeza do Salão: O chão está brilhando e sem resíduos?', type: 'camera', required: true, requirePhoto: true },
       { id: 2, text: 'Reposição: Gôndolas de bebidas estão com frentes preenchidas?', type: 'boolean', required: true },
       { id: 3, text: 'Segurança Alimentar: Temperatura do freezer de carnes (Ideal: -18°C)', type: 'numeric', required: true },
       { id: 4, text: 'Exposição: Avalie a organização das frutas na banca central', type: 'rating', required: true },
-      { id: 5, text: 'Higiene: Funcionário está com uniforme e rede de cabelo?', type: 'camera', required: true }
+      { id: 5, text: 'Higiene: Funcionário está com uniforme e rede de cabelo?', type: 'camera', required: true, requirePhoto: true }
     ].map(t => ({ ...t, done: null, photo: null, forceOverride: false })));
     setLoading(false);
 
@@ -198,10 +197,23 @@ export default function ChecklistExecution() {
   return (
     <div className="page-container animate-fade" style={{ maxWidth: '600px' }}>
 
-      {/* Header com progresso */}
+      {/* Header Funcionário */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
+              <Flame size={18} color="white" />
+           </div>
+           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
+        </div>
+        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+           Sair <LogOut size={16} />
+        </button>
+      </header>
+
+      {/* Título com progresso */}
       <header style={{ textAlign: 'center', marginBottom: '24px' }}>
         <h1 className="page-title" style={{ marginBottom: '4px', fontSize: '1.5rem' }}>{title}</h1>
-        <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Responsável: Colaborador</p>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Responsável: {EMPLOYEE.name}</p>
         <div style={{ backgroundColor: '#1A1C23', borderRadius: '100px', height: '8px', overflow: 'hidden' }}>
           <div style={{ width: `${progress}%`, height: '100%', backgroundColor: progress === 100 ? 'var(--success)' : 'var(--primary)', transition: 'width 0.4s ease' }} />
         </div>
