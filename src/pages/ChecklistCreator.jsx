@@ -51,7 +51,7 @@ export default function ChecklistCreator() {
   const { id } = useParams();
   const isEditing = Boolean(id);
   
-  const [userPlan] = useState('pro');
+  const [userPlan, setUserPlan] = useState('pro');
   const [title, setTitle] = useState('');
   const [store, setStore] = useState('Centro');
   const [recurrence, setRecurrence] = useState('');
@@ -63,6 +63,7 @@ export default function ChecklistCreator() {
     // Tenta carregar a loja do perfil do usuário logado
     try {
       const profile = JSON.parse(localStorage.getItem('user') || '{}');
+      if (profile.plan) setUserPlan(profile.plan);
       if (profile.store && !isEditing) {
         setStore(profile.store);
       }
@@ -198,11 +199,12 @@ export default function ChecklistCreator() {
                   type="text" 
                   className="input-field" 
                   value={store} 
-                  onChange={e => setStore(e.target.value)} 
+                  readOnly
+                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-muted)' }}
                   placeholder="Nome da sua loja"
                 />
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  Seu plano permite 1 loja ativa. Para gerenciar redes, assine o <strong>Plano Custom</strong>.
+                  🔒 Loja vinculada ao seu plano. Para gerenciar redes, assine o <strong>Plano Custom</strong>.
                 </span>
               </>
             )}
