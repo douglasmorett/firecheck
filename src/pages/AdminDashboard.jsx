@@ -3,46 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock } from 'lucide-react';
 import API_URL from '../api';
 
-// ── Dados Simulados ─────────────────────────────────────────────────────────
+// ── Dados Iniciais (Vazios) ──────────────────────────────────────────────────
 const STATS = {
-  checklistsHoje: 12,
-  concluidos: 8,
-  alertasIA: 3,
-  colaboradores: 5,
-  conformidade: 78,
+  checklistsHoje: 0,
+  concluidos: 0,
+  alertasIA: 0,
+  colaboradores: 0,
+  conformidade: 0,
 };
 
-const RANKING = [
-  { pos: 1,  nome: 'João (Gerente)',     concluidos: 12, total: 12, pct: 100, medalha: '🥇' },
-  { pos: 2,  nome: 'Maria (Caixa)',      concluidos: 10, total: 12, pct: 83,  medalha: '🥈' },
-  { pos: 3,  nome: 'Carlos (Estoquista)',concluidos: 9,  total: 12, pct: 75,  medalha: '🥉' },
-  { pos: 4,  nome: 'Pedro (Repositor)', concluidos: 7,  total: 12, pct: 58,  medalha: null },
-  { pos: 5,  nome: 'Ana (Limpeza)',      concluidos: 5,  total: 12, pct: 42,  medalha: null },
-];
-
-const AUDITORIAS = [
-  { id: 1, checklist: 'Abertura da Loja',     funcionario: 'João (Gerente)',      status: 'aprovado', tempo: 'Há 10 min',  pct: 100 },
-  { id: 2, checklist: 'Limpeza de Gôndolas',  funcionario: 'Carlos (Estoquista)', status: 'reprovado',tempo: 'Há 25 min',  pct: 60  },
-  { id: 3, checklist: 'Fechamento de Caixa',  funcionario: 'Maria (Caixa)',       status: 'aprovado', tempo: 'Há 1h',      pct: 100 },
-  { id: 4, checklist: 'Vistoria do Estoque',  funcionario: 'Pedro (Repositor)',   status: 'pendente', tempo: 'Há 2h',      pct: 50  },
-  { id: 5, checklist: 'Limpeza Banheiro',     funcionario: 'Ana (Limpeza)',       status: 'ignorado', tempo: 'Há 3h',      pct: 80  },
-];
-
-const CHECKLISTS = [
-  { id: 1, title: 'Abertura da Loja',     store: 'Centro', tasks: 5, recurrence: 'daily',   lastRun: 'Hoje, 07:30',      status: 'ativo' },
-  { id: 2, title: 'Limpeza de Gôndolas',  store: 'Centro', tasks: 3, recurrence: 'daily',   lastRun: 'Hoje, 10:15',      status: 'ativo' },
-  { id: 3, title: 'Fechamento de Caixa',  store: 'Centro', tasks: 7, recurrence: 'daily',   lastRun: 'Ontem, 22:00',     status: 'ativo' },
-  { id: 4, title: 'Vistoria do Estoque',  store: 'Centro', tasks: 4, recurrence: 'weekly',  lastRun: 'Seg, 09:00',       status: 'ativo' },
-  { id: 5, title: 'Auditoria Mensal',     store: 'Centro', tasks: 12,recurrence: 'monthly', lastRun: '01/04, 08:00',     status: 'inativo' },
-];
+const RANKING = [];
+const AUDITORIAS = [];
+const CHECKLISTS_MOCK = []; // Placeholder para quando não houver conexão
 
 const RECURRENCE_LABEL = { daily: '📅 Diário', weekly: '📅 Semanal', monthly: '📅 Mensal', '': '—' };
 
-const ALERTAS_IA = [
-  { id: 1, tarefa: 'Organizar Gôndola de Bebidas', func: 'Carlos', hora: '14:32', motivo: 'Prateleiras ainda visivelmente desorganizadas na foto enviada.' },
-  { id: 2, tarefa: 'Limpeza do Corredor 3',        func: 'Pedro',  hora: '12:15', motivo: 'Foto tirada de ambiente diferente do corredor solicitado.' },
-  { id: 3, tarefa: 'Reposição de Frios',           func: 'Ana',    hora: '10:05', motivo: 'Seção de frios ainda com espaços vazios visíveis.' },
-];
+const ALERTAS_IA = [];
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
@@ -77,9 +53,14 @@ export default function AdminDashboard() {
   const [team, setTeam] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
+  const [userProfile, setUserProfile] = useState(null);
 
   // Carregar dados iniciais
   useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUserProfile(JSON.parse(savedUser));
+    }
     fetchData();
   }, []);
 
@@ -116,6 +97,8 @@ export default function AdminDashboard() {
     } catch (e) { alert('Erro ao remover.'); }
   };
 
+  const isGestor = userProfile?.role === 'gestor';
+
   return (
     <div className="page-container animate-fade">
 
@@ -126,13 +109,19 @@ export default function AdminDashboard() {
             <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '8px' }}>
               <Flame size={22} color="white" />
             </div>
-            <h1 className="page-title" style={{ margin: 0 }}>FireCheck — Painel do Dono</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>
+              FireCheck — {isGestor ? 'Painel de Gestor' : 'Painel do Dono'}
+            </h1>
           </div>
-          <p style={{ color: 'var(--text-muted)', paddingLeft: '42px' }}>Loja: Filial Centro · Hoje, {new Date().toLocaleDateString('pt-BR')}</p>
+          <p style={{ color: 'var(--text-muted)', paddingLeft: '42px' }}>
+            Loja: {userProfile?.store || 'Filial Centro'} · Hoje, {new Date().toLocaleDateString('pt-BR')}
+          </p>
         </div>
-        <button className="btn" onClick={() => navigate('/admin/creator')}>
-          <Plus size={20} /> Criar Checklist
-        </button>
+        {!isGestor && (
+          <button className="btn" onClick={() => navigate('/admin/creator')}>
+            <Plus size={20} /> Criar Checklist
+          </button>
+        )}
       </header>
 
       {/* Cards de KPIs */}
