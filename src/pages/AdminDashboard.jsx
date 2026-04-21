@@ -173,9 +173,9 @@ export default function AdminDashboard() {
   // Definir abas iniciais baseadas no papel
   useEffect(() => {
     if (isMaster) setTab('financeiro');
-    else if (isFuncionario) setTab('auditoria');
+    else if (isAdmin) setTab('checklists'); // Dono abre direto nos checklists criados
     else setTab('auditoria');
-  }, [userProfile, isMaster, isFuncionario]);
+  }, [userProfile, isMaster, isAdmin, isFuncionario]);
 
   return (
     <div className="page-container animate-fade">
@@ -500,7 +500,7 @@ export default function AdminDashboard() {
             </button>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(checklists || []).map(cl => (
+            {(checklists || []).length > 0 ? (checklists || []).map(cl => (
               <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '200px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -525,7 +525,13 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            ))}
+            )) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <ClipboardList size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
+                <p>Nenhum checklist encontrado para esta loja.</p>
+                <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => navigate('/admin/creator')}>Criar meu primeiro checklist</button>
+              </div>
+            )}
           </div>
         </div>
       )}

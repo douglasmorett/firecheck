@@ -114,7 +114,7 @@ export default async function handler(req, res) {
        let queryParams = [];
        
        if (store && store !== 'undefined' && store !== 'null') {
-         queryCl += ' WHERE store = $1';
+         queryCl += ' WHERE LOWER(store) = LOWER($1)';
          queryParams = [store];
        }
        
