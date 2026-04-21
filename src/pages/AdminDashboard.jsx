@@ -651,16 +651,35 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="input-label">Empresa / Unidade</label>
-                  <input 
-                    type="text" 
-                    className="input-field" 
-                    required 
-                    value={newUser.store} 
-                    onChange={e => setNewUser({...newUser, store: e.target.value})} 
-                    placeholder="Nome da Loja" 
-                    readOnly={!isMaster}
-                    style={!isMaster ? { backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-muted)' } : {}}
-                  />
+                  {isMaster ? (
+                    <select 
+                      className="input-field" 
+                      required 
+                      value={newUser.store} 
+                      onChange={e => setNewUser({...newUser, store: e.target.value})}
+                    >
+                      <option value="">Selecione uma Unidade</option>
+                      {/* Extrai lojas únicas dos usuários já cadastrados */}
+                      {[...new Set(team.map(u => u.store))].filter(Boolean).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                      <option value="nova_unidade">+ Cadastrar Nova Unidade (Digite abaixo)</option>
+                    </select>
+                  ) : (
+                    <select className="input-field" value={newUser.store} disabled style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}>
+                      <option value={userProfile?.store}>{userProfile?.store}</option>
+                    </select>
+                  )}
+                  
+                  {isMaster && newUser.store === 'nova_unidade' && (
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      style={{ marginTop: '8px' }}
+                      placeholder="Digite o nome da nova unidade"
+                      onChange={e => setNewUser({...newUser, store: e.target.value})}
+                    />
+                  )}
                 </div>
               </div>
 
