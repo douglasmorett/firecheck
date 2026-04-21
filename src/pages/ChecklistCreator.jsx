@@ -57,6 +57,7 @@ export default function ChecklistCreator() {
   const [recurrence, setRecurrence] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [tasks, setTasks] = useState([newTask()]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isEditing) {
@@ -116,7 +117,8 @@ export default function ChecklistCreator() {
       alert(`⚠️ A Tarefa ${idx} está sem descrição. Escreva o que deve ser feito ou remova a tarefa.`);
       return;
     }
-    
+
+    setIsSaving(true);
     try {
       const response = await fetch(`${API_URL}/api/checklists`, {
         method: 'POST',
@@ -130,8 +132,15 @@ export default function ChecklistCreator() {
       if (response.ok) {
         alert(isEditing ? '✅ Checklist atualizado com sucesso!' : '✅ Checklist criado e salvo!');
         navigate('/admin');
+      } else {
+        const errorData = await response.json();
+        alert(`❌ Erro do servidor: ${errorData.message || 'Erro desconhecido'}`);
       }
-    } catch (e) { alert('❌ Erro ao salvar no banco de dados. Verifique sua conexão.'); }
+    } catch (e) { 
+      alert('❌ Erro de conexão. O servidor pode estar fora do ar ou a URL da API está incorreta.'); 
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -301,16 +310,6 @@ export default function ChecklistCreator() {
                     </label>
                     <input type="time" className="input-field" value={task.timeLimit}
                       onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
-                    {task.timeLimit && (
-                      <label className="custom-checkbox" style={{ marginTop: '8px' }}>
-                        <input type="checkbox" checked={task.notifyDelay}
-                          onChange={e => updateTask(task.id, 'notifyDelay', e.target.checked)} />
-                        <span className="checkmark" style={{ width: '20px', height: '20px' }}></span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          Avisar no WhatsApp se atrasar
-                        </span>
-                      </label>
-                    )}
                   </div>
                 </div>
               </div>
@@ -321,8 +320,9 @@ export default function ChecklistCreator() {
             <button className="btn-secondary" style={{ padding: '12px 24px' }} onClick={() => navigate('/admin')}>
               Cancelar
             </button>
-            <button className="btn" style={{ padding: '12px 32px', fontSize: '1rem', cursor: 'pointer' }} onClick={handleSave}>
-              <Save size={20} /> Salvar Checklist
+            <button className="btn" style={{ padding: '12px 32px', fontSize: '1rem', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }} 
+              onClick={handleSave} disabled={isSaving}>
+              <Save size={20} /> {isSaving ? 'Salvando...' : 'Salvar Checklist'}
             </button>
           </div>
         </div>
