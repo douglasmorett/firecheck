@@ -62,7 +62,7 @@ export default function ChecklistCreator() {
   useEffect(() => {
     // Tenta carregar a loja do perfil do usuário logado
     try {
-      const profile = JSON.parse(localStorage.getItem('userProfile') || '{}');
+      const profile = JSON.parse(localStorage.getItem('user') || '{}');
       if (profile.store && !isEditing) {
         setStore(profile.store);
       }
