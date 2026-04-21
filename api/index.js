@@ -14,6 +14,16 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Auto-migração: Garante que as colunas existam
+  try {
+    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
+    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
+    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
+  } catch (migErr) {
+    console.error('Migration Error:', migErr);
+  }
+
   const url = req.url;
   const { searchParams } = new URL(url, `http://${req.headers.host}`);
   const startDate = searchParams.get('start');
