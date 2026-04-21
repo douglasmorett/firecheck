@@ -1,11 +1,12 @@
-const { Pool } = require('pg');
+import pkg from 'pg';
+const { Pool } = pkg;
 
 const pool = new Pool({
   connectionString: 'postgresql://neondb_owner:npg_YymnUpK7OED8@ep-green-fog-anfbkql2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require',
   ssl: { rejectUnauthorized: false }
 });
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,9 +22,7 @@ module.exports = async (req, res) => {
     }
 
     const user = rows[0];
-
-    // Formato EXATO esperado pelo Frontend React
-    return res.json({ 
+    return res.status(200).json({ 
       status: 'success', 
       user: { 
         id: user.id, 
@@ -37,4 +36,4 @@ module.exports = async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: 'Erro de Banco: ' + err.message });
   }
-};
+}
