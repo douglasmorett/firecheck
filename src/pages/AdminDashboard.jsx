@@ -643,7 +643,16 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <label className="input-label">Empresa / Unidade</label>
-                  <input type="text" className="input-field" required value={newUser.store} onChange={e => setNewUser({...newUser, store: e.target.value})} placeholder="Nome da Loja" />
+                  <input 
+                    type="text" 
+                    className="input-field" 
+                    required 
+                    value={newUser.store} 
+                    onChange={e => setNewUser({...newUser, store: e.target.value})} 
+                    placeholder="Nome da Loja" 
+                    readOnly={!isMaster}
+                    style={!isMaster ? { backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-muted)' } : {}}
+                  />
                 </div>
               </div>
 
