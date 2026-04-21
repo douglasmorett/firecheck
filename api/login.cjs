@@ -11,11 +11,9 @@ module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Metodo nao permitido' });
-
-  const { email, password } = req.body;
-
+  
   try {
+    const { email, password } = req.body;
     const { rows } = await pool.query('SELECT * FROM users WHERE email = $1 AND password = $2', [email, password]);
     
     if (rows.length === 0) {
@@ -23,12 +21,20 @@ module.exports = async (req, res) => {
     }
 
     const user = rows[0];
-    return res.status(200).json({ 
+
+    // Formato EXATO esperado pelo Frontend React
+    return res.json({ 
       status: 'success', 
-      user: { id: user.id, name: user.name, email: user.email, role: user.role, store: user.store } 
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role, 
+        store: user.store || 'Loja Principal'
+      } 
     });
 
   } catch (err) {
-    return res.status(500).json({ error: 'Erro no banco: ' + err.message });
+    return res.status(500).json({ error: 'Erro de Banco: ' + err.message });
   }
 };
