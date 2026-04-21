@@ -122,6 +122,7 @@ body {
 
 .animate-fade {
   animation: fadeIn 0.4s ease-out forwards;
+  pointer-events: auto !important;
 }
 
 /* Header/Nav */
