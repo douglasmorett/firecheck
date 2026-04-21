@@ -108,13 +108,15 @@ export default function AdminDashboard() {
         // Mock de dados financeiros (Integração Cacto) se o fetch falhar
         try {
           const finData = await finRes.json();
-          setFinancialStats(finData);
+          if (finData && typeof finData === 'object') {
+             setFinancialStats(prev => ({ ...prev, ...finData }));
+          }
         } catch {
           setFinancialStats({
             vendasMes: 12500.50,
             receitaReal: 11850.25,
             totalArrecadado: 45200.00,
-            clientesAtivos: userData.filter(u => u.role === 'admin').length
+            clientesAtivos: Array.isArray(userData) ? userData.filter(u => u.role === 'admin').length : 0
           });
         }
       } else {
@@ -243,7 +245,7 @@ export default function AdminDashboard() {
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Vendas do Mês</p>
                   <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {financialStats.vendasMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>📈 +12% vs mês anterior</span>
                 </div>
@@ -256,7 +258,7 @@ export default function AdminDashboard() {
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Receita Real (Cacto)</p>
                   <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {financialStats.receitaReal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {(financialStats?.receitaReal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💰 Líquido após taxas</span>
                 </div>
@@ -269,7 +271,7 @@ export default function AdminDashboard() {
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Arrecadado</p>
                   <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {financialStats.totalArrecadado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    {(financialStats?.totalArrecadado || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📅 Período selecionado</span>
                 </div>
@@ -281,7 +283,7 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Clientes Ativos</p>
-                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats.clientesAtivos}</h2>
+                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats?.clientesAtivos || 0}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 Assinaturas vigentes</span>
                 </div>
                 <Users color="var(--primary)" size={36} />
@@ -374,11 +376,11 @@ export default function AdminDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
                <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Vendas Brutas</p>
-                  <h4 style={{ fontSize: '1.5rem', margin: 0 }}>{financialStats.vendasMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+                  <h4 style={{ fontSize: '1.5rem', margin: 0 }}>{(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
                </div>
                <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Taxas de Transação</p>
-                  <h4 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--error)' }}>- {(financialStats.vendasMes - financialStats.receitaReal).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
+                  <h4 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--error)' }}>- {((financialStats?.vendasMes || 0) - (financialStats?.receitaReal || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
                </div>
             </div>
             
@@ -519,7 +521,7 @@ export default function AdminDashboard() {
             </button>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {checklists.map(cl => (
+            {(checklists || []).map(cl => (
               <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '200px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -566,7 +568,7 @@ export default function AdminDashboard() {
             )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {team.map(member => (
+            {(team || []).map(member => (
               <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
