@@ -68,11 +68,11 @@ export default function AdminDashboard() {
   });
 
   const [plans, setPlans] = useState([
-    { id: 'start', name: 'Start', price: 'R$ 97/mês' },
-    { id: 'pro', name: 'Pró', price: 'R$ 197/mês' },
-    { id: 'mensal', name: 'Mensal', price: 'R$ 147/mês' },
-    { id: 'anual', name: 'Anual', price: 'R$ 997/ano' },
-    { id: 'vitalicio', name: 'Vitalício', price: 'R$ 2.997' },
+    { id: 'start_mensal', name: 'Start Mensal' },
+    { id: 'start_anual',  name: 'Start Anual' },
+    { id: 'pro_mensal',    name: 'Pró Mensal' },
+    { id: 'pro_anual',     name: 'Pró Anual' },
+    { id: 'vitalicio',     name: 'Vitalício' },
   ]);
 
   // Carregar dados iniciais
@@ -622,10 +622,10 @@ export default function AdminDashboard() {
                 <div style={{ marginBottom: '24px' }}>
                   <label className="input-label">Plano Selecionado</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.plan} onChange={e => setNewUser({...newUser, plan: e.target.value})}>
-                    <option value="start">Plano Start</option>
-                    <option value="pro">Plano Pró</option>
-                    <option value="mensal">Mensal</option>
-                    <option value="anual">Anual</option>
+                    <option value="start_mensal">Start Mensal</option>
+                    <option value="start_anual">Start Anual</option>
+                    <option value="pro_mensal">Pró Mensal</option>
+                    <option value="pro_anual">Pró Anual</option>
                     <option value="vitalicio">Vitalício</option>
                   </select>
                 </div>
