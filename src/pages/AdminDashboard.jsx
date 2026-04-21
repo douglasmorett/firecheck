@@ -54,6 +54,7 @@ export default function AdminDashboard() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
   const [userProfile, setUserProfile] = useState(null);
+  const [stats, setStats] = useState(STATS);
 
   // Carregar dados iniciais
   useEffect(() => {
@@ -66,12 +67,14 @@ export default function AdminDashboard() {
 
   const fetchData = async () => {
     try {
-      const [clRes, userRes] = await Promise.all([
+      const [clRes, userRes, statsRes] = await Promise.all([
         fetch(`${API_URL}/api/checklists`),
-        fetch(`${API_URL}/api/users`)
+        fetch(`${API_URL}/api/users`),
+        fetch(`${API_URL}/api/stats`)
       ]);
       setChecklists(await clRes.json());
       setTeam(await userRes.json());
+      setStats(await statsRes.json());
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };
 
@@ -131,8 +134,8 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{STATS.checklistsHoje}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {STATS.concluidos} concluídos</span>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
+              <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {stats.concluidos} concluídos</span>
             </div>
             <ClipboardList color="var(--primary)" size={36} />
           </div>
@@ -142,8 +145,8 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{STATS.conformidade}%</h2>
-              <BarPct pct={STATS.conformidade} color="#3b82f6" />
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
+              <BarPct pct={stats.conformidade} color="#3b82f6" />
             </div>
             <TrendingUp color="#3b82f6" size={36} />
           </div>
@@ -153,8 +156,8 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{STATS.alertasIA}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ Ação necessária</span>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
+              <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ {stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
             </div>
             <ShieldAlert color="var(--error)" size={36} />
           </div>
@@ -163,9 +166,8 @@ export default function AdminDashboard() {
         <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Colaboradores</p>
-              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{STATS.colaboradores}</h2>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 Filial Centro</span>
+              <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store || 'Filial Centro'}</span>
             </div>
             <Users color="var(--success)" size={36} />
           </div>
