@@ -14,11 +14,11 @@ module.exports = async (req, res) => {
   
   const { email, password } = req.body;
   
-  // Fallback de Emergência
-  if (email === 'dugaburguer@gmail.com' && password === '12345678') {
+  // Fallback de Emergência para Douglas e Dugaburguer
+  if ((email === 'douglas@firecheck.com' || email === 'dugaburguer@gmail.com') && (password === '12345678' || password === 'Hakim@2024')) {
     return res.status(200).json({ 
       status: 'success', 
-      user: { id: 1, name: 'Douglas', email, role: 'admin', store: 'Loja Matriz' } 
+      user: { id: 1, name: 'Douglas Hakim', email, role: 'admin', store: 'Loja Matriz' } 
     });
   }
 
@@ -33,11 +33,10 @@ module.exports = async (req, res) => {
     }
     return res.status(401).json({ error: 'Credenciais inválidas' });
   } catch (err) {
-    // Se o banco falhar, o fallback ainda salva o acesso do administrador
-    if (email === 'dugaburguer@gmail.com') {
+    if (email === 'douglas@firecheck.com' || email === 'dugaburguer@gmail.com') {
       return res.status(200).json({ 
         status: 'success', 
-        user: { id: 1, name: 'Douglas', email, role: 'admin', store: 'Loja Matriz' } 
+        user: { id: 1, name: 'Douglas Hakim', email, role: 'admin', store: 'Loja Matriz' } 
       });
     }
     return res.status(500).json({ error: err.message });
