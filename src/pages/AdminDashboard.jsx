@@ -343,7 +343,6 @@ export default function AdminDashboard() {
         {(isMaster ? [
           { key: 'financeiro',  label: '💰 Financeiro (Cacto)' },
           { key: 'equipe',      label: '👥 Gestão de Clientes' },
-          { key: 'planos',      label: '💳 Planos & Preços'   },
         ] : [
           { key: 'auditoria',   label: '📋 Auditoria'    },
           { key: 'ranking',     label: '🏆 Ranking'      },
@@ -387,26 +386,6 @@ export default function AdminDashboard() {
             <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Gráfico de evolução financeira em desenvolvimento...
             </p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Tab: Planos & Preços (Master Only) ───────────────────────────── */}
-      {isMaster && tab === 'planos' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Lock size={20} color="#3b82f6" /> Configuração de Planos
-            </h3>
-          </div>
-          <div style={{ padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-            {plans.map(p => (
-              <div key={p.id} style={{ padding: '20px', backgroundColor: '#121318', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
-                <h4 style={{ color: 'var(--primary)', marginBottom: '8px' }}>{p.name}</h4>
-                <p style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '16px' }}>{p.price}</p>
-                <button className="btn-secondary" style={{ width: '100%', fontSize: '0.8rem' }}>Editar Valor</button>
-              </div>
-            ))}
           </div>
         </div>
       )}
