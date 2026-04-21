@@ -107,12 +107,17 @@ export default function AdminDashboard() {
 
   const isGestor = userProfile?.role === 'gestor' || userProfile?.role === 'admin';
 
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
   return (
     <div className="page-container animate-fade">
 
       {/* Header */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
-        <div>
+        <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '8px' }}>
               <Flame size={22} color="white" />
@@ -121,9 +126,14 @@ export default function AdminDashboard() {
               FireCheck — {isGestor ? 'Painel de Gestão Master' : 'Painel do Dono'}
             </h1>
           </div>
-          <p style={{ color: 'var(--text-muted)', paddingLeft: '42px' }}>
-            {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '42px' }}>
+             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
+             </p>
+             <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(255,23,68,0.1)' }}>
+                <Activity size={14} /> Sair do Sistema
+             </button>
+          </div>
         </div>
 
         {/* Filtro de Data com Calendário */}
@@ -212,7 +222,7 @@ export default function AdminDashboard() {
           { key: 'ranking',     label: '🏆 Ranking'      },
           { key: 'alertas',     label: '🚨 Alertas IA'   },
           { key: 'checklists',  label: '⚙️ Checklists'   },
-          { key: 'equipe',      label: '👥 Equipe'       },
+          { key: 'equipe',      label: isGestor ? '👥 Gestão de Contas' : '👥 Equipe' },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', transition: 'all 0.2s',

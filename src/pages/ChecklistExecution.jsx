@@ -1,13 +1,33 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame } from 'lucide-react';
 import API_URL from '../api';
 
-// Dados simulados do checklist com todos os tipos de resposta
 export default function ChecklistExecution() {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('Carregando...');
-  const [loading, setLoading] = useState(true);
-  const [aiFeedback, setAIFeedback] = useState({});
+  
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    navigate('/login');
+  };
+
+  return (
+    <div className="page-container animate-fade" style={{ padding: '20px' }}>
+      
+      {/* Header Funcionário */}
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+           <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
+              <Flame size={18} color="white" />
+           </div>
+           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
+        </div>
+        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+           Sair <LogOut size={16} />
+        </button>
+      </header>
   const [activeCameraTaskId, setActiveCameraTaskId] = useState(null);
   const [signature, setSignature] = useState(null);
   const [showSignature, setShowSignature] = useState(false);
