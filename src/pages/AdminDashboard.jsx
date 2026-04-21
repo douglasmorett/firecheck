@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut } from 'lucide-react';
 import API_URL from '../api';
 
 // ── Dados Iniciais (Vazios) ──────────────────────────────────────────────────
@@ -200,8 +200,26 @@ export default function AdminDashboard() {
              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
              </p>
-             <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '6px', backgroundColor: 'rgba(255,23,68,0.1)' }}>
-                <Activity size={14} /> Sair do Sistema
+             <button onClick={handleLogout} style={{ 
+               background: 'rgba(255, 23, 68, 0.1)', 
+               border: '1px solid var(--error)', 
+               color: 'var(--error)', 
+               cursor: 'pointer', 
+               fontSize: '0.75rem', 
+               fontWeight: 'bold',
+               textTransform: 'uppercase',
+               letterSpacing: '0.5px',
+               display: 'flex', 
+               alignItems: 'center', 
+               gap: '6px', 
+               padding: '6px 12px', 
+               borderRadius: '8px',
+               transition: 'all 0.2s'
+             }}
+             onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--error)'; e.currentTarget.style.color = 'white'; }}
+             onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 23, 68, 0.1)'; e.currentTarget.style.color = 'var(--error)'; }}
+             >
+                <LogOut size={14} /> Sair do Sistema
              </button>
           </div>
         </div>
