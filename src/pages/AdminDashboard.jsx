@@ -125,9 +125,14 @@ export default function AdminDashboard() {
           fetch(`${API_URL}/api/users${query}`),
           fetch(`${API_URL}/api/stats${query}`)
         ]);
-        setChecklists(await clRes.json());
-        setTeam(await userRes.json());
-        setStats(await statsRes.json());
+        const checklistsData = await clRes.json();
+        setChecklists(Array.isArray(checklistsData) ? checklistsData : []);
+        
+        const userData = await userRes.json();
+        setTeam(Array.isArray(userData) ? userData : []);
+        
+        const statsData = await statsRes.json();
+        setStats(statsData);
       }
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };

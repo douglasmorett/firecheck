@@ -121,11 +121,17 @@ export default async function handler(req, res) {
        queryCl += ' ORDER BY id DESC';
        const { rows } = await pool.query(queryCl, queryParams);
        
-       // Converte tasks de string para objeto se necessário
-       const formattedRows = rows.map(r => ({
-         ...r,
-         tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks
-       }));
+       // Converte tasks de string para objeto de forma segura
+       const formattedRows = rows.map(r => {
+         let tasks = [];
+         try {
+           tasks = typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []);
+         } catch (e) {
+           console.error('JSON Parse Error for checklist', r.id, e);
+           tasks = []; // Fallback para lista vazia se o JSON estiver quebrado
+         }
+         return { ...r, tasks };
+       });
        
        return res.status(200).json(formattedRows);
     }
