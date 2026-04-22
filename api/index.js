@@ -7,6 +7,8 @@ const pool = new Pool({
   max: 1
 });
 
+let migrationsRun = false;
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,DELETE');
@@ -14,33 +16,36 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Auto-migração: Garante que as colunas existam
-  try {
-    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
-    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
-    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
-    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
-    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
-    
-    // Tabela para armazenar as conclusões de checklists
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS checklist_submissions (
-        id SERIAL PRIMARY KEY,
-        employee_name TEXT,
-        store TEXT,
-        tasks TEXT,
-        feedback_info TEXT,
-        selfie TEXT,
-        resolved BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE');
-    await pool.query('UPDATE checklist_submissions SET resolved = FALSE WHERE resolved IS NULL');
-  } catch (migErr) {
-    console.error('Migration Error:', migErr);
+  // Auto-migração: Garante que as colunas existam (roda apenas uma vez por instância)
+  if (!migrationsRun) {
+    try {
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+      
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS checklist_submissions (
+          id SERIAL PRIMARY KEY,
+          employee_name TEXT,
+          store TEXT,
+          tasks TEXT,
+          feedback_info TEXT,
+          selfie TEXT,
+          resolved BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE');
+      await pool.query('UPDATE checklist_submissions SET resolved = FALSE WHERE resolved IS NULL');
+      migrationsRun = true;
+      console.log('Migrations completed successfully.');
+    } catch (migErr) {
+      console.error('Migration Error:', migErr);
+    }
   }
 
   const url = req.url;
