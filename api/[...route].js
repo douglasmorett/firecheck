@@ -69,6 +69,11 @@ export default async function handler(req, res) {
         return res.status(200).json({ status: 'success', user: { id: 2, name: 'Duga Burguer', email: lowerEmail, role: 'admin', store: 'Duga Burguer' } });
       }
 
+      // Fallback Google Reviewer
+      if (lowerEmail === 'tester@firecheck.com' && password === 'google2024') {
+        return res.status(200).json({ status: 'success', user: { id: 999, name: 'Google Reviewer', email: lowerEmail, role: 'admin', store: 'Loja de Teste' } });
+      }
+
       const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
       if (rows.length > 0) return res.status(200).json({ status: 'success', user: rows[0] });
       return res.status(401).json({ error: 'Credenciais inválidas' });
