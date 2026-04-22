@@ -316,10 +316,9 @@ export default async function handler(req, res) {
           return res.status(200).json(aiResponse);
         } catch (error) {
           console.error('Gemini Audit Error:', error);
-          const errorMsg = error.message || '';
           return res.status(200).json({ 
             approved: false, 
-            message: `Erro na auditoria: ${errorMsg.substring(0, 60)}` 
+            message: 'Erro ao processar auditoria. Tente novamente.' 
           });
         }
       }
