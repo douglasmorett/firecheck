@@ -19,8 +19,10 @@ export default async function handler(req, res) {
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
+    await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
     
     // Tabela para armazenar as conclusões de checklists
     await pool.query(`
@@ -83,21 +85,29 @@ export default async function handler(req, res) {
         params = [store];
       }
       
-      const checklists = await pool.query('SELECT count(*) FROM checklists' + dateQuery + storeQuery, params);
+      // Tenta buscar contagem de checklists (templates)
+      let checklistsCount = 0;
+      try {
+        const checklists = await pool.query('SELECT count(*) FROM checklists' + storeQuery, storeQuery ? [store] : []);
+        checklistsCount = parseInt(checklists.rows[0].count);
+      } catch (e) { console.error('Erro ao contar checklists templates:', e); }
       
       // Busca submissões para calcular alertas e conclusão
-      const subQuery = await pool.query('SELECT feedback_info FROM checklist_submissions' + dateQuery + storeQuery, params);
-      const totalSubmissions = subQuery.rows.length;
+      let totalSubmissions = 0;
       let alertasCount = 0;
-      
-      subQuery.rows.forEach(row => {
-        try {
-          const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
-          if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) {
-            alertasCount++;
-          }
-        } catch (e) { console.error('Erro parse feedback stats:', e); }
-      });
+      try {
+        const subQuery = await pool.query('SELECT feedback_info FROM checklist_submissions' + dateQuery + storeQuery, params);
+        totalSubmissions = subQuery.rows.length;
+        
+        subQuery.rows.forEach(row => {
+          try {
+            const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
+            if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) {
+              alertasCount++;
+            }
+          } catch (e) { }
+        });
+      } catch (e) { console.error('Erro ao buscar submissões para stats:', e); }
 
       const conformidade = totalSubmissions > 0 
         ? Math.round(((totalSubmissions - alertasCount) / totalSubmissions) * 100) 
@@ -112,7 +122,7 @@ export default async function handler(req, res) {
       const users = await pool.query('SELECT count(*) FROM users' + userQuery, userParams);
       
       return res.status(200).json({
-        checklistsHoje: checklists.rows[0].count,
+        checklistsHoje: checklistsCount,
         concluidos: totalSubmissions,
         alertasIA: alertasCount,
         colaboradores: users.rows[0].count,
