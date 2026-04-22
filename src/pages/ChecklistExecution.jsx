@@ -24,8 +24,12 @@ export default function ChecklistExecution() {
   // Carregar usuário logado
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) setUserProfile(JSON.parse(savedUser));
-  }, []);
+    if (!savedUser) {
+      navigate('/login');
+      return;
+    }
+    setUserProfile(JSON.parse(savedUser));
+  }, [navigate]);
 
   const EMPLOYEE = {
     name: userProfile?.name || 'Colaborador',

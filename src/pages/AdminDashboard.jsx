@@ -82,12 +82,22 @@ export default function AdminDashboard() {
   // Carregar dados iniciais
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setUserProfile(user);
-      if (user.role === 'admin' || user.role === 'master') {
-        setupPushNotifications(user.email);
-      }
+    if (!savedUser) {
+      navigate('/login');
+      return;
+    }
+    
+    const user = JSON.parse(savedUser);
+    setUserProfile(user);
+    
+    // Proteção extra: se for funcionário, não deixa ver o admin
+    if (user.role === 'employee') {
+      navigate('/funcionario');
+      return;
+    }
+
+    if (user.role === 'admin' || user.role === 'master') {
+      setupPushNotifications(user.email);
     }
     fetchData();
   }, [dateFilter]); 
