@@ -85,6 +85,24 @@ export default async function handler(req, res) {
       
       const checklists = await pool.query('SELECT count(*) FROM checklists' + dateQuery + storeQuery, params);
       
+      // Busca submissões para calcular alertas e conclusão
+      const subQuery = await pool.query('SELECT feedback_info FROM checklist_submissions' + dateQuery + storeQuery, params);
+      const totalSubmissions = subQuery.rows.length;
+      let alertasCount = 0;
+      
+      subQuery.rows.forEach(row => {
+        try {
+          const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
+          if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) {
+            alertasCount++;
+          }
+        } catch (e) { console.error('Erro parse feedback stats:', e); }
+      });
+
+      const conformidade = totalSubmissions > 0 
+        ? Math.round(((totalSubmissions - alertasCount) / totalSubmissions) * 100) 
+        : 100;
+
       let userParams = [];
       let userQuery = '';
       if (store && store !== 'undefined' && store !== 'null') {
@@ -95,10 +113,10 @@ export default async function handler(req, res) {
       
       return res.status(200).json({
         checklistsHoje: checklists.rows[0].count,
-        concluidos: 0,
-        alertasIA: 0,
+        concluidos: totalSubmissions,
+        alertasIA: alertasCount,
         colaboradores: users.rows[0].count,
-        conformidade: 100
+        conformidade: conformidade
       });
     }
 
