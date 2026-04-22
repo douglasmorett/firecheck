@@ -136,40 +136,38 @@ export default async function handler(req, res) {
         }
 
         try {
-          const genAI = new GoogleGenerativeAI(apiKey);
-          // Usando flash-latest para maior estabilidade
-          const model = genAI.getGenerativeModel({ 
-            model: "gemini-1.5-flash-latest",
-            safetySettings: [
-              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
-            ]
+          const base64Data = photoBase64.split(',')[1] || photoBase64;
+          const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}. Explique o motivo em português.`;
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [
+                  { text: prompt },
+                  { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+                ]
+              }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
           });
 
-          const base64Data = photoBase64.split(',')[1] || photoBase64;
+          const data = await response.json();
+          
+          if (data.error) {
+             return res.status(200).json({ approved: false, message: `Erro no Google: ${data.error.message}` });
+          }
 
-          const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". 
-          Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}.
-          Explique o motivo em português. Seja extremamente rigoroso com o cumprimento da tarefa.`;
-
-          const result = await model.generateContent([
-            prompt,
-            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
-          ]);
-
-          const response = await result.response;
-          const text = response.text();
-          const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha ao interpretar análise.' };
+          const resultText = data.candidates[0].content.parts[0].text;
+          const aiResponse = JSON.parse(resultText);
 
           return res.status(200).json(aiResponse);
         } catch (error) {
-          console.error('Erro na auditoria Gemini:', error);
+          console.error('Erro na auditoria:', error);
           return res.status(200).json({ 
             approved: false, 
-            message: 'Erro na análise. Reenvie a foto ou verifique se a imagem está nítida.' 
+            message: 'Erro na conexão com a IA. Reenvie a foto.' 
           });
         }
       }
