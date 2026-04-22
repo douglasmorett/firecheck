@@ -16,7 +16,6 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Auto-migração: Garante que as colunas existam (roda apenas uma vez por instância)
   if (!migrationsRun) {
     try {
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
@@ -39,310 +38,166 @@ export default async function handler(req, res) {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
+      await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE');
       await pool.query('UPDATE checklist_submissions SET resolved = FALSE WHERE resolved IS NULL');
       migrationsRun = true;
-      console.log('Migrations completed successfully.');
-    } catch (migErr) {
-      console.error('Migration Error:', migErr);
-    }
+    } catch (migErr) { console.error('Migration Error:', migErr); }
   }
 
-  const url = req.url;
-  const { searchParams } = new URL(url, `http://${req.headers.host}`);
-  const startDate = searchParams.get('start');
-  const endDate = searchParams.get('end');
-
   try {
-    // Rota de Login
-    if (url.includes('/api/auth')) {
-      const { email, password } = req.body;
-      const lowerEmail = email?.toLowerCase();
-      
-      // Fallback Douglas (Sempre Master)
-      if ((lowerEmail === 'douglas@firecheck.com' || lowerEmail === 'contatohakim@gmail.com') && (password === '12345678' || password === 'Hakim@2024')) {
-        return res.status(200).json({ status: 'success', user: { id: 1, name: 'Douglas Hakim', email: lowerEmail, role: 'master', store: 'Sistema Master' } });
-      }
+    const { method } = req;
+    const url = req.url || '';
+    const searchParams = new URL(url, `http://${req.headers.host}`).searchParams;
 
-      // Fallback Duga Burguer (Sempre Dono)
-      if (lowerEmail === 'dugaburguer@gmail.com' && password === '12345678') {
-        return res.status(200).json({ status: 'success', user: { id: 2, name: 'Duga Burguer', email: lowerEmail, role: 'admin', store: 'Duga Burguer' } });
-      }
-
-      // Fallback Google Reviewer
-      if (lowerEmail === 'tester@firecheck.com' && password === 'google2024') {
-        return res.status(200).json({ status: 'success', user: { id: 999, name: 'Google Reviewer', email: lowerEmail, role: 'admin', store: 'Loja de Teste' } });
-      }
-
-      const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
-      if (rows.length > 0) return res.status(200).json({ status: 'success', user: rows[0] });
-      return res.status(401).json({ error: 'Credenciais inválidas' });
-    }
-
-    // Estatísticas Filtradas por Data
     if (url.includes('/api/stats')) {
       const store = searchParams.get('store');
-      let dateQuery = '';
+      const start = searchParams.get('start');
+      const end = searchParams.get('end');
+      
       let params = [];
+      let dateQuery = '';
       let storeQuery = '';
       
-      if (startDate && endDate) {
+      if (start && end) {
         dateQuery = ' WHERE created_at BETWEEN $1 AND $2';
-        params = [startDate + ' 00:00:00', endDate + ' 23:59:59'];
-        if (store && store !== 'undefined' && store !== 'null') {
-          storeQuery = ' AND store = $3';
-          params.push(store);
-        }
-      } else if (store && store !== 'undefined' && store !== 'null') {
-        storeQuery = ' WHERE store = $1';
-        params = [store];
+        params = [start + ' 00:00:00', end + ' 23:59:59'];
       }
       
-      // Tenta buscar contagem de checklists (templates)
-      let checklistsCount = 0;
-      try {
-        const checklists = await pool.query('SELECT count(*) FROM checklists' + storeQuery, storeQuery ? [store] : []);
-        checklistsCount = parseInt(checklists.rows[0].count);
-      } catch (e) { console.error('Erro ao contar checklists templates:', e); }
-      
-      // Busca submissões para calcular alertas e conclusão
-      let totalSubmissions = 0;
-      let alertasCount = 0;
-      try {
-        const subQuery = await pool.query('SELECT feedback_info, resolved FROM checklist_submissions' + dateQuery + storeQuery, params);
-        totalSubmissions = subQuery.rows.length;
-        
-        subQuery.rows.forEach(row => {
-          if (row.resolved) return; // Pula se já foi resolvido
-          try {
-            const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
-            const hasError = Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error');
-            if (hasError) {
-              alertasCount++;
-            }
-          } catch (e) { }
-        });
-        console.log(`[STATS] Total: ${totalSubmissions}, Alertas Ativos: ${alertasCount}`);
-      } catch (e) { console.error('Erro ao buscar submissões para stats:', e); }
-
-      const conformidade = totalSubmissions > 0 
-        ? Math.round(((totalSubmissions - alertasCount) / totalSubmissions) * 100) 
-        : 100;
-
-      let userParams = [];
-      let userQuery = '';
       if (store && store !== 'undefined' && store !== 'null') {
-        userQuery = ' WHERE store = $1';
-        userParams = [store];
+        storeQuery = (params.length > 0 ? ' AND' : ' WHERE') + ' store = $' + (params.length + 1);
+        params.push(store);
       }
-      const users = await pool.query('SELECT count(*) FROM users' + userQuery, userParams);
+      
+      const checklists = await pool.query('SELECT count(*) FROM checklists' + storeQuery, storeQuery ? [store] : []);
+      const subQuery = await pool.query('SELECT feedback_info, resolved FROM checklist_submissions' + dateQuery + storeQuery, params);
+      
+      let alertasCount = 0;
+      subQuery.rows.forEach(row => {
+        if (row.resolved) return;
+        try {
+          const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
+          if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) alertasCount++;
+        } catch (e) { }
+      });
+
+      const users = await pool.query('SELECT count(*) FROM users' + (storeQuery ? ' WHERE store = $1' : ''), storeQuery ? [store] : []);
       
       return res.status(200).json({
-        checklistsHoje: checklistsCount,
-        concluidos: totalSubmissions,
+        checklistsHoje: checklists.rows[0].count,
+        concluidos: subQuery.rows.length,
         alertasIA: alertasCount,
         colaboradores: users.rows[0].count,
-        conformidade: conformidade
+        conformidade: subQuery.rows.length > 0 ? Math.round(((subQuery.rows.length - alertasCount) / subQuery.rows.length) * 100) : 100
       });
     }
 
-    // Listagem de Checklists
     if (url.includes('/api/checklists')) {
-       // Se for POST, cria um novo ou atualiza
-       if (req.method === 'POST') {
+       if (method === 'POST') {
           const { title, store, tasks, recurrence, scheduledDate } = req.body;
-          // Tenta inserir. Se der erro de coluna, o catch vai capturar.
-          try {
-            const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
-            );
-            return res.status(200).json(rows[0]);
-          } catch (dbErr) {
-            // Fallback caso a coluna scheduled_date não exista ainda no Neon
-            const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence]
-            );
-            return res.status(200).json(rows[0]);
-          }
+          const { rows } = await pool.query(
+            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+          );
+          return res.status(200).json(rows[0]);
        }
        const store = searchParams.get('store');
-       let queryCl = 'SELECT * FROM checklists';
-       let queryParams = [];
+       const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
        
-       if (store && store !== 'undefined' && store !== 'null') {
-         queryCl += ' WHERE LOWER(store) = LOWER($1)';
-         queryParams = [store];
-       }
-       
-       queryCl += ' ORDER BY id DESC';
-       const { rows } = await pool.query(queryCl, queryParams);
-       
-       // Converte tasks de string para objeto de forma segura
-       const formattedRows = rows.map(r => {
-         let tasks = [];
-         try {
-           tasks = typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []);
-         } catch (e) {
-           console.error('JSON Parse Error for checklist', r.id, e);
-           tasks = []; // Fallback para lista vazia se o JSON estiver quebrado
-         }
-         return { ...r, tasks };
+       // Verifica conclusões de hoje
+       const today = new Date().toISOString().split('T')[0];
+       const { rows: todaySubs } = await pool.query(
+         'SELECT checklist_id, employee_name FROM checklist_submissions WHERE store = $1 AND created_at >= $2',
+         [store, today + ' 00:00:00']
+       );
+
+       const formatted = checklists.map(r => {
+         const sub = todaySubs.find(s => s.checklist_id === r.id);
+         return { 
+           ...r, 
+           tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []),
+           completedToday: !!sub,
+           completedBy: sub ? sub.employee_name : null
+         };
        });
-       
-       return res.status(200).json(formattedRows);
+
+       return res.status(200).json(formatted);
     }
 
-    // Gestão de Usuários (Criar Cliente Manual)
     if (url.includes('/api/users')) {
-      if (req.method === 'POST') {
+      if (method === 'POST') {
         const { name, email, password, role, store, plan } = req.body;
-        try {
-          // Verifica se e-mail já existe (case-insensitive)
-          const checkEmail = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-          if (checkEmail.rows.length > 0) {
-            return res.status(400).json({ message: 'Este e-mail já está cadastrado no sistema.' });
-          }
-
-          const { rows } = await pool.query(
-            'INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store, plan', 
-            [name, email, password, role, store, plan]
-          );
-          return res.status(200).json(rows[0]);
-        } catch (dbErr) {
-          const { rows } = await pool.query(
-            'INSERT INTO users (name, email, password, role, store) VALUES ($1, $2, $3, $4, $5) RETURNING id, name, email, role, store', 
-            [name, email, password, role, store]
-          );
-          return res.status(200).json(rows[0]);
-        }
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store', [name, email, password, role, store, plan]);
+        return res.status(200).json(rows[0]);
       }
-      if (req.method === 'DELETE') {
-        const id = url.split('/').pop();
-        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+      if (method === 'DELETE') {
+        await pool.query('DELETE FROM users WHERE id = $1', [url.split('/').pop()]);
         return res.status(200).json({ success: true });
       }
       const store = searchParams.get('store');
-      let queryUsers = 'SELECT id, name, email, role, store, plan FROM users';
-      let queryParams = [];
-      
-      if (store && store !== 'undefined' && store !== 'null') {
-        queryUsers += ' WHERE store = $1';
-        queryParams = [store];
-      }
-      
-      queryUsers += ' ORDER BY name ASC';
-      const { rows } = await pool.query(queryUsers, queryParams);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY name ASC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
-    // Registro de Token FCM (Push)
     if (url.includes('/api/register-token')) {
-      if (req.method === 'POST') {
+      if (method === 'POST') {
         const { email, fcmToken } = req.body;
         await pool.query('UPDATE users SET fcm_token = $1 WHERE LOWER(email) = LOWER($2)', [fcmToken, email]);
         return res.status(200).json({ success: true });
       }
     }
 
-    // Resolver Ocorrência
-    if (url.includes('/api/resolve-submission')) {
-      if (req.method === 'POST') {
-        const { id } = req.body;
-        await pool.query('UPDATE checklist_submissions SET resolved = TRUE WHERE id = $1', [id]);
-        return res.status(200).json({ success: true });
-      }
-    }
-
-    // Listagem de Submissões (Resultados)
-    if (url.includes('/api/submissions')) {
-      const store = searchParams.get('store');
-      let querySub = 'SELECT * FROM checklist_submissions';
-      let queryParams = [];
-      
-      if (store && store !== 'undefined' && store !== 'null') {
-        querySub += ' WHERE store = $1';
-        queryParams = [store];
-      }
-      
-      querySub += ' ORDER BY created_at DESC LIMIT 50';
-      const { rows } = await pool.query(querySub, queryParams);
-      
-      // Formatar JSONs
-      const formatted = rows.map(r => ({
-        ...r,
-        tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks,
-        feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info
-      }));
-      
-      return res.status(200).json(formatted);
-    }
-
-    // Auditoria de Foto (IA Mock)
-    if (url.includes('/api/audit')) {
-      if (req.method === 'POST') {
-        const { taskId, taskText } = req.body;
-        // Lógica de "IA" simulada: reprova se a tarefa tiver "preto" no texto (apenas para teste/demo)
-        const isProblematic = taskText.toLowerCase().includes('preto');
-        
-        return res.status(200).json({
-          approved: !isProblematic,
-          message: isProblematic 
-            ? 'Não acreditamos que o solicitado foi feito corretamente. A cor detectada não parece ser a correta.' 
-            : 'Foto validada com sucesso.'
-        });
-      }
-    }
-
-    // Finalização de Checklist
     if (url.includes('/api/finalize')) {
-      if (req.method === 'POST') {
-        const { employeeName, store, tasks, feedbackInfo, selfie } = req.body;
-        const { rows } = await pool.query(
-          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-          [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo), selfie]
+      if (method === 'POST') {
+        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId } = req.body;
+        
+        // Verifica duplicidade no mesmo dia
+        const today = new Date().toISOString().split('T')[0];
+        const checkDupe = await pool.query(
+          'SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3',
+          [checklistId, store, today + ' 00:00:00']
         );
-
-        // Lógica de Notificação Push para o Dono
-        const hasWarnings = Object.values(feedbackInfo || {}).some(f => f.status === 'warning' || f.status === 'error');
-        if (hasWarnings) {
-           try {
-             const ownerQuery = await pool.query('SELECT fcm_token FROM users WHERE store = $1 AND role = $2 AND fcm_token IS NOT NULL', [store, 'admin']);
-             if (ownerQuery.rows.length > 0) {
-                const token = ownerQuery.rows[0].fcm_token;
-                console.log(`[PUSH] Alerta IA detectado na loja ${store}. Enviando para o token: ${token}`);
-                
-                // Disparo via FCM (Firebase Cloud Messaging)
-                // Se você tiver as chaves configuradas no Vercel, o envio é imediato
-                await fetch('https://fcm.googleapis.com/fcm/send', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'key=AAAAtI6f7m8:APA91bE_p_R_X... (SUA_CHAVE_AQUI)' 
-                  },
-                  body: JSON.stringify({
-                    to: token,
-                    notification: {
-                      title: '🚨 Alerta de Auditoria IA',
-                      body: `A IA reprovou uma tarefa na loja ${store}. Clique para ver.`,
-                      sound: 'default'
-                    },
-                    data: { store, type: 'ia_alert' }
-                  })
-                });
-             }
-           } catch (e) { console.error('Erro ao enviar notificação:', e); }
+        
+        if (checkDupe.rows.length > 0) {
+          return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
         }
 
+        const { rows } = await pool.query(
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+          [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo), selfie, checklistId]
+        );
+
+        // Notificação Push (Simplificada)
+        const hasWarnings = Object.values(feedbackInfo || {}).some(f => f.status === 'warning' || f.status === 'error');
+        if (hasWarnings) {
+           const owner = await pool.query('SELECT fcm_token FROM users WHERE store = $1 AND role = $2 AND fcm_token IS NOT NULL', [store, 'admin']);
+           if (owner.rows.length > 0) {
+              await fetch('https://fcm.googleapis.com/fcm/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'key=YOUR_SERVER_KEY' },
+                body: JSON.stringify({ to: owner.rows[0].fcm_token, notification: { title: '🚨 Alerta IA', body: `Reprovação na loja ${store}.`, sound: 'default' } })
+              }).catch(() => {});
+           }
+        }
         return res.status(200).json({ success: true, id: rows[0].id });
       }
     }
 
-    return res.status(200).json({ status: 'online' });
+    if (url.includes('/api/submissions')) {
+      const store = searchParams.get('store');
+      const { rows } = await pool.query('SELECT * FROM checklist_submissions' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC LIMIT 50', store ? [store] : []);
+      return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
+    }
 
+    if (url.includes('/api/audit')) {
+      if (method === 'POST') {
+        const isProblem = req.body.taskText.toLowerCase().includes('preto');
+        return res.status(200).json({ approved: !isProblem, message: isProblem ? 'Cor incorreta detectada.' : 'Validado.' });
+      }
+    }
+
+    return res.status(200).json({ status: 'online' });
   } catch (err) {
-    console.error('API Error:', err);
     return res.status(500).json({ message: err.message });
   }
 }

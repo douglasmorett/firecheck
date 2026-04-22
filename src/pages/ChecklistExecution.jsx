@@ -36,6 +36,9 @@ export default function ChecklistExecution() {
     store: userProfile?.store || 'Loja Exemplo'
   };
 
+  const [currentChecklistId, setCurrentChecklistId] = useState(null);
+  const [completedTodayInfo, setCompletedTodayInfo] = useState(null);
+
   // Carregar checklists da loja
   useEffect(() => {
     setTasks([]);
@@ -47,7 +50,14 @@ export default function ChecklistExecution() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           const cl = data[0];
+          setCurrentChecklistId(cl.id);
           setTitle(cl.title);
+          
+          if (cl.completedToday) {
+            setCompletedTodayInfo(cl.completedBy);
+            setSubmitted(true);
+          }
+
           setTasks(cl.tasks.map((t, idx) => ({ 
             ...t, 
             id: t.id || `task-${idx}`, 
@@ -165,10 +175,21 @@ export default function ChecklistExecution() {
     try {
       const res = await fetch(`${API_URL}/api/finalize`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeName: EMPLOYEE.name, store: EMPLOYEE.store, tasks, feedbackInfo: aiFeedback, selfie })
+        body: JSON.stringify({ 
+          employeeName: EMPLOYEE.name, 
+          store: EMPLOYEE.store, 
+          tasks, 
+          feedbackInfo: aiFeedback, 
+          selfie,
+          checklistId: currentChecklistId
+        })
       });
       if (res.ok) setSubmitted(true);
-    } catch { alert('Erro ao enviar checklist.'); }
+      else {
+        const errData = await res.json();
+        alert(errData.message || 'Erro ao enviar.');
+      }
+    } catch { alert('Erro ao conectar com o servidor.'); }
   };
 
   const completedCount = tasks.filter(t => t.done !== null && t.done !== false && t.done !== '').length;
@@ -177,14 +198,22 @@ export default function ChecklistExecution() {
   if (submitted) return (
     <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>
       <Trophy size={80} color="var(--primary)" style={{ marginBottom: '24px' }} />
-      <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>Checklist Enviado!</h1>
+      <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>
+        {completedTodayInfo ? 'Checklist Concluído!' : 'Checklist Enviado!'}
+      </h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-        Parabéns, {EMPLOYEE.name}! O seu checklist foi registrado com sucesso.
+        {completedTodayInfo 
+          ? `Este checklist já foi realizado hoje por ${completedTodayInfo}.` 
+          : `Parabéns, ${EMPLOYEE.name}! O seu checklist foi registrado com sucesso.`
+        }
       </p>
       {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
       <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
-        <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ {completedCount}/{tasks.length} tarefas concluídas ({progress}%)</p>
+        <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
       </div>
+      <button className="btn-secondary" style={{ marginTop: '24px', width: '100%' }} onClick={() => window.location.reload()}>
+         Atualizar Status
+      </button>
     </div>
   );
 
