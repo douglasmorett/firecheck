@@ -128,7 +128,8 @@ export default async function handler(req, res) {
         const feedbackInfo = {};
         let hasErrors = false;
 
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error('API Key não configurada');
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 

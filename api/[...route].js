@@ -284,7 +284,8 @@ export default async function handler(req, res) {
     if (url.includes('/api/audit')) {
       if (req.method === 'POST') {
         const { taskId, taskText, photoBase64 } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) throw new Error('API Key não configurada');
 
         if (!apiKey) {
           return res.status(200).json({
