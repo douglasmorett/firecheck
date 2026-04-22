@@ -507,9 +507,18 @@ export default function AdminDashboard() {
               const totalTasks = s.tasks?.length || 1;
               const pct = Math.round((completedTasks / totalTasks) * 100);
               
-              // Determina o status geral baseado nos feedbacks
-              const hasWarnings = Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error');
-              const status = hasWarnings ? 'reprovado' : 'aprovado';
+              const feedbacks = Object.values(s.feedback_info || {});
+              const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
+              const hasPhotos = (s.tasks || []).some(t => t.photo);
+              
+              let status = 'pendente';
+              if (hasPhotos) {
+                if (feedbacks.length === 0) status = 'pendente'; // A IA ainda está processando no background ou falhou silenciosamente
+                else if (hasWarnings) status = 'reprovado';
+                else status = 'aprovado';
+              } else {
+                status = 'ignorado';
+              }
 
               return (
                 <div key={s.id} 
@@ -928,7 +937,19 @@ export default function AdminDashboard() {
                 })}
               </div>
             </div>
-            <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
+            <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+               {(!selectedSubmission.feedback_info || Object.keys(selectedSubmission.feedback_info).length === 0) && (
+                 <button className="btn-secondary" style={{ flex: 1, padding: '16px', fontSize: '1rem', backgroundColor: 'rgba(255,160,0,0.1)', color: '#FFA000', borderColor: '#FFA000' }} 
+                    onClick={async (e) => {
+                      e.currentTarget.textContent = 'Processando...';
+                      await fetch(`${API_URL}/api/process-audit-background`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: selectedSubmission.id }) });
+                      setShowSubmissionModal(false);
+                      fetchData();
+                    }}>
+                    <Activity size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
+                    Forçar Auditoria IA (Recalcular)
+                 </button>
+               )}
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
                     Finalizar Ocorrência (Ciente)
