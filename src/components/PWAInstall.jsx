@@ -11,7 +11,6 @@ export default function PWAInstall() {
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       setIsInstalled(true);
     }
-
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -50,23 +49,23 @@ export default function PWAInstall() {
           alignItems: 'center',
           justifyContent: 'center',
           gap: '12px',
-          backgroundColor: 'rgba(255, 77, 0, 0.1)',
-          color: 'var(--primary)',
-          border: '1px solid var(--primary)',
-          padding: '16px',
-          borderRadius: '12px',
+          backgroundColor: 'rgba(255, 77, 0, 0.15)',
+          color: '#ff4d00',
+          border: '2px solid #ff4d00',
+          padding: '18px',
+          borderRadius: '14px',
           cursor: 'pointer',
           fontWeight: 'bold',
-          fontSize: '1rem',
+          fontSize: '1.1rem',
           marginBottom: '24px',
           width: '100%',
-          transition: 'all 0.2s'
+          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
         }}
       >
-        <Smartphone size={22} />
+        <Smartphone size={24} />
         <div style={{ textAlign: 'left' }}>
-          <div style={{ fontWeight: '800' }}>Baixar nosso aplicativo</div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Instalação rápida para Android e iPhone</div>
+          <div style={{ fontWeight: '900' }}>Baixar nosso aplicativo</div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Receba notificações de auditoria</div>
         </div>
       </button>
 
@@ -74,44 +73,47 @@ export default function PWAInstall() {
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.9)',
+          backgroundColor: 'rgba(0,0,0,0.85)',
           display: 'flex',
-          alignItems: 'flex-end',
-          zIndex: 10000,
-          animation: 'fadeIn 0.2s ease-out'
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          backdropFilter: 'blur(4px)'
         }} onClick={resetModal}>
           <div 
             style={{
               width: '100%',
-              backgroundColor: '#1A1C23',
-              padding: '32px 24px',
-              borderTopLeftRadius: '24px',
-              borderTopRightRadius: '24px',
-              boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+              maxWidth: '400px',
+              backgroundColor: '#1E2028',
+              padding: '30px',
+              borderRadius: '24px',
+              border: '1px solid #333',
               color: 'white',
-              animation: 'slideUp 0.3s ease-out'
+              boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+              animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
             }}
             onClick={e => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.4rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.4rem', color: 'white' }}>
                 {step === 'choice' ? 'Qual seu celular?' : step === 'android' ? 'Instalar no Android' : 'Instalar no iPhone'}
               </h3>
-              <button onClick={resetModal} style={{ background: 'none', border: 'none', color: 'var(--text-muted)' }}><X size={24} /></button>
+              <button onClick={resetModal} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}><X size={28} /></button>
             </div>
 
             {step === 'choice' && (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                 <button 
                   onClick={handleAndroidInstall}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid #444', color: 'white', cursor: 'pointer' }}
                 >
                   <Smartphone size={32} color="#3ddc84" />
                   <span style={{ fontWeight: 'bold' }}>Android</span>
                 </button>
                 <button 
                   onClick={() => setStep('ios')}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid rgba(255,255,255,0.1)', color: 'white', cursor: 'pointer' }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid #444', color: 'white', cursor: 'pointer' }}
                 >
                   <Smartphone size={32} color="#A2AAAD" />
                   <span style={{ fontWeight: 'bold' }}>iPhone</span>
@@ -120,24 +122,24 @@ export default function PWAInstall() {
             )}
 
             {step === 'android' && (
-              <div style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                <p>1. Clique nos <b>três pontos (⋮)</b> do navegador Chrome.</p>
-                <p>2. Selecione <b>"Instalar aplicativo"</b> ou "Adicionar à tela inicial".</p>
-                <button className="btn" style={{ width: '100%', marginTop: '20px' }} onClick={resetModal}>Entendi</button>
+              <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
+                <p style={{ marginBottom: '12px' }}>1. Clique nos <b>três pontos (⋮)</b> lá no topo do Chrome.</p>
+                <p style={{ marginBottom: '20px' }}>2. Procure por <b>"Instalar aplicativo"</b> ou "Adicionar à tela inicial".</p>
+                <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={resetModal}>Entendi</button>
               </div>
             )}
 
             {step === 'ios' && (
-              <div style={{ color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                   <div style={{ backgroundColor: '#2D303E', padding: '8px', borderRadius: '8px' }}><Share size={20} color="#007AFF" /></div>
+              <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Share size={24} color="#007AFF" /></div>
                    <span>1. Clique no botão de <b>Compartilhar</b> do Safari.</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                   <div style={{ backgroundColor: '#2D303E', padding: '8px', borderRadius: '8px' }}><Plus size={20} /></div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Plus size={24} /></div>
                    <span>2. Selecione <b>"Adicionar à Tela de Início"</b>.</span>
                 </div>
-                <button className="btn" style={{ width: '100%' }} onClick={resetModal}>Entendi</button>
+                <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={resetModal}>Entendi</button>
               </div>
             )}
           </div>
@@ -145,8 +147,7 @@ export default function PWAInstall() {
       )}
 
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
       `}</style>
     </>
   );
