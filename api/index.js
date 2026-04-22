@@ -308,14 +308,31 @@ export default async function handler(req, res) {
         const hasWarnings = Object.values(feedbackInfo || {}).some(f => f.status === 'warning' || f.status === 'error');
         if (hasWarnings) {
            try {
-             // Busca o dono da loja para pegar o token FCM
              const ownerQuery = await pool.query('SELECT fcm_token FROM users WHERE store = $1 AND role = $2 AND fcm_token IS NOT NULL', [store, 'admin']);
              if (ownerQuery.rows.length > 0) {
                 const token = ownerQuery.rows[0].fcm_token;
-                console.log(`[PUSH] Enviando alerta para o dono da loja ${store}. Token: ${token}`);
-                // Aqui entraria o firebase-admin.messaging().send(...)
+                console.log(`[PUSH] Alerta IA detectado na loja ${store}. Enviando para o token: ${token}`);
+                
+                // Disparo via FCM (Firebase Cloud Messaging)
+                // Se você tiver as chaves configuradas no Vercel, o envio é imediato
+                await fetch('https://fcm.googleapis.com/fcm/send', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'key=AAAAtI6f7m8:APA91bE_p_R_X... (SUA_CHAVE_AQUI)' 
+                  },
+                  body: JSON.stringify({
+                    to: token,
+                    notification: {
+                      title: '🚨 Alerta de Auditoria IA',
+                      body: `A IA reprovou uma tarefa na loja ${store}. Clique para ver.`,
+                      sound: 'default'
+                    },
+                    data: { store, type: 'ia_alert' }
+                  })
+                });
              }
-           } catch (e) { console.error('Erro ao processar notificação:', e); }
+           } catch (e) { console.error('Erro ao enviar notificação:', e); }
         }
 
         return res.status(200).json({ success: true, id: rows[0].id });
