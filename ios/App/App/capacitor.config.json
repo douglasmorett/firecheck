@@ -2,6 +2,9 @@
 	"appId": "com.grupohakim.firecheck",
 	"appName": "FireCheck",
 	"webDir": "dist",
+	"server": {
+		"androidScheme": "https"
+	},
 	"packageClassList": [
 		"PushNotificationsPlugin"
 	]
