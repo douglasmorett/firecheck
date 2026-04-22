@@ -298,6 +298,17 @@ export default async function handler(req, res) {
 
         while (retries > 0) {
           try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({ 
+              model: "gemini-1.5-flash",
+              safetySettings: [
+                { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+                { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+              ]
+            });
+
             const base64Data = photoBase64.split(',')[1] || photoBase64;
             const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${taskText}" foi executada com perfeição.
             Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.
@@ -306,31 +317,17 @@ export default async function handler(req, res) {
             2. Se houver qualquer falha, imperfeição, ou se a foto não provar a execução, approved: false e aponte o erro exato na message de forma clara.
             NUNCA dê respostas neutras. Não use formatação markdown fora do JSON.`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: [{
-                  parts: [
-                    { text: prompt },
-                    { inlineData: { mimeType: "image/jpeg", data: base64Data } }
-                  ]
-                }],
-                generationConfig: { responseMimeType: "application/json" }
-              })
-            });
+            const result = await model.generateContent([
+              prompt,
+              { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+            ]);
 
-            const data = await response.json();
-            
-            if (data.error) {
-              throw new Error(`Erro API: ${data.error.message}`);
-            }
-
-            const resultText = data.candidates[0].content.parts[0].text;
+            const response = await result.response;
+            const text = response.text();
             
             // Extração robusta de JSON para evitar quebra com markdown (```json ... ```)
-            const jsonMatch = resultText.match(/\{[\s\S]*\}/);
-            const cleanJson = jsonMatch ? jsonMatch[0] : resultText;
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            const cleanJson = jsonMatch ? jsonMatch[0] : text;
             
             const aiResponse = JSON.parse(cleanJson);
             return res.status(200).json(aiResponse);
@@ -339,10 +336,10 @@ export default async function handler(req, res) {
             lastError = error.message || 'Erro desconhecido';
             retries--;
             if (retries === 0) {
-              console.error('Falha definitiva na auditoria:', error);
+              console.error('Falha definitiva na auditoria SDK:', error);
               return res.status(200).json({ 
                 approved: false, 
-                message: `Auditoria falhou após tentativas. Erro: ${lastError.substring(0, 50)}` 
+                message: `Auditoria falhou: ${lastError.substring(0, 50)}` 
               });
             }
           }
