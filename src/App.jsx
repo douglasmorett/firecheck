@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import ChecklistCreator from './pages/ChecklistCreator';
@@ -10,8 +11,8 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Site Institucional de Vendas */}
-        <Route path="/" element={<LandingPage />} />
+        {/* Se for App (Nativo), abre no Login. Se for Web, abre na Landing Page */}
+        <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
         <Route path="/checkout" element={<Checkout />} />
         
         {/* Tela de Login do Sistema */}
