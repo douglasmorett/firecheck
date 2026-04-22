@@ -898,6 +898,7 @@ export default function AdminDashboard() {
                   );
                 })}
               </div>
+            </div>
             <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
