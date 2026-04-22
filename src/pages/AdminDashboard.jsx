@@ -55,6 +55,7 @@ export default function AdminDashboard() {
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
+  const [submissions, setSubmissions] = useState([]);
   const [dateFilter, setDateFilter] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // Início do mês
     end: new Date().toISOString().split('T')[0]
@@ -133,6 +134,10 @@ export default function AdminDashboard() {
         
         const statsData = await statsRes.json();
         setStats(statsData);
+
+        const subRes = await fetch(`${API_URL}/api/submissions${query}`);
+        const subData = await subRes.json();
+        setSubmissions(Array.isArray(subData) ? subData : []);
       }
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };
@@ -431,24 +436,42 @@ export default function AdminDashboard() {
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Últimas 24h</span>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {AUDITORIAS.map(a => (
-              <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <h4 style={{ fontSize: '1rem', marginBottom: '4px' }}>{a.checklist}</h4>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {a.funcionario}</p>
-                  <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <BarPct pct={a.pct} color={a.pct === 100 ? 'var(--success)' : a.pct > 60 ? '#FFA000' : 'var(--error)'} />
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{a.pct}%</span>
+            {submissions.length > 0 ? submissions.map(s => {
+              const completedTasks = s.tasks?.filter(t => t.done)?.length || 0;
+              const totalTasks = s.tasks?.length || 1;
+              const pct = Math.round((completedTasks / totalTasks) * 100);
+              
+              // Determina o status geral baseado nos feedbacks
+              const hasWarnings = Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error');
+              const status = hasWarnings ? 'reprovado' : 'aprovado';
+
+              return (
+                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
+                    {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>Checklist Concluído</h4>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
+                      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <StatusBadge status={status} />
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
+                      <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                      {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <StatusBadge status={a.status} />
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
-                    <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />{a.tempo}
-                  </p>
-                </div>
+              );
+            }) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <p>Nenhuma auditoria realizada no período.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}

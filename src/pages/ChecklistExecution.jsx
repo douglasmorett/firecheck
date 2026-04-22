@@ -14,8 +14,8 @@ export default function ChecklistExecution() {
   };
 
   const [activeCameraTaskId, setActiveCameraTaskId] = useState(null);
-  const [signature, setSignature] = useState(null);
-  const [showSignature, setShowSignature] = useState(false);
+  const [selfie, setSelfie] = useState(null);
+  const [showSelfieModal, setShowSelfieModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [aiFeedback, setAIFeedback] = useState({});
@@ -63,8 +63,6 @@ export default function ChecklistExecution() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
-  const sigCanvasRef = useRef(null);
-  const sigDrawing = useRef(false);
 
   // ─── Câmera ───────────────────────────────────────────
   const startCamera = async (taskId) => {
@@ -126,34 +124,30 @@ export default function ChecklistExecution() {
   const handleToggle = (id) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
 
-  // ─── Assinatura Digital ───────────────────────────────
-  const startDraw = (e) => {
-    sigDrawing.current = true;
-    const ctx = sigCanvasRef.current.getContext('2d');
-    const rect = sigCanvasRef.current.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    ctx.beginPath(); ctx.moveTo(x, y);
+  // ─── Selfie de Conclusão ──────────────────────────────
+  const takeSelfie = async () => {
+    if (!videoRef.current || !canvasRef.current) return;
+    const video = videoRef.current, canvas = canvasRef.current;
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const photoUrl = canvas.toDataURL('image/jpeg', 0.7);
+    setSelfie(photoUrl);
+    setShowSelfieModal(false);
+    stopCamera();
   };
-  const draw = (e) => {
-    if (!sigDrawing.current) return;
-    e.preventDefault();
-    const ctx = sigCanvasRef.current.getContext('2d');
-    const rect = sigCanvasRef.current.getBoundingClientRect();
-    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-    ctx.lineTo(x, y); ctx.strokeStyle = '#FF4500'; ctx.lineWidth = 2; ctx.stroke();
-  };
-  const endDraw = () => { sigDrawing.current = false; };
-  const clearSignature = () => {
-    const ctx = sigCanvasRef.current.getContext('2d');
-    ctx.clearRect(0, 0, sigCanvasRef.current.width, sigCanvasRef.current.height);
-    setSignature(null);
-  };
-  const saveSignature = () => {
-    const dataUrl = sigCanvasRef.current.toDataURL('image/png');
-    setSignature(dataUrl);
-    setShowSignature(false);
+
+  const startSelfieCamera = async () => {
+    try {
+      setShowSelfieModal(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      streamRef.current = stream;
+      setTimeout(() => {
+        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
+      }, 100);
+    } catch {
+      alert('Erro ao acessar a câmera frontal.');
+      setShowSelfieModal(false);
+    }
   };
 
   const handleFinish = async () => {
@@ -161,13 +155,13 @@ export default function ChecklistExecution() {
     if (pendingPhoto.length > 0) {
       alert('Envie a foto de todas as tarefas obrigatórias antes de finalizar.'); return;
     }
-    if (!signature) {
-      setShowSignature(true); return;
+    if (!selfie) {
+      startSelfieCamera(); return;
     }
     try {
       const res = await fetch(`${API_URL}/api/finalize`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeName: EMPLOYEE.name, store: EMPLOYEE.store, tasks, feedbackInfo: aiFeedback })
+        body: JSON.stringify({ employeeName: EMPLOYEE.name, store: EMPLOYEE.store, tasks, feedbackInfo: aiFeedback, selfie })
       });
       if (res.ok) setSubmitted(true);
     } catch { alert('Erro ao enviar checklist.'); }
@@ -183,7 +177,7 @@ export default function ChecklistExecution() {
       <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
         Parabéns, {EMPLOYEE.name}! O seu checklist foi registrado com sucesso.
       </p>
-      {signature && <img src={signature} alt="Assinatura" style={{ border: '1px solid var(--border-color)', borderRadius: '8px', maxWidth: '300px', marginBottom: '24px' }} />}
+      {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
       <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
         <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ {completedCount}/{tasks.length} tarefas concluídas ({progress}%)</p>
       </div>
@@ -197,7 +191,7 @@ export default function ChecklistExecution() {
            <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
               <Flame size={18} color="white" />
            </div>
-           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
+           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck Pro</h2>
         </div>
         <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
            Sair <LogOut size={16} />
@@ -242,6 +236,49 @@ export default function ChecklistExecution() {
                         onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null } : t))}>
                         <X size={16} />
                       </button>
+
+                      {/* Feedback da Auditoria (IA) */}
+                      {aiFeedback[task.id] && !task.forceOverride && (
+                        <div style={{ 
+                          marginTop: '12px', 
+                          padding: '16px', 
+                          borderRadius: '8px', 
+                          backgroundColor: aiFeedback[task.id].status === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                          border: `1px solid ${aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)'}`
+                        }}>
+                          <p style={{ 
+                            fontSize: '0.9rem', 
+                            color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)',
+                            fontWeight: 'bold',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            marginBottom: '4px'
+                          }}>
+                            {aiFeedback[task.id].status === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+                            {aiFeedback[task.id].status === 'success' ? 'Auditado com Sucesso' : 'Atenção na Auditoria'}
+                          </p>
+                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                            {aiFeedback[task.id].message || 'Análise concluída.'}
+                          </p>
+                          
+                          {aiFeedback[task.id].status !== 'success' && (
+                            <button 
+                              className="btn" 
+                              style={{ width: '100%', backgroundColor: 'var(--warning)', color: 'black', fontSize: '0.8rem', padding: '10px' }}
+                              onClick={() => forceAcceptPhoto(task.id)}
+                            >
+                              Desejo Enviar Assim Mesmo
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {task.forceOverride && (
+                        <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px dashed var(--text-muted)' }}>
+                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>✓ Foto enviada com justificativa de override.</p>
+                        </div>
+                      )}
                     </div>
                   ) : activeCameraTaskId === task.id ? (
                     <div style={{ width: '100%', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
@@ -268,26 +305,31 @@ export default function ChecklistExecution() {
         })}
       </div>
 
-      {showSignature && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '24px' }}>
-            <h3 style={{ marginBottom: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <PenLine size={20} color="var(--primary)" /> Assinatura Digital
-            </h3>
-            <canvas ref={sigCanvasRef} width={460} height={180}
-              style={{ width: '100%', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: '#0D0E12', cursor: 'crosshair', touchAction: 'none' }}
-              onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
-              onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
-            <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-              <button className="btn-secondary" style={{ flex: 1 }} onClick={clearSignature}>Limpar</button>
-              <button className="btn" style={{ flex: 2 }} onClick={saveSignature}>Confirmar e Enviar</button>
+      {showSelfieModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '500px', padding: '0', overflow: 'hidden' }}>
+            <div style={{ padding: '20px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ margin: 0, display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <Camera size={20} color="var(--primary)" /> Selfie de Conclusão
+              </h3>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>Sorria! Precisamos de uma foto sua para finalizar.</p>
+            </div>
+            
+            <div style={{ width: '100%', backgroundColor: '#000', position: 'relative', aspectRatio: '3/4' }}>
+              <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} autoPlay playsInline></video>
+              <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
+            </div>
+
+            <div style={{ padding: '20px', display: 'flex', gap: '12px' }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { stopCamera(); setShowSelfieModal(false); }}>Cancelar</button>
+              <button className="btn" style={{ flex: 2 }} onClick={takeSelfie}>Capturar e Finalizar</button>
             </div>
           </div>
         </div>
       )}
 
       <button className="btn" style={{ width: '100%', marginTop: '32px', padding: '16px' }} onClick={handleFinish}>
-        {signature ? <><FileText size={20} /> Finalizar e Enviar</> : <><PenLine size={20} /> Assinar e Finalizar</>}
+        {selfie ? <><CheckCircle size={20} /> Finalizar e Enviar</> : <><Camera size={20} /> Tirar Selfie e Finalizar</>}
       </button>
 
     </div>

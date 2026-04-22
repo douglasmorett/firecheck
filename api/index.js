@@ -20,6 +20,19 @@ export default async function handler(req, res) {
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
+    
+    // Tabela para armazenar as conclusões de checklists
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS checklist_submissions (
+        id SERIAL PRIMARY KEY,
+        employee_name TEXT,
+        store TEXT,
+        tasks TEXT,
+        feedback_info TEXT,
+        selfie TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   } catch (migErr) {
     console.error('Migration Error:', migErr);
   }
@@ -177,6 +190,58 @@ export default async function handler(req, res) {
       queryUsers += ' ORDER BY name ASC';
       const { rows } = await pool.query(queryUsers, queryParams);
       return res.status(200).json(rows);
+    }
+
+    // Listagem de Submissões (Resultados)
+    if (url.includes('/api/submissions')) {
+      const store = searchParams.get('store');
+      let querySub = 'SELECT * FROM checklist_submissions';
+      let queryParams = [];
+      
+      if (store && store !== 'undefined' && store !== 'null') {
+        querySub += ' WHERE store = $1';
+        queryParams = [store];
+      }
+      
+      querySub += ' ORDER BY created_at DESC LIMIT 50';
+      const { rows } = await pool.query(querySub, queryParams);
+      
+      // Formatar JSONs
+      const formatted = rows.map(r => ({
+        ...r,
+        tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks,
+        feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info
+      }));
+      
+      return res.status(200).json(formatted);
+    }
+
+    // Auditoria de Foto (IA Mock)
+    if (url.includes('/api/audit')) {
+      if (req.method === 'POST') {
+        const { taskId, taskText } = req.body;
+        // Lógica de "IA" simulada: reprova se a tarefa tiver "preto" no texto (apenas para teste/demo)
+        const isProblematic = taskText.toLowerCase().includes('preto');
+        
+        return res.status(200).json({
+          approved: !isProblematic,
+          message: isProblematic 
+            ? 'Não acreditamos que o solicitado foi feito corretamente. A cor detectada não parece ser a correta.' 
+            : 'Foto validada com sucesso.'
+        });
+      }
+    }
+
+    // Finalização de Checklist
+    if (url.includes('/api/finalize')) {
+      if (req.method === 'POST') {
+        const { employeeName, store, tasks, feedbackInfo, selfie } = req.body;
+        const { rows } = await pool.query(
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo), selfie]
+        );
+        return res.status(200).json({ success: true, id: rows[0].id });
+      }
     }
 
     return res.status(200).json({ status: 'online' });
