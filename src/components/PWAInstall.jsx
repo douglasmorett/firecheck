@@ -132,12 +132,18 @@ export default function PWAInstall() {
             {step === 'ios' && (
               <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}>
+                     <span style={{ fontSize: '20px', fontWeight: 'bold' }}>...</span>
+                   </div>
+                   <span>1. Clique nos <b>3 pontinhos (...)</b> no canto inferior direito da tela.</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
                    <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Share size={24} color="#007AFF" /></div>
-                   <span>1. Clique no botão de <b>Compartilhar</b> do Safari.</span>
+                   <span>2. No menu que abrir, clique em <b>"Compartilhar"</b>.</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
                    <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Plus size={24} /></div>
-                   <span>2. Selecione <b>"Adicionar à Tela de Início"</b>.</span>
+                   <span>3. Role para baixo e selecione <b>"Adicionar à Tela de Início"</b>.</span>
                 </div>
                 <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={resetModal}>Entendi</button>
               </div>
