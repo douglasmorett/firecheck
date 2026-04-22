@@ -36,8 +36,9 @@ const PrivacyPolicy = () => {
           <p style={{ color: '#a0a0a0' }}>Para fornecer nossos serviços de auditoria e checklist, coletamos as seguintes categorias de dados:</p>
           <ul style={{ color: '#a0a0a0', paddingLeft: '20px' }}>
             <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Dados de Cadastro:</strong> Nome, e-mail, cargo e dados da empresa/unidade.</li>
-            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Dados Operacionais:</strong> Respostas de checklists, observações em texto, fotos capturadas pela câmera do dispositivo e geolocalização no momento do envio.</li>
-            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Dados de Uso:</strong> Informações sobre como você interage com o app, registros de erros e performance.</li>
+            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Dados Operacionais:</strong> Respostas de checklists, observações em texto e fotos capturadas pela câmera do dispositivo.</li>
+            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Dados de Localização:</strong> Coletamos a geolocalização precisa no momento do envio do checklist para fins de auditoria de presença.</li>
+            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Identificadores de Dispositivo:</strong> Coletamos IDs de dispositivo para funcionamento de notificações push e segurança.</li>
           </ul>
         </section>
 
@@ -48,9 +49,9 @@ const PrivacyPolicy = () => {
           <p style={{ color: '#a0a0a0' }}>Os dados coletados são utilizados para:</p>
           <ul style={{ color: '#a0a0a0', paddingLeft: '20px' }}>
             <li style={{ marginBottom: '10px' }}>Operacionalizar o sistema de checklists e auditorias;</li>
-            <li style={{ marginBottom: '10px' }}>Garantir a veracidade das auditorias (através de fotos em tempo real e localização);</li>
-            <li style={{ marginBottom: '10px' }}>Geração de relatórios de desempenho e conformidade para a administração;</li>
-            <li style={{ marginBottom: '10px' }}>Envio de notificações críticas via WhatsApp sobre atrasos ou inconformidades detectadas por nossa IA.</li>
+            <li style={{ marginBottom: '10px' }}>Garantir a veracidade das auditorias (fotos e localização);</li>
+            <li style={{ marginBottom: '10px' }}>Geração de relatórios de desempenho e conformidade;</li>
+            <li style={{ marginBottom: '10px' }}>Envio de notificações críticas via Push ou WhatsApp.</li>
           </ul>
         </section>
 
@@ -58,20 +59,27 @@ const PrivacyPolicy = () => {
           <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             3. Compartilhamento de Dados
           </h2>
-          <p style={{ color: '#a0a0a0' }}>O FireCheck <strong>não vende</strong> seus dados pessoais a terceiros. O compartilhamento ocorre apenas quando estritamente necessário para:</p>
+          <p style={{ color: '#a0a0a0' }}>O FireCheck <strong>não vende</strong> seus dados. O compartilhamento ocorre apenas com:</p>
           <ul style={{ color: '#a0a0a0', paddingLeft: '20px' }}>
-            <li style={{ marginBottom: '10px' }}>Provedores de infraestrutura e nuvem (Google Cloud / AWS);</li>
-            <li style={{ marginBottom: '10px' }}>Serviços de IA para análise de fotos (Google Gemini API);</li>
-            <li style={{ marginBottom: '10px' }}>Cumprimento de obrigações legais ou ordens judiciais.</li>
+            <li style={{ marginBottom: '10px' }}>Provedores de infraestrutura e nuvem (Firebase / Google Cloud);</li>
+            <li style={{ marginBottom: '10px' }}>Serviços de IA para análise de fotos (Google Gemini);</li>
+            <li style={{ marginBottom: '10px' }}>Cumprimento de obrigações legais.</li>
           </ul>
         </section>
 
         <section style={{ marginBottom: '32px' }}>
           <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
-            4. Seus Direitos (LGPD)
+            4. Retenção e Exclusão de Dados (Obrigatório Google Play)
           </h2>
           <p style={{ color: '#a0a0a0' }}>
-            Conforme a Lei Geral de Proteção de Dados (LGPD), você tem direito a acessar, corrigir, portar ou solicitar a exclusão de seus dados pessoais. Para exercer esses direitos, entre em contato através do e-mail abaixo.
+            Os dados são retidos enquanto a conta estiver ativa. Oferecemos as seguintes opções para exclusão:
+          </p>
+          <ul style={{ color: '#a0a0a0', paddingLeft: '20px' }}>
+            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Exclusão via App:</strong> Acesse as configurações do seu perfil no aplicativo para solicitar a exclusão da conta.</li>
+            <li style={{ marginBottom: '10px' }}><strong style={{ color: '#fff' }}>Solicitação via E-mail:</strong> Envie um e-mail para <strong>douglas@grupohakim.com.br</strong> com o assunto "Exclusão de Dados".</li>
+          </ul>
+          <p style={{ color: '#a0a0a0' }}>
+            Após a solicitação, os dados serão removidos em até 30 dias.
           </p>
         </section>
 
@@ -91,7 +99,7 @@ const PrivacyPolicy = () => {
           borderTop: '1px solid rgba(255, 255, 255, 0.05)',
           paddingTop: '20px'
         }}>
-          Última atualização: 21 de abril de 2026. <br /> FireCheck Inc. — Todos os direitos reservados.
+          Última atualização: 22 de abril de 2026. <br /> FireCheck Inc. — Todos os direitos reservados.
         </div>
       </div>
     </div>
