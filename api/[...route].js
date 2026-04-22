@@ -306,7 +306,7 @@ export default async function handler(req, res) {
             2. Se houver qualquer falha, imperfeição, ou se a foto não provar a execução, approved: false e aponte o erro exato na message de forma clara.
             NUNCA dê respostas neutras. Não use formatação markdown fora do JSON.`;
 
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
