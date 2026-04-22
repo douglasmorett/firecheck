@@ -195,6 +195,16 @@ export default function ChecklistExecution() {
   const completedCount = tasks.filter(t => t.done !== null && t.done !== false && t.done !== '').length;
   const progress = Math.round((completedCount / (tasks.length || 1)) * 100);
 
+  // Redirecionamento automático após sucesso
+  useEffect(() => {
+    if (submitted && !completedTodayInfo) {
+      const timer = setTimeout(() => {
+        window.location.reload();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, completedTodayInfo]);
+
   if (submitted) return (
     <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>
       <Trophy size={80} color="var(--primary)" style={{ marginBottom: '24px' }} />
@@ -210,9 +220,10 @@ export default function ChecklistExecution() {
       {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
       <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
         <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
+        {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
       </div>
-      <button className="btn-secondary" style={{ marginTop: '24px', width: '100%' }} onClick={() => window.location.reload()}>
-         Atualizar Status
+      <button className="btn" style={{ marginTop: '24px', width: '100%', padding: '16px' }} onClick={() => window.location.reload()}>
+         Voltar para a Lista
       </button>
     </div>
   );
