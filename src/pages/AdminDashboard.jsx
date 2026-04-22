@@ -559,7 +559,9 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
                     {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
                     <div style={{ flex: 1 }}>
-                      <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>Checklist Concluído</h4>
+                      <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>
+                        {checklists?.find(c => c.id === s.checklist_id)?.title || 'Checklist Concluído'}
+                      </h4>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
                       <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
@@ -908,7 +910,9 @@ export default function AdminDashboard() {
             <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: '#121318' }}>
               {selectedSubmission.selfie && <img src={selectedSubmission.selfie} alt="Selfie" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '3px solid var(--primary)' }} />}
               <div>
-                <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Detalhes da Auditoria</h2>
+                <h2 style={{ fontSize: '1.5rem', margin: 0 }}>
+                   {checklists?.find(c => c.id === selectedSubmission.checklist_id)?.title || 'Detalhes da Auditoria'}
+                </h2>
                 <p style={{ color: 'var(--text-muted)' }}>{selectedSubmission.employee_name} · {selectedSubmission.store}</p>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                   <CalendarClock size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
