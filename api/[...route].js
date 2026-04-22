@@ -293,40 +293,59 @@ export default async function handler(req, res) {
           });
         }
 
-        try {
-          const base64Data = photoBase64.split(',')[1] || photoBase64;
-          const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}. Explique o motivo em português.`;
+        let retries = 2;
+        let lastError = '';
 
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [
-                  { text: prompt },
-                  { inlineData: { mimeType: "image/jpeg", data: base64Data } }
-                ]
-              }],
-              generationConfig: { responseMimeType: "application/json" }
-            })
-          });
+        while (retries > 0) {
+          try {
+            const base64Data = photoBase64.split(',')[1] || photoBase64;
+            const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${taskText}" foi executada com perfeição.
+            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.
+            Regras:
+            1. Se a foto comprovar a execução perfeita, approved: true e dê um feedback direto de aprovação na message.
+            2. Se houver qualquer falha, imperfeição, ou se a foto não provar a execução, approved: false e aponte o erro exato na message de forma clara.
+            NUNCA dê respostas neutras. Não use formatação markdown fora do JSON.`;
 
-          const data = await response.json();
-          
-          if (data.error) {
-             return res.status(200).json({ approved: false, message: `Erro Google: ${data.error.message}` });
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: prompt },
+                    { inlineData: { mimeType: "image/jpeg", data: base64Data } }
+                  ]
+                }],
+                generationConfig: { responseMimeType: "application/json" }
+              })
+            });
+
+            const data = await response.json();
+            
+            if (data.error) {
+              throw new Error(`Erro API: ${data.error.message}`);
+            }
+
+            const resultText = data.candidates[0].content.parts[0].text;
+            
+            // Extração robusta de JSON para evitar quebra com markdown (```json ... ```)
+            const jsonMatch = resultText.match(/\{[\s\S]*\}/);
+            const cleanJson = jsonMatch ? jsonMatch[0] : resultText;
+            
+            const aiResponse = JSON.parse(cleanJson);
+            return res.status(200).json(aiResponse);
+
+          } catch (error) {
+            lastError = error.message || 'Erro desconhecido';
+            retries--;
+            if (retries === 0) {
+              console.error('Falha definitiva na auditoria:', error);
+              return res.status(200).json({ 
+                approved: false, 
+                message: `Auditoria falhou após tentativas. Erro: ${lastError.substring(0, 50)}` 
+              });
+            }
           }
-
-          const resultText = data.candidates[0].content.parts[0].text;
-          const aiResponse = JSON.parse(resultText);
-
-          return res.status(200).json(aiResponse);
-        } catch (error) {
-          console.error('Gemini Audit Error:', error);
-          return res.status(200).json({ 
-            approved: false, 
-            message: 'Erro na auditoria. Tente novamente.' 
-          });
         }
       }
     }
