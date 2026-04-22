@@ -94,18 +94,33 @@ export default function AdminDashboard() {
 
   const setupPushNotifications = async (email) => {
     try {
-      const perm = await PushNotifications.requestPermissions();
-      if (perm.receive === 'granted') {
-        await PushNotifications.register();
-        PushNotifications.addListener('registration', async (token) => {
-          await fetch(`${API_URL}/api/register-token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, fcmToken: token.value })
+      // Tenta primeiro o método nativo (Capacitor)
+      if (window.Capacitor?.isNativePlatform()) {
+        const perm = await PushNotifications.requestPermissions();
+        if (perm.receive === 'granted') {
+          await PushNotifications.register();
+          PushNotifications.addListener('registration', async (token) => {
+            await fetch(`${API_URL}/api/register-token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email, fcmToken: token.value })
+            });
           });
-        });
+        }
+      } else {
+        // Método para PWA / Web Push (iPhone e Android no navegador)
+        if ('Notification' in window) {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted') {
+            console.log('Permissão de notificação concedida no navegador');
+            // Aqui futuramente integraremos o service worker para web push
+            // Por enquanto, registramos que o usuário aceitou
+          }
+        }
       }
-    } catch (e) { console.warn('Push não suportado neste navegador/dispositivo'); }
+    } catch (e) { 
+      console.warn('Push não suportado ou negado:', e); 
+    }
   };
 
   const fetchData = async () => {
