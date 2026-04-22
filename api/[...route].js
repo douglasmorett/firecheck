@@ -311,12 +311,16 @@ export default async function handler(req, res) {
           const response = await result.response;
           const text = response.text();
           const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha na comunicação com o servidor de IA.' };
+          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha na comunicação com a IA.' };
 
           return res.status(200).json(aiResponse);
         } catch (error) {
           console.error('Gemini Audit Error:', error);
-          return res.status(200).json({ approved: false, message: 'Erro na auditoria. Por favor, tente novamente.' });
+          const errorMsg = error.message || '';
+          return res.status(200).json({ 
+            approved: false, 
+            message: `Erro na auditoria: ${errorMsg.substring(0, 60)}` 
+          });
         }
       }
     }

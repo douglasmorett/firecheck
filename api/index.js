@@ -157,14 +157,21 @@ export default async function handler(req, res) {
           
           // Tentar extrair JSON da resposta do Gemini
           const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Erro ao processar resposta da IA.' };
+          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha ao interpretar resposta da IA. Tente novamente.' };
 
           return res.status(200).json(aiResponse);
         } catch (error) {
-          console.error('Erro na auditoria Gemini:', error);
+          console.error('Erro detalhado Gemini:', error);
+          const errorMsg = error.message || '';
+          let userMsg = 'Erro técnico na análise.';
+          
+          if (errorMsg.includes('429')) userMsg = 'Limite de uso gratuito atingido. Aguarde um minuto.';
+          if (errorMsg.includes('403')) userMsg = 'Acesso negado. Verifique se o faturamento/projeto está ativo no Google AI Studio.';
+          if (errorMsg.includes('API_KEY_INVALID')) userMsg = 'Chave de API inválida.';
+
           return res.status(200).json({ 
             approved: false, 
-            message: 'Erro técnico na análise de imagem. A tarefa deve ser reavaliada manualmente ou a foto reenviada.' 
+            message: `${userMsg} (Detalhe: ${errorMsg.substring(0, 50)})` 
           });
         }
       }
