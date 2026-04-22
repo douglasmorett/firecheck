@@ -260,10 +260,10 @@ export default function AdminDashboard() {
       const res = await fetch(`${API_URL}/api/resolve-submission`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id })
+        body: JSON.stringify({ id, resolvedBy: userProfile?.name || 'Admin' })
       });
       if (res.ok) {
-        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, resolved: true } : s));
+        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, resolved: true, resolved_by: userProfile?.name || 'Admin' } : s));
         setShowSubmissionModal(false);
         fetchData(); // Atualiza os cards do topo
       }
@@ -1014,7 +1014,7 @@ export default function AdminDashboard() {
                )}
                {selectedSubmission.resolved && (
                  <div style={{ flex: 1, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold' }}>
-                    ✓ Ocorrência Finalizada e Resolvida
+                    ✓ Ocorrência Finalizada e Resolvida por {selectedSubmission.resolved_by || userProfile?.name}
                  </div>
                )}
             </div>

@@ -184,8 +184,9 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/resolve-submission')) {
       if (method === 'POST') {
-        const { id } = req.body;
-        await pool.query('UPDATE checklist_submissions SET resolved = true WHERE id = $1', [id]);
+        const { id, resolvedBy } = req.body;
+        await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255)');
+        await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1', [id, resolvedBy]);
         return res.status(200).json({ success: true });
       }
     }
