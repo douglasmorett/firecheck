@@ -13,7 +13,6 @@ const STATS = {
   conformidade: 0,
 };
 
-const RANKING = [];
 const AUDITORIAS = [];
 const CHECKLISTS_MOCK = []; // Placeholder para quando não houver conexão
 
@@ -514,22 +513,48 @@ export default function AdminDashboard() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Ordenado por % de tarefas concluídas</p>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {RANKING.map(r => (
-              <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: '#121318', borderRadius: '10px',
-                border: r.pos === 1 ? '1px solid rgba(255,160,0,0.3)' : '1px solid transparent' }}>
-                <div style={{ fontSize: '1.5rem', minWidth: '36px', textAlign: 'center' }}>
-                  {r.medalha || <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>#{r.pos}</span>}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <span style={{ fontWeight: 'bold' }}>{r.nome}</span>
-                    <span style={{ fontWeight: 'bold', color: r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)' }}>{r.pct}%</span>
+            {(() => {
+              const rankingData = submissions.reduce((acc, sub) => {
+                const name = sub.employee_name;
+                const completed = sub.tasks?.filter(t => t.done)?.length || 0;
+                const total = sub.tasks?.length || 1;
+                if (!acc[name]) acc[name] = { name, totalCompleted: 0, totalPossible: 0 };
+                acc[name].totalCompleted += completed;
+                acc[name].totalPossible += total;
+                return acc;
+              }, {});
+
+              const sortedRanking = Object.values(rankingData)
+                .map(r => ({
+                  nome: r.name,
+                  pct: Math.round((r.totalCompleted / r.totalPossible) * 100),
+                  concluidos: r.totalCompleted,
+                  total: r.totalPossible
+                }))
+                .sort((a, b) => b.pct - a.pct)
+                .map((r, idx) => ({ ...r, pos: idx + 1, medalha: idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null }));
+
+              return sortedRanking.length > 0 ? sortedRanking.map(r => (
+                <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: '#121318', borderRadius: '10px',
+                  border: r.pos === 1 ? '1px solid rgba(255,160,0,0.3)' : '1px solid transparent' }}>
+                  <div style={{ fontSize: '1.5rem', minWidth: '36px', textAlign: 'center' }}>
+                    {r.medalha || <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>#{r.pos}</span>}
                   </div>
-                  <BarPct pct={r.pct} color={r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)'} />
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>{r.concluidos}/{r.total} tarefas concluídas</p>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <span style={{ fontWeight: 'bold' }}>{r.nome}</span>
+                      <span style={{ fontWeight: 'bold', color: r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)' }}>{r.pct}%</span>
+                    </div>
+                    <BarPct pct={r.pct} color={r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)'} />
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>{r.concluidos}/{r.total} tarefas acumuladas</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <p>Ainda não há dados para gerar o ranking.</p>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
