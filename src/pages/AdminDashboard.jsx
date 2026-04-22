@@ -100,7 +100,36 @@ export default function AdminDashboard() {
       setupPushNotifications(user.email);
     }
     fetchData();
-  }, [dateFilter]); 
+  }, [dateFilter]);
+
+  // Robô Autônomo de Retentativa: Fica tentando processar fotos pendentes a cada 30 segundos
+  useEffect(() => {
+    if (!isAdmin && !isMaster) return; // Só roda no painel gerencial
+    
+    const interval = setInterval(() => {
+      // submissions já está no state
+      submissions.forEach(s => {
+        const hasPhotos = (s.tasks || []).some(t => t.photo);
+        const feedbacks = Object.keys(s.feedback_info || {});
+        // Se tem foto mas não tem feedback (ficou pendente/falhou na 1ª vez)
+        if (hasPhotos && feedbacks.length === 0) {
+          console.log(`[Auto-Retry] Tentando processar IA novamente para submissão ${s.id}...`);
+          fetch(`${API_URL}/api/process-audit-background`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submissionId: s.id })
+          }).then(res => res.json()).then(data => {
+            if (data.processed > 0) {
+               console.log(`[Auto-Retry] Sucesso na retentativa da submissão ${s.id}! Atualizando painel.`);
+               fetchData(); // Atualiza os cards
+            }
+          }).catch(() => {});
+        }
+      });
+    }, 30000); // Tenta a cada 30 segundos
+    
+    return () => clearInterval(interval);
+  }, [submissions, isAdmin, isMaster]);
 
   const setupPushNotifications = async (email) => {
     try {
@@ -938,18 +967,6 @@ export default function AdminDashboard() {
               </div>
             </div>
             <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-               {(!selectedSubmission.feedback_info || Object.keys(selectedSubmission.feedback_info).length === 0) && (
-                 <button className="btn-secondary" style={{ flex: 1, padding: '16px', fontSize: '1rem', backgroundColor: 'rgba(255,160,0,0.1)', color: '#FFA000', borderColor: '#FFA000' }} 
-                    onClick={async (e) => {
-                      e.currentTarget.textContent = 'Processando...';
-                      await fetch(`${API_URL}/api/process-audit-background`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ submissionId: selectedSubmission.id }) });
-                      setShowSubmissionModal(false);
-                      fetchData();
-                    }}>
-                    <Activity size={18} style={{ marginRight: '8px', verticalAlign: 'middle' }} />
-                    Forçar Auditoria IA (Recalcular)
-                 </button>
-               )}
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
                     Finalizar Ocorrência (Ciente)

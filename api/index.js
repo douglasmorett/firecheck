@@ -149,14 +149,17 @@ export default async function handler(req, res) {
               feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
               if (!aiResponse.approved) hasErrors = true;
             } catch (error) {
-              console.error('Erro na IA background:', error);
-              feedbackInfo[task.id] = { status: 'error', message: 'Falha temporária na IA. O dono analisará a foto.' };
+              console.error('Erro na IA background (Será reprocessado automaticamente depois):', error.message || error);
+              // Não preenchemos o feedbackInfo para esta tarefa.
+              // Como ele ficará vazio, a foto continuará 'Pendente' e o sistema tentará de novo depois.
             }
           }
         }
 
-        // 3. Salva o resultado no banco
-        await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
+        // 3. Salva o resultado no banco apenas se conseguimos processar algo
+        if (Object.keys(feedbackInfo).length > 0) {
+           await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
+        }
 
         // 4. Se houver falhas, dispara notificação para os donos da loja (Admin)
         if (hasErrors) {
