@@ -56,6 +56,8 @@ export default function AdminDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [submissions, setSubmissions] = useState([]);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [dateFilter, setDateFilter] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // Início do mês
     end: new Date().toISOString().split('T')[0]
@@ -446,7 +448,12 @@ export default function AdminDashboard() {
               const status = hasWarnings ? 'reprovado' : 'aprovado';
 
               return (
-                <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
+                <div key={s.id} 
+                  onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
+                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                >
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
                     {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
                     <div style={{ flex: 1 }}>
@@ -462,7 +469,7 @@ export default function AdminDashboard() {
                     <StatusBadge status={status} />
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
                       <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </div>
@@ -516,29 +523,45 @@ export default function AdminDashboard() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários</p>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {ALERTAS_IA.map(a => (
-              <div key={a.id} style={{ padding: '16px', backgroundColor: 'rgba(255,23,68,0.05)', borderRadius: '10px', border: '1px solid rgba(255,23,68,0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <AlertCircle size={18} color="var(--error)" />
-                    <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{a.tarefa}</span>
-                  </div>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{a.hora}</span>
-                </div>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
-                  👤 Funcionário: <strong style={{ color: 'white' }}>{a.func}</strong>
-                </p>
-                <p style={{ color: '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
-                  🤖 IA: "{a.motivo}"
-                </p>
-                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                  <button className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}>Ver Foto</button>
-                  <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }}>
-                    Notificar no WhatsApp
-                  </button>
-                </div>
+            {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
+              submissions.map(s => {
+                const alerts = Object.entries(s.feedback_info || {}).filter(([id, f]) => f.status === 'warning' || f.status === 'error');
+                if (alerts.length === 0) return null;
+                
+                return alerts.map(([taskId, feedback]) => {
+                  const task = s.tasks.find(t => t.id === taskId);
+                  return (
+                    <div key={`${s.id}-${taskId}`} style={{ padding: '16px', backgroundColor: 'rgba(255,23,68,0.05)', borderRadius: '10px', border: '1px solid rgba(255,23,68,0.2)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <AlertCircle size={18} color="var(--error)" />
+                          <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{task?.text || 'Tarefa Desconhecida'}</span>
+                        </div>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{new Date(s.created_at).toLocaleTimeString('pt-BR')}</span>
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
+                        👤 Funcionário: <strong style={{ color: 'white' }}>{s.employee_name}</strong> · Loja: {s.store}
+                      </p>
+                      <p style={{ color: '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
+                        🤖 IA: "{feedback.message}"
+                      </p>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                        <button className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>Ver Detalhes</button>
+                        <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', backgroundColor: '#25D366', border: 'none' }} 
+                          onClick={() => window.open(`https://wa.me/?text=Olá, ${s.employee_name}. Houve um problema no checklist: ${feedback.message}`)}>
+                          Notificar no WhatsApp
+                        </button>
+                      </div>
+                    </div>
+                  );
+                });
+              })
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <Activity size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
+                <p>Nenhum alerta crítico da IA no momento.</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}
@@ -736,6 +759,79 @@ export default function AdminDashboard() {
                 {isMaster ? 'Confirmar Adesão 🚀' : 'Cadastrar Colaborador'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalhes da Submissão */}
+      {showSubmissionModal && selectedSubmission && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px', backdropFilter: 'blur(10px)' }}>
+          <div className="card animate-scale" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '0', position: 'relative' }}>
+            <button onClick={() => setShowSubmissionModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 1 }}>
+              <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
+            </button>
+            
+            <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: '#121318' }}>
+              {selectedSubmission.selfie && <img src={selectedSubmission.selfie} alt="Selfie" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '3px solid var(--primary)' }} />}
+              <div>
+                <h2 style={{ fontSize: '1.5rem', margin: 0 }}>Detalhes da Auditoria</h2>
+                <p style={{ color: 'var(--text-muted)' }}>{selectedSubmission.employee_name} · {selectedSubmission.store}</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  <CalendarClock size={14} style={{ verticalAlign: 'middle', marginRight: '6px' }} />
+                  {new Date(selectedSubmission.created_at).toLocaleString('pt-BR')}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ padding: '32px' }}>
+              <h3 style={{ marginBottom: '20px', fontSize: '1.1rem' }}>Respostas do Checklist</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                {selectedSubmission.tasks.map((task, idx) => {
+                  const feedback = selectedSubmission.feedback_info?.[task.id];
+                  return (
+                    <div key={task.id} style={{ padding: '20px', backgroundColor: '#121318', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <h4 style={{ fontSize: '1rem', margin: 0, flex: 1 }}>{idx + 1}. {task.text}</h4>
+                        <span style={{ 
+                          padding: '4px 12px', 
+                          borderRadius: '20px', 
+                          fontSize: '0.75rem', 
+                          fontWeight: 'bold',
+                          backgroundColor: task.done === true ? 'rgba(16, 185, 129, 0.1)' : task.done === false ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.05)',
+                          color: task.done === true ? 'var(--success)' : task.done === false ? 'var(--error)' : 'var(--text-muted)'
+                        }}>
+                          {task.done === true ? 'Sim' : task.done === false ? 'Não' : (task.done || 'N/A')}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: task.photo ? '1fr 1fr' : '1fr', gap: '20px' }}>
+                        {task.photo && (
+                          <div>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</p>
+                            <img src={task.photo} alt="Evidência" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                          </div>
+                        )}
+                        
+                        {feedback && (
+                          <div style={{ 
+                            padding: '16px', 
+                            borderRadius: '8px', 
+                            backgroundColor: feedback.status === 'success' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)',
+                            border: `1px solid ${feedback.status === 'success' ? 'var(--success)' : 'var(--warning)'}`,
+                            alignSelf: 'start'
+                          }}>
+                            <p style={{ fontSize: '0.8rem', color: feedback.status === 'success' ? 'var(--success)' : 'var(--warning)', fontWeight: 'bold', marginBottom: '4px' }}>
+                              {feedback.status === 'success' ? '✅ Aprovado pela IA' : '⚠️ Alerta da IA'}
+                            </p>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{feedback.message}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}
