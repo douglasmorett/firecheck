@@ -128,13 +128,9 @@ export default async function handler(req, res) {
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
-          // Mock aprimorado se não houver chave de API
-          const isProblematic = taskText.toLowerCase().includes('preto') || taskText.toLowerCase().includes('limpo');
           return res.status(200).json({ 
-            approved: !isProblematic, 
-            message: isProblematic 
-              ? `A IA detectou que a tarefa "${taskText}" não foi cumprida corretamente na imagem.` 
-              : 'Foto validada com sucesso pelo sistema.' 
+            approved: false, 
+            message: 'ERRO DE CONFIGURAÇÃO: Chave da IA (GEMINI_API_KEY) não encontrada. A auditoria não pôde ser realizada.' 
           });
         }
 
@@ -147,8 +143,8 @@ export default async function handler(req, res) {
 
           const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". 
           Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}.
-          No campo message, explique o motivo caso seja reprovado (false) ou dê um feedback positivo caso aprovado (true).
-          Seja crítico. Se o usuário deveria pintar de preto e a parede está branca, reprove.`;
+          No campo message, explique detalhadamente o motivo em português.
+          IMPORTANTE: Seja extremamente rigoroso. Se a foto não provar 100% que a tarefa foi feita conforme o texto, REPROVE.`;
 
           const result = await model.generateContent([
             prompt,
@@ -160,12 +156,15 @@ export default async function handler(req, res) {
           
           // Tentar extrair JSON da resposta do Gemini
           const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: true, message: 'Análise concluída.' };
+          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Erro ao processar resposta da IA.' };
 
           return res.status(200).json(aiResponse);
         } catch (error) {
           console.error('Erro na auditoria Gemini:', error);
-          return res.status(200).json({ approved: true, message: 'Auditoria indisponível no momento, foto aceita preventivamente.' });
+          return res.status(200).json({ 
+            approved: false, 
+            message: 'Erro técnico na análise de imagem. A tarefa deve ser reavaliada manualmente ou a foto reenviada.' 
+          });
         }
       }
     }

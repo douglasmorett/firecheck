@@ -287,12 +287,9 @@ export default async function handler(req, res) {
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
-          const isProblematic = taskText.toLowerCase().includes('preto') || taskText.toLowerCase().includes('limpo');
           return res.status(200).json({
-            approved: !isProblematic,
-            message: isProblematic 
-              ? `A IA detectou que a tarefa "${taskText}" não foi cumprida na imagem (Ambiente de Teste).` 
-              : 'Foto validada com sucesso (Ambiente de Teste).'
+            approved: false,
+            message: 'ERRO: Sistema de auditoria por IA não configurado (Falta GEMINI_API_KEY).'
           });
         }
 
@@ -303,7 +300,8 @@ export default async function handler(req, res) {
 
           const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". 
           Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}.
-          No campo message, explique detalhadamente o motivo em português.`;
+          No campo message, explique detalhadamente o motivo em português.
+          IMPORTANTE: Seja extremamente rigoroso. Se a imagem não for uma prova cabal do cumprimento da tarefa, REPROVE.`;
 
           const result = await model.generateContent([
             prompt,
@@ -313,12 +311,12 @@ export default async function handler(req, res) {
           const response = await result.response;
           const text = response.text();
           const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: true, message: 'Análise concluída.' };
+          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha na comunicação com o servidor de IA.' };
 
           return res.status(200).json(aiResponse);
         } catch (error) {
           console.error('Gemini Audit Error:', error);
-          return res.status(200).json({ approved: true, message: 'Auditoria concluída (fallback).' });
+          return res.status(200).json({ approved: false, message: 'Erro na auditoria. Por favor, tente novamente.' });
         }
       }
     }
