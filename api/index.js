@@ -20,6 +20,7 @@ export default async function handler(req, res) {
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
     await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
     await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
+    await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
     
     // Tabela para armazenar as conclusões de checklists
     await pool.query(`
@@ -192,6 +193,15 @@ export default async function handler(req, res) {
       return res.status(200).json(rows);
     }
 
+    // Registro de Token FCM (Push)
+    if (url.includes('/api/register-token')) {
+      if (req.method === 'POST') {
+        const { email, fcmToken } = req.body;
+        await pool.query('UPDATE users SET fcm_token = $1 WHERE LOWER(email) = LOWER($2)', [fcmToken, email]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
     // Listagem de Submissões (Resultados)
     if (url.includes('/api/submissions')) {
       const store = searchParams.get('store');
@@ -240,6 +250,21 @@ export default async function handler(req, res) {
           'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie) VALUES ($1, $2, $3, $4, $5) RETURNING id',
           [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo), selfie]
         );
+
+        // Lógica de Notificação Push para o Dono
+        const hasWarnings = Object.values(feedbackInfo || {}).some(f => f.status === 'warning' || f.status === 'error');
+        if (hasWarnings) {
+           try {
+             // Busca o dono da loja para pegar o token FCM
+             const ownerQuery = await pool.query('SELECT fcm_token FROM users WHERE store = $1 AND role = $2 AND fcm_token IS NOT NULL', [store, 'admin']);
+             if (ownerQuery.rows.length > 0) {
+                const token = ownerQuery.rows[0].fcm_token;
+                console.log(`[PUSH] Enviando alerta para o dono da loja ${store}. Token: ${token}`);
+                // Aqui entraria o firebase-admin.messaging().send(...)
+             }
+           } catch (e) { console.error('Erro ao processar notificação:', e); }
+        }
+
         return res.status(200).json({ success: true, id: rows[0].id });
       }
     }

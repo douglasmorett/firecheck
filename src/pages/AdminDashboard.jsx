@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut } from 'lucide-react';
+import { PushNotifications } from '@capacitor/push-notifications';
 import API_URL from '../api';
 
 // ── Dados Iniciais (Vazios) ──────────────────────────────────────────────────
@@ -82,10 +83,30 @@ export default function AdminDashboard() {
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
-      setUserProfile(JSON.parse(savedUser));
+      const user = JSON.parse(savedUser);
+      setUserProfile(user);
+      if (user.role === 'admin' || user.role === 'master') {
+        setupPushNotifications(user.email);
+      }
     }
     fetchData();
-  }, [dateFilter]); // Recarregar quando a data mudar
+  }, [dateFilter]); 
+
+  const setupPushNotifications = async (email) => {
+    try {
+      const perm = await PushNotifications.requestPermissions();
+      if (perm.receive === 'granted') {
+        await PushNotifications.register();
+        PushNotifications.addListener('registration', async (token) => {
+          await fetch(`${API_URL}/api/register-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, fcmToken: token.value })
+          });
+        });
+      }
+    } catch (e) { console.warn('Push não suportado neste navegador/dispositivo'); }
+  };
 
   const fetchData = async () => {
     try {
@@ -546,10 +567,8 @@ export default function AdminDashboard() {
                         🤖 IA: "{feedback.message}"
                       </p>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.8rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>Ver Detalhes</button>
-                        <button className="btn" style={{ flex: 1, padding: '8px', fontSize: '0.8rem', backgroundColor: '#25D366', border: 'none' }} 
-                          onClick={() => window.open(`https://wa.me/?text=Olá, ${s.employee_name}. Houve um problema no checklist: ${feedback.message}`)}>
-                          Notificar no WhatsApp
+                        <button className="btn" style={{ flex: 1, padding: '12px', fontSize: '0.9rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>
+                          Analisar Evidência e Resolver
                         </button>
                       </div>
                     </div>
