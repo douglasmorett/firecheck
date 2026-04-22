@@ -120,9 +120,17 @@ export default function ChecklistExecution() {
   const takePhoto = async (taskId, taskText) => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current, canvas = canvasRef.current;
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoUrl = canvas.toDataURL('image/jpeg', 0.7);
+    const maxWidth = 800;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > maxWidth) {
+      height = Math.round((maxWidth / width) * height);
+      width = maxWidth;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+    const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, photo: photoUrl, forceOverride: false } : t));
     stopCamera();
     setAIFeedback(prev => ({ ...prev, [taskId]: { status: 'loading' } }));
@@ -163,9 +171,17 @@ export default function ChecklistExecution() {
   const takeSelfie = async () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current, canvas = canvasRef.current;
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-    const photoUrl = canvas.toDataURL('image/jpeg', 0.7);
+    const maxWidth = 600;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > maxWidth) {
+      height = Math.round((maxWidth / width) * height);
+      width = maxWidth;
+    }
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(video, 0, 0, width, height);
+    const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
     setSelfie(photoUrl);
     setShowSelfieModal(false);
     stopCamera();
