@@ -584,31 +584,39 @@ export default function AdminDashboard() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários</p>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {submissions.some(s => !s.resolved && Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
-              submissions.filter(s => !s.resolved).map(s => {
+            {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
+              submissions.map(s => {
                 const alerts = Object.entries(s.feedback_info || {}).filter(([id, f]) => f.status === 'warning' || f.status === 'error');
                 if (alerts.length === 0) return null;
                 
                 return alerts.map(([taskId, feedback]) => {
                   const task = s.tasks.find(t => t.id === taskId);
                   return (
-                    <div key={`${s.id}-${taskId}`} style={{ padding: '16px', backgroundColor: 'rgba(255,23,68,0.05)', borderRadius: '10px', border: '1px solid rgba(255,23,68,0.2)' }}>
+                    <div key={`${s.id}-${taskId}`} style={{ 
+                      padding: '16px', 
+                      backgroundColor: s.resolved ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,23,68,0.05)', 
+                      borderRadius: '10px', 
+                      border: s.resolved ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,23,68,0.2)',
+                      opacity: s.resolved ? 0.8 : 1
+                    }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <AlertCircle size={18} color="var(--error)" />
-                          <span style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{task?.text || 'Tarefa Desconhecida'}</span>
+                          {s.resolved ? <CheckCircle size={18} color="var(--success)" /> : <AlertCircle size={18} color="var(--error)" />}
+                          <span style={{ fontWeight: 'bold', fontSize: '0.95rem', color: s.resolved ? 'var(--success)' : 'white' }}>
+                            {task?.text || 'Tarefa Desconhecida'} {s.resolved && '(Concluída)'}
+                          </span>
                         </div>
                         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{new Date(s.created_at).toLocaleTimeString('pt-BR')}</span>
                       </div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
                         👤 Funcionário: <strong style={{ color: 'white' }}>{s.employee_name}</strong> · Loja: {s.store}
                       </p>
-                      <p style={{ color: '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <p style={{ color: s.resolved ? 'var(--text-muted)' : '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
                         🤖 IA: "{feedback.message}"
                       </p>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button className="btn" style={{ flex: 1, padding: '12px', fontSize: '0.9rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>
-                          Analisar Evidência e Resolver
+                        <button className="btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '0.85rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>
+                          {s.resolved ? 'Ver Evidência Salva' : 'Analisar Evidência e Resolver'}
                         </button>
                       </div>
                     </div>
