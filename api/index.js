@@ -125,7 +125,8 @@ export default async function handler(req, res) {
       if (method === 'POST') {
         const { taskId, taskText, photoBase64 } = req.body;
         
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        // Prioriza variável de ambiente, mas usa a chave fornecida como fallback para garantir o funcionamento imediato
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
 
         if (!apiKey) {
           return res.status(200).json({ 
