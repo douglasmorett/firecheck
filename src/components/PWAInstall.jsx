@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Smartphone, X, Share } from 'lucide-react';
+import { Smartphone, X, Share, Plus, Download } from 'lucide-react';
 
 export default function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
