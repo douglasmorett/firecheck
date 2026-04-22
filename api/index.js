@@ -110,8 +110,61 @@ export default async function handler(req, res) {
         const today = new Date().toISOString().split('T')[0];
         const checkDupe = await pool.query('SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3', [checklistId, store, today + ' 00:00:00']);
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
-        const { rows } = await pool.query('INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo), selfie, checklistId]);
+        const { rows } = await pool.query('INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo || {}), selfie, checklistId]);
         return res.status(200).json({ success: true, id: rows[0].id });
+      }
+    }
+
+    if (url.includes('/api/process-audit-background')) {
+      if (method === 'POST') {
+        const { submissionId } = req.body;
+        
+        // 1. Busca a submissão
+        const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        
+        const submission = rows[0];
+        const tasks = typeof submission.tasks === 'string' ? JSON.parse(submission.tasks) : submission.tasks;
+        const feedbackInfo = {};
+        let hasErrors = false;
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        // 2. Processa cada foto
+        for (const task of tasks) {
+          if (task.photo && !task.forceOverride) {
+            try {
+              const base64Data = task.photo.split(',')[1] || task.photo;
+              const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${task.text}" foi executada com perfeição.
+              Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
+
+              const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } } ]);
+              const response = await result.response;
+              const text = response.text();
+              const jsonMatch = text.match(/\{[\s\S]*\}/);
+              const aiResponse = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+              
+              feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
+              if (!aiResponse.approved) hasErrors = true;
+            } catch (error) {
+              console.error('Erro na IA background:', error);
+              feedbackInfo[task.id] = { status: 'error', message: 'Falha temporária na IA. O dono analisará a foto.' };
+            }
+          }
+        }
+
+        // 3. Salva o resultado no banco
+        await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
+
+        // 4. Se houver falhas, dispara notificação para os donos da loja (Admin)
+        if (hasErrors) {
+          console.log(`[PUSH NOTIFICATION TRIGGERED] Enviando alerta para a loja ${submission.store} sobre falha no checklist de ${submission.employee_name}`);
+          // TODO: Integrar OneSignal ou Firebase Admin SDK para disparar o Push Notification real para o aplicativo do Dono.
+        }
+
+        return res.status(200).json({ success: true, processed: Object.keys(feedbackInfo).length, hasErrors });
       }
     }
 

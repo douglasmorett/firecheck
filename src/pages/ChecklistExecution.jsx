@@ -213,8 +213,18 @@ export default function ChecklistExecution() {
           checklistId: currentChecklistId
         })
       });
-      if (res.ok) setSubmitted(true);
-      else {
+      if (res.ok) {
+        const data = await res.json();
+        setSubmitted(true);
+        // Dispara a IA em background (fire and forget), o funcionário não fica travado!
+        if (data.id) {
+          fetch(`${API_URL}/api/process-audit-background`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ submissionId: data.id })
+          }).catch(e => console.error('Erro ao iniciar background audit:', e));
+        }
+      } else {
         const errData = await res.json();
         alert(errData.message || 'Erro ao enviar.');
       }
