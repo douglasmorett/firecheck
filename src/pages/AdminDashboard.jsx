@@ -104,7 +104,7 @@ export default function AdminDashboard() {
 
   // Robô Autônomo de Retentativa: Fica tentando processar fotos pendentes a cada 30 segundos
   useEffect(() => {
-    if (!isAdmin && !isMaster) return; // Só roda no painel gerencial
+    if (!userProfile || userProfile.role === 'employee' || userProfile.role === 'funcionario') return; // Só roda no painel gerencial
     
     const interval = setInterval(() => {
       // submissions já está no state
@@ -129,7 +129,7 @@ export default function AdminDashboard() {
     }, 30000); // Tenta a cada 30 segundos
     
     return () => clearInterval(interval);
-  }, [submissions, isAdmin, isMaster]);
+  }, [submissions, userProfile]);
 
   const setupPushNotifications = async (email) => {
     try {
