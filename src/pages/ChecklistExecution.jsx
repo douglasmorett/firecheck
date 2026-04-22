@@ -133,17 +133,9 @@ export default function ChecklistExecution() {
     const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, photo: photoUrl, forceOverride: false } : t));
     stopCamera();
-    setAIFeedback(prev => ({ ...prev, [taskId]: { status: 'loading' } }));
-    try {
-      const res = await fetch(`${API_URL}/api/audit`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, taskText, photoBase64: photoUrl })
-      });
-      const data = await res.json();
-      setAIFeedback(prev => ({ ...prev, [taskId]: { status: data.approved ? 'success' : 'warning', message: data.message } }));
-    } catch {
-      setAIFeedback(prev => ({ ...prev, [taskId]: { status: 'error', message: 'Erro ao conectar com IA.' } }));
-    }
+    
+    // A auditoria em tempo real foi removida daqui para não bloquear o funcionário.
+    // A foto é apenas salva e o checklist pode ser enviado instantaneamente.
   };
 
   const forceAcceptPhoto = (taskId) =>
@@ -349,49 +341,11 @@ export default function ChecklistExecution() {
                         onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null } : t))}>
                         <X size={16} />
                       </button>
-
-                      {/* Feedback da Auditoria (IA) */}
-                      {aiFeedback[task.id] && !task.forceOverride && (
-                        <div style={{ 
-                          marginTop: '12px', 
-                          padding: '16px', 
-                          borderRadius: '8px', 
-                          backgroundColor: aiFeedback[task.id].status === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                          border: `1px solid ${aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)'}`
-                        }}>
-                          <p style={{ 
-                            fontSize: '0.9rem', 
-                            color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)',
-                            fontWeight: 'bold',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            marginBottom: '4px'
-                          }}>
-                            {aiFeedback[task.id].status === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
-                            {aiFeedback[task.id].status === 'success' ? 'Auditado com Sucesso' : 'Atenção na Auditoria'}
-                          </p>
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                            {aiFeedback[task.id].message || 'Análise concluída.'}
-                          </p>
-                          
-                          {aiFeedback[task.id].status !== 'success' && (
-                            <button 
-                              className="btn" 
-                              style={{ width: '100%', backgroundColor: 'var(--warning)', color: 'black', fontSize: '0.8rem', padding: '10px' }}
-                              onClick={() => forceAcceptPhoto(task.id)}
-                            >
-                              Desejo Enviar Assim Mesmo
-                            </button>
-                          )}
-                        </div>
-                      )}
-
-                      {task.forceOverride && (
-                        <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', border: '1px dashed var(--text-muted)' }}>
-                           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center' }}>✓ Foto enviada com justificativa de override.</p>
-                        </div>
-                      )}
+                      <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)' }}>
+                         <p style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <CheckCircle size={16} /> Foto Capturada com Sucesso
+                         </p>
+                      </div>
                     </div>
                   ) : activeCameraTaskId === task.id ? (
                     <div style={{ width: '100%', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
