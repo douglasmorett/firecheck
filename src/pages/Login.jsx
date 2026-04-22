@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
 import API_URL from '../api';
@@ -6,9 +6,24 @@ import API_URL from '../api';
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedCreds = localStorage.getItem('firecheck_creds');
+    if (savedCreds) {
+      try {
+        const { savedEmail, savedPassword } = JSON.parse(savedCreds);
+        setEmail(savedEmail || '');
+        setPassword(savedPassword || '');
+        setRememberMe(true);
+      } catch (e) {
+        // Ignorar erro de parse
+      }
+    }
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -22,6 +37,13 @@ export default function Login() {
       const data = await response.json();
       if (data.status === 'success') {
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        if (rememberMe) {
+          localStorage.setItem('firecheck_creds', JSON.stringify({ savedEmail: email, savedPassword: password }));
+        } else {
+          localStorage.removeItem('firecheck_creds');
+        }
+
         // Redirecionamento baseado na role
         if (data.user.role === 'funcionario') {
           navigate('/funcionario');
@@ -100,11 +122,22 @@ export default function Login() {
             </div>
           )}
 
-          <div style={{ textAlign: 'right', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            {!isForgot && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{ accentColor: 'var(--primary)', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                Lembrar meus dados
+              </label>
+            )}
             <button 
               type="button" 
               onClick={() => setIsForgot(!isForgot)}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500' }}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500', marginLeft: 'auto' }}
             >
               {isForgot ? 'Voltar para o Login' : 'Esqueceu a senha?'}
             </button>
