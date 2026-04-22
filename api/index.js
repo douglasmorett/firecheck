@@ -137,15 +137,22 @@ export default async function handler(req, res) {
 
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          // Usando flash-latest para maior estabilidade
+          const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash-latest",
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+          });
 
-          // Remover o prefixo data:image/jpeg;base64,
           const base64Data = photoBase64.split(',')[1] || photoBase64;
 
           const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". 
           Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}.
-          No campo message, explique detalhadamente o motivo em português.
-          IMPORTANTE: Seja extremamente rigoroso. Se a foto não provar 100% que a tarefa foi feita conforme o texto, REPROVE.`;
+          Explique o motivo em português. Seja extremamente rigoroso com o cumprimento da tarefa.`;
 
           const result = await model.generateContent([
             prompt,
@@ -154,17 +161,15 @@ export default async function handler(req, res) {
 
           const response = await result.response;
           const text = response.text();
-          
-          // Tentar extrair JSON da resposta do Gemini
           const jsonMatch = text.match(/\{.*\}/s);
-          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Não foi possível analisar a imagem no momento. Tente novamente.' };
+          const aiResponse = jsonMatch ? JSON.parse(jsonMatch[0]) : { approved: false, message: 'Falha ao interpretar análise.' };
 
           return res.status(200).json(aiResponse);
         } catch (error) {
           console.error('Erro na auditoria Gemini:', error);
           return res.status(200).json({ 
             approved: false, 
-            message: 'Erro na análise de imagem. Por favor, verifique a conexão e reenvie a foto.' 
+            message: 'Erro na análise. Reenvie a foto ou verifique se a imagem está nítida.' 
           });
         }
       }

@@ -295,13 +295,20 @@ export default async function handler(req, res) {
 
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          const model = genAI.getGenerativeModel({ 
+            model: "gemini-1.5-flash-latest",
+            safetySettings: [
+              { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+              { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+            ]
+          });
           const base64Data = photoBase64.split(',')[1] || photoBase64;
 
           const prompt = `Analise esta foto de uma tarefa de checklist: "${taskText}". 
           Responda estritamente em JSON no formato: {"approved": boolean, "message": "string"}.
-          No campo message, explique detalhadamente o motivo em português.
-          IMPORTANTE: Seja extremamente rigoroso. Se a imagem não for uma prova cabal do cumprimento da tarefa, REPROVE.`;
+          Explique o motivo em português. Seja extremamente rigoroso.`;
 
           const result = await model.generateContent([
             prompt,
@@ -318,7 +325,7 @@ export default async function handler(req, res) {
           console.error('Gemini Audit Error:', error);
           return res.status(200).json({ 
             approved: false, 
-            message: 'Erro ao processar auditoria. Tente novamente.' 
+            message: 'Erro na auditoria. Verifique a chave ou tente novamente.' 
           });
         }
       }
