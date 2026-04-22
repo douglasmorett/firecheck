@@ -39,10 +39,10 @@ export default function EmployeeDashboard() {
     // Busca inicial
     fetchChecklists(profile);
 
-    // Auto-refresh a cada 30 segundos
+    // Auto-refresh a cada 10 segundos (Quase Tempo Real)
     const interval = setInterval(() => {
       fetchChecklists(profile);
-    }, 30000);
+    }, 10000);
 
     return () => clearInterval(interval);
   }, [navigate, fetchChecklists]);

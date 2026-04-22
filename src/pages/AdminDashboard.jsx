@@ -102,10 +102,10 @@ export default function AdminDashboard() {
     }
     fetchData();
 
-    // Loop global de atualização do painel a cada 15 segundos
+    // Loop global de atualização do painel a cada 10 segundos (Quase Tempo-Real)
     const globalRefresh = setInterval(() => {
       fetchData();
-    }, 15000);
+    }, 10000);
 
     return () => clearInterval(globalRefresh);
   }, [dateFilter]);
@@ -134,7 +134,7 @@ export default function AdminDashboard() {
           }).catch(() => {});
         }
       });
-    }, 30000); // Tenta a cada 30 segundos
+    }, 15000); // Tenta a cada 15 segundos
     
     return () => clearInterval(interval);
   }, [submissions, userProfile]);
