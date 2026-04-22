@@ -337,9 +337,11 @@ export default async function handler(req, res) {
             retries--;
             if (retries === 0) {
               console.error('Falha definitiva na auditoria SDK:', error);
+              // Limpar a mensagem para remover a URL longa e mostrar apenas o erro real
+              const cleanError = lastError.includes('[') ? lastError.split(': [')[1] || lastError : lastError;
               return res.status(200).json({ 
                 approved: false, 
-                message: `Auditoria falhou: ${lastError.substring(0, 50)}` 
+                message: `Falha: [${cleanError}` 
               });
             }
           }
