@@ -1,0 +1,17 @@
+{
+  "name": "FireCheck",
+  "short_name": "FireCheck",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0b0f",
+  "theme_color": "#ff4d00",
+  "description": "Gestão inteligente de checklists com IA",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import API_URL from '../api';
+import PWAInstall from '../components/PWAInstall';
 
 // ── Dados Iniciais (Vazios) ──────────────────────────────────────────────────
 const STATS = {
@@ -411,17 +412,8 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* Ações Rápidas */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '24px' }}>
-        <button className="btn" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)', color: 'var(--success)', cursor: 'pointer' }}
-          onClick={() => window.open('https://github.com/douglasmorett/firecheck/actions', '_blank')}>
-          <Smartphone size={20} />
-          <div style={{ textAlign: 'left' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Instalar App Android</div>
-            <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>Download direto do APK</div>
-          </div>
-        </button>
-      </div>
+      {/* Instalação do App */}
+      <PWAInstall />
 
       {/* Tabs de Navegação */}
       <div style={{ display: 'flex', gap: '4px', backgroundColor: '#121318', padding: '6px', borderRadius: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
