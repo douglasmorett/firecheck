@@ -21,6 +21,7 @@ export default function ChecklistExecution() {
   const [loading, setLoading] = useState(true);
   const [aiFeedback, setAIFeedback] = useState({});
   const [userProfile, setUserProfile] = useState(null);
+  const [showSummary, setShowSummary] = useState(false);
 
   // Carregar usuário logado
   useEffect(() => {
@@ -69,6 +70,21 @@ export default function ChecklistExecution() {
               photo: null, 
               forceOverride: false 
             })));
+
+            // Buscar os detalhes da submissão se já estiver concluído
+            if (cl.completedToday) {
+              fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`)
+                .then(res => res.json())
+                .then(subs => {
+                  const today = new Date().toISOString().split('T')[0];
+                  const mySub = subs.find(s => s.checklist_id === cl.id && s.created_at.startsWith(today));
+                  if (mySub) {
+                    setTasks(mySub.tasks);
+                    setAIFeedback(mySub.feedback_info || {});
+                    setSelfie(mySub.selfie);
+                  }
+                });
+            }
           }
         }
         setLoading(false);
@@ -223,6 +239,38 @@ export default function ChecklistExecution() {
         }
       </p>
       {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
+      
+      <div style={{ marginBottom: '24px' }}>
+        <button 
+          className="btn-secondary" 
+          style={{ width: '100%', marginBottom: '12px', padding: '12px' }}
+          onClick={() => setShowSummary(!showSummary)}
+        >
+          {showSummary ? 'Ocultar Detalhes' : 'Ver Detalhes do Envio'}
+        </button>
+
+        {showSummary && (
+          <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: '#121318', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
+            {tasks.map((task, idx) => (
+              <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <p style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 'bold' }}>{idx + 1}. {task.text}</p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.8rem', backgroundColor: task.done === true ? 'var(--success)' : 'var(--error)', color: 'white', padding: '2px 8px', borderRadius: '4px' }}>
+                    {task.done === true ? 'Sim' : task.done === false ? 'Não' : task.done || 'Não respondido'}
+                  </span>
+                  {aiFeedback[task.id] && (
+                    <span style={{ fontSize: '0.75rem', color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)' }}>
+                      {aiFeedback[task.id].status === 'success' ? '✓ Auditado' : '⚠ Atenção'}
+                    </span>
+                  )}
+                </div>
+                {task.photo && <img src={task.photo} alt="Evidência" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '6px', marginTop: '8px', border: '1px solid var(--border-color)' }} />}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
         <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
         {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
