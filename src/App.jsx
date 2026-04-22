@@ -6,11 +6,14 @@ import ChecklistCreator from './pages/ChecklistCreator';
 import ChecklistExecution from './pages/ChecklistExecution';
 import LandingPage from './pages/LandingPage';
 import Checkout from './pages/Checkout';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function App() {
   return (
     <Router>
       <Routes>
+        {/* Site Institucional de Vendas */}
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         {/* Se for App (Nativo), abre no Login. Se for Web, abre na Landing Page */}
         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
         <Route path="/checkout" element={<Checkout />} />
