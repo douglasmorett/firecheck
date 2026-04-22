@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import ChecklistCreator from './pages/ChecklistCreator';
 import ChecklistExecution from './pages/ChecklistExecution';
+import EmployeeDashboard from './pages/EmployeeDashboard';
 import LandingPage from './pages/LandingPage';
 import Checkout from './pages/Checkout';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -29,7 +30,8 @@ function App() {
         <Route path="/admin/creator/:id" element={<ChecklistCreator />} />
 
         {/* Visão do Funcionário na Loja */}
-        <Route path="/funcionario" element={<ChecklistExecution />} />
+        <Route path="/funcionario" element={<EmployeeDashboard />} />
+        <Route path="/execucao/:id" element={<ChecklistExecution />} />
       </Routes>
     </Router>
   );

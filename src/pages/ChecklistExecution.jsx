@@ -1,10 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame } from 'lucide-react';
 import API_URL from '../api';
 
 export default function ChecklistExecution() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('Carregando...');
   
@@ -49,22 +50,26 @@ export default function ChecklistExecution() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
-          const cl = data[0];
-          setCurrentChecklistId(cl.id);
-          setTitle(cl.title);
+          // Se houver um ID na URL, busca esse específico. Senão pega o primeiro.
+          const cl = id ? data.find(c => String(c.id) === String(id)) : data[0];
           
-          if (cl.completedToday) {
-            setCompletedTodayInfo(cl.completedBy);
-            setSubmitted(true);
-          }
+          if (cl) {
+            setCurrentChecklistId(cl.id);
+            setTitle(cl.title);
+            
+            if (cl.completedToday) {
+              setCompletedTodayInfo(cl.completedBy);
+              setSubmitted(true);
+            }
 
-          setTasks(cl.tasks.map((t, idx) => ({ 
-            ...t, 
-            id: t.id || `task-${idx}`, 
-            done: null, 
-            photo: null, 
-            forceOverride: false 
-          })));
+            setTasks(cl.tasks.map((t, idx) => ({ 
+              ...t, 
+              id: t.id || `task-${idx}`, 
+              done: null, 
+              photo: null, 
+              forceOverride: false 
+            })));
+          }
         }
         setLoading(false);
       })
@@ -72,7 +77,7 @@ export default function ChecklistExecution() {
         console.error('Erro ao buscar checklists:', err);
         setLoading(false);
       });
-  }, []);
+  }, [id]);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -199,7 +204,7 @@ export default function ChecklistExecution() {
   useEffect(() => {
     if (submitted && !completedTodayInfo) {
       const timer = setTimeout(() => {
-        window.location.reload();
+        navigate('/funcionario');
       }, 5000);
       return () => clearTimeout(timer);
     }
@@ -222,7 +227,7 @@ export default function ChecklistExecution() {
         <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
         {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
       </div>
-      <button className="btn" style={{ marginTop: '24px', width: '100%', padding: '16px' }} onClick={() => window.location.reload()}>
+      <button className="btn" style={{ marginTop: '24px', width: '100%', padding: '16px' }} onClick={() => navigate('/funcionario')}>
          Voltar para a Lista
       </button>
     </div>
