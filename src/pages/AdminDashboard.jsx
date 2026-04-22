@@ -164,6 +164,21 @@ export default function AdminDashboard() {
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };
 
+  const handleResolveSubmission = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/api/resolve-submission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if (res.ok) {
+        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, resolved: true } : s));
+        setShowSubmissionModal(false);
+        fetchData(); // Atualiza os cards do topo
+      }
+    } catch (e) { console.error('Erro ao resolver submissão:', e); }
+  };
+
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
@@ -569,8 +584,8 @@ export default function AdminDashboard() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários</p>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
-              submissions.map(s => {
+            {submissions.some(s => !s.resolved && Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
+              submissions.filter(s => !s.resolved).map(s => {
                 const alerts = Object.entries(s.feedback_info || {}).filter(([id, f]) => f.status === 'warning' || f.status === 'error');
                 if (alerts.length === 0) return null;
                 
@@ -875,6 +890,17 @@ export default function AdminDashboard() {
                   );
                 })}
               </div>
+            <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px' }}>
+               {!selectedSubmission.resolved && (
+                 <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
+                    Finalizar Ocorrência (Ciente)
+                 </button>
+               )}
+               {selectedSubmission.resolved && (
+                 <div style={{ flex: 1, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold' }}>
+                    ✓ Ocorrência Finalizada e Resolvida
+                 </div>
+               )}
             </div>
           </div>
         </div>

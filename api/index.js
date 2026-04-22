@@ -33,6 +33,7 @@ export default async function handler(req, res) {
         tasks TEXT,
         feedback_info TEXT,
         selfie TEXT,
+        resolved BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -96,10 +97,11 @@ export default async function handler(req, res) {
       let totalSubmissions = 0;
       let alertasCount = 0;
       try {
-        const subQuery = await pool.query('SELECT feedback_info FROM checklist_submissions' + dateQuery + storeQuery, params);
+        const subQuery = await pool.query('SELECT feedback_info, resolved FROM checklist_submissions' + dateQuery + storeQuery, params);
         totalSubmissions = subQuery.rows.length;
         
         subQuery.rows.forEach(row => {
+          if (row.resolved) return; // Pula se já foi resolvido
           try {
             const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
             const hasError = Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error');
@@ -108,7 +110,7 @@ export default async function handler(req, res) {
             }
           } catch (e) { }
         });
-        console.log(`[STATS] Total: ${totalSubmissions}, Alertas: ${alertasCount}`);
+        console.log(`[STATS] Total: ${totalSubmissions}, Alertas Ativos: ${alertasCount}`);
       } catch (e) { console.error('Erro ao buscar submissões para stats:', e); }
 
       const conformidade = totalSubmissions > 0 
@@ -228,6 +230,15 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { email, fcmToken } = req.body;
         await pool.query('UPDATE users SET fcm_token = $1 WHERE LOWER(email) = LOWER($2)', [fcmToken, email]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    // Resolver Ocorrência
+    if (url.includes('/api/resolve-submission')) {
+      if (req.method === 'POST') {
+        const { id } = req.body;
+        await pool.query('UPDATE checklist_submissions SET resolved = TRUE WHERE id = $1', [id]);
         return res.status(200).json({ success: true });
       }
     }
