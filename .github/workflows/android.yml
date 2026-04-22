@@ -33,7 +33,7 @@ jobs:
         run: npm run build
 
       - name: Capacitor Sync
-        run: npx cap sync
+        run: npx cap sync android
 
       - name: Build Android APK
         run: |
