@@ -4,49 +4,123 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Política de Privacidade - FireCheck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        body { background-color: #0a0b0e; color: white; font-family: sans-serif; padding: 40px; line-height: 1.6; }
-        .container { max-width: 800px; margin: 0 auto; }
-        h1 { color: #ff4d00; }
-        h2 { color: #ccc; margin-top: 30px; }
-        p, li { color: #aaa; }
+        :root {
+            --primary: #ff4d00;
+            --bg: #0a0b0e;
+            --card: #16181d;
+            --text: #ffffff;
+            --text-muted: #a0a0a0;
+        }
+        body { 
+            background-color: var(--bg); 
+            color: var(--text); 
+            font-family: 'Inter', sans-serif; 
+            padding: 40px 20px; 
+            line-height: 1.7; 
+            margin: 0;
+        }
+        .container { 
+            max-width: 850px; 
+            margin: 0 auto; 
+            background: var(--card);
+            padding: 50px;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+        }
+        h1 { 
+            color: var(--text); 
+            font-weight: 800; 
+            font-size: 2.5rem;
+            margin-top: 0;
+            letter-spacing: -1px;
+            background: linear-gradient(to right, #ffffff, #a0a0a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        h2 { 
+            color: var(--primary); 
+            margin-top: 40px; 
+            font-size: 1.5rem;
+            border-bottom: 1px solid rgba(255, 77, 0, 0.2);
+            padding-bottom: 10px;
+        }
+        p, li { color: var(--text-muted); font-size: 1rem; }
+        ul { padding-left: 20px; }
+        li { margin-bottom: 10px; }
+        .last-update { 
+            margin-top: 60px; 
+            font-size: 0.85em; 
+            color: #555; 
+            text-align: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding-top: 20px;
+        }
+        .highlight { color: #fff; font-weight: 600; }
+        @media (max-width: 600px) {
+            .container { padding: 30px 20px; }
+            h1 { font-size: 1.8rem; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Política de Privacidade — FireCheck</h1>
+        <h1>Política de Privacidade</h1>
+        <p>Esta Política de Privacidade descreve como o <span class="highlight">FireCheck</span> coleta, usa e protege as informações dos usuários ao utilizar nossa plataforma e aplicativo móvel.</p>
         
         <section>
-            <h2>1. Coleta de Informações</h2>
-            <p>O FireCheck coleta informações básicas para o funcionamento do sistema de auditoria, como:</p>
+            <h2>1. Informações que Coletamos</h2>
+            <p>Para fornecer nossos serviços de auditoria e checklist, coletamos as seguintes categorias de dados:</p>
             <ul>
-                <li>Nome e E-mail (para identificação e login);</li>
-                <li>Fotos e Localização (opcional, enviadas durante a execução de checklists);</li>
-                <li>Dados da Loja/Filial.</li>
+                <li><span class="highlight">Dados de Cadastro:</span> Nome, e-mail, cargo e dados da empresa/unidade.</li>
+                <li><span class="highlight">Dados Operacionais:</span> Respostas de checklists, observações em texto, fotos capturadas pela câmera do dispositivo e geolocalização no momento do envio (para fins de auditoria de presença).</li>
+                <li><span class="highlight">Dados de Uso:</span> Informações sobre como você interage com o app, registros de erros e performance.</li>
             </ul>
         </section>
 
         <section>
-            <h2>2. Uso dos Dados</h2>
-            <p>Os dados são utilizados exclusivamente para:</p>
+            <h2>2. Finalidade do Processamento</h2>
+            <p>Os dados coletados são utilizados para:</p>
             <ul>
-                <li>Geração de relatórios de conformidade e auditoria;</li>
-                <li>Ranking de performance entre colaboradores;</li>
-                <li>Notificações push sobre ocorrências e alertas da IA.</li>
+                <li>Operacionalizar o sistema de checklists e auditorias;</li>
+                <li>Garantir a veracidade das auditorias (através de fotos em tempo real e localização);</li>
+                <li>Geração de relatórios de desempenho e conformidade para a administração;</li>
+                <li>Envio de notificações críticas via WhatsApp ou Push sobre atrasos ou inconformidades detectadas por nossa IA.</li>
             </ul>
         </section>
 
         <section>
-            <h2>3. Segurança</h2>
-            <p>Empregamos medidas de segurança modernas para proteger seus dados. As informações não são vendidas ou compartilhadas com terceiros.</p>
+            <h2>3. Compartilhamento de Dados</h2>
+            <p>O FireCheck <span class="highlight">não vende</span> seus dados pessoais a terceiros. O compartilhamento ocorre apenas quando estritamente necessário para:</p>
+            <ul>
+                <li>Provedores de infraestrutura e nuvem (Google Cloud / AWS);</li>
+                <li>Serviços de IA para análise de fotos (Google Gemini API);</li>
+                <li>Cumprimento de obrigações legais ou ordens judiciais.</li>
+            </ul>
         </section>
 
         <section>
-            <h2>4. Contato</h2>
-            <p>Para dúvidas sobre privacidade, entre em contato com: douglas@grupohakim.com.br</p>
+            <h2>4. Segurança e Retenção</h2>
+            <p>Implementamos medidas técnicas e organizacionais avançadas para proteger seus dados contra acesso não autorizado. Os dados são mantidos enquanto a conta estiver ativa ou conforme necessário para fornecer os serviços contratados.</p>
         </section>
 
-        <p style="margin-top: 50px; font-size: 0.8em; color: #555;">Última atualização: 21 de abril de 2026.</p>
+        <section>
+            <h2>5. Seus Direitos (LGPD)</h2>
+            <p>Conforme a Lei Geral de Proteção de Dados (LGPD), você tem direito a acessar, corrigir, portar ou solicitar a exclusão de seus dados pessoais. Para exercer esses direitos, entre em contato através do e-mail abaixo.</p>
+        </section>
+
+        <section>
+            <h2>6. Contato</h2>
+            <p>Para quaisquer dúvidas sobre esta política, entre em contato conosco:</p>
+            <p><span class="highlight">E-mail:</span> douglas@grupohakim.com.br</p>
+        </section>
+
+        <p class="last-update">Última atualização: 21 de abril de 2026. <br> FireCheck Inc. — Todos os direitos reservados.</p>
     </div>
 </body>
 </html>
+

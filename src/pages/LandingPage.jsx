@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 export default function LandingPage() {
   const [isAnnual, setIsAnnual] = useState(true);
@@ -186,7 +186,7 @@ export default function LandingPage() {
       <footer style={{ padding: '40px 5%', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto' }}>
         <p>© 2026 FireCheck Inc. O futuro da auditoria de varejo.</p>
         <p style={{ marginTop: '10px' }}>
-          <a href="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline', fontSize: '0.8rem' }}>Política de Privacidade</a>
+          <Link to="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline', fontSize: '0.8rem' }}>Política de Privacidade</Link>
         </p>
       </footer>
     </div>
