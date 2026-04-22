@@ -19,9 +19,8 @@ export default async function handler(req, res) {
   if (!migrationsRun) {
     try {
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
-      await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE');
       migrationsRun = true;
-    } catch (e) { console.error('Migration notice:', e.message); }
+    } catch (e) { }
   }
 
   try {
@@ -29,13 +28,15 @@ export default async function handler(req, res) {
     const url = req.url || '';
     const searchParams = new URL(url, `http://${req.headers.host}`).searchParams;
 
-    // --- LOGIN (RESTAURADO) ---
-    if (url.includes('/api/login')) {
+    // --- LOGIN / AUTH (CORRIGIDO PARA O QUE O SITE ESPERA) ---
+    if (url.includes('/api/auth')) {
       if (method === 'POST') {
         const { email, password } = req.body;
         const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
-        if (rows.length > 0) return res.status(200).json(rows[0]);
-        return res.status(401).json({ message: 'E-mail ou senha incorretos.' });
+        if (rows.length > 0) {
+          return res.status(200).json({ status: 'success', user: rows[0] });
+        }
+        return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
       }
     }
 
@@ -100,14 +101,6 @@ export default async function handler(req, res) {
       const store = searchParams.get('store');
       const { rows } = await pool.query('SELECT id, name, email, role, store, plan FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY name ASC', store ? [store] : []);
       return res.status(200).json(rows);
-    }
-
-    if (url.includes('/api/register-token')) {
-      if (method === 'POST') {
-        const { email, fcmToken } = req.body;
-        await pool.query('UPDATE users SET fcm_token = $1 WHERE LOWER(email) = LOWER($2)', [fcmToken, email]);
-        return res.status(200).json({ success: true });
-      }
     }
 
     if (url.includes('/api/finalize')) {
