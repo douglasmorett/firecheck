@@ -185,6 +185,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer style={{ padding: '40px 5%', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto' }}>
         <p>© 2026 FireCheck Inc. O futuro da auditoria de varejo.</p>
+        <p style={{ marginTop: '10px' }}>
+          <a href="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline', fontSize: '0.8rem' }}>Política de Privacidade</a>
+        </p>
       </footer>
     </div>
   );
