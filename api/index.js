@@ -102,11 +102,13 @@ export default async function handler(req, res) {
         subQuery.rows.forEach(row => {
           try {
             const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
-            if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) {
+            const hasError = Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error');
+            if (hasError) {
               alertasCount++;
             }
           } catch (e) { }
         });
+        console.log(`[STATS] Total: ${totalSubmissions}, Alertas: ${alertasCount}`);
       } catch (e) { console.error('Erro ao buscar submissões para stats:', e); }
 
       const conformidade = totalSubmissions > 0 
