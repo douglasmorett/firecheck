@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw } from 'lucide-react';
 import API_URL from '../api';
 
 export default function EmployeeDashboard() {
@@ -8,6 +8,24 @@ export default function EmployeeDashboard() {
   const [checklists, setChecklists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const fetchChecklists = useCallback(async (profile, isManual = false) => {
+    if (isManual) setIsRefreshing(true);
+    const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+    try {
+      const res = await fetch(`${API_URL}/api/checklists${storeParam}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setChecklists(data);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar checklists:', err);
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -17,22 +35,17 @@ export default function EmployeeDashboard() {
     }
     const profile = JSON.parse(savedUser);
     setUserProfile(profile);
+    
+    // Busca inicial
+    fetchChecklists(profile);
 
-    // Carregar checklists da loja
-    const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
-    fetch(`${API_URL}/api/checklists${storeParam}`)
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) {
-          setChecklists(data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error('Erro ao buscar checklists:', err);
-        setLoading(false);
-      });
-  }, [navigate]);
+    // Auto-refresh a cada 30 segundos
+    const interval = setInterval(() => {
+      fetchChecklists(profile);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [navigate, fetchChecklists]);
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -62,9 +75,14 @@ export default function EmployeeDashboard() {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{userProfile?.store}</p>
            </div>
         </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-           Sair <LogOut size={16} />
-        </button>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+           <button onClick={() => fetchChecklists(userProfile, true)} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+              {isRefreshing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+           </button>
+           <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+              Sair <LogOut size={16} />
+           </button>
+        </div>
       </header>
 
       <div style={{ backgroundColor: '#121318', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)' }}>
