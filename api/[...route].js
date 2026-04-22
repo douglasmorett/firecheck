@@ -311,11 +311,12 @@ export default async function handler(req, res) {
             });
 
             const base64Data = photoBase64.split(',')[1] || photoBase64;
-            const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${taskText}" foi executada com perfeição.
-            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.
+            const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${taskText}" está presente na imagem.
             Regras:
-            1. Se a foto comprovar a execução perfeita, approved: true e dê um feedback direto de aprovação na message.
-            2. Se houver qualquer falha, imperfeição, ou se a foto não provar a execução, approved: false e aponte o erro exato na message de forma clara.
+            1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
+            2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
+            3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
+            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.
             NUNCA dê respostas neutras. Não use formatação markdown fora do JSON.`;
 
             const result = await model.generateContent([

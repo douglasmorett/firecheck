@@ -138,7 +138,11 @@ export default async function handler(req, res) {
           if (task.photo && !task.forceOverride) {
             try {
               const base64Data = task.photo.split(',')[1] || task.photo;
-              const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${task.text}" foi executada com perfeição.
+              const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
+              Regras:
+              1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
+              2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
+              3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
               Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
 
               const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } } ]);
