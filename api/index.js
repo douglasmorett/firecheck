@@ -37,6 +37,8 @@ export default async function handler(req, res) {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+    await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT FALSE');
+    await pool.query('UPDATE checklist_submissions SET resolved = FALSE WHERE resolved IS NULL');
   } catch (migErr) {
     console.error('Migration Error:', migErr);
   }
