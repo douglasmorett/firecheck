@@ -182,12 +182,18 @@ export default async function handler(req, res) {
       return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
     }
 
+    if (url.includes('/api/resolve-submission')) {
+      if (method === 'POST') {
+        const { id } = req.body;
+        await pool.query('UPDATE checklist_submissions SET resolved = true WHERE id = $1', [id]);
+        return res.status(200).json({ success: true });
+      }
+    }
     if (url.includes('/api/audit')) {
       if (method === 'POST') {
         const { taskId, taskText, photoBase64 } = req.body;
         
-        // Prioriza variável de ambiente, mas usa a chave fornecida como fallback para garantir o funcionamento imediato
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
           return res.status(200).json({ 
@@ -213,12 +219,12 @@ export default async function handler(req, res) {
             });
 
             const base64Data = photoBase64.split(',')[1] || photoBase64;
-            const prompt = `Você é um auditor de qualidade extremamente rigoroso. Analise a foto fornecida para verificar se a tarefa "${taskText}" foi executada com perfeição.
-            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.
+            const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${taskText}" está presente na imagem.
             Regras:
-            1. Se a foto comprovar a execução perfeita, approved: true e dê um feedback direto de aprovação na message.
-            2. Se houver qualquer falha, imperfeição, ou se a foto não provar a execução, approved: false e aponte o erro exato na message de forma clara.
-            NUNCA dê respostas neutras. Não use formatação markdown fora do JSON.`;
+            1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
+            2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
+            3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
+            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
 
             const result = await model.generateContent([
               prompt,
