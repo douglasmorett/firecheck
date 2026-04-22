@@ -63,6 +63,7 @@ export default function AdminDashboard() {
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // Início do mês
     end: new Date().toISOString().split('T')[0]
   });
+  const [notifiedIds, setNotifiedIds] = useState(new Set());
 
   const [financialStats, setFinancialStats] = useState({
     vendasMes: 0,
@@ -100,6 +101,13 @@ export default function AdminDashboard() {
       setupPushNotifications(user.email);
     }
     fetchData();
+
+    // Loop global de atualização do painel a cada 15 segundos
+    const globalRefresh = setInterval(() => {
+      fetchData();
+    }, 15000);
+
+    return () => clearInterval(globalRefresh);
   }, [dateFilter]);
 
   // Robô Autônomo de Retentativa: Fica tentando processar fotos pendentes a cada 30 segundos
@@ -214,7 +222,35 @@ export default function AdminDashboard() {
 
         const subRes = await fetch(`${API_URL}/api/submissions${query}`);
         const subData = await subRes.json();
-        setSubmissions(Array.isArray(subData) ? subData : []);
+        
+        if (Array.isArray(subData)) {
+          setSubmissions(subData);
+          
+          // Sistema de Notificação em Tempo Real no Navegador
+          setNotifiedIds(prev => {
+            const nextSet = new Set(prev);
+            subData.forEach(s => {
+              if (!nextSet.has(s.id)) {
+                const feedbacks = Object.values(s.feedback_info || {});
+                const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
+                
+                if (feedbacks.length > 0) {
+                  // Se tem feedback e foi reprovado, dispara push
+                  if (hasWarnings && 'Notification' in window && Notification.permission === 'granted') {
+                    new Notification("⚠️ Alerta FireCheck", { 
+                      body: `Reprovação detectada na tarefa de ${s.employee_name}!`,
+                      icon: '/fire-icon.png' 
+                    });
+                  }
+                  nextSet.add(s.id);
+                }
+              }
+            });
+            return nextSet;
+          });
+        } else {
+          setSubmissions([]);
+        }
       }
     } catch (e) { console.error('Erro ao buscar dados:', e); }
   };
