@@ -215,7 +215,15 @@ export default function AdminDashboard() {
         setChecklists(Array.isArray(checklistsData) ? checklistsData : []);
         
         const userData = await userRes.json();
-        setTeam(Array.isArray(userData) ? userData : []);
+        const teamArray = Array.isArray(userData) ? userData : [];
+        setTeam(teamArray);
+        if (currentUser && currentUser.email) {
+           const updatedMe = teamArray.find(u => u.email === currentUser.email);
+           if (updatedMe) {
+              setUserProfile(updatedMe);
+              localStorage.setItem('user', JSON.stringify(updatedMe));
+           }
+        }
         
         const statsData = await statsRes.json();
         setStats(statsData);
