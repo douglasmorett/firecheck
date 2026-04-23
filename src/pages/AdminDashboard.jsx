@@ -44,6 +44,30 @@ const BarPct = ({ pct, color }) => (
   </div>
 );
 
+const getUserStatus = (user) => {
+  if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
+  if (user.status === 'active') return { text: '🟢 Plano Ativo (Pago)', color: 'var(--success)' };
+  
+  // Trial
+  const createdDate = new Date(user.created_at || Date.now());
+  const now = new Date();
+  const diffDays = Math.ceil(Math.abs(now - createdDate) / (1000 * 60 * 60 * 24)); 
+  const diasRestantes = 7 - diffDays;
+  
+  if (diasRestantes < 0) return { text: '🔴 Trial Expirado (Bloqueado)', color: 'var(--error)' };
+  if (diasRestantes === 0) return { text: '⏳ Último dia de Teste', color: '#FFA000' };
+  return { text: `⏳ Teste Ativo (${diasRestantes} dias restantes)`, color: '#FFA000' };
+};
+
+const isBlocked = (user) => {
+  if (user.status === 'blocked') return true;
+  if (user.status === 'trial') {
+    const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at || Date.now())) / (1000 * 60 * 60 * 24)); 
+    return (7 - diffDays) < 0;
+  }
+  return false;
+};
+
 // ── Componente Principal ─────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -852,39 +876,66 @@ export default function AdminDashboard() {
       {/* ── Tab: Gestão de Equipe / Clientes ───────────────────────────── */}
       {tab === 'equipe' && (
         <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Users size={20} color="var(--primary)" /> {isMaster ? 'Contas de Clientes (Donos de Loja)' : 'Equipe da Loja'}
-            </h3>
-            {!isFuncionario && (
-              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-                setNewUser({ name: '', email: '', password: '', role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store, plan: 'mensal' });
-                setShowUserModal(true);
-              }}>
-                <UserPlus size={16} /> {isMaster ? 'Adicionar Novo Cliente' : 'Adicionar Colaborador'}
-              </button>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Users size={20} color="var(--primary)" /> {isMaster ? 'Contas de Clientes (Donos de Loja)' : 'Equipe da Loja'}
+              </h3>
+              {!isFuncionario && (
+                <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
+                  setNewUser({ name: '', email: '', password: '', role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store, plan: 'mensal' });
+                  setShowUserModal(true);
+                }}>
+                  <UserPlus size={16} /> {isMaster ? 'Adicionar Novo Cliente' : 'Adicionar Colaborador'}
+                </button>
+              )}
+            </div>
+
+            {isMaster && (
+              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
+                <div style={{ backgroundColor: 'rgba(255,160,0,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,160,0,0.3)' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#FFA000' }}>
+                    {team.filter(m => m.role === 'admin' && m.status === 'trial' && !isBlocked(m)).length}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Testes Ativos (7 Dias)</span>
+                </div>
+                <div style={{ backgroundColor: 'rgba(255,23,68,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,23,68,0.3)' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--error)' }}>
+                    {team.filter(m => m.role === 'admin' && isBlocked(m)).length}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Contas Bloqueadas</span>
+                </div>
+                <div style={{ backgroundColor: 'rgba(0,200,83,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,200,83,0.3)' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>
+                    {team.filter(m => m.role === 'admin' && m.status === 'active').length}
+                  </span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Clientes Pagantes</span>
+                </div>
+              </div>
             )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(team || []).map(member => (
+            {(team || []).map(member => {
+              const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
+              
+              return (
               <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px' }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
-                    {isMaster && member.role === 'admin' && (
-                      <span style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        Plano: {member.plan?.toUpperCase() || 'MENSAL'}
+                    {statusInfo && (
+                      <span style={{ backgroundColor: `${statusInfo.color}15`, border: `1px solid ${statusInfo.color}40`, color: statusInfo.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        {statusInfo.text}
                       </span>
                     )}
                   </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
-                    {member.email} · <span style={{ textTransform: 'capitalize' }}>{member.role}</span> · {member.store}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
+                    {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {isMaster && member.role === 'admin' && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                       // Lógica para mudar plano
                        alert(`Mudar plano de ${member.name}`);
                     }}>
                       Alterar Plano
@@ -895,7 +946,7 @@ export default function AdminDashboard() {
                   </button>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       )}
