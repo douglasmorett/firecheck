@@ -3,7 +3,6 @@ import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X } from 
 import { useNavigate, Link } from 'react-router-dom';
 
 export default function LandingPage() {
-  const [isAnnual, setIsAnnual] = useState(true);
   const navigate = useNavigate();
 
   return (
@@ -81,40 +80,14 @@ export default function LandingPage() {
           <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
           
-          {/* Toggle Mensal / Anual */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: '#1A1C23', padding: '8px', borderRadius: '30px', gap: '8px' }}>
-            <button 
-              onClick={() => setIsAnnual(false)}
-              style={{ padding: '8px 24px', borderRadius: '20px', border: 'none', backgroundColor: !isAnnual ? 'var(--primary)' : 'transparent', color: !isAnnual ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.3s' }}
-            >
-              Mensal
-            </button>
-            <button 
-              onClick={() => setIsAnnual(true)}
-              style={{ padding: '8px 24px', borderRadius: '20px', border: 'none', backgroundColor: isAnnual ? 'var(--primary)' : 'transparent', color: isAnnual ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontWeight: 'bold', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '8px' }}
-            >
-              Anual <span style={{ backgroundColor: 'rgba(255,255,255,0.2)', padding: '2px 8px', borderRadius: '10px', fontSize: '0.7rem' }}>2 MESES GRÁTIS</span>
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1100px', margin: '0 auto' }}>
-          
-          {/* Plano Único (Start) */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
-            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>PLANO COMPLETO</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
+          {/* Plano Mensal */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para testar na sua operação.</p>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${isAnnual ? '147' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            {isAnnual && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
-                <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
-              </div>
-            )}
-            {!isAnnual && <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>}
+            <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
@@ -122,11 +95,38 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=start&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/3...', '_blank')}>
+              Assinar Plano Mensal
+            </button>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', padding: '0 10px' }}>
+              Garantia incondicional de 7 dias.
+            </p>
+          </div>
+
+          {/* Plano Anual (Destacado) */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
+            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>2 MESES GRÁTIS</div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
+            <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              R$147<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+            </div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
+              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
+            </div>
+
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
+            </ul>
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/e...', '_blank')}>
               Assinar Agora (Garantia de 7 Dias)
             </button>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', padding: '0 10px' }}>
-              Risco Zero: Acesso imediato. Se você não ficar impressionado, devolvemos 100% do seu dinheiro em até 7 dias.
+              Risco Zero: Devolvemos 100% do seu dinheiro em até 7 dias.
             </p>
           </div>
 
