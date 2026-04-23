@@ -1,6 +1,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { uploadImage } from './firebase-admin.js';
 
 const pool = new Pool({
   connectionString: 'postgresql://neondb_owner:npg_YymnUpK7OED8@ep-green-fog-anfbkql2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require',
@@ -150,10 +151,42 @@ export default async function handler(req, res) {
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
         const { employeeName, store, tasks, feedbackInfo, selfie, checklistId } = req.body;
+        
+        // --- INTEGRAÇÃO FIREBASE STORAGE ---
+        // Faz o upload das fotos das tasks
+        const updatedTasks = await Promise.all(tasks.map(async (task) => {
+          if (task.photo && task.photo.startsWith('data:image')) {
+            const firebaseUrl = await uploadImage(task.photo, `tasks/${store}`);
+            return { ...task, photo: firebaseUrl };
+          }
+          return task;
+        }));
+
+        // Faz o upload da selfie
+        let finalSelfie = selfie;
+        if (selfie && selfie.startsWith('data:image')) {
+          finalSelfie = await uploadImage(selfie, `selfies/${store}`);
+        }
+        // ------------------------------------
+
         const today = new Date().toISOString().split('T')[0];
         const checkDupe = await pool.query('SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3', [checklistId, store, today + ' 00:00:00']);
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
-        const { rows } = await pool.query('INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', [employeeName, store, JSON.stringify(tasks), JSON.stringify(feedbackInfo || {}), selfie, checklistId]);
+        
+        const { rows } = await pool.query(
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', 
+          [employeeName, store, JSON.stringify(updatedTasks), JSON.stringify(feedbackInfo || {}), finalSelfie, checklistId]
+        );
+
+        // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
+        // Remove submissões muito antigas para não lotar o banco
+        try {
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
+        } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
+        // ----------------------------------------------
+
         return res.status(200).json({ success: true, id: rows[0].id });
       }
     }
@@ -180,7 +213,20 @@ export default async function handler(req, res) {
         for (const task of tasks) {
           if (task.photo && !task.forceOverride) {
             try {
-              const base64Data = task.photo.split(',')[1] || task.photo;
+              let base64Data = '';
+              let mimeType = "image/jpeg";
+
+              if (task.photo.startsWith('http')) {
+                // Se for URL (Firebase), baixa a imagem para processar
+                const imgRes = await fetch(task.photo);
+                const arrayBuffer = await imgRes.arrayBuffer();
+                base64Data = Buffer.from(arrayBuffer).toString('base64');
+                mimeType = imgRes.headers.get('content-type') || "image/jpeg";
+              } else {
+                // Se ainda for Base64 (legado)
+                base64Data = task.photo.split(',')[1] || task.photo;
+              }
+
               const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
               Regras:
               1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
@@ -188,7 +234,7 @@ export default async function handler(req, res) {
               3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
               Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
 
-              const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } } ]);
+              const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType } } ]);
               const response = await result.response;
               const text = response.text();
               const jsonMatch = text.match(/\{[\s\S]*\}/);

@@ -1022,6 +1022,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.85rem', opacity: 0.7 }}>
+        Políticas FireCheck: Fotos e registros de checklists são armazenados por 90 dias para otimização de performance e segurança.
+      </div>
     </div>
   );
 }

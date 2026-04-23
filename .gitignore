@@ -5,3 +5,4 @@ dist
 firecheck.db
 server/node_modules
 .DS_Store
+api/serviceAccount.json
