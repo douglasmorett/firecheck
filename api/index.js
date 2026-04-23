@@ -94,7 +94,7 @@ export default async function handler(req, res) {
     }
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
-    if (url.includes('/api/webhook/cakto')) {
+    if (url.includes('/api/webhooks/cakto')) {
       if (method === 'POST') {
         try {
           const payload = req.body;
