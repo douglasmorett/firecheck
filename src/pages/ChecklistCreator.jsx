@@ -27,6 +27,7 @@ const newTask = () => ({
   timeLimit: '',
   notifyDelay: true,
   options: ['', ''],
+  assignee: '', // Novo campo para funcionário específico (e-mail)
 });
 
 // Dados simulados (futuramente virão do backend/banco de dados)
@@ -58,6 +59,7 @@ export default function ChecklistCreator() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [tasks, setTasks] = useState([newTask()]);
   const [isSaving, setIsSaving] = useState(false);
+  const [team, setTeam] = useState([]);
 
   useEffect(() => {
     // Tenta carregar a loja do perfil do usuário logado
@@ -66,6 +68,14 @@ export default function ChecklistCreator() {
       if (profile.plan) setUserPlan(profile.plan);
       if (profile.store && !isEditing) {
         setStore(profile.store);
+      }
+      if (profile.store) {
+        fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`)
+          .then(r => r.json())
+          .then(data => {
+             if (Array.isArray(data)) setTeam(data.filter(u => u.role === 'funcionario' || u.role === 'employee'));
+          })
+          .catch(() => {});
       }
     } catch (e) { console.error('Erro ao ler perfil para loja'); }
 
@@ -318,9 +328,32 @@ export default function ChecklistCreator() {
                     <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <Clock size={14} /> Hora Limite (Opcional)
                     </label>
-                    <input type="time" className="input-field" value={task.timeLimit}
+                    <input type="time" className="input-field" value={task.timeLimit || ''}
                       onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
                   </div>
+                </div>
+
+                {/* Atribuição de Funcionário Específico */}
+                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                   <label className="custom-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                     <input type="checkbox" checked={task.assignee ? true : false} onChange={(e) => {
+                        updateTask(task.id, 'assignee', e.target.checked ? (team[0]?.email || 'pendente') : '');
+                     }} />
+                     <span className="checkmark" style={{ position: 'relative', top: 0, left: 0 }}></span>
+                     <span style={{ fontSize: '0.9rem' }}>Deseja adicionar um funcionário específico para esta tarefa?</span>
+                   </label>
+                   
+                   {task.assignee && (
+                     <div style={{ marginTop: '12px', animation: 'fadeIn 0.3s' }}>
+                       <select className="input-field" value={task.assignee} onChange={e => updateTask(task.id, 'assignee', e.target.value)}>
+                         <option value="pendente" disabled>Selecione um funcionário...</option>
+                         {team.map(m => (
+                           <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
+                         ))}
+                       </select>
+                       {team.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>Nenhum funcionário cadastrado nesta loja.</span>}
+                     </div>
+                   )}
                 </div>
               </div>
             ))}

@@ -63,7 +63,10 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
 
-            setTasks(cl.tasks.map((t, idx) => ({ 
+            // Filtrar apenas tarefas para "equipe toda" ou para este usuário específico
+            const myTasks = cl.tasks.filter(t => !t.assignee || t.assignee === 'pendente' || t.assignee === profile.email);
+
+            setTasks(myTasks.map((t, idx) => ({ 
               ...t, 
               id: t.id || `task-${idx}`, 
               done: null, 
