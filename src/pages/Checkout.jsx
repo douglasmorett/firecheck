@@ -15,16 +15,9 @@ export default function Checkout() {
     email: '',
     cpfCnpj: '',
     phone: '',
+    store: '',
     password: '',
   });
-
-  const plansInfo = {
-    start: { name: 'FireCheck Start', price: cycle === 'annual' ? 80 : 97 },
-    pro: { name: 'FireCheck Pro Vision', price: cycle === 'annual' ? 167 : 197 },
-  };
-
-  const currentPlan = plansInfo[plan] || plansInfo.pro;
-  const totalPrice = cycle === 'annual' ? currentPlan.price * 12 * 0.8333 : currentPlan.price; // Simples ajuste para bater com a landing
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -39,24 +32,19 @@ export default function Checkout() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/checkout`, {
+      const response = await fetch(`${API_URL}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          plan,
-          cycle,
-          amount: totalPrice
-        })
+        body: JSON.stringify(formData)
       });
 
       const data = await response.json();
 
-      if (data.invoiceUrl) {
-        // Redireciona para o link de pagamento do Asaas
-        window.location.href = data.invoiceUrl;
+      if (data.status === 'success') {
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/admin');
       } else {
-        alert(data.error || 'Erro ao gerar pagamento. Verifique os dados e tente novamente.');
+        alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
     } catch (error) {
       alert('Erro de conexão com o servidor.');
@@ -73,8 +61,8 @@ export default function Checkout() {
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h1 className="page-title" style={{ marginBottom: '4px' }}>Finalizar Assinatura</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Você está a um passo de automatizar sua auditoria com IA.</p>
+          <h1 className="page-title" style={{ marginBottom: '4px' }}>Criar Conta Gratuita</h1>
+          <p style={{ color: 'var(--text-muted)' }}>Comece agora seus 7 dias de teste grátis. Sem cartão de crédito.</p>
         </div>
       </header>
 
@@ -105,13 +93,22 @@ export default function Checkout() {
               />
             </div>
 
+            <div style={{ marginBottom: '16px' }}>
+              <label className="input-label">Nome da sua Loja/Empresa</label>
+              <input 
+                type="text" name="store" className="input-field" required 
+                value={formData.store} onChange={handleInputChange}
+                placeholder="Ex: Duga Burguer"
+              />
+            </div>
+
             <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
               <div style={{ flex: 1 }}>
-                <label className="input-label">CPF ou CNPJ</label>
+                <label className="input-label">Telefone / WhatsApp</label>
                 <input 
-                  type="text" name="cpfCnpj" className="input-field" required 
-                  value={formData.cpfCnpj} onChange={handleInputChange}
-                  placeholder="000.000.000-00"
+                  type="text" name="phone" className="input-field" required 
+                  value={formData.phone} onChange={handleInputChange}
+                  placeholder="(11) 99999-9999"
                 />
               </div>
               <div style={{ flex: 1 }}>
@@ -141,48 +138,25 @@ export default function Checkout() {
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
                 disabled={loading}
               >
-                {loading ? 'Processando...' : `Pagar R$ ${totalPrice.toFixed(2).replace('.', ',')} agora`}
+                {loading ? 'Criando Conta...' : `Criar Conta e Acessar o Sistema`}
               </button>
-              <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <ShieldCheck size={14} /> Pagamento processado com segurança via Asaas
-              </p>
             </div>
           </form>
         </div>
 
-        {/* Resumo do Pedido */}
+        {/* Resumo Benefícios */}
         <div style={{ alignSelf: 'start' }}>
           <div className="card" style={{ backgroundColor: '#121318', border: '1px solid var(--primary)' }}>
-            <h3 style={{ marginBottom: '20px' }}>Resumo da Assinatura</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Plano selecionado:</span>
-              <span style={{ fontWeight: 'bold' }}>{currentPlan.name}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ color: 'var(--text-muted)' }}>Ciclo de faturamento:</span>
-              <span style={{ fontWeight: 'bold' }}>{cycle === 'annual' ? 'Anual (Econômico)' : 'Mensal'}</span>
-            </div>
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '1.2rem' }}>Total hoje:</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--success)' }}>R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
-            </div>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right' }}>
-              Pagamento 100% Seguro
-            </p>
-            
-            <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', borderRadius: '8px', color: 'var(--success)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
-              🛡️ Garantia incondicional de 7 Dias
-            </div>
-          </div>
-
-          <div style={{ marginTop: '24px', padding: '0 16px' }}>
-            <h4 style={{ marginBottom: '12px', fontSize: '0.9rem', textTransform: 'uppercase', color: 'var(--text-muted)' }}>O que acontece agora?</h4>
-            <ul style={{ padding: 0, margin: 0, listStyle: 'none', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <li style={{ display: 'flex', gap: '8px' }}><CreditCard size={16} color="var(--primary)" /> 1. Escolha pagar via Pix ou Cartão no próximo passo.</li>
-              <li style={{ display: 'flex', gap: '8px' }}><Flame size={16} color="var(--primary)" /> 2. Após o pagamento, seu acesso ao painel é liberado na hora.</li>
-              <li style={{ display: 'flex', gap: '8px' }}><Zap size={16} color="var(--primary)" /> 3. Você já poderá criar seu primeiro checklist com IA hoje mesmo.</li>
+            <h3 style={{ marginBottom: '20px' }}>O que está incluso no Teste?</h3>
+            <ul style={{ padding: 0, margin: 0, listStyle: 'none', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Flame size={20} color="var(--primary)" /> <strong>Acesso total</strong> ao painel administrativo.</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Zap size={20} color="var(--success)" /> Criação de <strong>Checklists com IA</strong>.</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><ShieldCheck size={20} color="var(--primary)" /> Painel para seus funcionários.</li>
             </ul>
+            
+            <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
+              🕒 Sem pegadinhas. Sem cobrança surpresa.
+            </div>
           </div>
         </div>
 

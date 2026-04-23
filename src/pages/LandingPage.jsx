@@ -36,10 +36,8 @@ export default function LandingPage() {
           O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
         </p>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn" style={{ fontSize: '1rem', padding: '14px 28px' }} onClick={() => {
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
-          }}>
-            Assinar Agora <ArrowRight size={18} />
+          <button className="btn" style={{ fontSize: '1rem', padding: '14px 28px' }} onClick={() => navigate('/checkout')}>
+            Começar 7 Dias Grátis (Sem Cartão) <ArrowRight size={18} />
           </button>
         </div>
       </header>
@@ -146,6 +144,14 @@ export default function LandingPage() {
             <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>Falar com nossos consultores</button>
           </div>
 
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '60px' }}>
+          <h3 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>Ainda não tem certeza?</h3>
+          <button className="btn" style={{ padding: '16px 32px', fontSize: '1.1rem', backgroundColor: 'transparent', border: '2px solid var(--primary)', color: 'var(--primary)' }} onClick={() => navigate('/checkout')}>
+            Criar conta e Testar Grátis por 7 Dias
+          </button>
+          <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Acesso imediato. Não pedimos cartão de crédito.</p>
         </div>
       </section>
 

@@ -137,6 +137,18 @@ export default async function handler(req, res) {
       }
     }
 
+    if (url.includes('/api/signup')) {
+      if (method === 'POST') {
+        const { name, email, password, store, phone } = req.body;
+        // status = 'trial'
+        const { rows } = await pool.query(
+          'INSERT INTO users (name, email, password, role, store, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store, status, created_at', 
+          [name, email, password, 'admin', store, 'trial']
+        );
+        return res.status(200).json({ status: 'success', user: rows[0] });
+      }
+    }
+
     if (url.includes('/api/users')) {
       if (method === 'POST') {
         const { name, email, password, role, store, plan } = req.body;
