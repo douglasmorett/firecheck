@@ -30,6 +30,59 @@ const StatusBadge = ({ status }) => {
     ignorado:  { label: '⚠️ IA Ignorada',        bg: 'rgba(255,77,0,0.15)',  color: 'var(--primary)' },
   };
   const s = map[status] || map.pendente;
+
+  const isTrialExpired = () => {
+    if (!userProfile) return false;
+    if (userProfile.status === 'blocked') return true;
+    if (userProfile.status === 'trial') {
+      const createdDate = new Date(userProfile.created_at || Date.now());
+      const now = new Date();
+      const diffTime = Math.abs(now - createdDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+      return diffDays > 7;
+    }
+    return false;
+  };
+
+  const showPaywall = !isMaster && isTrialExpired();
+
+  if (showPaywall) {
+    return (
+      <div className="page-container animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center', padding: '20px' }}>
+        <div style={{ backgroundColor: 'rgba(255, 23, 68, 0.1)', padding: '20px', borderRadius: '50%', marginBottom: '24px' }}>
+          <Lock size={48} color="var(--error)" />
+        </div>
+        <h1 style={{ fontSize: '2rem', marginBottom: '16px' }}>Sua conta está sem plano</h1>
+        <p style={{ color: 'var(--text-muted)', maxWidth: '500px', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.6' }}>
+          Seu período de teste expirou ou não identificamos o seu pagamento. Escolha um plano abaixo para continuar usando o FireCheck na sua operação.
+        </p>
+
+        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div className="card" style={{ width: '300px', padding: '32px' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/3eph5ko_856837', '_blank')}>
+              Assinar Mensal
+            </button>
+          </div>
+
+          <div className="card" style={{ width: '300px', padding: '32px', border: '2px solid var(--primary)', transform: 'scale(1.05)' }}>
+            <div style={{ backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content', margin: '0 auto 12px auto' }}>2 MESES GRÁTIS</div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$147<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/e7c88df', '_blank')}>
+              Assinar Anual
+            </button>
+          </div>
+        </div>
+
+        <button onClick={handleLogout} style={{ marginTop: '40px', background: 'transparent', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>
+          Sair do Sistema
+        </button>
+      </div>
+    );
+  }
+
   return (
     <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 'bold',
       backgroundColor: s.bg, color: s.color }}>
