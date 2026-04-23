@@ -34,7 +34,7 @@ export default function LandingPage() {
           Auditoria com IA que economiza seu tempo.
         </h1>
         <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', marginBottom: '32px', lineHeight: '1.5' }}>
-          O FireCheck fiscaliza sua operação e te avisa no WhatsApp apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
+          O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
         </p>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <button className="btn" style={{ fontSize: '1rem', padding: '14px 28px' }} onClick={() => {
@@ -71,8 +71,8 @@ export default function LandingPage() {
 
           <div className="card" style={{ borderTop: '4px solid var(--success)' }}>
             <Smartphone size={40} color="var(--success)" style={{ marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Alertas no WhatsApp</h3>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o horário limite, você recebe a notificação direto no zap.</p>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Notificações Push no Celular</h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o horário limite, você recebe a notificação direto no celular.</p>
           </div>
 
         </div>
@@ -122,7 +122,7 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas de Atraso no WhatsApp</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
             <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=start&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
@@ -136,11 +136,10 @@ export default function LandingPage() {
           {/* Plano Custom */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Custom</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Redes de franquias e grandes indústrias.</p>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Faremos um plano personalizado para sua empresa.</p>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '24px' }}>A combinar</div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Acima de 10 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Usuários e Lojas Ilimitados</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Treinamento de IA Personalizado</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Gerente de Conta Dedicado</li>
             </ul>
