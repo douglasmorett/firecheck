@@ -103,80 +103,48 @@ export default function LandingPage() {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1100px', margin: '0 auto' }}>
           
-          {/* Plano Básico */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Para lojas pequenas que querem abandonar o papel.</p>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${isAnnual ? '80' : '97'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
-            </div>
-            {isAnnual && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$970 anualmente</div>
-                <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$194/ano</div>
-              </div>
-            )}
-            {!isAnnual && <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>}
-
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 3 usuários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Checklists ilimitados</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', color: 'var(--text-muted)' }}><X size={18} /> Sem Auditoria por IA (Manual)</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', color: 'var(--text-muted)' }}><X size={18} /> Sem Alertas no WhatsApp</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Verificação Manual pelo Dono</li>
-            </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=start&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
-              Experimentar 7 Dias Grátis
-            </button>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px' }}>
-              Teste grátis por 7 dias. Se não cancelar, o valor será faturado automaticamente.
-            </p>
-
-          </div>
-
-          {/* Plano PRO (Destaque) */}
+          {/* Plano Único (Start) */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
-            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>MAIS POPULAR</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro Vision</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para operações de médio porte.</p>
+            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>PLANO COMPLETO</div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${isAnnual ? '167' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R${isAnnual ? '147' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             {isAnnual && (
               <div style={{ marginBottom: '16px' }}>
-                <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$2.004 anualmente</div>
-                <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$360/ano</div>
+                <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
+                <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
               </div>
             )}
             {!isAnnual && <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 usuários</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas de Atraso no WhatsApp</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Dashboard Avançado</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=pro&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=start&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
               Começar Teste Grátis de 7 Dias
             </button>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px' }}>
               Acesso total liberado na hora. Faturamento automático após o 7º dia.
             </p>
-
           </div>
 
-          {/* Plano Enterprise */}
+          {/* Plano Custom */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Enterprise</h3>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Custom</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Redes de franquias e grandes indústrias.</p>
             <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '24px' }}>A combinar</div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Acima de 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Usuários e Lojas Ilimitados</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Treinamento de IA Personalizado</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Acesso a API Pública</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Gerente de Conta Dedicado</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Enterprise%20do%20FireCheck.')}>Falar com nossos consultores</button>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>Falar com nossos consultores</button>
           </div>
 
         </div>
