@@ -361,7 +361,7 @@ export default function AdminDashboard() {
           <div className="card" style={{ width: '300px', padding: '32px' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
             <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/3eph5ko_856837', '_blank')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
               Assinar Mensal
             </button>
           </div>
@@ -374,7 +374,7 @@ export default function AdminDashboard() {
               <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
               <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
             </div>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/e7c88df', '_blank')}>
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
               Assinar Anual
             </button>
           </div>

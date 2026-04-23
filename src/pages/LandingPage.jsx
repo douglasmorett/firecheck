@@ -96,8 +96,8 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/3eph5ko_856837', '_blank')}>
-              Assinar Plano Mensal
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout')}>
+              Criar Conta e Testar
             </button>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', padding: '0 10px' }}>
               Garantia incondicional de 7 dias.
@@ -123,8 +123,8 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/e7c88df', '_blank')}>
-              Assinar Agora (Garantia de 7 Dias)
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout')}>
+              Criar Conta e Testar (Garantia de 7 Dias)
             </button>
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', padding: '0 10px' }}>
               Risco Zero: Devolvemos 100% do seu dinheiro em até 7 dias.
