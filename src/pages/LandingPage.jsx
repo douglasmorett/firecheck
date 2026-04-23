@@ -42,9 +42,6 @@ export default function LandingPage() {
           }}>
             Assinar Agora <ArrowRight size={18} />
           </button>
-          <button className="btn-secondary" style={{ fontSize: '1rem', padding: '14px 28px' }} onClick={() => navigate('/funcionario')}>
-            Simulador da Loja
-          </button>
         </div>
       </header>
 
@@ -126,10 +123,10 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
             <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate(`/checkout?plan=start&cycle=${isAnnual ? 'annual' : 'monthly'}`)}>
-              Começar Teste Grátis de 7 Dias
+              Assinar Agora (Garantia de 7 Dias)
             </button>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px' }}>
-              Acesso total liberado na hora. Faturamento automático após o 7º dia.
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '12px', padding: '0 10px' }}>
+              Risco Zero: Acesso imediato. Se você não ficar impressionado, devolvemos 100% do seu dinheiro em até 7 dias.
             </p>
           </div>
 

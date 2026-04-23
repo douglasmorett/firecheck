@@ -165,14 +165,14 @@ export default function Checkout() {
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '20px 0' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '1.2rem' }}>Total hoje:</span>
-              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--success)' }}>R$ 0,00</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--success)' }}>R$ {totalPrice.toFixed(2).replace('.', ',')}</span>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'right' }}>
-              Após 7 dias: R$ {totalPrice.toFixed(2).replace('.', ',')}
+              Pagamento 100% Seguro
             </p>
             
             <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', borderRadius: '8px', color: 'var(--success)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
-              🚀 Teste Grátis de 7 Dias Ativado!
+              🛡️ Garantia incondicional de 7 Dias
             </div>
           </div>
 
