@@ -335,25 +335,19 @@ export default function ChecklistCreator() {
 
                 {/* Atribuição de Funcionário Específico */}
                 <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
-                   <label className="custom-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                     <input type="checkbox" checked={task.assignee ? true : false} onChange={(e) => {
-                        updateTask(task.id, 'assignee', e.target.checked ? (team[0]?.email || 'pendente') : '');
-                     }} />
-                     <span className="checkmark" style={{ position: 'relative', top: 0, left: 0 }}></span>
-                     <span style={{ fontSize: '0.9rem' }}>Deseja adicionar um funcionário específico para esta tarefa?</span>
+                   <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                     <Users size={14} color="var(--primary)" /> Responsável pela Tarefa
                    </label>
                    
-                   {task.assignee && (
-                     <div style={{ marginTop: '12px', animation: 'fadeIn 0.3s' }}>
-                       <select className="input-field" value={task.assignee} onChange={e => updateTask(task.id, 'assignee', e.target.value)}>
-                         <option value="pendente" disabled>Selecione um funcionário...</option>
-                         {team.map(m => (
-                           <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
-                         ))}
-                       </select>
-                       {team.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>Nenhum funcionário cadastrado nesta loja.</span>}
-                     </div>
-                   )}
+                   <div style={{ marginTop: '8px' }}>
+                     <select className="input-field" value={task.assignee || ''} onChange={e => updateTask(task.id, 'assignee', e.target.value)}>
+                       <option value="">Equipe Toda (Visível para todos)</option>
+                       {team.map(m => (
+                         <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
+                       ))}
+                     </select>
+                     {team.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>Nenhum funcionário cadastrado nesta loja. Adicione colaboradores no painel de equipe.</span>}
+                   </div>
                 </div>
               </div>
             ))}
