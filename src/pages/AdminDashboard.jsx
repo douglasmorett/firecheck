@@ -46,12 +46,18 @@ const BarPct = ({ pct, color }) => (
 
 const getUserStatus = (user) => {
   if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
-  if (user.status === 'active') return { text: '🟢 Plano Ativo (Pago)', color: 'var(--success)' };
   
-  // Trial
   const createdDate = new Date(user.created_at || Date.now());
   const now = new Date();
   const diffDays = Math.ceil(Math.abs(now - createdDate) / (1000 * 60 * 60 * 24)); 
+  
+  if (user.status === 'active') {
+     const cycle = user.plan === 'anual' ? 365 : 30;
+     const diasRestantes = cycle - (diffDays % cycle);
+     return { text: `🟢 Plano Ativo (${diasRestantes} dias rest. no ciclo)`, color: 'var(--success)' };
+  }
+  
+  // Trial
   const diasRestantes = 7 - diffDays;
   
   if (diasRestantes < 0) return { text: '🔴 Trial Expirado (Bloqueado)', color: 'var(--error)' };
@@ -88,6 +94,8 @@ export default function AdminDashboard() {
     end: new Date().toISOString().split('T')[0]
   });
   const [notifiedIds, setNotifiedIds] = useState(new Set());
+  const [liveVisitors, setLiveVisitors] = useState(0);
+  const [editingPlan, setEditingPlan] = useState(null);
 
   const [financialStats, setFinancialStats] = useState({
     vendasMes: 0,
@@ -126,9 +134,17 @@ export default function AdminDashboard() {
     }
     fetchData();
 
+    const checkVisitors = () => {
+       if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
+          fetch(`${API_URL}/api/live-visitors`).then(r => r.json()).then(d => setLiveVisitors(d.visitors || 0)).catch(() => {});
+       }
+    };
+    checkVisitors();
+
     // Loop global de atualização do painel a cada 10 segundos (Quase Tempo-Real)
     const globalRefresh = setInterval(() => {
       fetchData();
+      checkVisitors();
     }, 10000);
 
     return () => clearInterval(globalRefresh);
@@ -426,6 +442,12 @@ export default function AdminDashboard() {
             </h1>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '42px' }}>
+             {isMaster && (
+               <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
+                 {liveVisitors} pessoas na Landing Page
+               </div>
+             )}
              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                 {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
              </p>
@@ -936,7 +958,7 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {isMaster && member.role === 'admin' && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                       alert(`Mudar plano de ${member.name}`);
+                       setEditingPlan({ ...member });
                     }}>
                       Alterar Plano
                     </button>
@@ -1133,6 +1155,44 @@ export default function AdminDashboard() {
                  </div>
                )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {editingPlan && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '400px', position: 'relative' }}>
+            <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
+            <h3 style={{ marginBottom: '24px' }}>Alterar Plano de {editingPlan.name}</h3>
+            
+            <div style={{ marginBottom: '16px' }}>
+              <label className="input-label">Status da Conta</label>
+              <select className="input-field" value={editingPlan.status || 'trial'} onChange={e => setEditingPlan({...editingPlan, status: e.target.value})}>
+                <option value="trial">Trial (7 Dias)</option>
+                <option value="active">Ativo (Pago)</option>
+                <option value="blocked">Bloqueado</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label className="input-label">Plano</label>
+              <select className="input-field" value={editingPlan.plan || 'mensal'} onChange={e => setEditingPlan({...editingPlan, plan: e.target.value})}>
+                <option value="mensal">Mensal</option>
+                <option value="anual">Anual</option>
+              </select>
+            </div>
+
+            <button className="btn" style={{ width: '100%' }} onClick={async () => {
+              try {
+                await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status })
+                });
+                setEditingPlan(null);
+                fetchData();
+              } catch (e) { alert('Erro ao salvar plano.'); }
+            }}>Salvar Alterações</button>
           </div>
         </div>
       )}

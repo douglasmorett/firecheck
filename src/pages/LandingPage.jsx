@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import API_URL from '../api';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Ping to track live visitors
+    const ping = () => {
+      fetch(`${API_URL}/api/ping`).catch(() => {});
+    };
+    ping();
+    const interval = setInterval(ping, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>

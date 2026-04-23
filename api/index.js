@@ -149,7 +149,19 @@ export default async function handler(req, res) {
       }
     }
 
-    if (url.includes('/api/users')) {
+    if (url.match(/\/api\/users\/([^\/?]+)/)) {
+      const match = url.match(/\/api\/users\/([^\/?]+)/);
+      const id = match[1];
+      if (method === 'DELETE') {
+        await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        return res.status(200).json({ success: true });
+      }
+      if (method === 'PUT') {
+        const { plan, status } = req.body;
+        await pool.query('UPDATE users SET plan = $1, status = $2 WHERE id = $3', [plan, status, id]);
+        return res.status(200).json({ success: true });
+      }
+    } else if (url.includes('/api/users')) {
       if (method === 'POST') {
         const { name, email, password, role, store, plan } = req.body;
         const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store', [name, email, password, role, store, plan]);
@@ -158,6 +170,23 @@ export default async function handler(req, res) {
       const store = searchParams.get('store');
       const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
+    }
+
+    if (url.includes('/api/ping')) {
+      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+      await pool.query(`
+        INSERT INTO live_visitors (ip, last_ping) 
+        VALUES ($1, NOW()) 
+        ON CONFLICT (ip) DO UPDATE SET last_ping = NOW()
+      `, [ip]);
+      return res.status(200).json({ success: true });
+    }
+
+    if (url.includes('/api/live-visitors')) {
+      // Deleta visitantes mais antigos que 20 segundos
+      await pool.query(`DELETE FROM live_visitors WHERE last_ping < NOW() - INTERVAL '20 seconds'`);
+      const { rows } = await pool.query('SELECT COUNT(*) as count FROM live_visitors');
+      return res.status(200).json({ visitors: parseInt(rows[0].count, 10) });
     }
 
     if (url.includes('/api/finalize')) {
