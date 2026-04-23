@@ -172,6 +172,24 @@ export default async function handler(req, res) {
       return res.status(200).json(rows);
     }
 
+    if (url.includes('/api/financials')) {
+      const { rows } = await pool.query("SELECT plan FROM users WHERE status = 'active'");
+      let vendasMes = 0;
+      rows.forEach(u => {
+         const valor = u.plan === 'anual' ? 1764 : 197;
+         vendasMes += valor;
+      });
+      // Receita Real descontando aproximadamente 8% de taxa Cakto
+      const receitaReal = vendasMes * 0.92;
+      
+      return res.status(200).json({
+        vendasMes,
+        receitaReal,
+        totalArrecadado: vendasMes, // Retroativo baseado na assinatura atual
+        clientesAtivos: rows.length
+      });
+    }
+
     if (url.includes('/api/ping')) {
       const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
       await pool.query(`
