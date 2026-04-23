@@ -142,8 +142,8 @@ export default async function handler(req, res) {
         const { name, email, password, store, phone } = req.body;
         // status = 'trial'
         const { rows } = await pool.query(
-          'INSERT INTO users (name, email, password, role, store, status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store, status, created_at', 
-          [name, email, password, 'admin', store, 'trial']
+          'INSERT INTO users (name, email, password, role, store, status, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, status, phone, created_at', 
+          [name, email, password, 'admin', store, 'trial', phone]
         );
         return res.status(200).json({ status: 'success', user: rows[0] });
       }
@@ -156,7 +156,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY name ASC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
