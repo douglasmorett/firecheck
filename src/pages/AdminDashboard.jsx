@@ -361,7 +361,11 @@ export default function AdminDashboard() {
           <div className="card" style={{ width: '300px', padding: '32px', border: '2px solid var(--primary)', transform: 'scale(1.05)' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content', margin: '0 auto 12px auto' }}>2 MESES GRÁTIS</div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$147<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$147<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <div style={{ marginBottom: '16px' }}>
+              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
+              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
+            </div>
             <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://pay.cakto.com.br/e7c88df', '_blank')}>
               Assinar Anual
             </button>
