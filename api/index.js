@@ -93,6 +93,49 @@ export default async function handler(req, res) {
        }));
     }
 
+    // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
+    if (url.includes('/api/webhook/cakto')) {
+      if (method === 'POST') {
+        try {
+          const payload = req.body;
+          console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
+          
+          // A Cakto envia dados de diferentes formas dependendo do evento.
+          // Tentamos capturar o email do comprador
+          const customerEmail = payload?.data?.customer?.email || payload?.customer?.email || payload?.email;
+          const status = payload?.data?.status || payload?.status || payload?.event;
+          
+          if (!customerEmail) {
+            return res.status(400).json({ error: 'E-mail não encontrado no payload' });
+          }
+
+          // Garante que a coluna status exista na tabela
+          await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
+
+          // Regra de Bloqueio/Liberação
+          // Se o pagamento for aprovado, pago, ou assinatura ativa
+          const activeStatuses = ['paid', 'approved', 'authorized', 'active', 'charge.paid', 'subscription.active'];
+          const blockedStatuses = ['refunded', 'chargeback', 'refused', 'canceled', 'overdue', 'charge.refunded', 'subscription.canceled'];
+
+          const lowerStatus = String(status).toLowerCase();
+          
+          let newStatus = null;
+          if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
+          if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
+
+          if (newStatus) {
+            await pool.query('UPDATE users SET status = $1 WHERE email = $2', [newStatus, customerEmail]);
+            console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para: ${newStatus}`);
+          }
+
+          return res.status(200).json({ received: true });
+        } catch (error) {
+          console.error('[CAKTO ERROR]', error);
+          return res.status(500).json({ error: error.message });
+        }
+      }
+    }
+
     if (url.includes('/api/users')) {
       if (method === 'POST') {
         const { name, email, password, role, store, plan } = req.body;

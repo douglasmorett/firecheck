@@ -76,7 +76,14 @@ export default async function handler(req, res) {
       }
 
       const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
-      if (rows.length > 0) return res.status(200).json({ status: 'success', user: rows[0] });
+      if (rows.length > 0) {
+        const user = rows[0];
+        // Bloqueio automático via Cakto
+        if (user.status === 'blocked') {
+          return res.status(403).json({ error: 'Acesso suspenso. Verifique o pagamento da sua assinatura.' });
+        }
+        return res.status(200).json({ status: 'success', user });
+      }
       return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
