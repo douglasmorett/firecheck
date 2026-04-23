@@ -17,7 +17,7 @@ export default function LandingPage() {
           <span style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '-1px' }}>FireCheck</span>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem' }}>Planos</button>
+          <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
           <button className="btn" style={{ padding: '10px 24px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)' }} onClick={() => navigate('/login')}>
             Entrar no Sistema
           </button>
@@ -73,7 +73,7 @@ export default function LandingPage() {
       </section>
 
       {/* Seção de Planos (Pricing) */}
-      <section style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
+      <section id="pricing" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
