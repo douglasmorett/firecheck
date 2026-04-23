@@ -96,8 +96,8 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout')}>
-              Teste grátis por 7 dias
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=mensal')}>
+              Assinar Agora
             </button>
           </div>
 
@@ -120,8 +120,8 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout')}>
-              Teste grátis por 7 dias
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=anual')}>
+              Assinar Agora
             </button>
           </div>
 

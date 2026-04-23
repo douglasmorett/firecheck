@@ -42,7 +42,17 @@ export default function Checkout() {
 
       if (data.status === 'success') {
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/admin');
+        
+        const userEmail = encodeURIComponent(formData.email);
+        const userName = encodeURIComponent(formData.name);
+        
+        if (plan === 'mensal') {
+           window.location.href = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'anual') {
+           window.location.href = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else {
+           navigate('/admin');
+        }
       } else {
         alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
@@ -138,7 +148,11 @@ export default function Checkout() {
                 style={{ width: '100%', padding: '16px', fontSize: '1.1rem' }}
                 disabled={loading}
               >
-                {loading ? 'Criando Conta...' : `Criar Conta e Acessar o Sistema`}
+                {loading ? 'Processando...' : (
+                  plan === 'mensal' || plan === 'anual' 
+                  ? 'Criar Conta e Prosseguir para Pagamento' 
+                  : 'Criar Conta e Acessar o Sistema'
+                )}
               </button>
             </div>
           </form>
