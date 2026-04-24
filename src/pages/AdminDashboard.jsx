@@ -82,7 +82,12 @@ const isBlocked = (user) => {
 // ── Componente Principal ─────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState('auditoria');
+  const [tab, setTab] = useState(localStorage.getItem('admin_active_tab') || 'auditoria');
+  
+  // Salvar aba no localStorage sempre que mudar
+  useEffect(() => {
+    localStorage.setItem('admin_active_tab', tab);
+  }, [tab]);
   
   // Estados Reais
   const [checklists, setChecklists] = useState([]);
