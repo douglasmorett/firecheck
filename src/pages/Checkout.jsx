@@ -43,6 +43,14 @@ export default function Checkout() {
       if (data.status === 'success') {
         localStorage.setItem('user', JSON.stringify(data.user));
         
+        // Dispara os eventos do Meta Pixel para o Facebook
+        if (window.fbq) {
+          window.fbq('track', 'Lead');
+          if (plan === 'mensal' || plan === 'anual') {
+            window.fbq('track', 'InitiateCheckout');
+          }
+        }
+
         const userEmail = encodeURIComponent(formData.email);
         const userName = encodeURIComponent(formData.name);
         
