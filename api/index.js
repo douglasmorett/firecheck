@@ -191,7 +191,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/financials')) {
-      const { rows } = await pool.query("SELECT plan FROM users WHERE status = 'active'");
+      const { rows } = await pool.query("SELECT plan FROM users WHERE status = 'active' AND role = 'admin'");
       let vendasMes = 0;
       rows.forEach(u => {
          const valor = u.plan === 'anual' ? 1764 : 197;
