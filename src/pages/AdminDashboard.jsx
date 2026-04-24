@@ -127,6 +127,18 @@ export default function AdminDashboard() {
   const [liveVisitors, setLiveVisitors] = useState(0);
   const [todayVisitors, setTodayVisitors] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
+  
+  const [toasts, setToasts] = useState([]);
+  const [knownUserIds, setKnownUserIds] = useState(null);
+
+  const addToast = (message, type = 'info') => {
+    const id = Date.now() + Math.random();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 5000);
+  };
+
 
   const [financialStats, setFinancialStats] = useState({
     vendasMes: 0,
@@ -276,7 +288,23 @@ export default function AdminDashboard() {
         ]);
         
         const userData = await userRes.json();
-        setTeam(Array.isArray(userData) ? userData : []);
+        const teamArray = Array.isArray(userData) ? userData : [];
+        setTeam(teamArray);
+        
+        setKnownUserIds(prev => {
+          if (prev === null) {
+            return new Set(teamArray.map(u => u.id));
+          }
+          const nextSet = new Set(prev);
+          teamArray.forEach(u => {
+            if (!nextSet.has(u.id)) {
+              nextSet.add(u.id);
+              const planStr = u.status === 'trial' ? 'Gratuito (Trial)' : (u.plan || 'Pago');
+              addToast(`Novo cadastro: ${u.name} - Plano: ${planStr}`, 'success');
+            }
+          });
+          return nextSet;
+        });
         
         // Mock de dados financeiros (Integração Cacto) se o fetch falhar
         try {
@@ -304,6 +332,22 @@ export default function AdminDashboard() {
         const userData = await userRes.json();
         const teamArray = Array.isArray(userData) ? userData : [];
         setTeam(teamArray);
+        
+        setKnownUserIds(prev => {
+          if (prev === null) {
+            return new Set(teamArray.map(u => u.id));
+          }
+          const nextSet = new Set(prev);
+          teamArray.forEach(u => {
+            if (!nextSet.has(u.id)) {
+              nextSet.add(u.id);
+              const planStr = u.status === 'trial' ? 'Gratuito (Trial)' : (u.plan || 'Pago');
+              addToast(`Novo cadastro: ${u.name} - Plano: ${planStr}`, 'success');
+            }
+          });
+          return nextSet;
+        });
+        
         if (currentUser && currentUser.email) {
            const updatedMe = teamArray.find(u => u.email === currentUser.email);
            if (updatedMe) {
@@ -1587,6 +1631,31 @@ export default function AdminDashboard() {
       <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.85rem', opacity: 0.7 }}>
         Políticas FireCheck: Fotos e registros de checklists são armazenados por 90 dias para otimização de performance e segurança.
       </div>
+
+      {/* Container de Toasts */}
+      <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 999999, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {toasts.map(toast => (
+          <div key={toast.id} className="animate-scale" style={{ 
+            backgroundColor: toast.type === 'success' ? '#10b981' : 'var(--primary)', 
+            color: 'white', 
+            padding: '16px 24px', 
+            borderRadius: '12px', 
+            boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontWeight: 'bold',
+            minWidth: '300px'
+          }}>
+            <Bell size={20} />
+            <span style={{ flex: 1, fontSize: '0.9rem' }}>{toast.message}</span>
+            <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8, padding: '4px' }}>
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
