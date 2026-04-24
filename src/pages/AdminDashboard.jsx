@@ -378,12 +378,7 @@ export default function AdminDashboard() {
     navigate('/login');
   };
 
-  // Definir abas iniciais baseadas no papel
-  useEffect(() => {
-    if (isMaster) setTab('financeiro');
-    else if (isAdmin) setTab('checklists'); // Dono abre direto nos checklists criados
-    else setTab('auditoria');
-  }, [userProfile, isMaster, isAdmin, isFuncionario]);
+  // Abas iniciais agora são geridas pelo estado com localStorage no topo do arquivo.
 
   const isTrialExpired = () => {
     if (!userProfile) return false;
