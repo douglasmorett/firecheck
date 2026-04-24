@@ -336,8 +336,8 @@ export default function AdminDashboard() {
 
   const handleAddCamera = async () => {
     if (!newCamera.name || !newCamera.url) return alert('Preencha o nome e a URL da câmera.');
-    if (cameras.length >= 2 && userProfile?.role !== 'master') {
-      alert('Você atingiu o limite gratuito de 2 câmeras! Adquira o Módulo Extra para continuar expandindo seu monitoramento.');
+    if (cameras.length >= 1 && userProfile?.role !== 'master') {
+      alert('Você atingiu o limite gratuito de 1 câmera! Adquira o Módulo Extra para continuar expandindo seu monitoramento.');
       window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
       return;
     }
@@ -1120,15 +1120,15 @@ export default function AdminDashboard() {
                <Info size={32} color="#3b82f6" />
                <div style={{ flex: 1 }}>
                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
-                   <strong style={{ color: 'white' }}>Plano Flex Padrão:</strong> Você tem direito a 2 câmeras inclusas sem custo.
+                   <strong style={{ color: 'white' }}>Plano Flex Padrão:</strong> Você tem direito a 1 câmera inclusa para degustação.
                  </p>
                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                   Atingiu o limite? Expanda seu monitoramento.
+                   Expanda seu monitoramento conectando até 4 Câmeras com IA em sua loja.
                  </p>
                </div>
                <button 
                  onClick={() => window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank')}
-                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)' }}
                >
                  Liberar 4 Câmeras (R$ 49,90)
                </button>
