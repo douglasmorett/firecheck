@@ -336,8 +336,13 @@ export default function AdminDashboard() {
 
   const handleAddCamera = async () => {
     if (!newCamera.name || !newCamera.url) return alert('Preencha o nome e a URL da câmera.');
-    if (cameras.length >= 1 && userProfile?.role !== 'master') {
-      alert('Você atingiu o limite gratuito de 1 câmera! Adquira o Módulo Extra para continuar expandindo seu monitoramento.');
+    
+    // Verifica plano de câmeras
+    const hasCameraPlan = userProfile?.camera_expiration && new Date(userProfile.camera_expiration) > new Date();
+    const cameraLimit = hasCameraPlan ? 4 : 1;
+    
+    if (cameras.length >= cameraLimit && userProfile?.role !== 'master') {
+      alert(`Você atingiu o limite de ${cameraLimit} câmera(s)! Adquira o Módulo Extra ou renove sua assinatura para expandir o monitoramento.`);
       window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
       return;
     }
@@ -1201,11 +1206,11 @@ export default function AdminDashboard() {
             <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                <h4 style={{ fontSize: '0.85rem', marginBottom: '8px', color: '#3b82f6' }}>Como conectar (Atenção):</h4>
                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                 Para que a nossa Inteligência Artificial consiga ler a imagem da sua câmera, você precisa fornecer um <strong>Link de Snapshot HTTP Público</strong>. (Ex: Hikvision, Intelbras, ou usar um serviço DDNS).
+                 Para que a nossa Inteligência Artificial consiga ler a imagem da sua câmera, cole o <strong>Link de Compartilhamento Público</strong> dela abaixo.
                </p>
                <ol style={{ fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '16px', margin: 0 }}>
-                 <li>Configure o redirecionamento de porta no seu roteador.</li>
-                 <li>Cole o link público de captura de imagem abaixo.</li>
+                 <li>Gere o link de compartilhamento no app da sua câmera (Intelbras, Hikvision, etc).</li>
+                 <li>Certifique-se de que o link não exige senha na hora de abrir.</li>
                </ol>
             </div>
 
@@ -1215,8 +1220,8 @@ export default function AdminDashboard() {
                  <input className="input-field" placeholder="Ex: Câmera Balcão 01" value={newCamera.name} onChange={e => setNewCamera({...newCamera, name: e.target.value})} />
                </div>
                <div>
-                 <label className="input-label">URL do Snapshot HTTP</label>
-                 <input className="input-field" placeholder="http://177.30.x.x:8080/cgi-bin/snapshot.cgi" value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
+                 <label className="input-label">Link de Compartilhamento da Câmera IP</label>
+                 <input className="input-field" placeholder="Cole aqui o link fornecido pelo seu aplicativo de câmeras..." value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
                </div>
                <div>
                  <label className="input-label">Regras de Auditoria de IA (Separe por vírgula)</label>

@@ -134,16 +134,31 @@ export default async function handler(req, res) {
           if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
           if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
 
+          // Adiciona a coluna para expiração do módulo de câmeras se não existir
+          await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
+
           if (newStatus === 'active') {
-             // O Cakto aprovou o pagamento. Renova a expiração!
-             await pool.query(`
-               UPDATE users 
-               SET status = 'active', 
-                   expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
-               WHERE email = $1
-             `, [customerEmail]);
-             console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+             const productName = payload?.data?.product?.name || payload?.product?.name || '';
+             const isCameraModule = String(productName).toLowerCase().includes('camera') || String(productName).toLowerCase().includes('câmera');
+
+             if (isCameraModule) {
+               await pool.query(`
+                 UPDATE users 
+                 SET camera_expiration = NOW() + INTERVAL '30 days'
+                 WHERE email = $1
+               `, [customerEmail]);
+               console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
+             } else {
+               await pool.query(`
+                 UPDATE users 
+                 SET status = 'active', 
+                     expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
+                 WHERE email = $1
+               `, [customerEmail]);
+               console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+             }
           } else if (newStatus) {
+            // Se for bloqueio, bloqueia a conta principal (que indiretamente bloqueia tudo)
             await pool.query('UPDATE users SET status = $1 WHERE email = $2', [newStatus, customerEmail]);
             console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para: ${newStatus}`);
           }
@@ -196,7 +211,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, camera_expiration FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
