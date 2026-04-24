@@ -21,8 +21,10 @@ export default async function handler(req, res) {
   if (!migrationsRun) {
     try {
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
       migrationsRun = true;
-    } catch (e) { }
+    } catch (e) { console.error('Migration error:', e); }
   }
 
   try {
