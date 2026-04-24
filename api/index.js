@@ -397,6 +397,12 @@ export default async function handler(req, res) {
           [store, name, camUrl, username, password, JSON.stringify(ai_commands || [])]);
         return res.status(200).json({ success: true });
       }
+      if (method === 'PUT') {
+        const { id, store, name, url: camUrl, ai_commands } = req.body;
+        await pool.query('UPDATE store_cameras SET name = $1, url = $2, ai_commands = $3 WHERE id = $4 AND store = $5', 
+          [name, camUrl, JSON.stringify(ai_commands || []), id, store]);
+        return res.status(200).json({ success: true });
+      }
       if (method === 'DELETE') {
         const camId = url.split('/').pop();
         await pool.query('DELETE FROM store_cameras WHERE id = $1', [camId]);

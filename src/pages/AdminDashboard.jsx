@@ -100,7 +100,10 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [cameras, setCameras] = useState([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
+  const [editingCamera, setEditingCamera] = useState(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(null);
   const [newCamera, setNewCamera] = useState({ name: '', url: '', username: '', password: '', ai_commands: [] });
+  const [newCommand, setNewCommand] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [dateFilter, setDateFilter] = useState({
@@ -337,29 +340,38 @@ export default function AdminDashboard() {
   const handleAddCamera = async () => {
     if (!newCamera.name || !newCamera.url) return alert('Preencha o nome e a URL da câmera.');
     
-    // Verifica plano de câmeras
-    const hasCameraPlan = userProfile?.camera_expiration && new Date(userProfile.camera_expiration) > new Date();
-    const cameraLimit = hasCameraPlan ? 4 : 1;
-    
-    if (cameras.length >= cameraLimit && userProfile?.role !== 'master') {
-      alert(`Você atingiu o limite de ${cameraLimit} câmera(s)! Adquira o Módulo Extra ou renove sua assinatura para expandir o monitoramento.`);
-      window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
-      return;
+    // Se for edição, ignora o limite de criação
+    if (!editingCamera) {
+      // Verifica plano de câmeras
+      const hasCameraPlan = userProfile?.camera_expiration && new Date(userProfile.camera_expiration) > new Date();
+      const cameraLimit = hasCameraPlan ? 4 : 1;
+      
+      if (cameras.length >= cameraLimit && userProfile?.role !== 'master') {
+        alert(`Você atingiu o limite de ${cameraLimit} câmera(s)! Adquira o Módulo Extra ou renove sua assinatura para expandir o monitoramento.`);
+        window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
+        return;
+      }
     }
     
     try {
-      const res = await fetch(`${API_URL}/api/cameras`, {
-        method: 'POST',
+      const url = editingCamera ? `${API_URL}/api/cameras` : `${API_URL}/api/cameras`;
+      const method = editingCamera ? 'PUT' : 'POST';
+      const bodyPayload = editingCamera ? { ...newCamera, id: editingCamera, store: userProfile.role === 'master' ? 'Produção' : userProfile.store } : { ...newCamera, store: userProfile.role === 'master' ? 'Produção' : userProfile.store };
+      
+      const res = await fetch(url, {
+        method: method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newCamera, store: userProfile?.store })
+        body: JSON.stringify(bodyPayload)
       });
       if (res.ok) {
         setShowCameraModal(false);
+        setEditingCamera(null);
         setNewCamera({ name: '', url: '', username: '', password: '', ai_commands: [] });
         fetchCameras();
       }
-    } catch (e) { alert('Erro ao adicionar câmera.'); }
+    } catch (err) { console.error('Erro:', err); }
   };
+
 
   const handleDeleteCamera = async (id) => {
     if (!confirm('Deseja remover esta câmera?')) return;
@@ -1151,10 +1163,27 @@ export default function AdminDashboard() {
                           <Camera color="var(--primary)" size={20} />
                           <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'white' }}>{cam.name}</h4>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--success)' }}>
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)', animation: 'pulse 2s infinite' }}></span>
-                          Comunicação Ativa
-                        </div>
+                        {(() => {
+                          const status = (cam.url && cam.url.length > 5) 
+                            ? (cam.ai_commands && cam.ai_commands.length > 0 ? 'monitoring' : 'connected') 
+                            : 'error';
+                            
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', 
+                              color: status === 'monitoring' ? 'var(--success)' : 
+                                     status === 'connected' ? '#3b82f6' : 'var(--error)' 
+                            }}>
+                              <span style={{ 
+                                width: '8px', height: '8px', borderRadius: '50%', 
+                                backgroundColor: status === 'monitoring' ? 'var(--success)' : 
+                                                 status === 'connected' ? '#3b82f6' : 'var(--error)', 
+                                animation: status === 'monitoring' ? 'pulse 2s infinite' : 'none' 
+                              }}></span>
+                              {status === 'monitoring' ? 'Conectada e Monitorando (IA)' : 
+                               status === 'connected' ? 'Apenas Conectada (Sem Regras IA)' : 'Erro de Conexão'}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <button className="btn-secondary" style={{ padding: '6px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none' }} onClick={() => handleDeleteCamera(cam.id)}>
                         <Trash2 size={16} />
@@ -1163,7 +1192,16 @@ export default function AdminDashboard() {
 
                     {/* Regras de IA */}
                     <div style={{ marginBottom: '20px' }}>
-                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a IA está vigiando:</p>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                         <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a IA está vigiando:</p>
+                         <button style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }} onClick={() => {
+                            setEditingCamera(cam.id);
+                            setNewCamera({ name: cam.name, url: cam.url, username: cam.username, password: cam.password, ai_commands: cam.ai_commands || [] });
+                            setShowCameraModal(true);
+                         }}>
+                           <Edit2 size={12} /> Editar Funções
+                         </button>
+                       </div>
                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {(cam.ai_commands || []).map((cmd, idx) => (
                             <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '6px', fontSize: '0.75rem' }}>
@@ -1177,8 +1215,11 @@ export default function AdminDashboard() {
                     <div style={{ padding: '16px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                          <p style={{ fontSize: '0.85rem', color: 'white', margin: 0, fontWeight: 'bold' }}>Últimos Incidentes</p>
-                         <button style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                           Ver histórico completo <ArrowRight size={12} />
+                         <button style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s' }} 
+                            onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'white'; }}
+                            onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                            onClick={() => setShowHistoryModal(cam.id)}>
+                           Ver histórico completo <ArrowRight size={14} />
                          </button>
                        </div>
                        
@@ -1197,19 +1238,43 @@ export default function AdminDashboard() {
                 <Monitor size={64} style={{ marginBottom: '20px', opacity: 0.1 }} />
                 <h4>Nenhuma câmera conectada</h4>
                 <p style={{ maxWidth: '400px', margin: '8px auto 24px' }}>Monitore sua operação em tempo real com alertas automáticos da nossa IA.</p>
-                <button className="btn" onClick={() => setShowCameraModal(true)}>Conectar minha primeira câmera</button>
+                <button className="btn" onClick={() => { setEditingCamera(null); setNewCamera({ name: '', url: '', username: '', password: '', ai_commands: [] }); setShowCameraModal(true); }}>Conectar minha primeira câmera</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* Modal de Nova Câmera */}
+      {/* Modal de Histórico de Incidentes */}
+      {showHistoryModal !== null && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px' }}>
+          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+                <Clock color="var(--primary)" /> Histórico de Eventos IA
+              </h3>
+              <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setShowHistoryModal(null)}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+              <ShieldCheck size={48} style={{ marginBottom: '16px', color: 'var(--success)', opacity: 0.8 }} />
+              <h4 style={{ color: 'white', marginBottom: '8px' }}>Nenhum incidente registrado</h4>
+              <p style={{ fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto' }}>
+                O histórico completo ficará disponível assim que a Inteligência Artificial detectar e salvar a primeira quebra de regra na sua operação.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Nova Câmera / Editar Câmera */}
       {showCameraModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
           <div className="card animate-scale" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Camera color="var(--primary)" /> Configurar Nova Câmera IP
+              <Camera color="var(--primary)" /> {editingCamera ? 'Editar Configuração da IA' : 'Configurar Nova Câmera IP'}
             </h3>
             
             <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
@@ -1233,14 +1298,51 @@ export default function AdminDashboard() {
                  <input className="input-field" placeholder="Cole aqui o link fornecido pelo seu aplicativo de câmeras..." value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
                </div>
                <div>
-                 <label className="input-label">Regras de Auditoria de IA (Separe por vírgula)</label>
-                 <textarea className="input-field" style={{ height: '80px' }} placeholder="Ex: Me avise se a fila passar de 4 pessoas, Me avise se houver lixo no chão" 
-                   onChange={e => setNewCamera({...newCamera, ai_commands: e.target.value.split(',').map(s => s.trim())})} />
+                 <label className="input-label">O que a IA deve vigiar? (Adicione um por vez)</label>
+                 <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                   <input className="input-field" placeholder="Ex: Me avise se a fila passar de 4 pessoas" 
+                     value={newCommand} 
+                     onChange={e => setNewCommand(e.target.value)} 
+                     onKeyDown={(e) => { 
+                       if(e.key === 'Enter') { 
+                         e.preventDefault(); 
+                         if (newCommand.trim()) { 
+                           setNewCamera({...newCamera, ai_commands: [...(newCamera.ai_commands||[]), newCommand.trim()]}); 
+                           setNewCommand(''); 
+                         }
+                       }
+                     }} 
+                   />
+                   <button type="button" className="btn-secondary" style={{ whiteSpace: 'nowrap' }} onClick={() => { 
+                     if (newCommand.trim()) { 
+                       setNewCamera({...newCamera, ai_commands: [...(newCamera.ai_commands||[]), newCommand.trim()]}); 
+                       setNewCommand(''); 
+                     }
+                   }}>
+                     <Plus size={16} /> Adicionar
+                   </button>
+                 </div>
+                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '40px', padding: '12px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                   {(newCamera.ai_commands || []).length === 0 && (
+                     <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>Nenhuma regra adicionada ainda.</span>
+                   )}
+                   {(newCamera.ai_commands || []).map((cmd, idx) => (
+                     <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60a5fa', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       👁️ {cmd}
+                       <button type="button" style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} 
+                         onClick={() => setNewCamera({...newCamera, ai_commands: newCamera.ai_commands.filter((_, i) => i !== idx)})}>
+                         <X size={12} />
+                       </button>
+                     </span>
+                   ))}
+                 </div>
                </div>
                
-               <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-                 <button className="btn" style={{ flex: 1 }} onClick={handleAddCamera}>Salvar e Iniciar Monitoramento</button>
-                 <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowCameraModal(false)}>Cancelar</button>
+               <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                 <button className="btn" style={{ flex: 1 }} onClick={handleAddCamera}>
+                   {editingCamera ? 'Salvar Alterações' : 'Salvar e Iniciar Monitoramento'}
+                 </button>
+                 <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { setShowCameraModal(false); setEditingCamera(null); }}>Cancelar</button>
                </div>
             </div>
           </div>
