@@ -867,39 +867,80 @@ export default function AdminDashboard() {
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ClipboardList size={20} color="var(--primary)" /> Checklists Criados
+              <ClipboardList size={20} color="var(--primary)" /> Status dos Checklists (Hoje)
             </h3>
             <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => navigate('/admin/creator')}>
               <Plus size={16} /> Novo Checklist
             </button>
           </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(checklists || []).length > 0 ? (checklists || []).map(cl => (
-              <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                    <h4 style={{ fontSize: '1rem', margin: 0 }}>{cl.title}</h4>
-                    <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold',
-                      backgroundColor: cl.status === 'ativo' ? 'rgba(0,200,83,0.15)' : 'rgba(255,255,255,0.05)',
-                      color: cl.status === 'ativo' ? 'var(--success)' : 'var(--text-muted)' }}>
-                      {cl.status === 'ativo' ? '● Ativo' : '○ Inativo'}
-                    </span>
+          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {(checklists || []).length > 0 ? (
+              <>
+                <div>
+                  <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Clock size={16} /> ⏳ Pendentes de Execução
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {checklists.filter(cl => !cl.completedToday).map(cl => (
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                            <h4 style={{ fontSize: '1rem', margin: 0 }}>{cl.title}</h4>
+                            <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,23,68,0.1)', color: 'var(--error)' }}>
+                              Pendente
+                            </span>
+                          </div>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '4px' }}>
+                            📋 {cl.tasks?.length || 0} tarefas &nbsp;·&nbsp; <CalendarClock size={12} style={{ verticalAlign: 'middle' }} /> {RECURRENCE_LABEL[cl.recurrence] || 'Único'}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => navigate(`/admin/creator/${cl.id}`)}>
+                            <Edit2 size={15} /> Editar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {checklists.filter(cl => !cl.completedToday).length === 0 && (
+                      <p style={{ color: 'var(--success)', fontSize: '0.85rem', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px' }}>🎉 Todos os checklists pendentes já foram executados hoje!</p>
+                    )}
                   </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '4px' }}>
-                    📋 {cl.tasks?.length || 0} tarefas &nbsp;·&nbsp; <CalendarClock size={12} style={{ verticalAlign: 'middle' }} /> {RECURRENCE_LABEL[cl.recurrence] || 'Único'}
-                  </p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                    <Clock size={11} style={{ verticalAlign: 'middle', marginRight: '4px' }} />Agendado: {cl.scheduledDate || 'Imediato'}
-                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                    onClick={() => navigate(`/admin/creator/${cl.id}`)}>
-                    <Edit2 size={15} /> Editar
-                  </button>
+
+                <div>
+                  <h4 style={{ color: 'var(--success)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <CheckCircle size={16} /> ✅ Concluídos
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {checklists.filter(cl => cl.completedToday).map(cl => (
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                            <h4 style={{ fontSize: '1rem', margin: 0, textDecoration: 'line-through' }}>{cl.title}</h4>
+                            <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(0,200,83,0.1)', color: 'var(--success)' }}>
+                              Concluído por {cl.completedBy || 'Sistema'}
+                            </span>
+                          </div>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '4px' }}>
+                            📋 {cl.tasks?.length || 0} tarefas &nbsp;·&nbsp; <CalendarClock size={12} style={{ verticalAlign: 'middle' }} /> {RECURRENCE_LABEL[cl.recurrence] || 'Único'}
+                          </p>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => navigate(`/admin/creator/${cl.id}`)}>
+                            <Edit2 size={15} /> Editar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {checklists.filter(cl => cl.completedToday).length === 0 && (
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px' }}>Nenhum checklist foi concluído hoje ainda.</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )) : (
+              </>
+            ) : (
               <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
                 <ClipboardList size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
                 <p>Nenhum checklist encontrado para esta loja.</p>
