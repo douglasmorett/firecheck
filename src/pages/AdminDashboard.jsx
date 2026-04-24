@@ -1142,50 +1142,51 @@ export default function AdminDashboard() {
             {cameras.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                 {cameras.map(cam => (
-                  <div key={cam.id} className="card" style={{ padding: '0', overflow: 'hidden', backgroundColor: '#000' }}>
-                    <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#121318', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       {/* Exibição da Imagem (Snapshot via HTTP) */}
-                       {cam.url.startsWith('http') ? (
-                         <img 
-                           src={cam.url} 
-                           alt="Camera Stream" 
-                           style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} 
-                           onError={(e) => {
-                             e.target.onerror = null;
-                             e.target.src = 'https://via.placeholder.com/640x360/121318/3b82f6?text=Conexao+Bloqueada+Ou+Link+Invalido';
-                           }}
-                         />
-                       ) : (
-                         <Video size={48} color="rgba(255,255,255,0.05)" />
-                       )}
-                       
-                       <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.8)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div key={cam.id} className="card" style={{ padding: '20px', backgroundColor: '#121318', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    
+                    {/* Cabeçalho da Câmera */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                          <Camera color="var(--primary)" size={20} />
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'white' }}>{cam.name}</h4>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--success)' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)', animation: 'pulse 2s infinite' }}></span>
-                          LIVE: {cam.name}
-                       </div>
-                       <div style={{ position: 'absolute', bottom: '12px', right: '12px', display: 'flex', gap: '8px' }}>
-                          <button className="btn-secondary" style={{ padding: '6px', fontSize: '0.7rem' }} onClick={() => handleDeleteCamera(cam.id)}>
-                            <Trash2 size={14} />
-                          </button>
-                       </div>
+                          Comunicação Ativa
+                        </div>
+                      </div>
+                      <button className="btn-secondary" style={{ padding: '6px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none' }} onClick={() => handleDeleteCamera(cam.id)}>
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                    <div style={{ padding: '16px', backgroundColor: '#121318' }}>
-                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                         <p style={{ fontSize: '0.85rem', color: 'white', margin: 0, fontWeight: 'bold' }}>Monitoramento Inteligente</p>
-                         <button style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '6px', padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer' }}>
-                           Forçar Análise IA
-                         </button>
-                       </div>
-                       
-                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
+
+                    {/* Regras de IA */}
+                    <div style={{ marginBottom: '20px' }}>
+                       <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a IA está vigiando:</p>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {(cam.ai_commands || []).map((cmd, idx) => (
-                            <span key={idx} style={{ padding: '4px 10px', backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '6px', fontSize: '0.75rem' }}>
+                            <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '6px', fontSize: '0.75rem' }}>
                               👁️ {cmd}
                             </span>
                           ))}
                        </div>
-                       <div style={{ padding: '10px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', borderLeft: '3px solid var(--success)' }}>
-                         <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--success)' }}>✅ Tudo normal detectado na última análise.</p>
+                    </div>
+
+                    {/* Galeria de Incidentes */}
+                    <div style={{ padding: '16px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                         <p style={{ fontSize: '0.85rem', color: 'white', margin: 0, fontWeight: 'bold' }}>Últimos Incidentes</p>
+                         <button style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                           Ver histórico completo <ArrowRight size={12} />
+                         </button>
+                       </div>
+                       
+                       {/* Empty State de Incidentes */}
+                       <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)' }}>
+                         <ShieldCheck size={32} style={{ marginBottom: '10px', color: 'var(--success)', opacity: 0.8 }} />
+                         <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--success)' }}>Operação limpa!</p>
+                         <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem' }}>Nenhuma quebra de regra detectada nas últimas 24h.</p>
                        </div>
                     </div>
                   </div>
