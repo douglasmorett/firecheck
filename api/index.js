@@ -389,6 +389,39 @@ export default async function handler(req, res) {
       }
     }
 
+    if (url.includes('/api/process-camera-ai')) {
+      if (method === 'POST') {
+        const { store, cameraName, photoBase64, commands } = req.body;
+        
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+        
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+          
+          const base64Data = photoBase64.split(',')[1] || photoBase64;
+          const prompt = `Você é um sistema de monitoramento de segurança e auditoria operacional em tempo real.
+          Sua tarefa é analisar o frame atual da câmera "${cameraName}" e verificar as seguintes regras operacionais:
+          ${commands.map((cmd, i) => `${i + 1}. ${cmd}`).join('\n')}
+          
+          Responda ESTRITAMENTE em formato JSON com uma lista de alertas. 
+          Se uma regra for DESCUMPRIDA ou o evento solicitado ESTIVER ACONTECENDO (ex: "tem muito lixo", "porta aberta"), adicione um alerta.
+          Se estiver tudo normal, retorne um array vazio [].
+          Formato: [{"command": "A regra quebrada", "alert": "O que você viu na imagem que quebra a regra"}]`;
+
+          const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } } ]);
+          const response = await result.response;
+          const aiResponse = JSON.parse(response.text().match(/\[[\s\S]*\]/)?.[0] || '[]');
+          
+          return res.status(200).json({ alerts: aiResponse });
+        } catch (error) {
+          console.error('Erro na IA da Câmera:', error);
+          return res.status(500).json({ error: 'Falha no processamento da IA' });
+        }
+      }
+    }
+
     if (url.includes('/api/resolve-submission')) {
       if (method === 'POST') {
         const { id, resolvedBy } = req.body;

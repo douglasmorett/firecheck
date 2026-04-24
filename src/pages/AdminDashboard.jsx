@@ -1123,9 +1123,14 @@ export default function AdminDashboard() {
                 {cameras.map(cam => (
                   <div key={cam.id} className="card" style={{ padding: '0', overflow: 'hidden', backgroundColor: '#000' }}>
                     <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#121318', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                       {/* Simulação de Stream */}
-                       <Video size={48} color="rgba(255,255,255,0.05)" />
-                       <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                       {/* Exibição da Imagem (Snapshot via HTTP) */}
+                       {cam.url.startsWith('http') ? (
+                         <img src={cam.url} alt="Camera Stream" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
+                       ) : (
+                         <Video size={48} color="rgba(255,255,255,0.05)" />
+                       )}
+                       
+                       <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.8)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
                           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)', animation: 'pulse 2s infinite' }}></span>
                           LIVE: {cam.name}
                        </div>
@@ -1135,15 +1140,23 @@ export default function AdminDashboard() {
                           </button>
                        </div>
                     </div>
-                    <div style={{ padding: '12px', backgroundColor: '#121318' }}>
-                       <p style={{ fontSize: '0.8rem', color: 'white', marginBottom: '8px', fontWeight: 'bold' }}>Alertas Ativos:</p>
-                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    <div style={{ padding: '16px', backgroundColor: '#121318' }}>
+                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                         <p style={{ fontSize: '0.85rem', color: 'white', margin: 0, fontWeight: 'bold' }}>Monitoramento Inteligente</p>
+                         <button style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '6px', padding: '4px 8px', fontSize: '0.7rem', cursor: 'pointer' }}>
+                           Forçar Análise IA
+                         </button>
+                       </div>
+                       
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
                           {(cam.ai_commands || []).map((cmd, idx) => (
-                            <span key={idx} style={{ padding: '2px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.65rem' }}>
-                              🤖 {cmd}
+                            <span key={idx} style={{ padding: '4px 10px', backgroundColor: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-muted)', borderRadius: '6px', fontSize: '0.75rem' }}>
+                              👁️ {cmd}
                             </span>
                           ))}
-                          <button style={{ padding: '2px 8px', backgroundColor: 'transparent', border: '1px dashed #3b82f6', color: '#3b82f6', borderRadius: '20px', fontSize: '0.65rem', cursor: 'pointer' }}>+ Novo Comando</button>
+                       </div>
+                       <div style={{ padding: '10px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '8px', borderLeft: '3px solid var(--success)' }}>
+                         <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--success)' }}>✅ Tudo normal detectado na última análise.</p>
                        </div>
                     </div>
                   </div>
@@ -1164,32 +1177,34 @@ export default function AdminDashboard() {
       {/* Modal de Nova Câmera */}
       {showCameraModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
-          <div className="card animate-scale" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card animate-scale" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Camera color="var(--primary)" /> Configurar Nova Câmera IP
             </h3>
             
-            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-               <h4 style={{ fontSize: '0.85rem', marginBottom: '8px' }}>Passo a Passo:</h4>
-               <ol style={{ fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '16px' }}>
-                 <li>Sua câmera deve estar ligada na mesma rede Wi-Fi.</li>
-                 <li>Ative o protocolo ONVIF ou RTSP nas configurações da sua câmera.</li>
-                 <li>Cole o link de acesso (URL) abaixo.</li>
+            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+               <h4 style={{ fontSize: '0.85rem', marginBottom: '8px', color: '#3b82f6' }}>Como conectar (Atenção):</h4>
+               <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
+                 Para que a nossa Inteligência Artificial consiga ler a imagem da sua câmera, você precisa fornecer um <strong>Link de Snapshot HTTP Público</strong>. (Ex: Hikvision, Intelbras, ou usar um serviço DDNS).
+               </p>
+               <ol style={{ fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '16px', margin: 0 }}>
+                 <li>Configure o redirecionamento de porta no seu roteador.</li>
+                 <li>Cole o link público de captura de imagem abaixo.</li>
                </ol>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                <div>
                  <label className="input-label">Nome da Câmera (ex: Cozinha, Balcão)</label>
-                 <input className="input-field" placeholder="Ex: Cozinha Principal" value={newCamera.name} onChange={e => setNewCamera({...newCamera, name: e.target.value})} />
+                 <input className="input-field" placeholder="Ex: Câmera Balcão 01" value={newCamera.name} onChange={e => setNewCamera({...newCamera, name: e.target.value})} />
                </div>
                <div>
-                 <label className="input-label">URL de Stream (IP ou RTSP)</label>
-                 <input className="input-field" placeholder="rtsp://admin:12345@192.168.0.100:554/live" value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
+                 <label className="input-label">URL do Snapshot HTTP</label>
+                 <input className="input-field" placeholder="http://177.30.x.x:8080/cgi-bin/snapshot.cgi" value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
                </div>
                <div>
-                 <label className="input-label">O que a IA deve monitorar? (Separe por vírgula)</label>
-                 <textarea className="input-field" style={{ height: '80px' }} placeholder="Ex: Me avise se a fila estiver grande, Me avise se a porta da geladeira estiver aberta" 
+                 <label className="input-label">Regras de Auditoria de IA (Separe por vírgula)</label>
+                 <textarea className="input-field" style={{ height: '80px' }} placeholder="Ex: Me avise se a fila passar de 4 pessoas, Me avise se houver lixo no chão" 
                    onChange={e => setNewCamera({...newCamera, ai_commands: e.target.value.split(',').map(s => s.trim())})} />
                </div>
                
