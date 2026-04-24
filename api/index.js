@@ -88,9 +88,19 @@ export default async function handler(req, res) {
        const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
        const today = new Date().toISOString().split('T')[0];
        const { rows: todaySubs } = await pool.query('SELECT checklist_id, employee_name FROM checklist_submissions WHERE store = $1 AND created_at >= $2', [store, today + ' 00:00:00']);
+       const { rows: everSubs } = await pool.query('SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE store = $1 GROUP BY checklist_id', [store]);
+       
        return res.status(200).json(checklists.map(r => {
-         const sub = todaySubs.find(s => s.checklist_id === r.id);
-         return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), completedToday: !!sub, completedBy: sub ? sub.employee_name : null };
+         let isCompleted = false;
+         let completedBy = null;
+         if (r.recurrence === 'unico') {
+             const sub = everSubs.find(s => s.checklist_id === r.id);
+             if (sub) { isCompleted = true; completedBy = sub.employee_name; }
+         } else {
+             const sub = todaySubs.find(s => s.checklist_id === r.id);
+             if (sub) { isCompleted = true; completedBy = sub.employee_name; }
+         }
+         return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), completedToday: isCompleted, completedBy };
        }));
     }
 
