@@ -213,7 +213,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, camera_expiration FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
