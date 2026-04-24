@@ -91,7 +91,11 @@ export default function AdminDashboard() {
     if (isMaster) {
       return ['financeiro', 'equipe'].includes(saved) ? saved : 'financeiro';
     }
-    return ['auditoria', 'ranking', 'cameras', 'alertas', 'checklists', 'equipe'].includes(saved) ? saved : 'auditoria';
+    const isCameraAllowed = user?.email?.toLowerCase() === 'dugaburguer@gmail.com';
+    const allowedTabs = isCameraAllowed 
+      ? ['auditoria', 'ranking', 'cameras', 'alertas', 'checklists', 'equipe']
+      : ['auditoria', 'ranking', 'alertas', 'checklists', 'equipe'];
+    return allowedTabs.includes(saved) ? saved : 'auditoria';
   });
   
   // Salvar aba no localStorage sempre que mudar
@@ -725,11 +729,11 @@ export default function AdminDashboard() {
         ] : [
           { key: 'auditoria',   label: '📋 Auditoria'    },
           { key: 'ranking',     label: '🏆 Ranking'      },
-          { key: 'cameras',     label: '📹 Câmeras IA'   },
+          (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: '📹 Câmeras IA' } : null),
           { key: 'alertas',     label: '🚨 Alertas IA'   },
           { key: 'checklists',  label: '⚙️ Checklists'   },
           { key: 'equipe',      label: '👥 Equipe'       },
-        ]).map(t => {
+        ].filter(Boolean)).map(t => {
           if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
           return (
             <button key={t.key} onClick={() => setTab(t.key)}
