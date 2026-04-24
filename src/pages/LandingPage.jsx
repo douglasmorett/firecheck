@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X } from 'lucide-react';
+import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -68,6 +68,12 @@ export default function LandingPage() {
             <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Enquanto a concorrência exige que o diretor olhe 500 fotos por dia, o FireCheck aciona a inteligência do Google Gemini para auditar a tarefa em 2 segundos.</p>
           </div>
 
+          <div className="card" style={{ borderTop: '4px solid #a855f7' }}>
+            <Video size={40} color="#a855f7" style={{ marginBottom: '20px' }} />
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Câmeras IA (Novo)</h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Vire suas câmeras Wi-Fi/IP em fiscais autônomos. A IA vigia a fila, a limpeza e o desperdício 24/7, disparando alertas apenas quando a regra é quebrada.</p>
+          </div>
+
           <div className="card" style={{ borderTop: '4px solid var(--primary)' }}>
             <ShieldCheck size={40} color="var(--primary)" style={{ marginBottom: '20px' }} />
             <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Bloqueio Anti-Fraude</h3>
@@ -76,8 +82,8 @@ export default function LandingPage() {
 
           <div className="card" style={{ borderTop: '4px solid var(--success)' }}>
             <Smartphone size={40} color="var(--success)" style={{ marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Notificações Push no Celular</h3>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o horário limite, você recebe a notificação direto no celular.</p>
+            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Notificações no Celular</h3>
+            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o limite, você recebe a notificação direto no celular.</p>
           </div>
 
         </div>
@@ -104,6 +110,7 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Módulo de Câmera IA (+ 1 Inclusa)</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
@@ -128,6 +135,7 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Módulo de Câmera IA (+ 1 Inclusa)</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
