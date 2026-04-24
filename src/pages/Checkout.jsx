@@ -54,13 +54,16 @@ export default function Checkout() {
         const userEmail = encodeURIComponent(formData.email);
         const userName = encodeURIComponent(formData.name);
         
-        if (plan === 'mensal') {
-           window.location.href = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'anual') {
-           window.location.href = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
-        } else {
-           navigate('/admin');
-        }
+        // Timeout de segurança de 300ms para garantir que o Facebook receba o rastreio antes da página mudar
+        setTimeout(() => {
+          if (plan === 'mensal') {
+             window.location.href = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
+          } else if (plan === 'anual') {
+             window.location.href = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+          } else {
+             navigate('/admin');
+          }
+        }, 300);
       } else {
         alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
