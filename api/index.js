@@ -124,7 +124,16 @@ export default async function handler(req, res) {
           if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
           if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
 
-          if (newStatus) {
+          if (newStatus === 'active') {
+             // O Cakto aprovou o pagamento. Renova a expiração!
+             await pool.query(`
+               UPDATE users 
+               SET status = 'active', 
+                   expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
+               WHERE email = $1
+             `, [customerEmail]);
+             console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+          } else if (newStatus) {
             await pool.query('UPDATE users SET status = $1 WHERE email = $2', [newStatus, customerEmail]);
             console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para: ${newStatus}`);
           }
@@ -158,7 +167,16 @@ export default async function handler(req, res) {
       }
       if (method === 'PUT') {
         const { plan, status } = req.body;
-        await pool.query('UPDATE users SET plan = $1, status = $2 WHERE id = $3', [plan, status, id]);
+        // Se mudou para ativo, renova de acordo com o plano
+        if (status === 'active') {
+          await pool.query(`
+            UPDATE users SET plan = $1, status = $2, 
+            expiration_date = NOW() + CASE WHEN $1 = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+            WHERE id = $3
+          `, [plan, status, id]);
+        } else {
+          await pool.query('UPDATE users SET plan = $1, status = $2 WHERE id = $3', [plan, status, id]);
+        }
         return res.status(200).json({ success: true });
       }
     } else if (url.includes('/api/users')) {

@@ -47,17 +47,22 @@ const BarPct = ({ pct, color }) => (
 const getUserStatus = (user) => {
   if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
   
-  const createdDate = new Date(user.created_at || Date.now());
-  const now = new Date();
-  const diffDays = Math.ceil(Math.abs(now - createdDate) / (1000 * 60 * 60 * 24)); 
-  
   if (user.status === 'active') {
-     const cycle = user.plan === 'anual' ? 365 : 30;
-     const diasRestantes = cycle - (diffDays % cycle);
-     return { text: `🟢 Plano Ativo (${diasRestantes} dias rest. no ciclo)`, color: 'var(--success)' };
+     if (user.expiration_date) {
+        const expDate = new Date(user.expiration_date);
+        const now = new Date();
+        const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 0) return { text: '🔴 Plano Expirado (Pendente)', color: 'var(--warning)' };
+        return { text: `🟢 Plano Ativo (${diffDays} dias rest. no ciclo)`, color: 'var(--success)' };
+     } else {
+        return { text: `🟢 Plano Ativo (Pago)`, color: 'var(--success)' };
+     }
   }
   
   // Trial
+  const createdDate = new Date(user.created_at || Date.now());
+  const now = new Date();
+  const diffDays = Math.ceil(Math.abs(now - createdDate) / (1000 * 60 * 60 * 24)); 
   const diasRestantes = 7 - diffDays;
   
   if (diasRestantes < 0) return { text: '🔴 Trial Expirado (Bloqueado)', color: 'var(--error)' };
