@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import API_URL from '../api';
 import PWAInstall from '../components/PWAInstall';
@@ -98,6 +98,9 @@ export default function AdminDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [submissions, setSubmissions] = useState([]);
+  const [cameras, setCameras] = useState([]);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [newCamera, setNewCamera] = useState({ name: '', url: '', username: '', password: '', ai_commands: [] });
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [dateFilter, setDateFilter] = useState({
@@ -145,6 +148,7 @@ export default function AdminDashboard() {
       setupPushNotifications(user.email);
     }
     fetchData();
+    fetchCameras();
 
     const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
@@ -223,6 +227,18 @@ export default function AdminDashboard() {
     } catch (e) { 
       console.warn('Push não suportado ou negado:', e); 
     }
+  };
+
+  const fetchCameras = async () => {
+    const savedUser = localStorage.getItem('user');
+    if (!savedUser) return;
+    const user = JSON.parse(savedUser);
+    const storeParam = user.role !== 'master' ? `?store=${encodeURIComponent(user.store)}` : '';
+    try {
+      const res = await fetch(`${API_URL}/api/cameras${storeParam}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setCameras(data);
+    } catch (err) { console.error('Erro ao buscar câmeras:', err); }
   };
 
   const fetchData = async () => {
@@ -316,6 +332,30 @@ export default function AdminDashboard() {
         }
       }
     } catch (e) { console.error('Erro ao buscar dados:', e); }
+  };
+
+  const handleAddCamera = async () => {
+    if (!newCamera.name || !newCamera.url) return alert('Preencha o nome e a URL da câmera.');
+    try {
+      const res = await fetch(`${API_URL}/api/cameras`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newCamera, store: userProfile?.store })
+      });
+      if (res.ok) {
+        setShowCameraModal(false);
+        setNewCamera({ name: '', url: '', username: '', password: '', ai_commands: [] });
+        fetchCameras();
+      }
+    } catch (e) { alert('Erro ao adicionar câmera.'); }
+  };
+
+  const handleDeleteCamera = async (id) => {
+    if (!confirm('Deseja remover esta câmera?')) return;
+    try {
+      await fetch(`${API_URL}/api/cameras/${id}`, { method: 'DELETE' });
+      fetchCameras();
+    } catch (e) { alert('Erro ao remover.'); }
   };
 
   const handleResolveSubmission = async (id) => {
@@ -653,6 +693,7 @@ export default function AdminDashboard() {
         ] : [
           { key: 'auditoria',   label: '📋 Auditoria'    },
           { key: 'ranking',     label: '🏆 Ranking'      },
+          { key: 'cameras',     label: '📹 Câmeras IA'   },
           { key: 'alertas',     label: '🚨 Alertas IA'   },
           { key: 'checklists',  label: '⚙️ Checklists'   },
           { key: 'equipe',      label: '👥 Equipe'       },
@@ -1056,7 +1097,110 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Modal de Novo Usuário / Cliente */}
+      {/* ── Tab: Monitoramento de Câmeras IA ───────────────────────────── */}
+      {tab === 'cameras' && (
+        <div className="card" style={{ padding: '0' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Video size={20} color="var(--primary)" /> Monitoramento de Câmeras IP
+            </h3>
+            <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => setShowCameraModal(true)}>
+              <Plus size={16} /> Adicionar Câmera
+            </button>
+          </div>
+          <div style={{ padding: '24px' }}>
+            {/* Aviso de Gratuidade */}
+            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+               <Info size={24} color="#3b82f6" />
+               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                 <strong style={{ color: 'white' }}>Plano Flex:</strong> Você tem direito a 2 câmeras inclusas sem custo. Para cada câmera adicional, será cobrado <strong style={{ color: 'var(--success)' }}>+R$ 19,90/mês</strong>. 
+                 <br />Apenas câmeras com suporte a stream IP/Wi-Fi são compatíveis.
+               </p>
+            </div>
+
+            {cameras.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
+                {cameras.map(cam => (
+                  <div key={cam.id} className="card" style={{ padding: '0', overflow: 'hidden', backgroundColor: '#000' }}>
+                    <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#121318', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                       {/* Simulação de Stream */}
+                       <Video size={48} color="rgba(255,255,255,0.05)" />
+                       <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--success)', animation: 'pulse 2s infinite' }}></span>
+                          LIVE: {cam.name}
+                       </div>
+                       <div style={{ position: 'absolute', bottom: '12px', right: '12px', display: 'flex', gap: '8px' }}>
+                          <button className="btn-secondary" style={{ padding: '6px', fontSize: '0.7rem' }} onClick={() => handleDeleteCamera(cam.id)}>
+                            <Trash2 size={14} />
+                          </button>
+                       </div>
+                    </div>
+                    <div style={{ padding: '12px', backgroundColor: '#121318' }}>
+                       <p style={{ fontSize: '0.8rem', color: 'white', marginBottom: '8px', fontWeight: 'bold' }}>Alertas Ativos:</p>
+                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          {(cam.ai_commands || []).map((cmd, idx) => (
+                            <span key={idx} style={{ padding: '2px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.65rem' }}>
+                              🤖 {cmd}
+                            </span>
+                          ))}
+                          <button style={{ padding: '2px 8px', backgroundColor: 'transparent', border: '1px dashed #3b82f6', color: '#3b82f6', borderRadius: '20px', fontSize: '0.65rem', cursor: 'pointer' }}>+ Novo Comando</button>
+                       </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px', color: 'var(--text-muted)' }}>
+                <Monitor size={64} style={{ marginBottom: '20px', opacity: 0.1 }} />
+                <h4>Nenhuma câmera conectada</h4>
+                <p style={{ maxWidth: '400px', margin: '8px auto 24px' }}>Monitore sua operação em tempo real com alertas automáticos da nossa IA.</p>
+                <button className="btn" onClick={() => setShowCameraModal(true)}>Conectar minha primeira câmera</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Nova Câmera */}
+      {showCameraModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
+          <div className="card animate-scale" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Camera color="var(--primary)" /> Configurar Nova Câmera IP
+            </h3>
+            
+            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+               <h4 style={{ fontSize: '0.85rem', marginBottom: '8px' }}>Passo a Passo:</h4>
+               <ol style={{ fontSize: '0.78rem', color: 'var(--text-muted)', paddingLeft: '16px' }}>
+                 <li>Sua câmera deve estar ligada na mesma rede Wi-Fi.</li>
+                 <li>Ative o protocolo ONVIF ou RTSP nas configurações da sua câmera.</li>
+                 <li>Cole o link de acesso (URL) abaixo.</li>
+               </ol>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+               <div>
+                 <label className="input-label">Nome da Câmera (ex: Cozinha, Balcão)</label>
+                 <input className="input-field" placeholder="Ex: Cozinha Principal" value={newCamera.name} onChange={e => setNewCamera({...newCamera, name: e.target.value})} />
+               </div>
+               <div>
+                 <label className="input-label">URL de Stream (IP ou RTSP)</label>
+                 <input className="input-field" placeholder="rtsp://admin:12345@192.168.0.100:554/live" value={newCamera.url} onChange={e => setNewCamera({...newCamera, url: e.target.value})} />
+               </div>
+               <div>
+                 <label className="input-label">O que a IA deve monitorar? (Separe por vírgula)</label>
+                 <textarea className="input-field" style={{ height: '80px' }} placeholder="Ex: Me avise se a fila estiver grande, Me avise se a porta da geladeira estiver aberta" 
+                   onChange={e => setNewCamera({...newCamera, ai_commands: e.target.value.split(',').map(s => s.trim())})} />
+               </div>
+               
+               <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                 <button className="btn" style={{ flex: 1 }} onClick={handleAddCamera}>Salvar e Iniciar Monitoramento</button>
+                 <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowCameraModal(false)}>Cancelar</button>
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showUserModal && (
         <div style={{ 
           position: 'fixed', 

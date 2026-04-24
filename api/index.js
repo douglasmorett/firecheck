@@ -370,6 +370,25 @@ export default async function handler(req, res) {
       return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
     }
 
+    if (url.includes('/api/cameras')) {
+      const store = searchParams.get('store');
+      if (method === 'GET') {
+        const { rows } = await pool.query('SELECT * FROM store_cameras' + (store ? ' WHERE store = $1' : '') + ' ORDER BY id DESC', store ? [store] : []);
+        return res.status(200).json(rows.map(r => ({ ...r, ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands })));
+      }
+      if (method === 'POST') {
+        const { store, name, url: camUrl, username, password, ai_commands } = req.body;
+        await pool.query('INSERT INTO store_cameras (store, name, url, username, password, ai_commands) VALUES ($1, $2, $3, $4, $5, $6)', 
+          [store, name, camUrl, username, password, JSON.stringify(ai_commands || [])]);
+        return res.status(200).json({ success: true });
+      }
+      if (method === 'DELETE') {
+        const camId = url.split('/').pop();
+        await pool.query('DELETE FROM store_cameras WHERE id = $1', [camId]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
     if (url.includes('/api/resolve-submission')) {
       if (method === 'POST') {
         const { id, resolvedBy } = req.body;
