@@ -83,7 +83,16 @@ const isBlocked = (user) => {
 // ── Componente Principal ─────────────────────────────────────────────────────
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState(localStorage.getItem('admin_active_tab') || 'auditoria');
+  const [tab, setTab] = useState(() => {
+    const saved = localStorage.getItem('admin_active_tab');
+    const userStr = localStorage.getItem('user');
+    const user = userStr ? JSON.parse(userStr) : null;
+    const isMaster = user && (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com' || user.email?.toLowerCase() === 'contatohakim@gmail.com');
+    if (isMaster) {
+      return ['financeiro', 'equipe'].includes(saved) ? saved : 'financeiro';
+    }
+    return ['auditoria', 'ranking', 'cameras', 'alertas', 'checklists', 'equipe'].includes(saved) ? saved : 'auditoria';
+  });
   
   // Salvar aba no localStorage sempre que mudar
   useEffect(() => {
@@ -263,7 +272,7 @@ export default function AdminDashboard() {
         ]);
         
         const userData = await userRes.json();
-        setTeam(userData);
+        setTeam(Array.isArray(userData) ? userData : []);
         
         // Mock de dados financeiros (Integração Cacto) se o fetch falhar
         try {
