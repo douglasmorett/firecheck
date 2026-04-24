@@ -1146,7 +1146,15 @@ export default function AdminDashboard() {
                     <div style={{ width: '100%', aspectRatio: '16/9', backgroundColor: '#121318', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                        {/* Exibição da Imagem (Snapshot via HTTP) */}
                        {cam.url.startsWith('http') ? (
-                         <img src={cam.url} alt="Camera Stream" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} />
+                         <img 
+                           src={cam.url} 
+                           alt="Camera Stream" 
+                           style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.8 }} 
+                           onError={(e) => {
+                             e.target.onerror = null;
+                             e.target.src = 'https://via.placeholder.com/640x360/121318/3b82f6?text=Conexao+Bloqueada+Ou+Link+Invalido';
+                           }}
+                         />
                        ) : (
                          <Video size={48} color="rgba(255,255,255,0.05)" />
                        )}
