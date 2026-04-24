@@ -215,14 +215,26 @@ export default async function handler(req, res) {
         VALUES ($1, NOW()) 
         ON CONFLICT (ip) DO UPDATE SET last_ping = NOW()
       `, [ip]);
+
+      await pool.query(`
+        INSERT INTO daily_visitors (ip, visit_date) 
+        VALUES ($1, CURRENT_DATE) 
+        ON CONFLICT (ip, visit_date) DO NOTHING
+      `, [ip]);
+
       return res.status(200).json({ success: true });
     }
 
     if (url.includes('/api/live-visitors')) {
       // Deleta visitantes mais antigos que 20 segundos
       await pool.query(`DELETE FROM live_visitors WHERE last_ping < NOW() - INTERVAL '20 seconds'`);
-      const { rows } = await pool.query('SELECT COUNT(*) as count FROM live_visitors');
-      return res.status(200).json({ visitors: parseInt(rows[0].count, 10) });
+      const { rows: liveRows } = await pool.query('SELECT COUNT(*) as count FROM live_visitors');
+      const { rows: dailyRows } = await pool.query('SELECT COUNT(*) as count FROM daily_visitors WHERE visit_date = CURRENT_DATE');
+      
+      return res.status(200).json({ 
+        visitors: parseInt(liveRows[0].count, 10),
+        today: parseInt(dailyRows[0].count, 10)
+      });
     }
 
     if (url.includes('/api/finalize')) {

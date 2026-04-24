@@ -100,6 +100,7 @@ export default function AdminDashboard() {
   });
   const [notifiedIds, setNotifiedIds] = useState(new Set());
   const [liveVisitors, setLiveVisitors] = useState(0);
+  const [todayVisitors, setTodayVisitors] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
 
   const [financialStats, setFinancialStats] = useState({
@@ -141,7 +142,10 @@ export default function AdminDashboard() {
 
     const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
-          fetch(`${API_URL}/api/live-visitors`).then(r => r.json()).then(d => setLiveVisitors(d.visitors || 0)).catch(() => {});
+          fetch(`${API_URL}/api/live-visitors`).then(r => r.json()).then(d => {
+             setLiveVisitors(d.visitors || 0);
+             setTodayVisitors(d.today || 0);
+          }).catch(() => {});
        }
     };
     checkVisitors();
@@ -448,9 +452,15 @@ export default function AdminDashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '42px' }}>
              {isMaster && (
-               <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                 <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
-                 {liveVisitors} pessoas na Landing Page
+               <div style={{ display: 'flex', gap: '8px' }}>
+                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
+                   {liveVisitors} pessoas na Landing Page
+                 </div>
+                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <Users size={12} />
+                   {todayVisitors} {todayVisitors === 1 ? 'acesso hoje' : 'acessos hoje'}
+                 </div>
                </div>
              )}
              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
