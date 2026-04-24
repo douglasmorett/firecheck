@@ -336,6 +336,12 @@ export default function AdminDashboard() {
 
   const handleAddCamera = async () => {
     if (!newCamera.name || !newCamera.url) return alert('Preencha o nome e a URL da câmera.');
+    if (cameras.length >= 2 && userProfile?.role !== 'master') {
+      alert('Você atingiu o limite gratuito de 2 câmeras! Adquira o Módulo Extra para continuar expandindo seu monitoramento.');
+      window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
+      return;
+    }
+    
     try {
       const res = await fetch(`${API_URL}/api/cameras`, {
         method: 'POST',
@@ -1109,13 +1115,23 @@ export default function AdminDashboard() {
             </button>
           </div>
           <div style={{ padding: '24px' }}>
-            {/* Aviso de Gratuidade */}
-            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-               <Info size={24} color="#3b82f6" />
-               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                 <strong style={{ color: 'white' }}>Plano Flex:</strong> Você tem direito a 2 câmeras inclusas sem custo. Para cada câmera adicional, será cobrado <strong style={{ color: 'var(--success)' }}>+R$ 19,90/mês</strong>. 
-                 <br />Apenas câmeras com suporte a stream IP/Wi-Fi são compatíveis.
-               </p>
+            {/* Aviso de Gratuidade e Venda de Módulo */}
+            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+               <Info size={32} color="#3b82f6" />
+               <div style={{ flex: 1 }}>
+                 <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
+                   <strong style={{ color: 'white' }}>Plano Flex Padrão:</strong> Você tem direito a 2 câmeras inclusas sem custo.
+                 </p>
+                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                   Atingiu o limite? Expanda seu monitoramento.
+                 </p>
+               </div>
+               <button 
+                 onClick={() => window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank')}
+                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem' }}
+               >
+                 Liberar 4 Câmeras (R$ 49,90)
+               </button>
             </div>
 
             {cameras.length > 0 ? (
