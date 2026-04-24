@@ -299,9 +299,20 @@ export default async function handler(req, res) {
         if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
         
         const submission = rows[0];
+        const retryCount = (submission.retry_count || 0) + 1;
+        
+        // Se já tentou muitas vezes, marca como erro para não travar o painel
+        if (retryCount > 5) {
+          await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify({ global_error: "IA Temporariamente Indisponível (Limite de tentativas excedido)" }), submissionId]);
+          return res.status(200).json({ success: false, error: "Max retries exceeded" });
+        }
+
         const tasks = typeof submission.tasks === 'string' ? JSON.parse(submission.tasks) : submission.tasks;
         const feedbackInfo = {};
         let hasErrors = false;
+
+        // Atualiza contagem de retentativa
+        await pool.query('UPDATE checklist_submissions SET retry_count = $1 WHERE id = $2', [retryCount, submissionId]);
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) throw new Error('API Key não configurada');
@@ -316,48 +327,37 @@ export default async function handler(req, res) {
               let mimeType = "image/jpeg";
 
               if (task.photo.startsWith('http')) {
-                // Se for URL (Firebase), baixa a imagem para processar
                 const imgRes = await fetch(task.photo);
                 const arrayBuffer = await imgRes.arrayBuffer();
                 base64Data = Buffer.from(arrayBuffer).toString('base64');
                 mimeType = imgRes.headers.get('content-type') || "image/jpeg";
               } else {
-                // Se ainda for Base64 (legado)
                 base64Data = task.photo.split(',')[1] || task.photo;
               }
 
               const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
               Regras:
-              1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
+              1. Foque APENAS em verificar se a instrução principal foi cumprida.
               2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
               3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
-              Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
+              Responda ESTRITAMENTE em JSON: {"approved": boolean, "message": "string"}.`;
 
               const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType } } ]);
               const response = await result.response;
-              const text = response.text();
-              const jsonMatch = text.match(/\{[\s\S]*\}/);
-              const aiResponse = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+              const aiResponse = JSON.parse(response.text().match(/\{[\s\S]*\}/)?.[0] || response.text());
               
               feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
               if (!aiResponse.approved) hasErrors = true;
             } catch (error) {
-              console.error('Erro na IA background (Será reprocessado automaticamente depois):', error.message || error);
-              // Não preenchemos o feedbackInfo para esta tarefa.
-              // Como ele ficará vazio, a foto continuará 'Pendente' e o sistema tentará de novo depois.
+              console.error(`Erro na IA background (Tentativa ${retryCount}):`, error.message);
+              // Não preenchemos para esta tarefa, forçando retentativa pelo robô do painel se houver fotos sem feedback
             }
           }
         }
 
-        // 3. Salva o resultado no banco apenas se conseguimos processar algo
+        // 3. Salva o resultado no banco
         if (Object.keys(feedbackInfo).length > 0) {
            await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
-        }
-
-        // 4. Se houver falhas, dispara notificação para os donos da loja (Admin)
-        if (hasErrors) {
-          console.log(`[PUSH NOTIFICATION TRIGGERED] Enviando alerta para a loja ${submission.store} sobre falha no checklist de ${submission.employee_name}`);
-          // TODO: Integrar OneSignal ou Firebase Admin SDK para disparar o Push Notification real para o aplicativo do Dono.
         }
 
         return res.status(200).json({ success: true, processed: Object.keys(feedbackInfo).length, hasErrors });

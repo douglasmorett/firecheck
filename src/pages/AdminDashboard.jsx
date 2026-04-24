@@ -28,6 +28,7 @@ const StatusBadge = ({ status }) => {
     reprovado: { label: '❌ Reprovado pela IA',  bg: 'rgba(255,23,68,0.15)',  color: 'var(--error)'   },
     pendente:  { label: '⏳ Aguardando',         bg: 'rgba(255,160,0,0.15)', color: '#FFA000'         },
     ignorado:  { label: '⚠️ IA Ignorada',        bg: 'rgba(255,77,0,0.15)',  color: 'var(--primary)' },
+    falha:     { label: '🤖 Falha na IA',        bg: 'rgba(255,23,68,0.25)',  color: 'var(--error)'   },
   };
   const s = map[status] || map.pendente;
   return (
@@ -330,6 +331,20 @@ export default function AdminDashboard() {
         fetchData(); // Atualiza os cards do topo
       }
     } catch (e) { console.error('Erro ao resolver submissão:', e); }
+  };
+
+  const handleReprocessAudit = async (e, submissionId) => {
+    if (e) e.stopPropagation();
+    try {
+      const res = await fetch(`${API_URL}/api/process-audit-background`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ submissionId })
+      });
+      if (res.ok) {
+        fetchData();
+      }
+    } catch (e) { console.error('Erro ao reprocessar:', e); }
   };
 
   const handleAddUser = async (e) => {
@@ -700,10 +715,12 @@ export default function AdminDashboard() {
               const feedbacks = Object.values(s.feedback_info || {});
               const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
               const hasPhotos = (s.tasks || []).some(t => t.photo);
+              const globalError = s.feedback_info?.global_error;
               
               let status = 'pendente';
-              if (hasPhotos) {
-                if (feedbacks.length === 0) status = 'pendente'; // A IA ainda está processando no background ou falhou silenciosamente
+              if (globalError) status = 'falha';
+              else if (hasPhotos) {
+                if (feedbacks.length === 0) status = 'pendente';
                 else if (hasWarnings) status = 'reprovado';
                 else status = 'aprovado';
               } else {
@@ -731,7 +748,17 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <StatusBadge status={status} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                      <StatusBadge status={status} />
+                      {(status === 'pendente' || status === 'falha') && (
+                        <button 
+                          onClick={(e) => handleReprocessAudit(e, s.id)}
+                          style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          Tentar Novamente
+                        </button>
+                      )}
+                    </div>
                     <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
                       <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                       {new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
