@@ -80,7 +80,7 @@ export default function LandingPage() {
             >
               <PlayCircle size={80} color="var(--primary)" style={{ marginBottom: '16px', animation: 'pulse 1.5s infinite ease-in-out' }} />
               <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)', textAlign: 'center', padding: '0 20px' }}>
-                Aperte play para ver seu vídeo
+                Aperte play para ver o vídeo do nosso app
               </h2>
             </div>
           )}
