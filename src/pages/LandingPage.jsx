@@ -36,26 +36,21 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <header style={{ padding: '100px 5%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <header style={{ padding: '100px 5% 40px 5%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div className="badge badge-warning" style={{ marginBottom: '24px', padding: '8px 16px', fontSize: '0.9rem' }}>
           ✨ O primeiro checklist do Brasil movido por IA
         </div>
         <h1 style={{ fontSize: 'min(3rem, 8vw)', fontWeight: '800', lineHeight: '1.2', maxWidth: '800px', marginBottom: '20px', background: 'linear-gradient(to right, #ffffff, #a0a0a0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Auditoria com IA que economiza seu tempo.
         </h1>
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', marginBottom: '32px', lineHeight: '1.5' }}>
-          O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
+        <p style={{ fontSize: '1.2rem', color: '#ffffff', marginBottom: '16px', fontWeight: '500' }}>
+          Veja a demonstração do nosso aplicativo:
         </p>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn" style={{ fontSize: '1rem', padding: '14px 28px' }} onClick={() => navigate('/checkout')}>
-            Começar 7 Dias Grátis (Sem Cartão) <ArrowRight size={18} />
-          </button>
-        </div>
       </header>
 
       {/* Video de Demonstração */}
-      <section style={{ padding: '0 5% 80px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <section style={{ padding: '0 5% 80px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+        <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px' }}>
           <video 
             src="/demo.mp4.MOV" 
             controls 
@@ -64,6 +59,15 @@ export default function LandingPage() {
           >
             Seu navegador não suporta a reprodução deste vídeo.
           </video>
+        </div>
+
+        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', marginBottom: '32px', lineHeight: '1.5', textAlign: 'center' }}>
+          O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <button className="btn" style={{ fontSize: '1.1rem', padding: '16px 32px' }} onClick={() => navigate('/checkout')}>
+            Começar 7 Dias Grátis (Sem Cartão) <ArrowRight size={20} />
+          </button>
         </div>
       </section>
 
