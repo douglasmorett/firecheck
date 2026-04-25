@@ -53,6 +53,7 @@ export default function LandingPage() {
         <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px' }}>
           <video 
             src="/demo.mp4.MOV" 
+            poster="/capa.jpg"
             controls 
             playsInline
             onPlay={() => {
