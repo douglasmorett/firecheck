@@ -129,6 +129,7 @@ export default function AdminDashboard() {
   const [videoPlays, setVideoPlays] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
@@ -582,7 +583,7 @@ export default function AdminDashboard() {
 
       {/* SIDEBAR LATERAL */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ 
-        width: '260px', 
+        width: isSidebarCollapsed ? '80px' : '260px', 
         backgroundColor: '#1E1B4B', 
         borderRight: '1px solid rgba(255,255,255,0.1)', 
         display: 'flex', 
@@ -592,14 +593,15 @@ export default function AdminDashboard() {
         height: '100vh', 
         overflowY: 'auto',
         color: 'white',
-        zIndex: 50
+        zIndex: 50,
+        transition: 'width 0.3s ease'
       }}>
         {/* LOGO */}
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px' }}>
+        <div style={{ padding: isSidebarCollapsed ? '24px 0' : '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px' }}>
+          <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} title="Expandir/Recolher Menu">
             <Flame size={20} color="#1E1B4B" />
           </div>
-          <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>
+          {!isSidebarCollapsed && <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>}
         </div>
 
         {/* MENU ITENS */}
@@ -618,9 +620,10 @@ export default function AdminDashboard() {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
             const isActive = tab === t.key;
             return (
-              <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }}
+              <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }} title={isSidebarCollapsed ? t.label : ''}
                 style={{ 
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', 
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
+                  justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
                   borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
                   transition: 'all 0.2s', textAlign: 'left',
                   backgroundColor: isActive ? 'var(--primary)' : 'transparent',
@@ -628,19 +631,21 @@ export default function AdminDashboard() {
                   borderLeft: isActive ? '4px solid white' : '4px solid transparent'
                 }}>
                 <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.7)' }}>{t.icon}</span>
-                {t.label}
+                {!isSidebarCollapsed && t.label}
               </button>
             );
           })}
         </div>
 
         {/* FOOTER DA SIDEBAR */}
-        <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
-           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', marginBottom: '12px' }}>
-              👤 {userProfile?.name}<br/>
-              🏬 {userProfile?.store || 'Sistema Central'}
-           </p>
-           <button onClick={handleLogout} style={{ 
+        <div style={{ padding: isSidebarCollapsed ? '20px 0' : '20px', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+           {!isSidebarCollapsed && (
+             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                👤 {userProfile?.name}<br/>
+                🏬 {userProfile?.store || 'Sistema Central'}
+             </p>
+           )}
+           <button onClick={handleLogout} title="Sair do Sistema" style={{ 
                background: 'transparent', 
                border: 'none', 
                color: '#ef4444', 
@@ -648,15 +653,17 @@ export default function AdminDashboard() {
                fontSize: '0.9rem', 
                fontWeight: '600',
                display: 'flex', 
-               alignItems: 'center', 
+               alignItems: 'center',
+               justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
                gap: '8px', 
                padding: '8px 0', 
-               transition: 'opacity 0.2s'
+               transition: 'opacity 0.2s',
+               width: '100%'
              }}
              onMouseOver={(e) => e.currentTarget.style.opacity = 0.8}
              onMouseOut={(e) => e.currentTarget.style.opacity = 1}
              >
-                <LogOut size={16} /> Sair do Sistema
+                <LogOut size={16} /> {!isSidebarCollapsed && "Sair do Sistema"}
            </button>
         </div>
       </aside>
@@ -667,8 +674,11 @@ export default function AdminDashboard() {
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer' }} onClick={() => setIsSidebarOpen(true)}>
-              <Menu size={24} color="var(--text-main)" />
+            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
+              <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Menu size={20} color="white" />
+              </div>
+              <span style={{ fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
             </button>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
@@ -723,12 +733,12 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Vendas do Mês</p>
-                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
                     {(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>📈 +12% vs mês anterior</span>
                 </div>
-                <TrendingUp color="#10b981" size={36} />
+                <TrendingUp color="#10b981" size={28} />
               </div>
             </div>
 
@@ -736,12 +746,12 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Receita Real (Cacto)</p>
-                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
                     {(financialStats?.receitaReal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💰 Líquido após taxas</span>
                 </div>
-                <Activity color="#3b82f6" size={36} />
+                <Activity color="#3b82f6" size={28} />
               </div>
             </div>
 
@@ -749,12 +759,12 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Arrecadado</p>
-                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
                     {(financialStats?.totalArrecadado || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📅 Período selecionado</span>
                 </div>
-                <Flame color="#f59e0b" size={36} />
+                <Flame color="#f59e0b" size={28} />
               </div>
             </div>
 
@@ -762,10 +772,10 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Clientes Ativos</p>
-                  <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats?.clientesAtivos || 0}</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats?.clientesAtivos || 0}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 Assinaturas vigentes</span>
                 </div>
-                <Users color="var(--primary)" size={36} />
+                <Users color="var(--primary)" size={28} />
               </div>
             </div>
           </>
@@ -775,10 +785,10 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
-                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {stats.concluidos} concluídos</span>
                 </div>
-                <ClipboardList color="var(--primary)" size={36} />
+                <ClipboardList color="var(--primary)" size={28} />
               </div>
             </div>
 
@@ -786,10 +796,10 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
-                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
                   <BarPct pct={stats.conformidade} color="#3b82f6" />
                 </div>
-                <TrendingUp color="#3b82f6" size={36} />
+                <TrendingUp color="#3b82f6" size={28} />
               </div>
             </div>
 
@@ -797,20 +807,20 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
-                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ {stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
                 </div>
-                <ShieldAlert color="var(--error)" size={36} />
+                <ShieldAlert color="var(--error)" size={28} />
               </div>
             </div>
 
             <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <h2 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
+                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store || 'Filial Centro'}</span>
                 </div>
-                <Users color="var(--success)" size={36} />
+                <Users color="var(--success)" size={28} />
               </div>
             </div>
           </>
