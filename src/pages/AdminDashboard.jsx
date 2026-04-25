@@ -618,7 +618,7 @@ export default function AdminDashboard() {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
             const isActive = tab === t.key;
             return (
-              <button key={t.key} onClick={() => setTab(t.key)}
+              <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }}
                 style={{ 
                   display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', 
                   borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
