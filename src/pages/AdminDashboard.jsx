@@ -719,12 +719,12 @@ export default function AdminDashboard() {
             )}
             
             {/* Filtro de Data */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#121318', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '100%' }}>
-              <CalendarClock size={18} color="var(--primary)" />
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none', maxWidth: '110px' }} />
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>até</span>
-                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none', maxWidth: '110px' }} />
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#121318', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
+              <CalendarClock size={16} color="var(--primary)" />
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>até</span>
+                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
               </div>
             </div>
 
@@ -740,10 +740,11 @@ export default function AdminDashboard() {
           </div>
         </header>
 
-      {/* Cards de KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-        
-        {isMaster ? (
+      {/* Cards de KPIs (Visível apenas nos Dashboards Iniciais) */}
+      {(tab === 'auditoria' || tab === 'financeiro') && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
+          
+          {isMaster ? (
           <>
             <div className="card" style={{ borderTop: '3px solid #10b981', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -841,7 +842,8 @@ export default function AdminDashboard() {
             </div>
           </>
         )}
-      </div>
+        </div>
+      )}
 
       {/* Instalação do App */}
       <PWAInstall />
