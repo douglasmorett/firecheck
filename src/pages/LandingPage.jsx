@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [isVideoActive, setIsVideoActive] = useState(false);
+  const videoRef = useRef(null);
 
   useEffect(() => {
     // Ping to track live visitors
@@ -50,19 +52,49 @@ export default function LandingPage() {
 
       {/* Video de Demonstração */}
       <section style={{ padding: '0 5% 20px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px' }}>
+        <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px', position: 'relative' }}>
+          
+          {/* Overlay da Máscara */}
+          {!isVideoActive && (
+            <div 
+              onClick={() => {
+                setIsVideoActive(true);
+                if (videoRef.current) {
+                  videoRef.current.muted = false;
+                  videoRef.current.currentTime = 0; // Reinicia o vídeo com som
+                  videoRef.current.play();
+                }
+                if (!sessionStorage.getItem('video_played')) {
+                  fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
+                  sessionStorage.setItem('video_played', 'true');
+                }
+              }}
+              style={{
+                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.4)'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
+            >
+              <PlayCircle size={80} color="var(--primary)" style={{ marginBottom: '16px', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' }} />
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)', textAlign: 'center', padding: '0 20px' }}>
+                Aperte play para ver seu vídeo
+              </h2>
+            </div>
+          )}
+
           <video 
+            ref={videoRef}
             src="/demo.mp4.MOV" 
             poster="/capa.jpg"
-            controls 
+            autoPlay
+            muted
+            loop
             playsInline
-            onPlay={() => {
-              if (!sessionStorage.getItem('video_played')) {
-                fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
-                sessionStorage.setItem('video_played', 'true');
-              }
-            }}
-            style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '70vh' }}
+            controls={isVideoActive}
+            style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '70vh', objectFit: 'cover' }}
           >
             Seu navegador não suporta a reprodução deste vídeo.
           </video>
