@@ -574,96 +574,136 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="page-container animate-fade">
-
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px', flexWrap: 'wrap', gap: '20px' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-            <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '8px' }}>
-              <Flame size={22} color="white" />
-            </div>
-            <h1 className="page-title" style={{ margin: 0 }}>
-              FireCheck — {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
-            </h1>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)', width: '100vw', overflowX: 'hidden' }}>
+      
+      {/* SIDEBAR LATERAL */}
+      <aside style={{ 
+        width: '260px', 
+        backgroundColor: '#1E1B4B', 
+        borderRight: '1px solid rgba(255,255,255,0.1)', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        position: 'sticky', 
+        top: 0, 
+        height: '100vh', 
+        overflowY: 'auto',
+        color: 'white',
+        zIndex: 50
+      }}>
+        {/* LOGO */}
+        <div style={{ padding: '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px' }}>
+            <Flame size={20} color="#1E1B4B" />
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingLeft: '42px' }}>
-             {isMaster && (
+          <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>
+        </div>
+
+        {/* MENU ITENS */}
+        <div style={{ padding: '16px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {(isMaster ? [
+            { key: 'financeiro',  label: 'Financeiro', icon: <TrendingUp size={18}/> },
+            { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
+          ] : [
+            { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
+            { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
+            (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
+            { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
+            { key: 'checklists',  label: 'Checklists', icon: <ClipboardList size={18}/> },
+            { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
+          ].filter(Boolean)).map(t => {
+            if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
+            const isActive = tab === t.key;
+            return (
+              <button key={t.key} onClick={() => setTab(t.key)}
+                style={{ 
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', 
+                  borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
+                  transition: 'all 0.2s', textAlign: 'left',
+                  backgroundColor: isActive ? 'var(--primary)' : 'transparent',
+                  color: isActive ? 'white' : 'rgba(255,255,255,0.7)',
+                  borderLeft: isActive ? '4px solid white' : '4px solid transparent'
+                }}>
+                <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.7)' }}>{t.icon}</span>
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* FOOTER DA SIDEBAR */}
+        <div style={{ padding: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', marginBottom: '12px' }}>
+              👤 {userProfile?.name}<br/>
+              🏬 {userProfile?.store || 'Sistema Central'}
+           </p>
+           <button onClick={handleLogout} style={{ 
+               background: 'transparent', 
+               border: 'none', 
+               color: '#ef4444', 
+               cursor: 'pointer', 
+               fontSize: '0.9rem', 
+               fontWeight: '600',
+               display: 'flex', 
+               alignItems: 'center', 
+               gap: '8px', 
+               padding: '8px 0', 
+               transition: 'opacity 0.2s'
+             }}
+             onMouseOver={(e) => e.currentTarget.style.opacity = 0.8}
+             onMouseOut={(e) => e.currentTarget.style.opacity = 1}
+             >
+                <LogOut size={16} /> Sair do Sistema
+           </button>
+        </div>
+      </aside>
+
+      {/* ÁREA PRINCIPAL */}
+      <main style={{ flex: 1, padding: '32px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} className="animate-fade">
+        
+        {/* HEADER SUPERIOR */}
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
+              {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
+            </h1>
+            <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            {isMaster && (
                <div style={{ display: 'flex', gap: '8px' }}>
                  <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                    <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
-                   {liveVisitors} pessoas na Landing Page
+                   {liveVisitors} pessoas online
                  </div>
                  <div style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                   <Users size={12} />
-                   {todayVisitors} {todayVisitors === 1 ? 'acesso hoje' : 'acessos hoje'}
+                   <Users size={12} /> {todayVisitors} acessos
                  </div>
                  <div style={{ padding: '6px 12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                   <Video size={12} />
-                   {videoPlays} plays no vídeo
+                   <Video size={12} /> {videoPlays} plays no vídeo
                  </div>
                </div>
-             )}
-             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                {userProfile?.name} · {userProfile?.store || 'Sistema Central'}
-             </p>
-             <button onClick={handleLogout} style={{ 
-               background: 'rgba(255, 23, 68, 0.1)', 
-               border: '1px solid var(--error)', 
-               color: 'var(--error)', 
-               cursor: 'pointer', 
-               fontSize: '0.75rem', 
-               fontWeight: 'bold',
-               textTransform: 'uppercase',
-               letterSpacing: '0.5px',
-               display: 'flex', 
-               alignItems: 'center', 
-               gap: '6px', 
-               padding: '6px 12px', 
-               borderRadius: '8px',
-               transition: 'all 0.2s'
-             }}
-             onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--error)'; e.currentTarget.style.color = 'white'; }}
-             onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255, 23, 68, 0.1)'; e.currentTarget.style.color = 'var(--error)'; }}
-             >
-                <LogOut size={14} /> Sair do Sistema
-             </button>
-          </div>
-        </div>
+            )}
+            
+            {/* Filtro de Data */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#121318', padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <CalendarClock size={18} color="var(--primary)" />
+              <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }} />
+              <span style={{ color: 'var(--text-muted)' }}>até</span>
+              <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }} />
+            </div>
 
-        {/* Filtro de Data com Calendário */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#1A1C23', padding: '10px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <CalendarClock size={18} color="var(--primary)" />
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <input 
-              type="date" 
-              value={dateFilter.start} 
-              onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})}
-              style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }}
-            />
-            <span style={{ color: 'var(--text-muted)' }}>até</span>
-            <input 
-              type="date" 
-              value={dateFilter.end} 
-              onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})}
-              style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }}
-            />
+            {isMaster ? (
+              <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'mensal' }); setShowUserModal(true); }}>
+                <UserPlus size={18} /> Nova Conta
+              </button>
+            ) : isAdmin ? (
+              <button className="btn" onClick={() => navigate('/admin/creator')}>
+                <Plus size={18} /> Criar Checklist
+              </button>
+            ) : null}
           </div>
-        </div>
-
-        {isMaster ? (
-          <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => {
-            setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'mensal' });
-            setShowUserModal(true);
-          }}>
-            <UserPlus size={20} /> Nova Conta Cliente
-          </button>
-        ) : isAdmin ? (
-          <button className="btn" onClick={() => navigate('/admin/creator')}>
-            <Plus size={20} /> Criar Checklist
-          </button>
-        ) : null}
-      </header>
+        </header>
 
       {/* Cards de KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
@@ -770,31 +810,6 @@ export default function AdminDashboard() {
 
       {/* Instalação do App */}
       <PWAInstall />
-
-      {/* Tabs de Navegação */}
-      <div style={{ display: 'flex', gap: '4px', backgroundColor: '#121318', padding: '6px', borderRadius: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-        {(isMaster ? [
-          { key: 'financeiro',  label: '💰 Financeiro (Cacto)' },
-          { key: 'equipe',      label: '👥 Gestão de Clientes' },
-        ] : [
-          { key: 'auditoria',   label: '📋 Auditoria'    },
-          { key: 'ranking',     label: '🏆 Ranking'      },
-          (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: '📹 Câmeras IA' } : null),
-          { key: 'alertas',     label: '🚨 Alertas IA'   },
-          { key: 'checklists',  label: '⚙️ Checklists'   },
-          { key: 'equipe',      label: '👥 Equipe'       },
-        ].filter(Boolean)).map(t => {
-          if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
-          return (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', transition: 'all 0.2s',
-                backgroundColor: tab === t.key ? 'var(--primary)' : 'transparent',
-                color: tab === t.key ? 'white' : 'var(--text-muted)' }}>
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
 
       {/* ── Tab: Financeiro (Master Only) ─────────────────────────────────── */}
       {isMaster && tab === 'financeiro' && (
@@ -1637,6 +1652,8 @@ export default function AdminDashboard() {
       <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)', fontSize: '0.85rem', opacity: 0.7 }}>
         Políticas FireCheck: Fotos e registros de checklists são armazenados por 90 dias para otimização de performance e segurança.
       </div>
+
+      </main>
 
       {/* Container de Toasts */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 999999, display: 'flex', flexDirection: 'column', gap: '12px' }}>
