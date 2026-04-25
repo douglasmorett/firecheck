@@ -596,12 +596,26 @@ export default function AdminDashboard() {
         zIndex: 50,
         transition: 'width 0.3s ease'
       }}>
-        {/* LOGO */}
-        <div style={{ padding: isSidebarCollapsed ? '24px 0' : '24px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px' }}>
-          <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px', cursor: 'pointer' }} onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} title="Expandir/Recolher Menu">
-            <Flame size={20} color="#1E1B4B" />
+        {/* LOGO E BOTAO RECOLHER */}
+        <div style={{ padding: isSidebarCollapsed ? '24px 0 16px 0' : '24px 20px 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '16px' }}>
+            <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px' }}>
+              <Flame size={20} color="#1E1B4B" />
+            </div>
+            {!isSidebarCollapsed && <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>}
           </div>
-          {!isSidebarCollapsed && <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>}
+          
+          {/* Botão Explícito para Ocultar Menu */}
+          <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} style={{ 
+            width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
+            borderRadius: '6px', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: '0.8rem', 
+            display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s', gap: '6px'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+          >
+            {isSidebarCollapsed ? <ArrowRight size={16} /> : "Ocultar Menu"}
+          </button>
         </div>
 
         {/* MENU ITENS */}
@@ -705,11 +719,13 @@ export default function AdminDashboard() {
             )}
             
             {/* Filtro de Data */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#121318', padding: '8px 16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#121318', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', maxWidth: '100%' }}>
               <CalendarClock size={18} color="var(--primary)" />
-              <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }} />
-              <span style={{ color: 'var(--text-muted)' }}>até</span>
-              <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none', maxWidth: '110px' }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>até</span>
+                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.85rem', outline: 'none', maxWidth: '110px' }} />
+              </div>
             </div>
 
             {isMaster ? (
