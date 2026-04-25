@@ -576,8 +576,11 @@ export default function AdminDashboard() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)', width: '100vw', overflowX: 'hidden' }}>
       
+      {/* Overlay Mobile */}
+      <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
+
       {/* SIDEBAR LATERAL */}
-      <aside style={{ 
+      <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ 
         width: '260px', 
         backgroundColor: '#1E1B4B', 
         borderRight: '1px solid rgba(255,255,255,0.1)', 
@@ -662,11 +665,16 @@ export default function AdminDashboard() {
         
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
-              {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
-            </h1>
-            <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer' }} onClick={() => setIsSidebarOpen(true)}>
+              <Menu size={24} color="var(--text-main)" />
+            </button>
+            <div>
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
+                {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
+              </h1>
+              <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
+            </div>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -836,6 +844,19 @@ export default function AdminDashboard() {
               Gráfico de evolução financeira em desenvolvimento...
             </p>
           </div>
+        </div>
+      )}
+
+      {/* ── Tabs Em Construção (Novas Funcionalidades) ──────────────────── */}
+      {['agendamentos', 'planos_acao', 'exportacoes', 'suporte'].includes(tab) && (
+        <div className="card animate-fade" style={{ padding: '80px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
+            <Activity size={48} color="var(--primary)" />
+          </div>
+          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Em Construção</h2>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '500px', fontSize: '1.1rem', lineHeight: '1.6' }}>
+            Esta funcionalidade avançada está sendo lapidada por nossos engenheiros e será liberada automaticamente na sua conta em breve.
+          </p>
         </div>
       )}
 
