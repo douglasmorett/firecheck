@@ -128,6 +128,7 @@ export default function AdminDashboard() {
   const [todayVisitors, setTodayVisitors] = useState(0);
   const [videoPlays, setVideoPlays] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
