@@ -78,7 +78,7 @@ export default function LandingPage() {
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.4)'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
             >
-              <PlayCircle size={80} color="var(--primary)" style={{ marginBottom: '16px', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))' }} />
+              <PlayCircle size={80} color="var(--primary)" style={{ marginBottom: '16px', animation: 'pulse 1.5s infinite ease-in-out' }} />
               <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)', textAlign: 'center', padding: '0 20px' }}>
                 Aperte play para ver seu vídeo
               </h2>
