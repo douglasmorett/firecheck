@@ -62,7 +62,7 @@ export default function LandingPage() {
                 if (videoRef.current) {
                   videoRef.current.muted = false;
                   videoRef.current.currentTime = 0; // Reinicia o vídeo com som
-                  videoRef.current.play();
+                  videoRef.current.play().catch(() => {});
                 }
                 if (!sessionStorage.getItem('video_played')) {
                   fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
@@ -91,9 +91,15 @@ export default function LandingPage() {
             poster="/capa.jpg"
             autoPlay
             muted
+            defaultMuted
             loop
             playsInline
             controls={isVideoActive}
+            onLoadedData={() => {
+              if (!isVideoActive && videoRef.current) {
+                videoRef.current.play().catch(e => console.log('Autoplay bloqueado pelo celular:', e));
+              }
+            }}
             style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '75vh', objectFit: 'contain' }}
           >
             Seu navegador não suporta a reprodução deste vídeo.
