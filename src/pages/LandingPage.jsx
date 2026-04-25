@@ -55,6 +55,12 @@ export default function LandingPage() {
             src="/demo.mp4.MOV" 
             controls 
             playsInline
+            onPlay={() => {
+              if (!sessionStorage.getItem('video_played')) {
+                fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
+                sessionStorage.setItem('video_played', 'true');
+              }
+            }}
             style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '70vh' }}
           >
             Seu navegador não suporta a reprodução deste vídeo.

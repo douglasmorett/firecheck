@@ -23,6 +23,14 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS video_plays (
+          id SERIAL PRIMARY KEY,
+          ip VARCHAR(255),
+          play_date DATE,
+          UNIQUE(ip, play_date)
+        )
+      `);
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -252,15 +260,27 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true });
     }
 
+    if (url.includes('/api/track-video')) {
+      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
+      await pool.query(`
+        INSERT INTO video_plays (ip, play_date) 
+        VALUES ($1, CURRENT_DATE) 
+        ON CONFLICT (ip, play_date) DO NOTHING
+      `, [ip]);
+      return res.status(200).json({ success: true });
+    }
+
     if (url.includes('/api/live-visitors')) {
       // Deleta visitantes mais antigos que 20 segundos
       await pool.query(`DELETE FROM live_visitors WHERE last_ping < NOW() - INTERVAL '20 seconds'`);
       const { rows: liveRows } = await pool.query('SELECT COUNT(*) as count FROM live_visitors');
       const { rows: dailyRows } = await pool.query('SELECT COUNT(*) as count FROM daily_visitors WHERE visit_date = CURRENT_DATE');
+      const { rows: videoRows } = await pool.query('SELECT COUNT(*) as count FROM video_plays');
       
       return res.status(200).json({ 
         visitors: parseInt(liveRows[0].count, 10),
-        today: parseInt(dailyRows[0].count, 10)
+        today: parseInt(dailyRows[0].count, 10),
+        videoPlays: parseInt(videoRows[0].count, 10)
       });
     }
 

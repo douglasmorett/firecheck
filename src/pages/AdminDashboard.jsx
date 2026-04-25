@@ -126,6 +126,7 @@ export default function AdminDashboard() {
   const [notifiedIds, setNotifiedIds] = useState(new Set());
   const [liveVisitors, setLiveVisitors] = useState(0);
   const [todayVisitors, setTodayVisitors] = useState(0);
+  const [videoPlays, setVideoPlays] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   
   const [toasts, setToasts] = useState([]);
@@ -178,11 +179,12 @@ export default function AdminDashboard() {
     fetchData();
     fetchCameras();
 
-    const checkVisitors = () => {
+     const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
           fetch(`${API_URL}/api/live-visitors`).then(r => r.json()).then(d => {
              setLiveVisitors(d.visitors || 0);
              setTodayVisitors(d.today || 0);
+             setVideoPlays(d.videoPlays || 0);
           }).catch(() => {});
        }
     };
@@ -595,6 +597,10 @@ export default function AdminDashboard() {
                  <div style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                    <Users size={12} />
                    {todayVisitors} {todayVisitors === 1 ? 'acesso hoje' : 'acessos hoje'}
+                 </div>
+                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                   <Video size={12} />
+                   {videoPlays} plays no vídeo
                  </div>
                </div>
              )}
