@@ -110,7 +110,7 @@ export default function LandingPage() {
           O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
         </p>
         <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn" style={{ fontSize: '1.1rem', padding: '16px 32px' }} onClick={() => navigate('/checkout')}>
+          <button className="btn" style={{ fontSize: '1.1rem', padding: '16px 32px', animation: 'pulse 1.5s infinite ease-in-out' }} onClick={() => navigate('/checkout')}>
             Começar 7 Dias Grátis (Sem Cartão) <ArrowRight size={20} />
           </button>
         </div>
@@ -198,7 +198,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=anual')}>
+            <button className="btn" style={{ width: '100%', padding: '12px', animation: 'pulse 1.5s infinite ease-in-out' }} onClick={() => navigate('/checkout?plan=anual')}>
               Assinar Agora
             </button>
           </div>
