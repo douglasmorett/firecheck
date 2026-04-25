@@ -1,6 +1,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import admin from './firebase-admin.js';
 
 const pool = new Pool({
   connectionString: 'postgresql://neondb_owner:npg_YymnUpK7OED8@ep-green-fog-anfbkql2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require',
@@ -376,9 +377,27 @@ export default async function handler(req, res) {
              if (ownerQuery.rows.length > 0) {
                 const token = ownerQuery.rows[0].fcm_token;
                 console.log(`[PUSH] Enviando alerta para o dono da loja ${store}. Token: ${token}`);
-                // Aqui entraria o firebase-admin.messaging().send(...)
+                
+                await admin.messaging().send({
+                  token: token,
+                  notification: {
+                    title: '⚠️ Alerta na Operação',
+                    body: `Irregularidade detectada na ${store} por ${employeeName}. Verifique o painel.`
+                  },
+                  data: {
+                    url: '/dashboard'
+                  },
+                  apns: {
+                    payload: {
+                      aps: {
+                        sound: 'default',
+                        badge: 1
+                      }
+                    }
+                  }
+                });
              }
-           } catch (e) { console.error('Erro ao processar notificação:', e); }
+           } catch (e) { console.error('Erro ao processar notificação push:', e); }
         }
 
         return res.status(200).json({ success: true, id: rows[0].id });
