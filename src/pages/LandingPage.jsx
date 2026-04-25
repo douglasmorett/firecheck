@@ -49,7 +49,7 @@ export default function LandingPage() {
       </header>
 
       {/* Video de Demonstração */}
-      <section style={{ padding: '0 5% 80px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
+      <section style={{ padding: '0 5% 20px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
         <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px' }}>
           <video 
             src="/demo.mp4.MOV" 
@@ -72,7 +72,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Comparativas (Onde somos melhores) */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#121318' }}>
+      <section style={{ padding: '40px 5% 80px 5%', backgroundColor: '#121318' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Por que somos a evolução do mercado?</h2>
           <p style={{ color: 'var(--text-muted)' }}>Sistemas comuns apenas digitam formulários. Nós pensamos por você.</p>
