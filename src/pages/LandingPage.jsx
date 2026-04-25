@@ -52,7 +52,7 @@ export default function LandingPage() {
 
       {/* Video de Demonstração */}
       <section style={{ padding: '0 5% 20px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', maxWidth: '900px', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px', position: 'relative' }}>
+        <div style={{ width: '100%', maxWidth: '350px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px', position: 'relative' }}>
           
           {/* Overlay da Máscara */}
           {!isVideoActive && (
@@ -94,7 +94,7 @@ export default function LandingPage() {
             loop
             playsInline
             controls={isVideoActive}
-            style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '70vh', objectFit: 'cover' }}
+            style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '75vh', objectFit: 'contain' }}
           >
             Seu navegador não suporta a reprodução deste vídeo.
           </video>
