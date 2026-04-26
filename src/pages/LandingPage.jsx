@@ -30,6 +30,7 @@ export default function LandingPage() {
           <span style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '-1px' }}>FireCheck</span>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
+          <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' })}>Como Funciona</button>
           <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
           <button className="btn" style={{ padding: '10px 24px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)' }} onClick={() => navigate('/login')}>
             Entrar no Sistema
@@ -165,7 +166,7 @@ export default function LandingPage() {
       </section>
 
       {/* Seção Showcase de Features (Autêntico FireCheck) */}
-      <section style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #0a0f1c 0%, #120806 100%)', position: 'relative', overflow: 'hidden' }}>
+      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #0a0f1c 0%, #120806 100%)', position: 'relative', overflow: 'hidden' }}>
         
         {/* Glow Effects */}
         <div style={{ position: 'absolute', top: '20%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.1) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
