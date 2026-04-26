@@ -203,15 +203,26 @@ export default function QuizFunnel() {
             <video 
               ref={videoRef}
               src="/IMG_0931.MOV" 
-              style={{ width: '100%', display: 'block', maxHeight: '60vh', opacity: isPlaying ? 1 : 0.8 }}
-              controls={isPlaying}
+              style={{ width: '100%', display: 'block', maxHeight: '60vh', opacity: isPlaying ? 1 : 0.8, cursor: isPlaying ? 'pointer' : 'default' }}
+              controls={false}
               autoPlay={!isPlaying}
               muted={!isPlaying}
               loop={!isPlaying}
               playsInline
+              controlsList="nodownload noremoteplayback"
+              disablePictureInPicture
+              onClick={() => {
+                if (isPlaying && videoRef.current) {
+                  if (videoRef.current.paused) {
+                    videoRef.current.play();
+                  } else {
+                    videoRef.current.pause();
+                  }
+                }
+              }}
               onTimeUpdate={(e) => {
-                // Altere o "20" para o exato segundo em que você fala "7 DIAS GRÁTIS" no vídeo
-                if (e.target.currentTime > 20 && !showOffer) {
+                // Oferta configurada para revelar exatos aos 29 segundos
+                if (e.target.currentTime >= 29 && !showOffer) {
                   setShowOffer(true);
                 }
               }}
