@@ -23,9 +23,14 @@ export default function QuizFunnel() {
   };
 
   useEffect(() => {
-    if (step === -1 || step === 0) {
+    trackStep(step);
+    
+    // Mantém a sessão ativa no painel Master pingando a cada 30 segundos
+    const interval = setInterval(() => {
       trackStep(step);
-    }
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [step]);
   
   const questions = [

@@ -131,6 +131,7 @@ export default function AdminDashboard() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [quizStats, setQuizStats] = useState([]);
+  const [quizOnline, setQuizOnline] = useState(0);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
@@ -191,7 +192,8 @@ export default function AdminDashboard() {
           }).catch(() => {});
           
           fetch(`${API_URL}/api/quiz-stats`).then(r => r.json()).then(d => {
-             setQuizStats(Array.isArray(d) ? d : []);
+             setQuizStats(d.stats || []);
+             setQuizOnline(d.online || 0);
           }).catch(() => {});
        }
     };
@@ -1039,14 +1041,21 @@ export default function AdminDashboard() {
               </h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Acompanhe quem está respondendo ao diagnóstico inicial.</p>
             </div>
-            <div style={{ display: 'flex', gap: '16px' }}>
+            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                  <div style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                  {quizOnline}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
+              </div>
               <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{quizStats.length}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Totais</div>
               </div>
               <div style={{ textAlign: 'center', backgroundColor: 'rgba(0, 200, 83, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>{quizStats.filter(q => q.completed).length}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos Totais</div>
               </div>
             </div>
           </div>

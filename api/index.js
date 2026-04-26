@@ -621,7 +621,8 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/quiz-stats')) {
       const { rows } = await pool.query("SELECT * FROM quiz_responses ORDER BY last_updated_at DESC");
-      return res.status(200).json(rows);
+      const { rows: online } = await pool.query("SELECT COUNT(*) FROM quiz_responses WHERE last_updated_at > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '45 seconds'");
+      return res.status(200).json({ stats: rows, online: parseInt(online[0].count) });
     }
 
     return res.status(200).json({ status: 'online' });
