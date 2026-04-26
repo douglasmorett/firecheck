@@ -8,6 +8,7 @@ import EmployeeDashboard from './pages/EmployeeDashboard';
 import LandingPage from './pages/LandingPage';
 import Checkout from './pages/Checkout';
 import PrivacyPolicy from './pages/PrivacyPolicy';
+import QuizFunnel from './pages/QuizFunnel';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         {/* Se for App (Nativo), abre no Login. Se for Web, abre na Landing Page */}
         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
         <Route path="/checkout" element={<Checkout />} />
+        <Route path="/quiz" element={<QuizFunnel />} />
         
         {/* Tela de Login do Sistema */}
         <Route path="/login" element={<Login />} />
