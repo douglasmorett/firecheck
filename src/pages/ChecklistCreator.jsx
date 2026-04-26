@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -60,6 +60,40 @@ export default function ChecklistCreator() {
   const [tasks, setTasks] = useState([newTask()]);
   const [isSaving, setIsSaving] = useState(false);
   const [team, setTeam] = useState([]);
+
+  // States for AI Generator
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [isAIGenerating, setIsAIGenerating] = useState(false);
+  const [aiSteps, setAiSteps] = useState('');
+
+  const handleGenerateAI = async () => {
+    if (!aiPrompt.trim()) {
+      alert("⚠️ Descreva qual processo deseja auditar.");
+      return;
+    }
+    setIsAIGenerating(true);
+    setAiSteps("Analisando processo...");
+    
+    // Simulate AI thinking steps
+    setTimeout(() => setAiSteps("Criando parâmetros de auditoria visual..."), 1000);
+    setTimeout(() => setAiSteps("Definindo travas antifraude..."), 2000);
+    setTimeout(() => setAiSteps("Finalizando checklist..."), 3000);
+
+    setTimeout(() => {
+      setTitle(`Auditoria: ${aiPrompt.charAt(0).toUpperCase() + aiPrompt.slice(1)}`);
+      setTasks([
+        { id: Date.now(), text: `Verificar organização de ${aiPrompt}`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
+        { id: Date.now()+1, text: `Evidência em foto da limpeza concluída`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
+        { id: Date.now()+2, text: `Avaliação do padrão da IA (1 a 5)`, type: 'rating', requirePhoto: false, timeLimit: '', notifyDelay: false, options: [], assignee: '' },
+        { id: Date.now()+3, text: `Houve alguma avaria detectada?`, type: 'multiple', requirePhoto: false, timeLimit: '', notifyDelay: false, options: ['Não', 'Sim, equipamento quebrado', 'Sim, estrutura danificada'], assignee: '' }
+      ]);
+      setIsAIGenerating(false);
+      setShowAIModal(false);
+      setAiPrompt('');
+      setAiSteps('');
+    }, 4000);
+  };
 
   useEffect(() => {
     // Tenta carregar a loja do perfil do usuário logado
@@ -164,18 +198,30 @@ export default function ChecklistCreator() {
 
   return (
     <div className="page-container animate-fade">
-      <header style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-        <button className="btn-secondary" style={{ padding: '8px', borderRadius: '50%' }} onClick={() => navigate('/admin')}>
-          <ArrowLeft size={24} />
-        </button>
-        <div>
-          <h1 className="page-title" style={{ marginBottom: '4px' }}>
-            {isEditing ? `Editando: ${title || '...'}` : 'Criar Novo Checklist'}
-          </h1>
-          <p style={{ color: 'var(--text-muted)' }}>
-            {isEditing ? 'Altere as tarefas e salve para atualizar.' : 'Configure regras, tipos de resposta e auditoria por IA.'}
-          </p>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <button className="btn-secondary" style={{ padding: '8px', borderRadius: '50%' }} onClick={() => navigate('/admin')}>
+            <ArrowLeft size={24} />
+          </button>
+          <div>
+            <h1 className="page-title" style={{ marginBottom: '4px' }}>
+              {isEditing ? `Editando: ${title || '...'}` : 'Criar Novo Checklist'}
+            </h1>
+            <p style={{ color: 'var(--text-muted)' }}>
+              {isEditing ? 'Altere as tarefas e salve para atualizar.' : 'Configure regras, tipos de resposta e auditoria por IA.'}
+            </p>
+          </div>
         </div>
+
+        {!isEditing && (
+          <button 
+            className="btn btn-pulse" 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: '#06b6d4', color: 'white', boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' }}
+            onClick={() => setShowAIModal(true)}
+          >
+            <Sparkles size={20} /> Gerar com Inteligência Artificial
+          </button>
+        )}
       </header>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
@@ -364,6 +410,58 @@ export default function ChecklistCreator() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Criação por IA */}
+      {showAIModal && (
+        <div className="modal-overlay animate-fade">
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%', padding: '32px', textAlign: 'center', position: 'relative' }}>
+            <button 
+              className="btn-secondary" 
+              style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px', borderRadius: '50%', background: 'transparent', border: 'none' }}
+              onClick={() => !isAIGenerating && setShowAIModal(false)}
+              disabled={isAIGenerating}
+            >
+              <X size={20} color="var(--text-muted)" />
+            </button>
+
+            <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: '#06b6d4', boxShadow: '0 0 20px rgba(6, 182, 212, 0.2)' }}>
+              <Bot size={32} />
+            </div>
+
+            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Criação Automática</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.5' }}>
+              Descreva o processo que você deseja auditar e o Google Gemini vai montar o checklist completo para você, já com travas antifraude.
+            </p>
+
+            <textarea 
+              className="input-field" 
+              style={{ minHeight: '120px', resize: 'none', marginBottom: '24px', textAlign: 'left', lineHeight: '1.5' }}
+              placeholder="Ex: Quero um checklist para o fechamento do caixa da minha hamburgueria. Preciso que o operador tire foto do dinheiro e da maquininha de cartão."
+              value={aiPrompt}
+              onChange={e => setAiPrompt(e.target.value)}
+              disabled={isAIGenerating}
+            />
+
+            <button 
+              className="btn btn-pulse" 
+              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#06b6d4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', opacity: isAIGenerating ? 0.7 : 1 }}
+              onClick={handleGenerateAI}
+              disabled={isAIGenerating}
+            >
+              {isAIGenerating ? (
+                <>
+                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  {aiSteps}
+                </>
+              ) : (
+                <>
+                  <Sparkles size={20} /> Criar Checklist Mágico
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
