@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowRight, Loader2, Activity, Play, Gift } from 'lucide-react';
+import { ShieldAlert, ArrowRight, Loader2, Activity, Play, Gift, VolumeX } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -179,10 +179,12 @@ export default function QuizFunnel() {
           <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'black' }}>
             {!isPlaying && (
               <div 
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 10, cursor: 'pointer' }}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', zIndex: 10, cursor: 'pointer' }}
                 onClick={() => {
                   setIsPlaying(true);
                   if (videoRef.current) {
+                    videoRef.current.muted = false;
+                    videoRef.current.currentTime = 0;
                     videoRef.current.play();
                   }
                   if (!sessionStorage.getItem('quiz_video_played')) {
@@ -191,16 +193,22 @@ export default function QuizFunnel() {
                   }
                 }}
               >
-                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: '20px', borderRadius: '50%', backdropFilter: 'blur(4px)', animation: 'pulse 2s infinite' }}>
-                  <Play size={40} color="white" fill="white" />
+                <div style={{ backgroundColor: '#ef4444', color: 'white', padding: '24px 40px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(239, 68, 68, 0.6)', animation: 'pulse 1.5s infinite', border: '3px solid white', textAlign: 'center' }}>
+                  <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Clique aqui</span>
+                  <VolumeX size={50} />
+                  <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>para ativar o som</span>
                 </div>
               </div>
             )}
             <video 
               ref={videoRef}
               src="/IMG_0931.MOV" 
-              style={{ width: '100%', display: 'block', maxHeight: '60vh' }}
+              style={{ width: '100%', display: 'block', maxHeight: '60vh', opacity: isPlaying ? 1 : 0.8 }}
               controls={isPlaying}
+              autoPlay={!isPlaying}
+              muted={!isPlaying}
+              loop={!isPlaying}
+              playsInline
               onTimeUpdate={(e) => {
                 // Altere o "20" para o exato segundo em que você fala "7 DIAS GRÁTIS" no vídeo
                 if (e.target.currentTime > 20 && !showOffer) {
