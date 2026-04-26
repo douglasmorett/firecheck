@@ -1091,11 +1091,16 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {quizStats.map(q => (
+                {quizStats.map(q => {
+                  const isOnline = (new Date() - new Date(q.last_updated_at_local || q.last_updated_at)) < 60000;
+                  return (
                   <tr key={q.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(q.last_updated_at_local || q.last_updated_at).toLocaleString('pt-BR')}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {q.ip}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                        IP: {q.ip}
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isOnline ? '#22c55e' : '#ef4444', boxShadow: isOnline ? '0 0 8px rgba(34, 197, 94, 0.6)' : 'none' }} title={isOnline ? 'Online na página' : 'Inativo'}></div>
+                      </div>
                     </td>
                     <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
                       {q.completed ? (
@@ -1120,7 +1125,8 @@ export default function AdminDashboard() {
                       {q.q4_answer && <div><strong>Q4:</strong> {q.q4_answer}</div>}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
                 {quizStats.length === 0 && (
                   <tr>
                     <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Nenhuma resposta no quiz ainda.</td>
