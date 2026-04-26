@@ -11,7 +11,14 @@ export default function QuizFunnel() {
   const questions = [
     {
       title: "Qual é o seu ramo de atuação?",
-      options: ["Alimentação (Restaurantes, Lanchonetes)", "Varejo (Lojas, Mercados)", "Serviços / Clínicas", "Outro"]
+      options: [
+        "Alimentação (Restaurantes, Lanchonetes)", 
+        "Varejo (Lojas, Mercados)", 
+        "Hotelaria (Hotéis, Pousadas)",
+        "Academias e Esportes",
+        "Serviços / Clínicas", 
+        "Outro"
+      ]
     },
     {
       title: "Como você controla as tarefas diárias da sua equipe hoje?",
