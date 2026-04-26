@@ -116,6 +116,269 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* 4 Badges de Benefícios (Resumo Rápido) */}
+      <section style={{ padding: '0 5% 60px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', maxWidth: '1000px' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><Bot size={20} /></div>
+            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Onde agir primeiro</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><Flame size={20} /></div>
+            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Alertas em tempo real</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><CheckCircle size={20} /></div>
+            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Quem fez, quem não fez</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><ShieldCheck size={20} /></div>
+            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Evidência fotográfica</span>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Seção Showcase de Features (3 Cards) */}
+      <section style={{ padding: '80px 5%', backgroundColor: '#0a0f1c' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ border: '1px solid rgba(6, 182, 212, 0.3)', color: '#06b6d4', padding: '6px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '24px', display: 'inline-block' }}>
+            <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-top' }} /> GESTÃO À PROVA DE FALHAS
+          </div>
+          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '24px', lineHeight: '1.2' }}>
+            Saiba dos problemas <span style={{ color: '#06b6d4' }}>antes que<br/>virem prejuízo</span>
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', lineHeight: '1.6' }}>
+            Imagine receber um alerta no seu celular no exato momento em que algo importante ainda não foi feito. E receber a prova em foto quando for.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+          
+          {/* Card 1 */}
+          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Alerta quando não foi feito</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Tarefa crítica não concluída? Notificação push do app na hora.</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>⚠️</div>
+                  <div>
+                    <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', letterSpacing: '0.5px' }}>ALERTA DO APP</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '4px' }}>Fechamento Cozinha <span style={{ fontWeight: '800' }}>não concluído</span> — Equipe Noite</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>23:05 • via FireCheck App</div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>⏱️</div>
+                  <div>
+                    <div style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', letterSpacing: '0.5px' }}>ATRASADO</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '4px' }}>Verificação de Validade <span style={{ fontWeight: '800' }}>atrasada 15 min</span></div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>14:17 • Unidade Centro</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Prova em foto do que foi feito</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Foto em tempo real como evidência. Sem foto, não conta.</p>
+            
+            <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800&auto=format&fit=crop" alt="Foto restaurante" style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
+              <div style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                GPS verificado
+              </div>
+              <div style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: '#10b981', color: 'white', padding: '4px 8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={16} />
+              </div>
+              <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                6/10
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Score de cada colaborador</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Quem entrega no prazo e quem atrasa. Com dados, não achismo.</p>
+            
+            <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <span>COLABORADOR</span>
+                <div style={{ display: 'flex', gap: '24px' }}>
+                  <span>SCORE</span>
+                  <span>PONTUAL.</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#064e3b', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>A</div>
+                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Ana B.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                  <span style={{ color: '#10b981', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>85.7</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>85.7%</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1e3a8a', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>L</div>
+                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Luciano</span>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                  <span style={{ color: '#10b981', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>82.7</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>44%</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#4c1d95', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>M</div>
+                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Marcia</span>
+                </div>
+                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
+                  <span style={{ color: '#eab308', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>77.5</span>
+                  <span style={{ color: '#ef4444', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>10%</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Seção Agendamentos Automáticos */}
+      <section style={{ padding: '80px 5%', backgroundColor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '64px' }}>
+          
+          {/* Text Content */}
+          <div style={{ flex: '1 1 500px' }}>
+            <h2 style={{ fontSize: 'min(2.5rem, 5vw)', fontWeight: '800', marginBottom: '24px', lineHeight: '1.2' }}>
+              Processos que rodam sozinhos <span style={{ color: 'var(--text-muted)' }}>(de verdade)</span>
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', marginBottom: '32px', lineHeight: '1.6' }}>
+              Configure uma vez e nunca mais se preocupe. Os checklists aparecem automaticamente no app da equipe, no horário certo, para a pessoa certa.
+            </p>
+
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
+                  <CheckCircle size={16} />
+                </div>
+                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Agendamento automático por turno e dia da semana</span>
+              </li>
+              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
+                  <CheckCircle size={16} />
+                </div>
+                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Atribuição de responsáveis por unidade e função</span>
+              </li>
+              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
+                  <CheckCircle size={16} />
+                </div>
+                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Recorrência configurável — diário, semanal ou mensal</span>
+              </li>
+              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
+                  <CheckCircle size={16} />
+                </div>
+                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Notificação push no celular quando um processo atrasa</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* UI Mockup Card */}
+          <div style={{ flex: '1 1 500px', perspective: '1000px' }}>
+            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid rgba(255,255,255,0.1)', transform: 'rotateY(-5deg) rotateX(5deg)' }}>
+              
+              {/* Header */}
+              <div style={{ backgroundColor: '#020617', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontSize: '1.2rem' }}>
+                    📅
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Agendamentos Ativos</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>4 processos configurados</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444' }}></div>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></div>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
+                </div>
+              </div>
+
+              {/* List */}
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ color: '#10b981' }}><CheckCircle size={20} /></div>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>Abertura Cozinha</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Manhã • 06:00</div>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Ativo</div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ color: '#3b82f6', fontSize: '1.2rem', width: '20px', textAlign: 'center' }}>⏳</div>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>Fechamento Caixa</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Operador Caixa • 23:00</div>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Agendado</div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ color: '#10b981' }}><CheckCircle size={20} /></div>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>Abertura Salão</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Salão • 10:30</div>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Ativo</div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ color: '#3b82f6', fontSize: '1.2rem', width: '20px', textAlign: 'center' }}>⏳</div>
+                    <div>
+                      <div style={{ fontWeight: '600' }}>Fechamento Gerência</div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Gerente • 23:30</div>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Agendado</div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
       {/* Features Comparativas (Onde somos melhores) */}
       <section style={{ padding: '40px 5% 80px 5%', backgroundColor: '#121318' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
