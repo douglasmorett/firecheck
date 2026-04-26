@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowRight, Loader2 } from 'lucide-react';
+import { ShieldAlert, ArrowRight, Loader2, Activity } from 'lucide-react';
 
 export default function QuizFunnel() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(-1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   
@@ -117,6 +117,36 @@ export default function QuizFunnel() {
             Ver a Inteligência Artificial na Prática <ArrowRight />
           </button>
           <p style={{ marginTop: '16px', color: '#64748b', fontSize: '0.9rem' }}>Chega de ser babá de funcionário. Assuma o controle hoje.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === -1) {
+    return (
+      <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '50px 40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
+            <Activity size={20} /> DIAGNÓSTICO GRATUITO
+          </div>
+          
+          <h1 style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#1e293b' }}>
+            Descubra o seu nível real de <span style={{ color: '#ef4444' }}>Risco Operacional</span>
+          </h1>
+          
+          <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
+            Responda a estas 4 perguntas rápidas (leva menos de 1 minuto) e descubra se o seu negócio tem vazamentos financeiros graves devido à dependência da sua microgestão.
+          </p>
+
+          <button 
+            style={{ width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 8px 20px rgba(22, 163, 74, 0.4)', transition: 'all 0.3s ease' }} 
+            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            onClick={() => setStep(0)}
+          >
+            Iniciar Diagnóstico Agora <ArrowRight />
+          </button>
+          <p style={{ marginTop: '16px', color: '#94a3b8', fontSize: '0.85rem' }}>Análise 100% gratuita e sem compromisso.</p>
         </div>
       </div>
     );
