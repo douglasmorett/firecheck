@@ -173,8 +173,11 @@ export default function QuizFunnel() {
             A sua empresa só funciona de verdade quando <span style={{ color: '#ef4444' }}>você está lá</span>?
           </h1>
           
+          <p style={{ fontSize: '1.15rem', color: '#64748b', marginBottom: '16px', lineHeight: '1.6' }}>
+            Ser refém da própria operação é exaustivo.
+          </p>
           <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-            O maior desgaste do dono de negócio é ser refém da própria operação. <strong>Responda a algumas perguntas rápidas a seguir para te ajudarmos a resolver o seu problema</strong> e garantir que a sua equipe funcione do jeito certo, sem você precisar ficar vigiando.
+            <strong>Responda as perguntas a seguir para te ajudarmos a resolver o seu problema</strong> e garantir que tudo funcione do jeito certo, sem você precisar estar lá.
           </p>
 
           <button 
