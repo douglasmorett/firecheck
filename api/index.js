@@ -559,22 +559,22 @@ export default async function handler(req, res) {
     if (url.includes('/api/ping')) {
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
       await pool.query('INSERT INTO live_pings (ip, last_ping) VALUES ($1, NOW()) ON CONFLICT (ip) DO UPDATE SET last_ping = NOW()', [clientIp]);
-      await pool.query('INSERT INTO site_visits (ip, visit_date) VALUES ($1, CURRENT_DATE) ON CONFLICT (ip, visit_date) DO NOTHING', [clientIp]);
+      await pool.query("INSERT INTO site_visits (ip, visit_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, visit_date) DO NOTHING", [clientIp]);
       return res.status(200).json({ success: true });
     }
 
     if (url.includes('/api/track-video')) {
       if (method === 'POST') {
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        await pool.query('INSERT INTO video_plays (ip, play_date) VALUES ($1, CURRENT_DATE) ON CONFLICT (ip, play_date) DO NOTHING', [clientIp]);
+        await pool.query("INSERT INTO video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
         return res.status(200).json({ success: true });
       }
     }
 
     if (url.includes('/api/live-visitors')) {
       const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings WHERE last_ping > NOW() - INTERVAL '30 seconds'");
-      const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = CURRENT_DATE");
-      const { rows: video } = await pool.query("SELECT COUNT(*) FROM video_plays WHERE play_date = CURRENT_DATE");
+      const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
+      const { rows: video } = await pool.query("SELECT COUNT(*) FROM video_plays WHERE play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
       return res.status(200).json({
         visitors: parseInt(live[0].count),
         today: parseInt(today[0].count),
