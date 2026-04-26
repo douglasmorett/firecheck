@@ -165,6 +165,14 @@ export default function QuizFunnel() {
     return (
       <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '50px 40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+          <div style={{ width: '100%', height: '220px', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid #e2e8f0', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+            <img 
+              src="https://media.giphy.com/media/l4pT0pT9Yf5Qh7p8c/giphy.gif" 
+              alt="Dono de negócio estressado" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'contrast(1.1) grayscale(20%)' }} 
+            />
+          </div>
+          
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
             <Activity size={20} /> DIAGNÓSTICO DE ROTINA
           </div>
