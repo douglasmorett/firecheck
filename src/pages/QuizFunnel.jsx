@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowRight, Loader2, Activity } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://firecheck-api.vercel.app';
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function QuizFunnel() {
   const navigate = useNavigate();
