@@ -123,23 +123,13 @@ export default function Checkout() {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
-              <div style={{ flex: 1 }}>
-                <label className="input-label">Telefone / WhatsApp</label>
-                <input 
-                  type="text" name="phone" className="input-field" required 
-                  value={formData.phone} onChange={handleInputChange}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label className="input-label">WhatsApp</label>
-                <input 
-                  type="text" name="phone" className="input-field" required 
-                  value={formData.phone} onChange={handleInputChange}
-                  placeholder="(11) 99999-9999"
-                />
-              </div>
+            <div style={{ marginBottom: '16px' }}>
+              <label className="input-label">Telefone / WhatsApp</label>
+              <input 
+                type="text" name="phone" className="input-field" required 
+                value={formData.phone} onChange={handleInputChange}
+                placeholder="(11) 99999-9999"
+              />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
