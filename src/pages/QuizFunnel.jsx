@@ -127,15 +127,15 @@ export default function QuizFunnel() {
       <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '50px 40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
-            <Activity size={20} /> DIAGNÓSTICO GRATUITO
+            <Activity size={20} /> DIAGNÓSTICO DE ROTINA
           </div>
           
           <h1 style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#1e293b' }}>
-            Descubra o seu nível real de <span style={{ color: '#ef4444' }}>Risco Operacional</span>
+            A sua equipe realmente faz o que precisa ser feito do jeito <span style={{ color: '#ef4444' }}>certo</span>?
           </h1>
           
           <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-            Responda a estas 4 perguntas rápidas (leva menos de 1 minuto) e descubra se o seu negócio tem vazamentos financeiros graves devido à dependência da sua microgestão.
+            O maior erro do dono de negócio é confiar apenas no boca a boca do <i>"chefe, já fiz"</i>. Responda a 4 perguntas rápidas e descubra se as rotinas da sua empresa estão sendo realmente executadas quando você não está olhando.
           </p>
 
           <button 
