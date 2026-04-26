@@ -81,7 +81,7 @@ export default function LandingPage() {
           {/* Glowing Background Element */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
 
-          <div style={{ width: '100%', maxWidth: '340px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#000' }}>
+          <div style={{ width: '100%', maxWidth: '340px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
             
             {/* Botão de Som Discreto */}
             {!isVideoActive && (
@@ -164,7 +164,7 @@ export default function LandingPage() {
       </section>
 
       {/* Seção Showcase de Features (Autêntico FireCheck) */}
-      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #0a0f1c 0%, #120806 100%)', position: 'relative', overflow: 'hidden' }}>
+      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #09090b 0%, #18181b 100%)', position: 'relative', overflow: 'hidden' }}>
         
         {/* Glow Effects */}
         <div style={{ position: 'absolute', top: '20%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.1) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
@@ -185,7 +185,7 @@ export default function LandingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           
           {/* Card 1 - AI Alert */}
-          <div style={{ background: 'linear-gradient(145deg, #1a1010 0%, #0d0806 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ff4d00, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Auditoria Imediata</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>A IA do Google analisa a foto do funcionário e reprova se não estiver no padrão. Notificação push na mesma hora.</p>
@@ -205,7 +205,7 @@ export default function LandingPage() {
           </div>
 
           {/* Card 2 - Anti-Fraud / Camera */}
-          <div style={{ background: 'linear-gradient(145deg, #101520 0%, #060a12 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Bloqueio Anti-Fraude</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Acabou a mentira. O app não aceita foto da galeria e carimba a localização exata no momento do clique.</p>
@@ -226,7 +226,7 @@ export default function LandingPage() {
           </div>
 
           {/* Card 3 - Ranking */}
-          <div style={{ background: 'linear-gradient(145deg, #151a10 0%, #080d06 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #10b981, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Gamificação</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Engaje sua equipe. O FireCheck ranqueia automaticamente quem entrega resultados e quem precisa de ajuda.</p>
@@ -256,7 +256,7 @@ export default function LandingPage() {
       </section>
 
       {/* Seção Agendamentos Automáticos (Autêntico FireCheck) */}
-      <section style={{ padding: '100px 5%', backgroundColor: '#050505', borderTop: '1px solid rgba(255,77,0,0.1)', borderBottom: '1px solid rgba(255,77,0,0.1)', position: 'relative' }}>
+      <section style={{ padding: '100px 5%', backgroundColor: 'var(--bg-color)', borderTop: '1px solid rgba(255,77,0,0.1)', borderBottom: '1px solid rgba(255,77,0,0.1)', position: 'relative' }}>
         
         {/* Background Grid Pattern */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.5, pointerEvents: 'none' }}></div>
@@ -343,7 +343,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Comparativas (Onde somos melhores) */}
-      <section style={{ padding: '40px 5% 80px 5%', backgroundColor: '#121318' }}>
+      <section style={{ padding: '40px 5% 80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Por que somos a evolução do mercado?</h2>
           <p style={{ color: 'var(--text-muted)' }}>Sistemas comuns apenas digitam formulários. Nós pensamos por você.</p>
@@ -375,7 +375,7 @@ export default function LandingPage() {
       </section>
 
       {/* Templates de Checklist */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#0a0f1c' }}>
+      <section style={{ padding: '80px 5%', backgroundColor: '#09090b' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
             Checklists prontos. Crie o seu em minutos <br/><span style={{ color: '#06b6d4' }}>— ou deixe a IA criar</span>
@@ -388,7 +388,7 @@ export default function LandingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           
           {/* Criar Novo (Em Branco) */}
-          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => navigate('/login')}>
             <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.2rem' }}>➕</span>
             </div>
@@ -408,7 +408,7 @@ export default function LandingPage() {
           </div>
 
           {/* Templates */}
-          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>COZINHA</span>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>FECHAMENTO</span>
@@ -418,7 +418,7 @@ export default function LandingPage() {
             <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
           </div>
 
-          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
             <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>SALÃO</span>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>ABERTURA</span>

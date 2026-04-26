@@ -1,16 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-color: #0F1014;
-  --bg-card: #1A1C23;
-  --bg-card-hover: #22252E;
+  --bg-color: #09090b;
+  --bg-card: #18181b;
+  --bg-card-hover: #27272a;
   --primary: #FF4D00;
   --primary-hover: #FF6622;
   --text-main: #FFFFFF;
-  --text-muted: #8E92A4;
-  --success: #00C853;
-  --error: #FF1744;
-  --border-color: #2A2D3A;
+  --text-muted: #a1a1aa;
+  --success: #10b981;
+  --error: #ef4444;
+  --border-color: #27272a;
   --radius: 12px;
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
