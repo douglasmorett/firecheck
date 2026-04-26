@@ -191,7 +191,7 @@ export default function LandingPage() {
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>A IA do Google analisa a foto do funcionário e reprova se não estiver no padrão. Notificação push na mesma hora.</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255, 77, 0, 0.3)', position: 'relative' }}>
+              <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255, 77, 0, 0.3)', position: 'relative' }}>
                 <div style={{ position: 'absolute', right: '-10px', top: '-10px', backgroundColor: '#ff4d00', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.4)' }}>ALERTA DE IA</div>
                 <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                   <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(255, 77, 0, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d00' }}><Bot size={24} /></div>
@@ -216,7 +216,7 @@ export default function LandingPage() {
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '2px dashed rgba(255,255,255,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div style={{ width: '4px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 10px #3b82f6' }}></div>
               </div>
-              <div style={{ position: 'absolute', bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+              <div style={{ position: 'absolute', bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
                 <div style={{ color: '#3b82f6', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '2px' }}>VERIFICAÇÃO DE SINAL</div>
                 <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <ShieldCheck size={14} color="#3b82f6" /> GPS Lock Ativo • 23:41
@@ -231,7 +231,7 @@ export default function LandingPage() {
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Gamificação</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Engaje sua equipe. O FireCheck ranqueia automaticamente quem entrega resultados e quem precisa de ajuda.</p>
             
-            <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+            <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
               
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -288,9 +288,9 @@ export default function LandingPage() {
 
           {/* UI Mockup Card - Mission Control */}
           <div style={{ flex: '1 1 500px' }}>
-            <div style={{ backgroundColor: '#0a0a0a', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
+            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
               
-              <div style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', backgroundColor: '#0f0f0f' }}>
+              <div style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', backgroundColor: 'var(--bg-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                   <div>
                     <div style={{ color: '#ff4d00', fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '4px' }}>FIRECHECK CORE</div>
@@ -302,7 +302,7 @@ export default function LandingPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '2px solid rgba(255, 77, 0, 0.3)', paddingLeft: '24px', position: 'relative' }}>
                   
                   <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', border: '3px solid #0f0f0f' }}></div>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', border: '3px solid var(--bg-color)' }}></div>
                     <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontWeight: 'bold', color: 'white' }}>Abertura Loja</span>
@@ -313,7 +313,7 @@ export default function LandingPage() {
                   </div>
 
                   <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff4d00', border: '3px solid #0f0f0f', boxShadow: '0 0 10px #ff4d00' }}></div>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff4d00', border: '3px solid var(--bg-color)', boxShadow: '0 0 10px #ff4d00' }}></div>
                     <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid rgba(255, 77, 0, 0.3)', padding: '16px', borderRadius: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontWeight: 'bold', color: 'white' }}>Fechamento Caixa</span>
@@ -324,7 +324,7 @@ export default function LandingPage() {
                   </div>
 
                   <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6', border: '3px solid #0f0f0f' }}></div>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6', border: '3px solid var(--bg-color)' }}></div>
                     <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', opacity: 0.5 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <span style={{ fontWeight: 'bold', color: 'white' }}>Auditoria Madrugada</span>

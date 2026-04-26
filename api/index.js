@@ -50,9 +50,12 @@ export default async function handler(req, res) {
       await pool.query(`
         CREATE TABLE IF NOT EXISTS live_pings (
           ip VARCHAR(255) PRIMARY KEY,
-          last_ping TIMESTAMP
+          last_ping TIMESTAMP,
+          device_type VARCHAR(50) DEFAULT 'unknown'
         )
       `);
+      await pool.query("ALTER TABLE site_visits ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT 'unknown'");
+      await pool.query("ALTER TABLE live_pings ADD COLUMN IF NOT EXISTS device_type VARCHAR(50) DEFAULT 'unknown'");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS quiz_responses (
           id SERIAL PRIMARY KEY,
@@ -282,46 +285,7 @@ export default async function handler(req, res) {
       });
     }
 
-    if (url.includes('/api/ping')) {
-      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-      await pool.query(`
-        INSERT INTO live_visitors (ip, last_ping) 
-        VALUES ($1, NOW()) 
-        ON CONFLICT (ip) DO UPDATE SET last_ping = NOW()
-      `, [ip]);
-
-      await pool.query(`
-        INSERT INTO daily_visitors (ip, visit_date) 
-        VALUES ($1, CURRENT_DATE) 
-        ON CONFLICT (ip, visit_date) DO NOTHING
-      `, [ip]);
-
-      return res.status(200).json({ success: true });
-    }
-
-    if (url.includes('/api/track-video')) {
-      const ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown';
-      await pool.query(`
-        INSERT INTO video_plays (ip, play_date) 
-        VALUES ($1, CURRENT_DATE) 
-        ON CONFLICT (ip, play_date) DO NOTHING
-      `, [ip]);
-      return res.status(200).json({ success: true });
-    }
-
-    if (url.includes('/api/live-visitors')) {
-      // Deleta visitantes mais antigos que 20 segundos
-      await pool.query(`DELETE FROM live_visitors WHERE last_ping < NOW() - INTERVAL '20 seconds'`);
-      const { rows: liveRows } = await pool.query('SELECT COUNT(*) as count FROM live_visitors');
-      const { rows: dailyRows } = await pool.query('SELECT COUNT(*) as count FROM daily_visitors WHERE visit_date = CURRENT_DATE');
-      const { rows: videoRows } = await pool.query('SELECT COUNT(*) as count FROM video_plays');
-      
-      return res.status(200).json({ 
-        visitors: parseInt(liveRows[0].count, 10),
-        today: parseInt(dailyRows[0].count, 10),
-        videoPlays: parseInt(videoRows[0].count, 10)
-      });
-    }
+    // Endpoints de tracking duplicados removidos daqui
 
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
@@ -583,8 +547,12 @@ export default async function handler(req, res) {
     // --- Tracking Endpoints ---
     if (url.includes('/api/ping')) {
       const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-      await pool.query('INSERT INTO live_pings (ip, last_ping) VALUES ($1, NOW()) ON CONFLICT (ip) DO UPDATE SET last_ping = NOW()', [clientIp]);
-      await pool.query("INSERT INTO site_visits (ip, visit_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, visit_date) DO NOTHING", [clientIp]);
+      const userAgent = req.headers['user-agent'] || '';
+      const isMobile = /mobile|android|iphone|ipad|phone/i.test(userAgent);
+      const deviceType = isMobile ? 'mobile' : 'desktop';
+
+      await pool.query('INSERT INTO live_pings (ip, last_ping, device_type) VALUES ($1, NOW(), $2) ON CONFLICT (ip) DO UPDATE SET last_ping = NOW(), device_type = $2', [clientIp, deviceType]);
+      await pool.query("INSERT INTO site_visits (ip, visit_date, device_type) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date, $2) ON CONFLICT (ip, visit_date) DO NOTHING", [clientIp, deviceType]);
       return res.status(200).json({ success: true });
     }
 
@@ -605,12 +573,17 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/live-visitors')) {
-      const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings WHERE last_ping > NOW() - INTERVAL '30 seconds'");
+      await pool.query(`DELETE FROM live_pings WHERE last_ping < NOW() - INTERVAL '30 seconds'`);
+      const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings");
       const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
+      const { rows: todayMobile } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date AND device_type = 'mobile'");
+      const { rows: todayDesktop } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date AND device_type = 'desktop'");
       const { rows: video } = await pool.query("SELECT COUNT(*) FROM video_plays WHERE play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
       return res.status(200).json({
         visitors: parseInt(live[0].count),
         today: parseInt(today[0].count),
+        todayMobile: parseInt(todayMobile[0].count),
+        todayDesktop: parseInt(todayDesktop[0].count),
         videoPlays: parseInt(video[0].count)
       });
     }
