@@ -108,8 +108,8 @@ export default function QuizFunnel() {
             Com o <strong>FireCheck</strong>, o seu funcionário é OBRIGADO a tirar uma foto provando que limpou o chão. A nossa <strong>Inteligência Artificial</strong> audita a foto em 2 segundos. Se estiver mal feito, a IA rejeita e manda ele refazer na hora. Você não precisa nem levantar da cadeira, só recebe a notificação de que está 100% perfeito.
           </p>
 
-          <button className="btn btn-pulse" style={{ width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }} onClick={() => navigate('/checkout')}>
-            Testar FireCheck Grátis por 7 Dias <ArrowRight />
+          <button className="btn btn-pulse" style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }} onClick={() => navigate('/')}>
+            Ver a Inteligência Artificial na Prática <ArrowRight />
           </button>
           <p style={{ marginTop: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Chega de ser babá de funcionário. Assuma o controle hoje.</p>
         </div>
