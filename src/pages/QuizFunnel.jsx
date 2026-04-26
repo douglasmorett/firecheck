@@ -109,9 +109,8 @@ export default function QuizFunnel() {
           </p>
 
           <button 
-            style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 8px 20px rgba(22, 163, 74, 0.4)', transition: 'all 0.3s ease' }} 
-            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            className="btn-pulse-green"
+            style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
             onClick={() => navigate('/')}
           >
             Ver a Inteligência Artificial na Prática <ArrowRight />
@@ -139,9 +138,8 @@ export default function QuizFunnel() {
           </p>
 
           <button 
-            style={{ width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', boxShadow: '0 8px 20px rgba(22, 163, 74, 0.4)', transition: 'all 0.3s ease' }} 
-            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            className="btn-pulse-green"
+            style={{ width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
             onClick={() => setStep(0)}
           >
             Iniciar Diagnóstico Agora <ArrowRight />
