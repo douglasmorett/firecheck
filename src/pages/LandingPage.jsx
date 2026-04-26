@@ -164,7 +164,7 @@ export default function LandingPage() {
       </section>
 
       {/* Seção Showcase de Features (Autêntico FireCheck) */}
-      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #09090b 0%, #18181b 100%)', position: 'relative', overflow: 'hidden' }}>
+      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #18181b 0%, #27272a 100%)', position: 'relative', overflow: 'hidden' }}>
         
         {/* Glow Effects */}
         <div style={{ position: 'absolute', top: '20%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.1) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
@@ -185,7 +185,7 @@ export default function LandingPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           
           {/* Card 1 - AI Alert */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ff4d00, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Auditoria Imediata</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>A IA do Google analisa a foto do funcionário e reprova se não estiver no padrão. Notificação push na mesma hora.</p>
@@ -205,7 +205,7 @@ export default function LandingPage() {
           </div>
 
           {/* Card 2 - Anti-Fraud / Camera */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Bloqueio Anti-Fraude</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Acabou a mentira. O app não aceita foto da galeria e carimba a localização exata no momento do clique.</p>
@@ -226,7 +226,7 @@ export default function LandingPage() {
           </div>
 
           {/* Card 3 - Ranking */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #18181b 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #10b981, transparent)' }}></div>
             <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Gamificação</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Engaje sua equipe. O FireCheck ranqueia automaticamente quem entrega resultados e quem precisa de ajuda.</p>
@@ -375,7 +375,7 @@ export default function LandingPage() {
       </section>
 
       {/* Templates de Checklist */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#09090b' }}>
+      <section style={{ padding: '80px 5%', backgroundColor: '#18181b' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
             Checklists prontos. Crie o seu em minutos <br/><span style={{ color: '#06b6d4' }}>— ou deixe a IA criar</span>
