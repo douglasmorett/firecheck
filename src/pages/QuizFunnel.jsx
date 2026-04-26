@@ -174,7 +174,7 @@ export default function QuizFunnel() {
           </h1>
           
           <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-            O maior desgaste do dono de negócio é ser refém da própria operação. Responda a 4 perguntas rápidas e descubra o seu verdadeiro nível de dependência da equipe e como garantir que as coisas sejam feitas do jeito certo sem você precisar vigiar.
+            O maior desgaste do dono de negócio é ser refém da própria operação. <strong>Responda a algumas perguntas rápidas a seguir para te ajudarmos a resolver o seu problema</strong> e garantir que a sua equipe funcione do jeito certo, sem você precisar ficar vigiando.
           </p>
 
           <button 
