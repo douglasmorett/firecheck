@@ -37,82 +37,103 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <header style={{ padding: '100px 5% 40px 5%', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div className="badge badge-warning" style={{ marginBottom: '24px', padding: '8px 16px', fontSize: '0.9rem' }}>
-          ✨ O primeiro checklist do Brasil movido por IA
-        </div>
-        <h1 style={{ fontSize: 'min(3rem, 8vw)', fontWeight: '800', lineHeight: '1.2', maxWidth: '800px', marginBottom: '20px', background: 'linear-gradient(to right, #ffffff, #a0a0a0)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Auditoria com IA que economiza seu tempo.
-        </h1>
-        <p style={{ fontSize: '1.2rem', color: '#ffffff', marginBottom: '16px', fontWeight: '500' }}>
-          Veja a demonstração do nosso aplicativo:
-        </p>
-      </header>
-
-      {/* Video de Demonstração */}
-      <section style={{ padding: '0 5% 20px 5%', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ width: '100%', maxWidth: '350px', borderRadius: '24px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.6), 0 0 60px rgba(255,77,0,0.15)', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '40px', position: 'relative' }}>
+      {/* Hero Section (2 Columns) */}
+      <section style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '60px', maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+        
+        {/* Left Column: Text & CTA */}
+        <div style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+          <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)', backgroundColor: 'rgba(255, 77, 0, 0.05)' }}>
+            ✨ O primeiro checklist do Brasil movido por IA
+          </div>
           
-          {/* Overlay da Máscara */}
-          {!isVideoActive && (
-            <div 
-              onClick={() => {
-                setIsVideoActive(true);
-                if (videoRef.current) {
-                  videoRef.current.muted = false;
-                  videoRef.current.currentTime = 0; // Reinicia o vídeo com som
-                  videoRef.current.play().catch(() => {});
-                }
-                if (!sessionStorage.getItem('video_played')) {
-                  fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
-                  sessionStorage.setItem('video_played', 'true');
-                }
-              }}
-              style={{
-                position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.4)'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.5)'}
-            >
-              <PlayCircle size={80} color="var(--primary)" style={{ marginBottom: '16px', animation: 'pulse 1.5s infinite ease-in-out' }} />
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', textShadow: '0 2px 4px rgba(0,0,0,0.8)', textAlign: 'center', padding: '0 20px' }}>
-                Aperte play para ver o vídeo do nosso app
-              </h2>
-            </div>
-          )}
+          <h1 style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px' }}>
+            Auditoria com IA que <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>economiza seu tempo.</span>
+          </h1>
+          
+          <p style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
+            O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
+          </p>
 
-          <video 
-            ref={videoRef}
-            src="/demo.mp4.MOV" 
-            poster="/capa.jpg" 
-            autoPlay
-            muted
-            defaultMuted
-            loop
-            playsInline
-            controls={isVideoActive}
-            onLoadedData={() => {
-              if (!isVideoActive && videoRef.current) {
-                videoRef.current.play().catch(e => console.log('Autoplay bloqueado pelo celular:', e));
+          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+            <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => navigate('/checkout')}>
+              Começar 7 Dias Grátis <ArrowRight size={20} />
+            </button>
+            <button className="btn-secondary" style={{ fontSize: '1.1rem', padding: '16px 32px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center' }} onClick={() => {
+              setIsVideoActive(true);
+              if (videoRef.current) {
+                videoRef.current.muted = false;
+                videoRef.current.currentTime = 0;
+                videoRef.current.play().catch(() => {});
               }
-            }}
-            style={{ width: '100%', display: 'block', backgroundColor: '#000', maxHeight: '75vh', objectFit: 'contain' }}
-          >
-            Seu navegador não suporta a reprodução deste vídeo.
-          </video>
+            }}>
+              <PlayCircle size={20} style={{ display: 'inline', marginRight: '8px' }} /> Ver demonstração
+            </button>
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
+            Acesso imediato. Não pedimos cartão de crédito.
+          </p>
         </div>
 
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', marginBottom: '32px', lineHeight: '1.5', textAlign: 'center' }}>
-          O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
-        </p>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px' }} onClick={() => navigate('/checkout')}>
-            Começar 7 Dias Grátis (Sem Cartão) <ArrowRight size={20} />
-          </button>
+        {/* Right Column: Video Mockup */}
+        <div style={{ flex: '1 1 350px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
+          
+          {/* Glowing Background Element */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
+
+          <div style={{ width: '100%', maxWidth: '340px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#000' }}>
+            
+            {/* Overlay da Máscara */}
+            {!isVideoActive && (
+              <div 
+                onClick={() => {
+                  setIsVideoActive(true);
+                  if (videoRef.current) {
+                    videoRef.current.muted = false;
+                    videoRef.current.currentTime = 0; // Reinicia o vídeo com som
+                    videoRef.current.play().catch(() => {});
+                  }
+                  if (!sessionStorage.getItem('video_played')) {
+                    fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
+                    sessionStorage.setItem('video_played', 'true');
+                  }
+                }}
+                style={{
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                  backgroundColor: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(3px)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.3)'}
+              >
+                <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.95)', padding: '20px 24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 10px 25px rgba(255,77,0,0.5)', animation: 'pulse 2s infinite', border: '1px solid rgba(255,255,255,0.2)' }}>
+                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'white', marginBottom: '8px' }}>Seu vídeo já começou</span>
+                  <PlayCircle size={48} color="white" style={{ marginBottom: '8px' }} />
+                  <span style={{ fontWeight: 'bold', fontSize: '1rem', color: 'white' }}>Clique para ouvir</span>
+                </div>
+              </div>
+            )}
+
+            <video 
+              ref={videoRef}
+              src="/demo.mp4.MOV" 
+              poster="/capa.jpg" 
+              autoPlay
+              muted
+              defaultMuted
+              loop
+              playsInline
+              controls={isVideoActive}
+              onLoadedData={() => {
+                if (!isVideoActive && videoRef.current) {
+                  videoRef.current.play().catch(e => console.log('Autoplay bloqueado pelo celular:', e));
+                }
+              }}
+              style={{ width: '100%', display: 'block', maxHeight: '75vh', objectFit: 'cover' }}
+            >
+              Seu navegador não suporta a reprodução deste vídeo.
+            </video>
+          </div>
         </div>
       </section>
 
@@ -143,117 +164,90 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Seção Showcase de Features (3 Cards) */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#0a0f1c' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ border: '1px solid rgba(6, 182, 212, 0.3)', color: '#06b6d4', padding: '6px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '24px', display: 'inline-block' }}>
-            <ShieldCheck size={14} style={{ display: 'inline', marginRight: '6px', verticalAlign: 'text-top' }} /> GESTÃO À PROVA DE FALHAS
+      {/* Seção Showcase de Features (Autêntico FireCheck) */}
+      <section style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #0a0f1c 0%, #120806 100%)', position: 'relative', overflow: 'hidden' }}>
+        
+        {/* Glow Effects */}
+        <div style={{ position: 'absolute', top: '20%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.1) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(255, 200, 0, 0.05) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
+
+        <div style={{ textAlign: 'center', marginBottom: '80px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 10 }}>
+          <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)' }}>
+            <Flame size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'text-top' }} /> Visão Computacional e IA
           </div>
-          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '24px', lineHeight: '1.2' }}>
-            Saiba dos problemas <span style={{ color: '#06b6d4' }}>antes que<br/>virem prejuízo</span>
+          <h2 style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', marginBottom: '24px', lineHeight: '1.1', letterSpacing: '-1px' }}>
+            Não espere o cliente <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>reclamar para descobrir.</span>
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', lineHeight: '1.6' }}>
-            Imagine receber um alerta no seu celular no exato momento em que algo importante ainda não foi feito. E receber a prova em foto quando for.
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', maxWidth: '700px', lineHeight: '1.6' }}>
+            A inteligência artificial do FireCheck age como um gerente onipresente. Se a temperatura da geladeira cair ou o chão estiver sujo, você sabe na hora.
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           
-          {/* Card 1 */}
-          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Alerta quando não foi feito</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Tarefa crítica não concluída? Notificação push do app na hora.</p>
+          {/* Card 1 - AI Alert */}
+          <div style={{ background: 'linear-gradient(145deg, #1a1010 0%, #0d0806 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ff4d00, transparent)' }}></div>
+            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Auditoria Imediata</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>A IA do Google analisa a foto do funcionário e reprova se não estiver no padrão. Notificação push na mesma hora.</p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444' }}>⚠️</div>
+              <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255, 77, 0, 0.3)', position: 'relative' }}>
+                <div style={{ position: 'absolute', right: '-10px', top: '-10px', backgroundColor: '#ff4d00', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.4)' }}>ALERTA DE IA</div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(255, 77, 0, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d00' }}><Bot size={24} /></div>
                   <div>
-                    <div style={{ color: '#ef4444', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', letterSpacing: '0.5px' }}>ALERTA DO APP</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '4px' }}>Fechamento Cozinha <span style={{ fontWeight: '800' }}>não concluído</span> — Equipe Noite</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>23:05 • via FireCheck App</div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '16px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>⏱️</div>
-                  <div>
-                    <div style={{ color: '#f59e0b', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '4px', letterSpacing: '0.5px' }}>ATRASADO</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: '500', marginBottom: '4px' }}>Verificação de Validade <span style={{ fontWeight: '800' }}>atrasada 15 min</span></div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>14:17 • Unidade Centro</div>
+                    <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '4px' }}>Chapa Suja Detectada</div>
+                    <div style={{ color: '#ff4d00', fontSize: '0.85rem', fontWeight: 'bold' }}>Reprovado pela IA (98% de certeza)</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card 2 */}
-          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Prova em foto do que foi feito</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Foto em tempo real como evidência. Sem foto, não conta.</p>
+          {/* Card 2 - Anti-Fraud / Camera */}
+          <div style={{ background: 'linear-gradient(145deg, #101520 0%, #060a12 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }}></div>
+            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Bloqueio Anti-Fraude</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Acabou a mentira. O app não aceita foto da galeria e carimba a localização exata no momento do clique.</p>
             
-            <div style={{ position: 'relative', borderRadius: '16px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800&auto=format&fit=crop" alt="Foto restaurante" style={{ width: '100%', height: '200px', objectFit: 'cover' }} />
-              <div style={{ position: 'absolute', bottom: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
-                GPS verificado
+            <div style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '2px solid rgba(59, 130, 246, 0.4)', height: '180px' }}>
+              <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800&auto=format&fit=crop" alt="Foto restaurante" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.7)' }} />
+              {/* HUD Overlay */}
+              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '2px dashed rgba(255,255,255,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ width: '4px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 10px #3b82f6' }}></div>
               </div>
-              <div style={{ position: 'absolute', top: '12px', right: '12px', backgroundColor: '#10b981', color: 'white', padding: '4px 8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CheckCircle size={16} />
-              </div>
-              <div style={{ position: 'absolute', top: '12px', left: '12px', backgroundColor: 'rgba(0,0,0,0.6)', padding: '4px 10px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                6/10
+              <div style={{ position: 'absolute', bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
+                <div style={{ color: '#3b82f6', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '2px' }}>VERIFICAÇÃO DE SINAL</div>
+                <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <ShieldCheck size={14} color="#3b82f6" /> GPS Lock Ativo • 23:41
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Card 3 */}
-          <div style={{ backgroundColor: '#111827', borderRadius: '24px', padding: '32px', border: '1px solid rgba(255,255,255,0.05)' }}>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '12px' }}>Score de cada colaborador</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: '1rem', lineHeight: '1.5' }}>Quem entrega no prazo e quem atrasa. Com dados, não achismo.</p>
+          {/* Card 3 - Ranking */}
+          <div style={{ background: 'linear-gradient(145deg, #151a10 0%, #080d06 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #10b981, transparent)' }}></div>
+            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Gamificação</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Engaje sua equipe. O FireCheck ranqueia automaticamente quem entrega resultados e quem precisa de ajuda.</p>
             
-            <div style={{ backgroundColor: '#1f2937', borderRadius: '16px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '16px', paddingBottom: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <span>COLABORADOR</span>
-                <div style={{ display: 'flex', gap: '24px' }}>
-                  <span>SCORE</span>
-                  <span>PONTUAL.</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div style={{ backgroundColor: 'rgba(0,0,0,0.4)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#064e3b', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>A</div>
-                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Ana B.</span>
+                  <div style={{ fontSize: '1.5rem' }}>🥇</div>
+                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#fcd34d' }}>Carlos R.</span>
                 </div>
-                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                  <span style={{ color: '#10b981', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>85.7</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>85.7%</span>
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#1e3a8a', color: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>L</div>
-                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Luciano</span>
-                </div>
-                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                  <span style={{ color: '#10b981', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>82.7</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>44%</span>
-                </div>
+                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold' }}>99.8%</div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#4c1d95', color: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.9rem' }}>M</div>
-                  <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>Marcia</span>
+                  <div style={{ fontSize: '1.5rem' }}>🥈</div>
+                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#e2e8f0' }}>Amanda S.</span>
                 </div>
-                <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                  <span style={{ color: '#eab308', fontWeight: 'bold', width: '35px', textAlign: 'right' }}>77.5</span>
-                  <span style={{ color: '#ef4444', fontSize: '0.9rem', width: '45px', textAlign: 'right' }}>10%</span>
-                </div>
+                <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold' }}>94.2%</div>
               </div>
 
             </div>
@@ -262,116 +256,86 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Seção Agendamentos Automáticos */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '64px' }}>
+      {/* Seção Agendamentos Automáticos (Autêntico FireCheck) */}
+      <section style={{ padding: '100px 5%', backgroundColor: '#050505', borderTop: '1px solid rgba(255,77,0,0.1)', borderBottom: '1px solid rgba(255,77,0,0.1)', position: 'relative' }}>
+        
+        {/* Background Grid Pattern */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.5, pointerEvents: 'none' }}></div>
+
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '80px', position: 'relative', zIndex: 10 }}>
           
           {/* Text Content */}
           <div style={{ flex: '1 1 500px' }}>
-            <h2 style={{ fontSize: 'min(2.5rem, 5vw)', fontWeight: '800', marginBottom: '24px', lineHeight: '1.2' }}>
-              Processos que rodam sozinhos <span style={{ color: 'var(--text-muted)' }}>(de verdade)</span>
+            <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', marginBottom: '24px', lineHeight: '1.1' }}>
+              Automação de Tarefas <br/><span style={{ color: '#ff4d00' }}>como uma Máquina.</span>
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', marginBottom: '32px', lineHeight: '1.6' }}>
-              Configure uma vez e nunca mais se preocupe. Os checklists aparecem automaticamente no app da equipe, no horário certo, para a pessoa certa.
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', marginBottom: '40px', lineHeight: '1.6' }}>
+              Você não precisa lembrar ninguém de trabalhar. O núcleo do FireCheck distribui as tarefas, cobra os atrasos via Push e audita com IA. Tudo de forma 100% autônoma.
             </p>
 
-            <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
-                  <CheckCircle size={16} />
-                </div>
-                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Agendamento automático por turno e dia da semana</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
-                  <CheckCircle size={16} />
-                </div>
-                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Atribuição de responsáveis por unidade e função</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
-                  <CheckCircle size={16} />
-                </div>
-                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Recorrência configurável — diário, semanal ou mensal</span>
-              </li>
-              <li style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', borderRadius: '50%', padding: '4px', marginTop: '2px' }}>
-                  <CheckCircle size={16} />
-                </div>
-                <span style={{ fontSize: '1.1rem', fontWeight: '500' }}>Notificação push no celular quando um processo atrasa</span>
-              </li>
-            </ul>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ color: '#ff4d00', marginBottom: '12px' }}><Flame size={28} /></div>
+                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Atribuição Dinâmica</h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>A tarefa vai pro celular certo, na hora certa, de acordo com o turno.</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ color: '#3b82f6', marginBottom: '12px' }}><Bot size={28} /></div>
+                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Cobrança Autônoma</h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Atrasou? O app envia notificações pesadas até a tarefa ser feita.</p>
+              </div>
+            </div>
           </div>
 
-          {/* UI Mockup Card */}
-          <div style={{ flex: '1 1 500px', perspective: '1000px' }}>
-            <div style={{ backgroundColor: '#1e293b', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', border: '1px solid rgba(255,255,255,0.1)', transform: 'rotateY(-5deg) rotateX(5deg)' }}>
+          {/* UI Mockup Card - Mission Control */}
+          <div style={{ flex: '1 1 500px' }}>
+            <div style={{ backgroundColor: '#0a0a0a', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
               
-              {/* Header */}
-              <div style={{ backgroundColor: '#020617', padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div style={{ width: '40px', height: '40px', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6', fontSize: '1.2rem' }}>
-                    📅
-                  </div>
+              <div style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', backgroundColor: '#0f0f0f' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
                   <div>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Agendamentos Ativos</div>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>4 processos configurados</div>
+                    <div style={{ color: '#ff4d00', fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '4px' }}>FIRECHECK CORE</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Distribuidor Automático</div>
                   </div>
+                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444' }}></div>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#f59e0b' }}></div>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981' }}></div>
-                </div>
-              </div>
 
-              {/* List */}
-              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ color: '#10b981' }}><CheckCircle size={20} /></div>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Abertura Cozinha</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Manhã • 06:00</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '2px solid rgba(255, 77, 0, 0.3)', paddingLeft: '24px', position: 'relative' }}>
+                  
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', border: '3px solid #0f0f0f' }}></div>
+                    <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 'bold', color: 'white' }}>Abertura Loja</span>
+                        <span style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 'bold' }}>CONCLUÍDO (06:05)</span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Manhã • 100% de precisão</div>
                     </div>
                   </div>
-                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Ativo</div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ color: '#3b82f6', fontSize: '1.2rem', width: '20px', textAlign: 'center' }}>⏳</div>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Fechamento Caixa</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Operador Caixa • 23:00</div>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff4d00', border: '3px solid #0f0f0f', boxShadow: '0 0 10px #ff4d00' }}></div>
+                    <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid rgba(255, 77, 0, 0.3)', padding: '16px', borderRadius: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 'bold', color: 'white' }}>Fechamento Caixa</span>
+                        <span style={{ color: '#ff4d00', fontSize: '0.85rem', fontWeight: 'bold' }}>RODANDO AGORA</span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Aguardando fotos do caixa...</div>
                     </div>
                   </div>
-                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Agendado</div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ color: '#10b981' }}><CheckCircle size={20} /></div>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Abertura Salão</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Salão • 10:30</div>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6', border: '3px solid #0f0f0f' }}></div>
+                    <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', opacity: 0.5 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 'bold', color: 'white' }}>Auditoria Madrugada</span>
+                        <span style={{ color: '#3b82f6', fontSize: '0.85rem', fontWeight: 'bold' }}>AGENDADO (02:00)</span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Vigilância Patrimonial</div>
                     </div>
                   </div>
-                  <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Ativo</div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#0f172a', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{ color: '#3b82f6', fontSize: '1.2rem', width: '20px', textAlign: 'center' }}>⏳</div>
-                    <div>
-                      <div style={{ fontWeight: '600' }}>Fechamento Gerência</div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Gerente • 23:30</div>
-                    </div>
-                  </div>
-                  <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Agendado</div>
                 </div>
-
               </div>
             </div>
           </div>
@@ -406,6 +370,63 @@ export default function LandingPage() {
             <Smartphone size={40} color="var(--success)" style={{ marginBottom: '20px' }} />
             <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Notificações no Celular</h3>
             <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o limite, você recebe a notificação direto no celular.</p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Templates de Checklist */}
+      <section style={{ padding: '80px 5%', backgroundColor: '#0a0f1c' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
+            Checklists prontos. Crie o seu em minutos <br/><span style={{ color: '#06b6d4' }}>— ou deixe a IA criar</span>
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto' }}>
+            Não sabe por onde começar? Use nossos modelos validados por grandes redes de varejo ou peça para a Inteligência Artificial gerar um personalizado para o seu negócio.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+          
+          {/* Criar Novo (Em Branco) */}
+          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => navigate('/login')}>
+            <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <span style={{ fontSize: '1.2rem' }}>➕</span>
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Criar Novo</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Crie um novo checklist do zero sem usar um template.</p>
+            <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Começar agora <ArrowRight size={14} /></div>
+          </div>
+
+          {/* Criar com IA */}
+          <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.05)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(6, 182, 212, 0.3)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 0 20px rgba(6, 182, 212, 0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'} onClick={() => navigate('/login')}>
+            <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
+              <Bot size={20} />
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#06b6d4' }}>Criar com IA</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Descreva sua operação e a Inteligência Artificial cria o checklist completo para você.</p>
+            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Gerar checklist <ArrowRight size={14} /></div>
+          </div>
+
+          {/* Templates */}
+          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>COZINHA</span>
+              <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>FECHAMENTO</span>
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Fechamento Cozinha</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Checklist para garantir o correto fechamento, higiene e desligamento de equipamentos.</p>
+            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
+          </div>
+
+          <div style={{ backgroundColor: '#111827', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>SALÃO</span>
+              <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>ABERTURA</span>
+            </div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Abertura Salão</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Verificação de mesas, banheiros, uniformes e iluminação antes de abrir ao público.</p>
+            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
           </div>
 
         </div>
