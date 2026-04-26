@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldAlert, ArrowRight, Loader2, Activity } from 'lucide-react';
+import { ShieldAlert, ArrowRight, Loader2, Activity, Play, Gift } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 
@@ -11,6 +11,9 @@ export default function QuizFunnel() {
   const [loadingText, setLoadingText] = useState('');
   const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
   const [answers, setAnswers] = useState({ q1: null, q2: null, q3: null, q4: null });
+  const [showOffer, setShowOffer] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef(null);
 
   const trackStep = async (currentStep, updatedAnswers = answers, forceCompleted = false, clickedCta = false) => {
     const isCompleted = forceCompleted || currentStep === 100;
@@ -163,31 +166,69 @@ export default function QuizFunnel() {
 
   if (step === -1) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '50px 40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#16a34a', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
-            <Activity size={20} /> FIRECHECK IA
-          </div>
+      <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
           
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#1e293b' }}>
-            Recupere seu tempo livre. Deixe a Inteligência Artificial <span style={{ color: '#ef4444' }}>vigiar a sua equipe</span>.
+          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
+            A sua equipe só funciona de verdade quando <span style={{ color: '#ef4444' }}>você está lá?</span>
           </h1>
-          
-          <p style={{ fontSize: '1.15rem', color: '#64748b', marginBottom: '16px', lineHeight: '1.6' }}>
-            Chega de perder seus momentos de lazer e descanso para virar babá de funcionário.
-          </p>
-          <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-            Antes de te mostrarmos exatamente como o FireCheck vai auditar a sua operação de forma automática, <strong>responda 4 perguntas rápidas</strong> para avaliarmos o seu cenário.
+          <p style={{ fontSize: '1.1rem', color: '#94a3b8', marginBottom: '24px' }}>
+            Assista ao vídeo abaixo e descubra como auditar sua operação no piloto automático.
           </p>
 
-          <button 
-            className="btn-pulse-green"
-            style={{ width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
-            onClick={() => setStep(0)}
-          >
-            Descobrir como automatizar minha empresa <ArrowRight />
-          </button>
-          <p style={{ marginTop: '16px', color: '#94a3b8', fontSize: '0.85rem' }}>Análise 100% gratuita e rápida.</p>
+          <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'black' }}>
+            {!isPlaying && (
+              <div 
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 10, cursor: 'pointer' }}
+                onClick={() => {
+                  setIsPlaying(true);
+                  if (videoRef.current) {
+                    videoRef.current.play();
+                  }
+                }}
+              >
+                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: '20px', borderRadius: '50%', backdropFilter: 'blur(4px)', animation: 'pulse 2s infinite' }}>
+                  <Play size={40} color="white" fill="white" />
+                </div>
+              </div>
+            )}
+            <video 
+              ref={videoRef}
+              src="/demo.mp4.MOV" 
+              style={{ width: '100%', display: 'block', maxHeight: '60vh' }}
+              controls={isPlaying}
+              onTimeUpdate={(e) => {
+                // Altere o "20" para o exato segundo em que você fala "7 DIAS GRÁTIS" no vídeo
+                if (e.target.currentTime > 20 && !showOffer) {
+                  setShowOffer(true);
+                }
+              }}
+            />
+          </div>
+          
+          {/* Botão sempre visível, mas muda de cor e texto quando a oferta é revelada */}
+          <div style={{ transition: 'all 0.5s ease', transform: showOffer ? 'scale(1.05)' : 'scale(1)' }}>
+            {showOffer && (
+              <div style={{ color: '#22c55e', fontWeight: 'bold', marginBottom: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', animation: 'pulse 1s infinite alternate' }}>
+                <Gift size={20} /> 7 DIAS TOTALMENTE GRÁTIS LIBERADOS!
+              </div>
+            )}
+            <button 
+              className={showOffer ? "btn-pulse-green" : ""}
+              style={{ 
+                width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', 
+                backgroundColor: showOffer ? '#16a34a' : 'rgba(255,255,255,0.05)', 
+                color: showOffer ? 'white' : '#94a3b8', 
+                borderRadius: '12px', fontWeight: 'bold', 
+                border: showOffer ? 'none' : '1px solid rgba(255,255,255,0.1)', 
+                cursor: 'pointer', transition: 'all 0.3s ease' 
+              }} 
+              onClick={() => setStep(0)}
+            >
+              {showOffer ? "Fazer Diagnóstico e Resgatar Meus 7 Dias" : "Fazer meu diagnóstico rápido"} <ArrowRight />
+            </button>
+            <p style={{ marginTop: '16px', color: '#475569', fontSize: '0.85rem' }}>Leva menos de 30 segundos.</p>
+          </div>
         </div>
       </div>
     );
