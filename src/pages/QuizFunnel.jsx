@@ -12,12 +12,13 @@ export default function QuizFunnel() {
   const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
   const [answers, setAnswers] = useState({ q1: null, q2: null, q3: null, q4: null });
 
-  const trackStep = async (currentStep, updatedAnswers = answers, completed = false) => {
+  const trackStep = async (currentStep, updatedAnswers = answers, forceCompleted = false, clickedCta = false) => {
+    const isCompleted = forceCompleted || currentStep === 100;
     try {
       await fetch(`${API_URL}/api/track-quiz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, step: currentStep, ...updatedAnswers, completed })
+        body: JSON.stringify({ sessionId, step: currentStep, ...updatedAnswers, completed: isCompleted, clickedCta })
       });
     } catch (e) {}
   };
@@ -145,7 +146,10 @@ export default function QuizFunnel() {
           <button 
             className="btn-pulse-green"
             style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
-            onClick={() => navigate('/')}
+            onClick={() => {
+              trackStep(100, answers, true, true);
+              navigate('/');
+            }}
           >
             Ver a Inteligência Artificial na Prática <ArrowRight />
           </button>

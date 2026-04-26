@@ -57,9 +57,11 @@ export default async function handler(req, res) {
           q2_answer VARCHAR(255),
           q3_answer VARCHAR(255),
           q4_answer VARCHAR(255),
-          completed BOOLEAN DEFAULT FALSE
+          completed BOOLEAN DEFAULT FALSE,
+          clicked_cta BOOLEAN DEFAULT FALSE
         )
       `);
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_cta BOOLEAN DEFAULT FALSE");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -599,12 +601,12 @@ export default async function handler(req, res) {
     // --- Quiz Analytics ---
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
-        const { sessionId, step, q1, q2, q3, q4, completed } = req.body;
+        const { sessionId, step, q1, q2, q3, q4, completed, clickedCta } = req.body;
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
         
         await pool.query(`
-          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           ON CONFLICT (session_id) DO UPDATE SET 
             last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
             last_step = $3,
@@ -612,15 +614,22 @@ export default async function handler(req, res) {
             q2_answer = COALESCE($5, quiz_responses.q2_answer),
             q3_answer = COALESCE($6, quiz_responses.q3_answer),
             q4_answer = COALESCE($7, quiz_responses.q4_answer),
-            completed = $8
-        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed]);
+            completed = $8,
+            clicked_cta = COALESCE($9, quiz_responses.clicked_cta)
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta]);
         
         return res.status(200).json({ success: true });
       }
     }
 
     if (url.includes('/api/quiz-stats')) {
-      const { rows } = await pool.query("SELECT * FROM quiz_responses ORDER BY last_updated_at DESC");
+      const { rows } = await pool.query(`
+        SELECT *, 
+               to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at_local,
+               to_char(last_updated_at, 'YYYY-MM-DD"T"HH24:MI:SS') as last_updated_at_local 
+        FROM quiz_responses 
+        ORDER BY last_updated_at DESC
+      `);
       const { rows: online } = await pool.query("SELECT COUNT(*) FROM quiz_responses WHERE last_updated_at > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '45 seconds'");
       return res.status(200).json({ stats: rows, online: parseInt(online[0].count) });
     }

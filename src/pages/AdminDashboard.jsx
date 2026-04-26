@@ -1046,7 +1046,7 @@ export default function AdminDashboard() {
               const concluidos = quizStats.filter(q => q.completed).length;
               const taxa = total > 0 ? ((concluidos / total) * 100).toFixed(1) : 0;
               const hoje = quizStats.filter(q => {
-                const qDate = new Date(q.created_at || q.last_updated_at).toDateString();
+                const qDate = new Date(q.created_at_local || q.created_at).toDateString();
                 const todayDate = new Date().toDateString();
                 return qDate === todayDate;
               }).length;
@@ -1094,12 +1094,19 @@ export default function AdminDashboard() {
                 {quizStats.map(q => (
                   <tr key={q.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(q.last_updated_at).toLocaleString('pt-BR')}</div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(q.last_updated_at_local || q.last_updated_at).toLocaleString('pt-BR')}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {q.ip}</div>
                     </td>
                     <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
                       {q.completed ? (
-                        <span style={{ padding: '4px 10px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>Concluído</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                          <span style={{ padding: '4px 10px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>Concluído</span>
+                          {q.clicked_cta && (
+                            <span style={{ padding: '4px 10px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <ArrowRight size={12} /> Foi para o site
+                            </span>
+                          )}
+                        </div>
                       ) : (
                         <span style={{ padding: '4px 10px', backgroundColor: 'rgba(255, 160, 0, 0.1)', color: '#FFA000', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                           Parou na Q{q.last_step}
