@@ -1041,23 +1041,44 @@ export default function AdminDashboard() {
               </h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Acompanhe quem está respondendo ao diagnóstico inicial.</p>
             </div>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-              <div style={{ textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                  <div style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-                  {quizOnline}
+            {(() => {
+              const total = quizStats.length;
+              const concluidos = quizStats.filter(q => q.completed).length;
+              const taxa = total > 0 ? ((concluidos / total) * 100).toFixed(1) : 0;
+              const hoje = quizStats.filter(q => {
+                const qDate = new Date(q.created_at || q.last_updated_at).toDateString();
+                const todayDate = new Date().toDateString();
+                return qDate === todayDate;
+              }).length;
+
+              return (
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                      <div style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                      {quizOnline}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{hoje}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Hoje</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px', display: 'none' /* Omitido para não poluir, mas mantido na base */ }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{total}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Totais</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(0, 200, 83, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>{concluidos}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos Totais</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255, 160, 0, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#FFA000' }}>{taxa}%</div>
+                    <div style={{ fontSize: '0.75rem', color: '#FFA000' }}>Taxa de Conclusão</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
-              </div>
-              <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{quizStats.length}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Totais</div>
-              </div>
-              <div style={{ textAlign: 'center', backgroundColor: 'rgba(0, 200, 83, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>{quizStats.filter(q => q.completed).length}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos Totais</div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
           
           <div style={{ overflowX: 'auto' }}>
