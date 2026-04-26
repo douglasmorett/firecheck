@@ -36,35 +36,37 @@ export default function QuizFunnel() {
   
   const questions = [
     {
-      title: "Qual é o seu ramo de atuação?",
+      title: "Você sente que precisa estar fisicamente na sua empresa para que as coisas sejam feitas do jeito certo?",
+      options: [
+        "Sim, se eu virar as costas, o padrão cai na hora.", 
+        "Às vezes. A equipe até tenta, mas sempre esquece detalhes.", 
+        "Não, a operação roda 100% perfeita sem mim."
+      ]
+    },
+    {
+      title: "Como você costuma descobrir que uma tarefa (limpeza, organização, validade) foi mal feita?",
+      options: [
+        "Só quando eu chego na empresa e vejo o erro com meus próprios olhos.", 
+        "Quando um cliente reclama do serviço/ambiente.", 
+        "Eles me mandam foto, mas dá um trabalho enorme conferir uma por uma."
+      ]
+    },
+    {
+      title: "O que mais te irrita no dia a dia com os funcionários?",
+      options: [
+        "Ter que repetir as mesmas ordens todo santo dia.", 
+        "A desculpa do 'esqueci, chefe' para tarefas básicas.", 
+        "A sensação de que estou pagando para eu mesmo ter que gerenciar tudo."
+      ]
+    },
+    {
+      title: "Para podermos gerar seu diagnóstico, qual é o seu ramo de atuação?",
       options: [
         "Alimentação (Restaurantes, Lanchonetes)", 
         "Varejo (Lojas, Mercados)", 
-        "Hotelaria (Hotéis, Pousadas)",
-        "Academias e Esportes",
+        "Hotelaria e Academias",
         "Serviços / Clínicas", 
         "Outro"
-      ]
-    },
-    {
-      title: "Como você controla as tarefas diárias da sua equipe hoje?",
-      options: [
-        "Boca a boca (Peço e eles dizem que fizeram)", 
-        "Papel e prancheta na parede", 
-        "Mandam fotos no WhatsApp (Vira uma bagunça)", 
-        "App de Checklist comum (Temos que verificar um por um)"
-      ]
-    },
-    {
-      title: "Com que frequência você descobre que uma tarefa 'feita' foi mal feita ou esquecida?",
-      options: ["Raramente", "1 a 3 vezes na semana", "Todo santo dia (Tô cansado disso)"]
-    },
-    {
-      title: "Se você ficasse 15 dias sem ir na sua empresa hoje, o que aconteceria?",
-      options: [
-        "Rodaria 100% perfeito sem mim.", 
-        "Teriam algumas falhas, mas sobreviveria.", 
-        "Viraria um caos completo e eu perderia dinheiro."
       ]
     }
   ];
@@ -168,11 +170,11 @@ export default function QuizFunnel() {
           </div>
           
           <h1 style={{ fontSize: '2.2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#1e293b' }}>
-            A sua equipe realmente faz o que precisa ser feito do jeito <span style={{ color: '#ef4444' }}>certo</span>?
+            A sua empresa só funciona de verdade quando <span style={{ color: '#ef4444' }}>você está lá</span>?
           </h1>
           
           <p style={{ fontSize: '1.1rem', color: '#64748b', marginBottom: '32px', lineHeight: '1.6' }}>
-            O maior erro do dono de negócio é confiar apenas no boca a boca do <i>"chefe, já fiz"</i>. Responda a 4 perguntas rápidas e descubra se as rotinas da sua empresa estão sendo realmente executadas quando você não está olhando.
+            O maior desgaste do dono de negócio é ser refém da própria operação. Responda a 4 perguntas rápidas e descubra o seu verdadeiro nível de dependência da equipe e como garantir que as coisas sejam feitas do jeito certo sem você precisar vigiar.
           </p>
 
           <button 
