@@ -45,6 +45,21 @@ export default async function handler(req, res) {
           last_ping TIMESTAMP
         )
       `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS quiz_responses (
+          id SERIAL PRIMARY KEY,
+          session_id VARCHAR(255) UNIQUE,
+          ip VARCHAR(255),
+          created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
+          last_updated_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
+          last_step INTEGER DEFAULT -1,
+          q1_answer VARCHAR(255),
+          q2_answer VARCHAR(255),
+          q3_answer VARCHAR(255),
+          q4_answer VARCHAR(255),
+          completed BOOLEAN DEFAULT FALSE
+        )
+      `);
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -580,6 +595,33 @@ export default async function handler(req, res) {
         today: parseInt(today[0].count),
         videoPlays: parseInt(video[0].count)
       });
+    }
+    // --- Quiz Analytics ---
+    if (url.includes('/api/track-quiz')) {
+      if (method === 'POST') {
+        const { sessionId, step, q1, q2, q3, q4, completed } = req.body;
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        
+        await pool.query(`
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (session_id) DO UPDATE SET 
+            last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
+            last_step = $3,
+            q1_answer = COALESCE($4, quiz_responses.q1_answer),
+            q2_answer = COALESCE($5, quiz_responses.q2_answer),
+            q3_answer = COALESCE($6, quiz_responses.q3_answer),
+            q4_answer = COALESCE($7, quiz_responses.q4_answer),
+            completed = $8
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed]);
+        
+        return res.status(200).json({ success: true });
+      }
+    }
+
+    if (url.includes('/api/quiz-stats')) {
+      const { rows } = await pool.query("SELECT * FROM quiz_responses ORDER BY last_updated_at DESC");
+      return res.status(200).json(rows);
     }
 
     return res.status(200).json({ status: 'online' });

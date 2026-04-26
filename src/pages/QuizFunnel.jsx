@@ -1,12 +1,32 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowRight, Loader2, Activity } from 'lucide-react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://firecheck-api.vercel.app';
 
 export default function QuizFunnel() {
   const navigate = useNavigate();
   const [step, setStep] = useState(-1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+  const [answers, setAnswers] = useState({ q1: null, q2: null, q3: null, q4: null });
+
+  const trackStep = async (currentStep, updatedAnswers = answers, completed = false) => {
+    try {
+      await fetch(`${API_URL}/api/track-quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, step: currentStep, ...updatedAnswers, completed })
+      });
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (step === -1 || step === 0) {
+      trackStep(step);
+    }
+  }, [step]);
   
   const questions = [
     {
@@ -44,9 +64,18 @@ export default function QuizFunnel() {
   ];
 
   const handleAnswer = (index) => {
+    const questionKeys = ['q1', 'q2', 'q3', 'q4'];
+    const currentKey = questionKeys[step];
+    const answerText = questions[step].options[index];
+    
+    const newAnswers = { ...answers, [currentKey]: answerText };
+    setAnswers(newAnswers);
+
     if (step < questions.length - 1) {
       setStep(step + 1);
+      trackStep(step + 1, newAnswers, false);
     } else {
+      trackStep(step + 1, newAnswers, true);
       startProcessing();
     }
   };

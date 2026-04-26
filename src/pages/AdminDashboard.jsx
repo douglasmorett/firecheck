@@ -130,6 +130,7 @@ export default function AdminDashboard() {
   const [editingPlan, setEditingPlan] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [quizStats, setQuizStats] = useState([]);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
@@ -187,6 +188,10 @@ export default function AdminDashboard() {
              setLiveVisitors(d.visitors || 0);
              setTodayVisitors(d.today || 0);
              setVideoPlays(d.videoPlays || 0);
+          }).catch(() => {});
+          
+          fetch(`${API_URL}/api/quiz-stats`).then(r => r.json()).then(d => {
+             setQuizStats(Array.isArray(d) ? d : []);
           }).catch(() => {});
        }
     };
@@ -623,6 +628,7 @@ export default function AdminDashboard() {
           {(isMaster ? [
             { key: 'financeiro',  label: 'Financeiro', icon: <TrendingUp size={18}/> },
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
+            { key: 'quiz',        label: 'Quiz Funil', icon: <Activity size={18}/> },
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
             { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
@@ -1019,6 +1025,72 @@ export default function AdminDashboard() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: Quiz Funil Analytics ─────────────────────────────────────── */}
+      {tab === 'quiz' && (
+        <div className="card" style={{ padding: '0' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={20} color="var(--primary)" /> Análise do Funil (Quiz)
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Acompanhe quem está respondendo ao diagnóstico inicial.</p>
+            </div>
+            <div style={{ display: 'flex', gap: '16px' }}>
+              <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{quizStats.length}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados</div>
+              </div>
+              <div style={{ textAlign: 'center', backgroundColor: 'rgba(0, 200, 83, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>{quizStats.filter(q => q.completed).length}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Data/IP</th>
+                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Status</th>
+                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Respostas (Q1 a Q4)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quizStats.map(q => (
+                  <tr key={q.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(q.last_updated_at).toLocaleString('pt-BR')}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>IP: {q.ip}</div>
+                    </td>
+                    <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
+                      {q.completed ? (
+                        <span style={{ padding: '4px 10px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>Concluído</span>
+                      ) : (
+                        <span style={{ padding: '4px 10px', backgroundColor: 'rgba(255, 160, 0, 0.1)', color: '#FFA000', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          Parou na Q{q.last_step}
+                        </span>
+                      )}
+                    </td>
+                    <td style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      {q.q1_answer && <div style={{ marginBottom: '4px' }}><strong>Q1:</strong> {q.q1_answer}</div>}
+                      {q.q2_answer && <div style={{ marginBottom: '4px' }}><strong>Q2:</strong> {q.q2_answer}</div>}
+                      {q.q3_answer && <div style={{ marginBottom: '4px' }}><strong>Q3:</strong> {q.q3_answer}</div>}
+                      {q.q4_answer && <div><strong>Q4:</strong> {q.q4_answer}</div>}
+                    </td>
+                  </tr>
+                ))}
+                {quizStats.length === 0 && (
+                  <tr>
+                    <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Nenhuma resposta no quiz ainda.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
