@@ -83,7 +83,7 @@ export default function LandingPage() {
 
           <div style={{ width: '100%', maxWidth: '340px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#000' }}>
             
-            {/* Overlay da Máscara */}
+            {/* Botão de Som Discreto */}
             {!isVideoActive && (
               <div 
                 onClick={() => {
@@ -99,19 +99,17 @@ export default function LandingPage() {
                   }
                 }}
                 style={{
-                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                  backgroundColor: 'rgba(0, 0, 0, 0.3)', backdropFilter: 'blur(3px)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease'
+                  position: 'absolute', bottom: '20px', right: '20px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(5px)',
+                  padding: '8px 16px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px',
+                  zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease', border: '1px solid rgba(255,255,255,0.2)',
+                  animation: 'pulse 2s infinite'
                 }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.1)'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.3)'}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.9)'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
               >
-                <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.95)', padding: '20px 24px', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 10px 25px rgba(255,77,0,0.5)', animation: 'pulse 2s infinite', border: '1px solid rgba(255,255,255,0.2)' }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'white', marginBottom: '8px' }}>Seu vídeo já começou</span>
-                  <PlayCircle size={48} color="white" style={{ marginBottom: '8px' }} />
-                  <span style={{ fontWeight: 'bold', fontSize: '1rem', color: 'white' }}>Clique para ouvir</span>
-                </div>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d00' }}></div>
+                <span style={{ fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>Ativar Som</span>
               </div>
             )}
 
