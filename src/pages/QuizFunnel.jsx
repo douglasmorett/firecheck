@@ -185,6 +185,10 @@ export default function QuizFunnel() {
                   if (videoRef.current) {
                     videoRef.current.play();
                   }
+                  if (!sessionStorage.getItem('quiz_video_played')) {
+                    fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
+                    sessionStorage.setItem('quiz_video_played', 'true');
+                  }
                 }}
               >
                 <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: '20px', borderRadius: '50%', backdropFilter: 'blur(4px)', animation: 'pulse 2s infinite' }}>
@@ -194,7 +198,7 @@ export default function QuizFunnel() {
             )}
             <video 
               ref={videoRef}
-              src="/demo.mp4.MOV" 
+              src="/IMG_0931.MOV" 
               style={{ width: '100%', display: 'block', maxHeight: '60vh' }}
               controls={isPlaying}
               onTimeUpdate={(e) => {

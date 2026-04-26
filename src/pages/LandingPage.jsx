@@ -88,7 +88,7 @@ export default function LandingPage() {
           <video 
             ref={videoRef}
             src="/demo.mp4.MOV" 
-            poster="/capa.jpg"
+            poster="/capa.jpg" 
             autoPlay
             muted
             defaultMuted
