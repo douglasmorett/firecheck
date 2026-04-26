@@ -101,6 +101,7 @@ export default function QuizFunnel() {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '16px', fontWeight: 'bold' }}>A Solução Definitiva:</h3>
             <img src="/icon-192.png" alt="FireCheck Logo" style={{ width: '80px', height: '80px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(255,77,0,0.3)', marginBottom: '8px' }} />
+            <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>
           </div>
           <p style={{ marginBottom: '32px', color: '#e2e8f0', lineHeight: '1.6', textAlign: 'justify' }}>
             A única forma de escalar sem perder a sanidade é ter um sistema que cobre a equipe por você.<br/><br/>
