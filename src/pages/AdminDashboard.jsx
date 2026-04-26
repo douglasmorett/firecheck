@@ -132,6 +132,7 @@ export default function AdminDashboard() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [quizStats, setQuizStats] = useState([]);
   const [quizOnline, setQuizOnline] = useState(0);
+  const [quizVideoPlays, setQuizVideoPlays] = useState(0);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
@@ -194,6 +195,7 @@ export default function AdminDashboard() {
           fetch(`${API_URL}/api/quiz-stats`).then(r => r.json()).then(d => {
              setQuizStats(d.stats || []);
              setQuizOnline(d.online || 0);
+             setQuizVideoPlays(d.quizVideoPlays || 0);
           }).catch(() => {});
        }
     };
@@ -1063,6 +1065,10 @@ export default function AdminDashboard() {
                   <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{hoje}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Hoje</div>
+                  </div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{quizVideoPlays}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>Plays no Vídeo</div>
                   </div>
                   <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px', display: 'none' /* Omitido para não poluir, mas mantido na base */ }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{total}</div>

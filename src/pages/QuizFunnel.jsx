@@ -186,7 +186,7 @@ export default function QuizFunnel() {
                     videoRef.current.play();
                   }
                   if (!sessionStorage.getItem('quiz_video_played')) {
-                    fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
+                    fetch(`${API_URL}/api/track-quiz-video`, { method: 'POST' }).catch(() => {});
                     sessionStorage.setItem('quiz_video_played', 'true');
                   }
                 }}

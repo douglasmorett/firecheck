@@ -40,6 +40,14 @@ export default async function handler(req, res) {
         )
       `);
       await pool.query(`
+        CREATE TABLE IF NOT EXISTS quiz_video_plays (
+          id SERIAL PRIMARY KEY,
+          ip VARCHAR(255),
+          play_date DATE,
+          UNIQUE(ip, play_date)
+        )
+      `);
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS live_pings (
           ip VARCHAR(255) PRIMARY KEY,
           last_ping TIMESTAMP
@@ -588,6 +596,14 @@ export default async function handler(req, res) {
       }
     }
 
+    if (url.includes('/api/track-quiz-video')) {
+      if (method === 'POST') {
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        await pool.query("INSERT INTO quiz_video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
+        return res.status(200).json({ success: true });
+      }
+    }
+
     if (url.includes('/api/live-visitors')) {
       const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings WHERE last_ping > NOW() - INTERVAL '30 seconds'");
       const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
@@ -631,7 +647,8 @@ export default async function handler(req, res) {
         ORDER BY last_updated_at DESC
       `);
       const { rows: online } = await pool.query("SELECT COUNT(*) FROM quiz_responses WHERE last_updated_at > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '45 seconds'");
-      return res.status(200).json({ stats: rows, online: parseInt(online[0].count) });
+      const { rows: quizVideo } = await pool.query("SELECT COUNT(*) FROM quiz_video_plays WHERE play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
+      return res.status(200).json({ stats: rows, online: parseInt(online[0].count), quizVideoPlays: parseInt(quizVideo[0].count) });
     }
 
     return res.status(200).json({ status: 'online' });
