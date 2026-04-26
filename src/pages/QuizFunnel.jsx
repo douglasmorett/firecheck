@@ -26,7 +26,7 @@ export default function QuizFunnel() {
         "Boca a boca (Peço e eles dizem que fizeram)", 
         "Papel e prancheta na parede", 
         "Mandam fotos no WhatsApp (Vira uma bagunça)", 
-        "App de Checklist comum (Não confio 100%)"
+        "App de Checklist comum (Temos que verificar um por um)"
       ]
     },
     {
