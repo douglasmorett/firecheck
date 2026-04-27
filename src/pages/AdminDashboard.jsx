@@ -1704,7 +1704,7 @@ export default function AdminDashboard() {
       {/* Modal de Detalhes da Submissão */}
       {showSubmissionModal && selectedSubmission && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px', backdropFilter: 'blur(10px)' }}>
-          <div className="card animate-scale" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '0', position: 'relative' }}>
+          <div className="card animate-scale" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', padding: '0', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <button onClick={() => setShowSubmissionModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 1 }}>
               <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
             </button>
@@ -1723,7 +1723,7 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div style={{ padding: '32px' }}>
+            <div style={{ padding: '32px', overflowY: 'auto', flex: 1 }}>
               <h3 style={{ marginBottom: '20px', fontSize: '1.1rem' }}>Respostas do Checklist</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {selectedSubmission.tasks.map((task, idx) => {
@@ -1772,7 +1772,7 @@ export default function AdminDashboard() {
                 })}
               </div>
             </div>
-            <div style={{ padding: '32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', zIndex: 10, borderRadius: '0 0 12px 12px' }}>
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
                     Finalizar Ocorrência (Ciente)
