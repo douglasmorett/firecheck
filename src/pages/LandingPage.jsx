@@ -30,10 +30,10 @@ export default function LandingPage() {
           <span style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '-1px' }}>FireCheck</span>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' })}>Como Funciona</button>
-          <button className="btn-secondary" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
+          <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' })}>Como Funciona</button>
+          <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
           <button className="btn" style={{ padding: '10px 24px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)' }} onClick={() => navigate('/login')}>
-            Entrar no Sistema
+            Acessar
           </button>
         </div>
       </nav>
@@ -81,7 +81,7 @@ export default function LandingPage() {
           {/* Glowing Background Element */}
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
 
-          <div style={{ width: '100%', maxWidth: '340px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
+          <div style={{ width: '100%', maxWidth: '280px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
             
             {/* Botão de Som Discreto */}
             {!isVideoActive && (
@@ -180,78 +180,39 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', maxWidth: '700px', lineHeight: '1.6' }}>
             A inteligência artificial do FireCheck age como um gerente onipresente. Se a temperatura da geladeira cair ou o chão estiver sujo, você sabe na hora.
           </p>
-        </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '40px auto 0', position: 'relative', zIndex: 10 }}>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
-          
           {/* Card 1 - AI Alert */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #ff4d00, transparent)' }}></div>
-            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Auditoria Imediata</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>A IA do Google analisa a foto do funcionário e reprova se não estiver no padrão. Notificação push na mesma hora.</p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '20px', padding: '20px', border: '1px solid rgba(255, 77, 0, 0.3)', position: 'relative' }}>
-                <div style={{ position: 'absolute', right: '-10px', top: '-10px', backgroundColor: '#ff4d00', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.4)' }}>ALERTA DE IA</div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ width: '40px', height: '40px', borderRadius: '12px', backgroundColor: 'rgba(255, 77, 0, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ff4d00' }}><Bot size={24} /></div>
-                  <div>
-                    <div style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '4px' }}>Chapa Suja Detectada</div>
-                    <div style={{ color: '#ff4d00', fontSize: '0.85rem', fontWeight: 'bold' }}>Reprovado pela IA (98% de certeza)</div>
-                  </div>
-                </div>
-              </div>
+          <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255, 77, 0, 0.2)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ color: '#ff4d00', marginBottom: '16px' }}><Bot size={28} /></div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Auditoria Imediata</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>IA analisa a foto e reprova se estiver fora do padrão.</p>
+            <div style={{ backgroundColor: 'rgba(255,77,0,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#ff4d00' }}>
+              ⚠️ Reprovado pela IA
             </div>
           </div>
 
           {/* Card 2 - Anti-Fraud / Camera */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(59, 130, 246, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #3b82f6, transparent)' }}></div>
-            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Bloqueio Anti-Fraude</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Acabou a mentira. O app não aceita foto da galeria e carimba a localização exata no momento do clique.</p>
-            
-            <div style={{ position: 'relative', borderRadius: '20px', overflow: 'hidden', border: '2px solid rgba(59, 130, 246, 0.4)', height: '180px' }}>
-              <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=800&auto=format&fit=crop" alt="Foto restaurante" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.7)' }} />
-              {/* HUD Overlay */}
-              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '60px', height: '60px', border: '2px dashed rgba(255,255,255,0.5)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '4px', height: '4px', backgroundColor: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 10px #3b82f6' }}></div>
-              </div>
-              <div style={{ position: 'absolute', bottom: '16px', left: '16px', backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)', padding: '8px 16px', borderRadius: '12px', border: '1px solid #3b82f6' }}>
-                <div style={{ color: '#3b82f6', fontSize: '0.7rem', fontWeight: 'bold', marginBottom: '2px' }}>VERIFICAÇÃO DE SINAL</div>
-                <div style={{ color: 'white', fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <ShieldCheck size={14} color="#3b82f6" /> GPS Lock Ativo • 23:41
-                </div>
-              </div>
+          <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(59, 130, 246, 0.2)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ color: '#3b82f6', marginBottom: '16px' }}><ShieldCheck size={28} /></div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Anti-Fraude</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>Bloqueia fotos da galeria e captura o GPS exato.</p>
+            <div style={{ backgroundColor: 'rgba(59,130,246,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#3b82f6' }}>
+              📍 GPS Lock Ativo
             </div>
           </div>
 
           {/* Card 3 - Ranking */}
-          <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(16, 185, 129, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '4px', background: 'linear-gradient(90deg, #10b981, transparent)' }}></div>
-            <h3 style={{ fontSize: '1.8rem', fontWeight: '800', marginBottom: '16px' }}>Gamificação</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '1.1rem', lineHeight: '1.5' }}>Engaje sua equipe. O FireCheck ranqueia automaticamente quem entrega resultados e quem precisa de ajuda.</p>
-            
-            <div style={{ backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '1.5rem' }}>🥇</div>
-                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#fcd34d' }}>Carlos R.</span>
-                </div>
-                <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#10b981', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold' }}>99.8%</div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ fontSize: '1.5rem' }}>🥈</div>
-                  <span style={{ fontWeight: 'bold', fontSize: '1.1rem', color: '#e2e8f0' }}>Amanda S.</span>
-                </div>
-                <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#3b82f6', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold' }}>94.2%</div>
-              </div>
-
+          <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.2)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ color: '#10b981', marginBottom: '16px' }}><Trophy size={28} /></div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Ranking</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>Engaje sua equipe. O app ranqueia automaticamente.</p>
+            <div style={{ backgroundColor: 'rgba(16,185,129,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#10b981' }}>
+              🥇 1º Lugar: Carlos
             </div>
           </div>
 
+        </div>
         </div>
       </section>
 
