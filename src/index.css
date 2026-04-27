@@ -20,7 +20,7 @@
   padding: 0;
   box-sizing: border-box;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  pointer-events: auto; /* Garante que cliques passem por padrão */
+  pointer-events: auto; /* Garante que cliques passem por padrÃ£o */
 }
 
 button, a, input, select, textarea {
@@ -437,7 +437,13 @@ body {
     font-size: 0.65rem !important;
   }
 }
-   
- @ k e y f r a m e s   f a d e U p   {   f r o m   {   o p a c i t y :   0 ;   t r a n s f o r m :   t r a n s l a t e Y ( 2 0 p x ) ;   }   t o   {   o p a c i t y :   1 ;   t r a n s f o r m :   t r a n s l a t e Y ( 0 ) ;   }   }  
- @ k e y f r a m e s   s c a n   {   0 %   {   t r a n s f o r m :   t r a n s l a t e Y ( - 1 0 0 % ) ;   }   1 0 0 %   {   t r a n s f o r m :   t r a n s l a t e Y ( 1 0 0 % ) ;   }   }  
- 
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scan {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
