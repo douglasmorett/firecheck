@@ -274,6 +274,7 @@ body {
 
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
+  .scale-on-mobile { transform: scale(0.8); transform-origin: top center; margin-bottom: -50px; margin-top: 20px; }
   
   .sidebar {
     position: fixed !important;

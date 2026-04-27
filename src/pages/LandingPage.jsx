@@ -261,7 +261,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="hide-on-mobile" style={{ flex: '1 1 300px' }}>
+          <div className="scale-on-mobile" style={{ flex: '1 1 300px' }}>
             <div style={{ backgroundColor: '#18181b', borderRadius: '12px', padding: '1px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 0 50px rgba(0, 0, 0, 0.5)', position: 'relative' }}>
               
               <div style={{ borderRadius: '12px', backgroundColor: '#1f1f23', overflow: 'hidden' }}>
