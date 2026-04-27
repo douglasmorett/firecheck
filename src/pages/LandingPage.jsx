@@ -92,9 +92,8 @@ export default function LandingPage() {
                   setIsVideoActive(true);
                   if (videoRef.current) {
                     videoRef.current.muted = false;
-                    setTimeout(() => {
-                      if (videoRef.current) videoRef.current.play().catch(() => {});
-                    }, 50);
+                    videoRef.current.currentTime = 0;
+                    videoRef.current.play().catch(() => {});
                   }
                   if (!sessionStorage.getItem('video_played')) {
                     fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
