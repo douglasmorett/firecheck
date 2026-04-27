@@ -270,74 +270,9 @@ body {
 }
 
 /* Mobile specific adjustments */
-@media (max-width: 768px) {
-  .page-container {
-    padding: 16px;
-  }
-  .card {
-    padding: 20px;
-  }
-  .page-title {
-    font-size: 1.5rem;
-  }
-  h1 {
-    font-size: 2rem !important;
-  }
-  .nav-menu {
-    display: none; /* Simplificar mobile */
-  }
-}
-
-.hero-text {
-  font-size: clamp(1rem, 4vw, 1.1rem);
-  line-height: 1.6;
-}
-
-/* Responsividade da Sidebar SaaS */
-@media (max-width: 768px) {
-  .sidebar {
-    position: fixed !important;
-    left: -260px;
-    transition: left 0.3s ease;
-    z-index: 9999 !important;
-  }
-  .sidebar.open {
-    left: 0;
-  }
-  .sidebar-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0,0,0,0.5);
-    z-index: 9998;
-    backdrop-filter: blur(2px);
-  }
-  .sidebar-overlay.open {
-    display: block;
-  }
-  .mobile-menu-btn {
-    display: flex !important;
-  }
-}
-
-.btn-pulse-green {
-  animation: pulse-green 2s infinite;
-}
-
-@keyframes pulse-green {
-  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
-  70% { transform: scale(1.05); box-shadow: 0 0 0 15px rgba(22, 163, 74, 0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
-}
 
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
-}
-
-@media (max-width: 768px) {
   .horizontal-scroll-mobile {
     display: flex !important;
     flex-wrap: nowrap !important;
@@ -345,6 +280,8 @@ body {
     overflow-y: hidden;
     scroll-snap-type: x mandatory;
     padding-bottom: 20px;
+    padding-top: 20px;
+    margin-top: -20px;
     -webkit-overflow-scrolling: touch;
     gap: 16px !important;
     justify-content: flex-start !important;
@@ -360,4 +297,32 @@ body {
     background: rgba(255, 77, 0, 0.5);
     border-radius: 4px;
   }
+  .grid-2x2-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+  .grid-2x2-mobile > div {
+    padding: 16px !important;
+  }
+  .grid-2x2-mobile h3 {
+    font-size: 0.95rem !important;
+    margin-bottom: 4px !important;
+  }
+  .grid-2x2-mobile p {
+    display: none !important;
+  }
+  .grid-2x2-mobile .badge-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+  .grid-2x2-mobile .badge-wrap span {
+    font-size: 0.5rem !important;
+    padding: 2px 4px !important;
+  }
+  .grid-2x2-mobile svg { width: 16px !important; height: 16px !important; }
+  .grid-2x2-mobile .cta-link { font-size: 0.75rem !important; }
+  .video-mockup { max-width: 200px !important; margin: 0 auto; }
 }
