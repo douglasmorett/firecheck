@@ -207,10 +207,10 @@ export default function LandingPage() {
 
           <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(59, 130, 246, 0.2)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ color: '#3b82f6', marginBottom: '16px' }}><ShieldCheck size={28} /></div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Anti-Fraude</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>Bloqueia fotos da galeria e captura o GPS exato.</p>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Provas Reais e Anti-Fraude</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>Substitua a dúvida por evidências. Câmera obrigatória e fotos da galeria bloqueadas.</p>
             <div style={{ backgroundColor: 'rgba(59,130,246,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#3b82f6' }}>
-              📍 GPS Lock Ativo
+              📍 GPS & Câmera Bloqueados
             </div>
           </div>
 
@@ -241,16 +241,16 @@ export default function LandingPage() {
               Você não precisa lembrar ninguém de trabalhar. O núcleo do FireCheck distribui as tarefas, cobra os atrasos via Push e audita com IA. Tudo de forma 100% autônoma.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px' }}>
               <div style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ color: '#ff4d00', marginBottom: '12px' }}><Flame size={28} /></div>
-                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Atribuição Dinâmica</h4>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>A tarefa vai pro celular certo, na hora certa, de acordo com o turno.</p>
+                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Alertas de Atraso em Tempo Real</h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Se o fechamento não começar na hora exata, você recebe um aviso no celular. O papel não fala, o FireCheck sim.</p>
               </div>
               <div style={{ padding: '20px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ color: '#3b82f6', marginBottom: '12px' }}><Bot size={28} /></div>
-                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Cobrança Autônoma</h4>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Atrasou? O app envia notificações pesadas até a tarefa ser feita.</p>
+                <h4 style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '8px' }}>Piloto Automático Ativado</h4>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Equipe autônoma e responsável. Tome seu café relaxado enquanto monitora tudo de qualquer lugar.</p>
               </div>
             </div>
           </div>
@@ -397,8 +397,8 @@ export default function LandingPage() {
               R$79,90<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$958,80 anualmente</div>
-              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$205/ano</div>
+              <div style={{ color: 'var(--success)', fontSize: '1rem', fontWeight: 'bold' }}>Menos que um cafezinho: R$ 2,66 /dia</div>
+              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem', marginTop: '4px' }}>Faturado R$958,80 anualmente</div>
             </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
