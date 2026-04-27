@@ -109,23 +109,22 @@ export default function LandingPage() {
                 <div style={{
                   backgroundColor: '#ef4444',
                   color: 'white',
-                  padding: '24px 32px',
-                  borderRadius: '16px',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  gap: '12px',
-                  boxShadow: '0 10px 25px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.3)',
+                  gap: '4px',
+                  boxShadow: '0 8px 20px rgba(239, 68, 68, 0.4), 0 0 30px rgba(239, 68, 68, 0.2)',
                   border: '2px solid rgba(255,255,255,0.4)',
                   animation: 'pulse 2s infinite',
-                  transform: 'scale(1.05)',
                   textAlign: 'center'
                 }}>
-                  <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '0.5px' }}>Clique aqui</div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                  <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.5px' }}>Clique aqui</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px 0' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
                   </div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: '800' }}>para ativar o som</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: '800' }}>para ativar o som</div>
                 </div>
               </div>
             )}
