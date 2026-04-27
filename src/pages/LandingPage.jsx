@@ -19,7 +19,13 @@ export default function LandingPage() {
       fetch(`${API_URL}/api/track-quiz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, step: 'landing', completed: false, clickedCta: false })
+        body: JSON.stringify({ 
+          sessionId, 
+          step: 'landing', 
+          completed: false, 
+          clickedCta: false,
+          q1: null, q2: null, q3: null, q4: null 
+        })
       }).catch(() => {});
     };
     ping();
