@@ -266,10 +266,10 @@ export default function LandingPage() {
               
               <div style={{ borderRadius: '12px', backgroundColor: '#1f1f23', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '24px', backgroundColor: '#18181b', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: 'linear-gradient(135deg, #a1a1aa, #71717a)', border: '2px solid #ff4d00' }}></div>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '12px', backgroundImage: 'url(https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', border: '2px solid #ff4d00' }}></div>
                   <div>
-                    <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0, color: 'white' }}>turno da manha</h3>
-                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>teste1 • Duga Burguer</div>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0, color: 'white' }}>Fechamento de Loja</h3>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Eduardo • Duga Burguer</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>📅 24/04/2026, 12:28:23</div>
                   </div>
                 </div>
