@@ -336,3 +336,28 @@ body {
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
 }
+
+@media (max-width: 768px) {
+  .horizontal-scroll-mobile {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+  }
+  .horizontal-scroll-mobile > * {
+    flex: 0 0 260px !important;
+    scroll-snap-align: start;
+  }
+  .horizontal-scroll-mobile::-webkit-scrollbar {
+    height: 4px;
+  }
+  .horizontal-scroll-mobile::-webkit-scrollbar-thumb {
+    background: rgba(255, 77, 0, 0.5);
+    border-radius: 4px;
+  }
+}

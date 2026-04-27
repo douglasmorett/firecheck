@@ -303,37 +303,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Comparativas (Onde somos melhores) */}
-      <section style={{ padding: '40px 5% 80px 5%', backgroundColor: 'var(--bg-color)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Por que somos a evolução do mercado?</h2>
-          <p style={{ color: 'var(--text-muted)' }}>Sistemas comuns apenas digitam formulários. Nós pensamos por você.</p>
-        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto' }}>
-          
-          <div className="card" style={{ borderTop: '4px solid #3b82f6' }}>
-            <Bot size={40} color="#3b82f6" style={{ marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Auditoria IA (Exclusivo)</h3>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Enquanto a concorrência exige que o diretor olhe 500 fotos por dia, o FireCheck aciona a inteligência do Google Gemini para auditar a tarefa em 2 segundos.</p>
-          </div>
-
-
-
-          <div className="card" style={{ borderTop: '4px solid var(--primary)' }}>
-            <ShieldCheck size={40} color="var(--primary)" style={{ marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Bloqueio Anti-Fraude</h3>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Esqueça fotos falsas da galeria. Nossa tecnologia força a câmera nativa do celular do funcionário. Se for falso, o aplicativo nem envia.</p>
-          </div>
-
-          <div className="card" style={{ borderTop: '4px solid var(--success)' }}>
-            <Smartphone size={40} color="var(--success)" style={{ marginBottom: '20px' }} />
-            <h3 style={{ fontSize: '1.3rem', marginBottom: '12px' }}>Notificações no Celular</h3>
-            <p style={{ color: 'var(--text-muted)', lineHeight: '1.5' }}>Não precisa abrir o painel para descobrir que uma loja não abriu. Se uma tarefa estourar o limite, você recebe a notificação direto no celular.</p>
-          </div>
-
-        </div>
-      </section>
 
       {/* Templates de Checklist */}
       <section style={{ padding: '80px 5%', backgroundColor: '#18181b' }}>
@@ -346,7 +316,7 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="horizontal-scroll-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           
           {/* Criar Novo (Em Branco) */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => navigate('/login')}>
@@ -399,7 +369,7 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div className="horizontal-scroll-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
           
           {/* Plano Mensal */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
