@@ -63,7 +63,7 @@ export default function LandingPage() {
           </div>
           
           <h1 style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px' }}>
-            Garanta o padrão da sua franquia e <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tenha paz de espírito.</span>
+            Garanta o padrão da sua empresa e <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tenha paz de espírito.</span>
           </h1>
           
           <p style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
@@ -80,49 +80,96 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Right Column: AI Mockup */}
-        <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+        {/* Right Column: AI Mockups */}
+        <div style={{ flex: '1 1 500px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '20px', position: 'relative' }}>
           
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
 
-          <div className="scale-on-mobile" style={{ width: '100%', maxWidth: '320px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#f8fafc' }}>
+          {/* Telefone Funcionário */}
+          <div className="scale-on-mobile" style={{ width: '100%', maxWidth: '270px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#f8fafc', zIndex: 2, transform: 'rotate(-2deg)' }}>
             
             {/* Top Bar do App */}
             <div style={{ padding: '16px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #e2e8f0' }}>
-              <img src="/avatar.png" alt="Eduardo" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+              <img src="/avatar.png" alt="Eduardo" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'cover' }} />
               <div>
-                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.9rem' }}>Eduardo Silva</div>
-                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Fechamento da Cozinha</div>
+                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.8rem' }}>Eduardo Silva</div>
+                <div style={{ color: '#64748b', fontSize: '0.7rem' }}>Fechamento da Cozinha</div>
               </div>
             </div>
 
             {/* Conteúdo do Mockup */}
-            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
-                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '12px' }}>A chapa foi limpa e desengordurada?</div>
-                <div style={{ width: '100%', height: '160px', borderRadius: '8px', overflow: 'hidden', position: 'relative', marginBottom: '12px' }}>
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ backgroundColor: 'white', padding: '12px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '8px' }}>Chapa limpa e desengordurada?</div>
+                <div style={{ width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', position: 'relative', marginBottom: '8px' }}>
                   <img src="/dirty-grill.png" alt="Evidência" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <div style={{ position: 'absolute', bottom: '6px', right: '6px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <CheckCircle size={10} color="#10b981" /> Enviado
                   </div>
                 </div>
 
-                {/* AI Analysis Feedback (Animado) */}
+                {/* AI Analysis Feedback */}
                 <div style={{ animation: 'fadeUp 1s ease-out 1s both' }}>
-                  <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                    <div style={{ color: '#ef4444', marginTop: '2px' }}><Bot size={18} /></div>
+                  <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                    <div style={{ color: '#ef4444', marginTop: '2px' }}><Bot size={16} /></div>
                     <div>
-                      <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>Auditoria IA: REPROVADO</div>
-                      <div style={{ color: '#7f1d1d', fontSize: '0.75rem', lineHeight: '1.4' }}>Crostas de gordura carbonizada na lateral direita e resíduos no coletor. Limpeza incompleta. Refazer.</div>
+                      <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '2px' }}>Auditoria IA: REPROVADO</div>
+                      <div style={{ color: '#7f1d1d', fontSize: '0.7rem', lineHeight: '1.3' }}>Crostas de gordura carbonizada na lateral. Limpeza incompleta.</div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             
-            {/* Overlay Animado simulando escaneamento */}
+            {/* Overlay Animado */}
             <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, transparent, rgba(255, 77, 0, 0.2), transparent)', animation: 'scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite', pointerEvents: 'none', zIndex: 10 }}></div>
           </div>
+
+          {/* Telefone Dono */}
+          <div className="scale-on-mobile" style={{ width: '100%', maxWidth: '270px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(59,130,246,0.15)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#0f172a', zIndex: 3, transform: 'rotate(2deg) translateY(10px)' }}>
+            
+            {/* Top Bar do App Gestor */}
+            <div style={{ padding: '16px', backgroundColor: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #334155' }}>
+              <div style={{ color: 'white', fontWeight: 'bold', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={16} color="#3b82f6" /> Painel do Gestor
+              </div>
+            </div>
+
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              
+              {/* Push Notification Animada */}
+              <div style={{ animation: 'fadeUp 1s ease-out 1.5s both' }}>
+                <div style={{ backgroundColor: 'rgba(239,68,68,0.15)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                    <Flame size={14} color="#ef4444" />
+                    <span style={{ color: 'white', fontSize: '0.75rem', fontWeight: 'bold' }}>Alerta FireCheck</span>
+                    <span style={{ color: '#94a3b8', fontSize: '0.65rem', marginLeft: 'auto' }}>Agora</span>
+                  </div>
+                  <div style={{ color: '#e2e8f0', fontSize: '0.75rem', lineHeight: '1.4' }}>
+                    <span style={{ fontWeight: 'bold' }}>Eduardo</span> submeteu uma foto reprovada pela IA na Cozinha.
+                  </div>
+                </div>
+              </div>
+
+              {/* Lista de Checklists (Background) */}
+              <div style={{ backgroundColor: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #334155', opacity: 0.8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ color: '#e2e8f0', fontSize: '0.75rem', fontWeight: 'bold' }}>Abertura de Caixa</span>
+                  <span style={{ color: '#10b981', fontSize: '0.7rem' }}>Aprovado</span>
+                </div>
+                <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Feito por Ana · 08:00</div>
+              </div>
+
+              <div style={{ backgroundColor: '#1e293b', padding: '12px', borderRadius: '10px', border: '1px solid #334155', opacity: 0.8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                  <span style={{ color: '#e2e8f0', fontSize: '0.75rem', fontWeight: 'bold' }}>Reposição Vitrine</span>
+                  <span style={{ color: '#10b981', fontSize: '0.7rem' }}>Aprovado</span>
+                </div>
+                <div style={{ color: '#64748b', fontSize: '0.65rem' }}>Feito por Carlos · 10:30</div>
+              </div>
+            </div>
+          </div>
+
         </div>
       </section>
 
