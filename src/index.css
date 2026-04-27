@@ -271,6 +271,7 @@ body {
 
 /* Mobile specific adjustments */
 
+
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
   .horizontal-scroll-mobile {
@@ -325,4 +326,33 @@ body {
   .grid-2x2-mobile svg { width: 16px !important; height: 16px !important; }
   .grid-2x2-mobile .cta-link { font-size: 0.75rem !important; }
   .video-mockup { max-width: 200px !important; margin: 0 auto; }
+  .section-mobile-padding { padding-top: 40px !important; padding-bottom: 40px !important; }
+  .badges-mobile { gap: 8px !important; }
+  .badges-mobile > div { padding: 6px 12px !important; gap: 6px !important; border-radius: 8px !important; }
+  .badges-mobile span { font-size: 0.75rem !important; }
+  .badges-mobile svg { width: 14px !important; height: 14px !important; }
+}
+
+  .grid-2-col-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+  .grid-2-col-mobile > div {
+    padding: 16px !important;
+  }
+  .grid-2-col-mobile h3 {
+    font-size: 1.1rem !important;
+  }
+  .grid-2-col-mobile .price-text {
+    font-size: 1.8rem !important;
+  }
+  .grid-2-col-mobile ul li {
+    font-size: 0.75rem !important;
+    margin-bottom: 8px !important;
+  }
+  .grid-2-col-mobile button {
+    padding: 10px !important;
+    font-size: 0.85rem !important;
+  }
 }

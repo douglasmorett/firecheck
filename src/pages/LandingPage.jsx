@@ -38,8 +38,8 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* Hero Section (2 Columns) */}
-      <section style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '30px', maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+      {/* Hero Section */}
+      <section className="section-mobile-padding" style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', maxWidth: '1200px', margin: '0 auto', gap: '40px', position: 'relative', zIndex: 10 }}>
         
         {/* Left Column: Text & CTA */}
         <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
@@ -78,23 +78,21 @@ export default function LandingPage() {
         {/* Right Column: Video Mockup */}
         <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
           
-          <div style={{ marginBottom: '16px', color: '#06b6d4', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center' }}>
-            Veja a demonstração de como funciona nosso app 👇
+          <div style={{ marginBottom: '16px', color: '#06b6d4', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center' }}>
+            VEJA A IA EM AÇÃO NO NOSSO APP:
           </div>
 
-          {/* Glowing Background Element */}
           <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
 
           <div className="video-mockup" style={{ width: '100%', maxWidth: '280px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
             
-            {/* Overlay Click Anywhere to Play */}
             {!isVideoActive && (
               <div 
                 onClick={() => {
                   setIsVideoActive(true);
                   if (videoRef.current) {
                     videoRef.current.muted = false;
-                    videoRef.current.currentTime = 0; // Reinicia o vídeo com som
+                    videoRef.current.currentTime = 0;
                     videoRef.current.play().catch(() => {});
                   }
                   if (!sessionStorage.getItem('video_played')) {
@@ -155,37 +153,35 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 4 Badges de Benefícios (Resumo Rápido) */}
-      <section className="hide-on-mobile" style={{ padding: '0 5% 60px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', maxWidth: '1000px' }}>
+      {/* 4 Badges de Benefícios */}
+      <section className="section-mobile-padding" style={{ padding: '40px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+        <div className="badges-mobile" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', maxWidth: '1000px' }}>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ color: '#06b6d4' }}><Bot size={20} /></div>
-            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Onde agir primeiro</span>
+          <div className="badge-small" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><Bot size={16} /></div>
+            <span style={{ fontWeight: '500', fontSize: '0.85rem', color: '#e2e8f0' }}>IA Auditora</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ color: '#06b6d4' }}><Flame size={20} /></div>
-            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Alertas em tempo real</span>
+          <div className="badge-small" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><Flame size={16} /></div>
+            <span style={{ fontWeight: '500', fontSize: '0.85rem', color: '#e2e8f0' }}>Alertas Reais</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ color: '#06b6d4' }}><CheckCircle size={20} /></div>
-            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Quem fez, quem não fez</span>
+          <div className="badge-small" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><CheckCircle size={16} /></div>
+            <span style={{ fontWeight: '500', fontSize: '0.85rem', color: '#e2e8f0' }}>Gestão Equipe</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ color: '#06b6d4' }}><ShieldCheck size={20} /></div>
-            <span style={{ fontWeight: '500', fontSize: '1rem', color: '#e2e8f0' }}>Evidência fotográfica</span>
+          <div className="badge-small" style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ color: '#06b6d4' }}><ShieldCheck size={16} /></div>
+            <span style={{ fontWeight: '500', fontSize: '0.85rem', color: '#e2e8f0' }}>Anti-Fraude</span>
           </div>
-
         </div>
       </section>
 
-      {/* Seção Showcase de Features (Autêntico FireCheck) */}
-      <section id="como-funciona" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #18181b 0%, #27272a 100%)', position: 'relative', overflow: 'hidden' }}>
+      {/* Seção Showcase de Features */}
+      <section id="como-funciona" className="section-mobile-padding" style={{ padding: '100px 5%', background: 'linear-gradient(180deg, #18181b 0%, #27272a 100%)', position: 'relative', overflow: 'hidden' }}>
         
-        {/* Glow Effects */}
         <div style={{ position: 'absolute', top: '20%', left: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.1) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
         <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '600px', height: '600px', background: 'radial-gradient(circle, rgba(255, 200, 0, 0.05) 0%, rgba(0,0,0,0) 70%)', pointerEvents: 'none' }}></div>
 
@@ -201,7 +197,6 @@ export default function LandingPage() {
           </p>
           <div className="horizontal-scroll-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '40px auto 0', position: 'relative', zIndex: 10 }}>
 
-          {/* Card 1 - AI Alert */}
           <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255, 77, 0, 0.2)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ color: '#ff4d00', marginBottom: '16px' }}><Bot size={28} /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Auditoria Imediata</h3>
@@ -211,7 +206,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Card 2 - Anti-Fraud / Camera */}
           <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(59, 130, 246, 0.2)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ color: '#3b82f6', marginBottom: '16px' }}><ShieldCheck size={28} /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Anti-Fraude</h3>
@@ -221,7 +215,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Card 3 - Ranking */}
           <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(16, 185, 129, 0.2)', position: 'relative', overflow: 'hidden' }}>
             <div style={{ color: '#10b981', marginBottom: '16px' }}><Trophy size={28} /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Ranking</h3>
@@ -230,20 +223,17 @@ export default function LandingPage() {
               🥇 1º Lugar: Carlos
             </div>
           </div>
-
         </div>
         </div>
       </section>
 
-      {/* Seção Agendamentos Automáticos (Autêntico FireCheck) */}
-      <section style={{ padding: '100px 5%', backgroundColor: 'var(--bg-color)', borderTop: '1px solid rgba(255,77,0,0.1)', borderBottom: '1px solid rgba(255,77,0,0.1)', position: 'relative' }}>
+      {/* Seção Agendamentos Automáticos */}
+      <section className="section-mobile-padding" style={{ padding: '100px 5%', backgroundColor: 'var(--bg-color)', borderTop: '1px solid rgba(255,77,0,0.1)', borderBottom: '1px solid rgba(255,77,0,0.1)', position: 'relative' }}>
         
-        {/* Background Grid Pattern */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.5, pointerEvents: 'none' }}></div>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '40px', position: 'relative', zIndex: 10 }}>
           
-          {/* Text Content */}
           <div style={{ flex: '1 1 300px' }}>
             <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', marginBottom: '24px', lineHeight: '1.1' }}>
               Automação de Tarefas <br/><span style={{ color: '#ff4d00' }}>como uma Máquina.</span>
@@ -266,7 +256,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* UI Mockup Card - Mission Control */}
           <div className="hide-on-mobile" style={{ flex: '1 1 300px' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
               
@@ -313,19 +302,15 @@ export default function LandingPage() {
                       <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Vigilância Patrimonial</div>
                     </div>
                   </div>
-
                 </div>
               </div>
             </div>
           </div>
-
         </div>
       </section>
 
-
-
       {/* Templates de Checklist */}
-      <section style={{ padding: '80px 5%', backgroundColor: '#18181b' }}>
+      <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: '#18181b' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
           <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
             Checklists prontos. Crie o seu em minutos <br/><span style={{ color: '#06b6d4' }}>— ou deixe a IA criar</span>
@@ -337,7 +322,6 @@ export default function LandingPage() {
 
         <div className="grid-2x2-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           
-          {/* Criar Novo (Em Branco) */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.2rem' }}>➕</span>
@@ -347,17 +331,15 @@ export default function LandingPage() {
             <div style={{ color: '#fff', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Começar agora <ArrowRight size={14} /></div>
           </div>
 
-          {/* Criar com IA */}
           <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.05)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(6, 182, 212, 0.3)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 0 20px rgba(6, 182, 212, 0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <Bot size={20} />
             </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#06b6d4' }}>Criar com IA</h3>
+            <h3 className="price-text" style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#06b6d4' }}>Criar com IA</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Descreva sua operação e a Inteligência Artificial cria o checklist completo para você.</p>
             <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Gerar checklist <ArrowRight size={14} /></div>
           </div>
 
-          {/* Templates */}
           <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div className="badge-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>COZINHA</span>
@@ -377,24 +359,22 @@ export default function LandingPage() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Verificação de mesas, banheiros, uniformes e iluminação antes de abrir ao público.</p>
             <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
           </div>
-
         </div>
       </section>
 
       {/* Seção de Planos (Pricing) */}
-      <section id="pricing" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
+      <section id="pricing" className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div className="horizontal-scroll-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
+        <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
           
-          {/* Plano Mensal */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para testar na sua operação.</p>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
+            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
               R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>
@@ -402,7 +382,6 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
-
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
@@ -411,12 +390,11 @@ export default function LandingPage() {
             </button>
           </div>
 
-          {/* Plano Anual (Destacado) */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>2 MESES GRÁTIS</div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
+            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
               R$79,90<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             <div style={{ marginBottom: '16px' }}>
@@ -427,7 +405,6 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria por IA (Google Gemini)</strong></li>
-
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
@@ -436,11 +413,10 @@ export default function LandingPage() {
             </button>
           </div>
 
-          {/* Plano Custom */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Custom</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Faremos um plano personalizado para sua empresa.</p>
-            <div style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '24px' }}>A combinar</div>
+            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '24px' }}>A combinar</div>
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Acima de 10 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Treinamento de IA Personalizado</li>
@@ -448,7 +424,6 @@ export default function LandingPage() {
             </ul>
             <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>Falar com nossos consultores</button>
           </div>
-
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
