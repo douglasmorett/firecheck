@@ -274,6 +274,52 @@ body {
 
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
+  
+  .sidebar {
+    position: fixed !important;
+    left: -100%;
+    top: 0;
+    height: 100vh;
+    z-index: 1000 !important;
+    transition: left 0.3s ease !important;
+    width: 260px !important;
+  }
+  
+  .sidebar.open {
+    left: 0 !important;
+  }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+  }
+
+  .sidebar-overlay.open {
+    display: block;
+  }
+
+  .mobile-menu-btn {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 24px;
+    left: 24px;
+    z-index: 998;
+    background-color: var(--primary) !important;
+    border-radius: 12px;
+    padding: 12px !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255, 77, 0, 0.4);
+    flex-direction: row !important;
+    gap: 8px !important;
+    align-items: center;
+  }
+  
+  .mobile-menu-btn > div {
+    background: transparent !important;
+    padding: 0 !important;
+  }
   .horizontal-scroll-mobile {
     display: flex !important;
     flex-wrap: nowrap !important;
