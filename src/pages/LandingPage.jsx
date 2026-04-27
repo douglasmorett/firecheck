@@ -200,8 +200,13 @@ export default function LandingPage() {
             <div style={{ color: '#ff4d00', marginBottom: '16px' }}><Bot size={28} /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Auditoria Imediata</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>IA analisa a foto e reprova se estiver fora do padrão.</p>
-            <div style={{ backgroundColor: 'rgba(255,77,0,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#ff4d00' }}>
-              ⚠️ Reprovado pela IA
+            <div style={{ backgroundColor: 'rgba(255,77,0,0.1)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,77,0,0.2)' }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#ff4d00', marginBottom: '6px' }}>
+                ⚠️ Alerta da IA: Reprovado
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4', fontStyle: 'italic' }}>
+                "A imagem mostra crostas de gordura carbonizada na lateral direita da chapa. Limpeza incompleta."
+              </div>
             </div>
           </div>
 
