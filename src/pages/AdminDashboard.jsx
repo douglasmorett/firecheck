@@ -47,6 +47,7 @@ const BarPct = ({ pct, color }) => (
 
 const getUserStatus = (user) => {
   if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
+  if (user.status === 'pending') return { text: '🟡 Pagamento Pendente', color: 'var(--warning)' };
   
   if (user.status === 'active') {
      if (user.expiration_date) {
@@ -72,7 +73,7 @@ const getUserStatus = (user) => {
 };
 
 const isBlocked = (user) => {
-  if (user.status === 'blocked') return true;
+  if (user.status === 'blocked' || user.status === 'pending') return true;
   if (user.status === 'trial') {
     const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at || Date.now())) / (1000 * 60 * 60 * 24)); 
     return (7 - diffDays) < 0;
@@ -534,7 +535,7 @@ export default function AdminDashboard() {
 
   const isTrialExpired = () => {
     if (!userProfile) return false;
-    if (userProfile.status === 'blocked') return true;
+    if (userProfile.status === 'blocked' || userProfile.status === 'pending') return true;
     if (userProfile.status === 'trial') {
       const createdDate = new Date(userProfile.created_at || Date.now());
       const now = new Date();

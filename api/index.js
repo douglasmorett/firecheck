@@ -225,11 +225,11 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/signup')) {
       if (method === 'POST') {
-        const { name, email, password, store, phone } = req.body;
-        // status = 'trial'
+        const { name, email, password, store, phone, plan } = req.body;
+        const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
         const { rows } = await pool.query(
           'INSERT INTO users (name, email, password, role, store, status, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, status, phone, created_at', 
-          [name, email, password, 'admin', store, 'trial', phone]
+          [name, email, password, 'admin', store, initialStatus, phone]
         );
         return res.status(200).json({ status: 'success', user: rows[0] });
       }
