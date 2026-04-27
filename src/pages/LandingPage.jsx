@@ -288,7 +288,7 @@ export default function LandingPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
                       <div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</div>
-                        <div style={{ width: '100%', height: '180px', backgroundColor: '#3f3f46', backgroundImage: 'url(https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=300&q=80)', backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ width: '100%', height: '180px', backgroundColor: '#3f3f46', backgroundImage: 'url(/dirty-grill.png)', backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                         </div>
                       </div>
                       
