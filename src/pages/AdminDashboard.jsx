@@ -637,7 +637,7 @@ export default function AdminDashboard() {
           {(isMaster ? [
             { key: 'financeiro',  label: 'Financeiro', icon: <TrendingUp size={18}/> },
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
-            { key: 'quiz',        label: 'Quiz Funil', icon: <Activity size={18}/> },
+            { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
             { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
@@ -1039,54 +1039,62 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tab: Quiz Funil Analytics ─────────────────────────────────────── */}
+      {/* ── Tab: Landing Page Analytics ─────────────────────────────────────── */}
       {tab === 'quiz' && (
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Activity size={20} color="var(--primary)" /> Análise do Funil (Quiz)
+                <Activity size={20} color="var(--primary)" /> Visitantes na Landing Page
               </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Acompanhe quem está respondendo ao diagnóstico inicial.</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Monitore quem está no seu site principal e quanto tempo ficaram.</p>
             </div>
             {(() => {
-              const total = quizStats.length;
-              const concluidos = quizStats.filter(q => q.completed).length;
-              const taxa = total > 0 ? ((concluidos / total) * 100).toFixed(1) : 0;
-              const hoje = quizStats.filter(q => {
+              const landingStats = quizStats.filter(q => q.last_step === 'landing');
+              const total = landingStats.length;
+              
+              // Calculate average time overall
+              let totalDurationSec = 0;
+              let validDurations = 0;
+              landingStats.forEach(q => {
+                const start = new Date(q.created_at_local || q.created_at);
+                const end = new Date(q.last_updated_at_local || q.last_updated_at);
+                const diff = Math.floor((end - start) / 1000);
+                if (diff >= 0 && diff < 86400) { // filter out absurd times
+                  totalDurationSec += diff;
+                  validDurations++;
+                }
+              });
+              const avgDuration = validDurations > 0 ? Math.floor(totalDurationSec / validDurations) : 0;
+              const avgMin = Math.floor(avgDuration / 60);
+              const avgSec = avgDuration % 60;
+              
+              const hoje = landingStats.filter(q => {
                 const qDate = new Date(q.created_at_local || q.created_at).toDateString();
                 const todayDate = new Date().toDateString();
                 return qDate === todayDate;
               }).length;
+              
+              const onlineNow = landingStats.filter(q => (new Date() - new Date(q.last_updated_at_local || q.last_updated_at)) < 60000).length;
 
               return (
                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                   <div style={{ textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
                       <div style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
-                      {quizOnline}
+                      {onlineNow}
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
                   </div>
                   <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{hoje}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Hoje</div>
-                  </div>
-                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--primary)' }}>{quizVideoPlays}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>Plays no Vídeo</div>
-                  </div>
-                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px', display: 'none' /* Omitido para não poluir, mas mantido na base */ }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{total}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Iniciados Totais</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Acessos Hoje</div>
                   </div>
                   <div style={{ textAlign: 'center', backgroundColor: 'rgba(0, 200, 83, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>{concluidos}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Concluídos Totais</div>
-                  </div>
-                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255, 160, 0, 0.1)', padding: '10px 20px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#FFA000' }}>{taxa}%</div>
-                    <div style={{ fontSize: '0.75rem', color: '#FFA000' }}>Taxa de Conclusão</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>
+                      {avgMin}m {avgSec}s
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Tempo Médio Total</div>
                   </div>
                 </div>
               );
@@ -1099,49 +1107,58 @@ export default function AdminDashboard() {
                 <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
                   <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Data/IP</th>
                   <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Status</th>
-                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Respostas (Q1 a Q4)</th>
+                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tempo na Página</th>
                 </tr>
               </thead>
               <tbody>
-                {quizStats.map(q => {
+                {quizStats.filter(q => q.last_step === 'landing').map(q => {
                   const isOnline = (new Date() - new Date(q.last_updated_at_local || q.last_updated_at)) < 60000;
+                  const start = new Date(q.created_at_local || q.created_at);
+                  const end = new Date(q.last_updated_at_local || q.last_updated_at);
+                  const diffSec = Math.max(0, Math.floor((end - start) / 1000));
+                  const min = Math.floor(diffSec / 60);
+                  const sec = diffSec % 60;
+                  
                   return (
                   <tr key={q.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(q.last_updated_at_local || q.last_updated_at).toLocaleString('pt-BR')}</div>
+                    <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(start).toLocaleString('pt-BR')}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                         IP: {q.ip}
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: isOnline ? '#22c55e' : '#ef4444', boxShadow: isOnline ? '0 0 8px rgba(34, 197, 94, 0.6)' : 'none' }} title={isOnline ? 'Online na página' : 'Inativo'}></div>
                       </div>
                     </td>
-                    <td style={{ padding: '16px 24px', verticalAlign: 'top' }}>
-                      {q.completed ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
-                          <span style={{ padding: '4px 10px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>Concluído</span>
-                          {q.clicked_cta && (
-                            <span style={{ padding: '4px 10px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <ArrowRight size={12} /> Foi para o site
-                            </span>
-                          )}
+                    <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
+                      {isOnline ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e', boxShadow: '0 0 8px rgba(34, 197, 94, 0.6)' }} title="Online na página"></div>
+                          <span style={{ fontSize: '0.85rem', color: '#22c55e', fontWeight: 'bold' }}>Online</span>
                         </div>
                       ) : (
-                        <span style={{ padding: '4px 10px', backgroundColor: 'rgba(255, 160, 0, 0.1)', color: '#FFA000', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                          Parou na Q{q.last_step}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} title="Saiu"></div>
+                          <span style={{ fontSize: '0.85rem', color: '#ef4444', fontWeight: 'bold' }}>Saiu do site</span>
+                        </div>
                       )}
                     </td>
-                    <td style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      {q.q1_answer && <div style={{ marginBottom: '4px' }}><strong>Q1:</strong> {q.q1_answer}</div>}
-                      {q.q2_answer && <div style={{ marginBottom: '4px' }}><strong>Q2:</strong> {q.q2_answer}</div>}
-                      {q.q3_answer && <div style={{ marginBottom: '4px' }}><strong>Q3:</strong> {q.q3_answer}</div>}
-                      {q.q4_answer && <div><strong>Q4:</strong> {q.q4_answer}</div>}
+                    <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
+                      <span style={{ 
+                        padding: '6px 12px', 
+                        backgroundColor: 'rgba(255,255,255,0.05)', 
+                        borderRadius: '20px', 
+                        fontSize: '0.85rem', 
+                        fontWeight: 'bold',
+                        color: 'white',
+                        fontFamily: 'monospace'
+                      }}>
+                        ⏱️ {min}m {sec.toString().padStart(2, '0')}s
+                      </span>
                     </td>
                   </tr>
                   );
                 })}
-                {quizStats.length === 0 && (
+                {quizStats.filter(q => q.last_step === 'landing').length === 0 && (
                   <tr>
-                    <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Nenhuma resposta no quiz ainda.</td>
+                    <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Nenhuma visita na Landing Page registrada ainda.</td>
                   </tr>
                 )}
               </tbody>

@@ -8,15 +8,24 @@ export default function LandingPage() {
   const [isVideoActive, setIsVideoActive] = useState(false);
   const videoRef = useRef(null);
 
+  const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+
   useEffect(() => {
     // Ping to track live visitors
     const ping = () => {
       fetch(`${API_URL}/api/ping`).catch(() => {});
+      
+      // Registrar a sessão para acompanhamento de tempo no painel Master
+      fetch(`${API_URL}/api/track-quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, step: 'landing', completed: false, clickedCta: false })
+      }).catch(() => {});
     };
     ping();
     const interval = setInterval(ping, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [sessionId]);
 
   return (
     <div style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
