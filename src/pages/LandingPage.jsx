@@ -21,7 +21,7 @@ export default function LandingPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           sessionId, 
-          step: 'landing', 
+          step: 0, 
           completed: false, 
           clickedCta: false,
           q1: null, q2: null, q3: null, q4: null 

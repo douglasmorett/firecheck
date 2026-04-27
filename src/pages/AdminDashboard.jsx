@@ -1050,7 +1050,7 @@ export default function AdminDashboard() {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Monitore quem está no seu site principal e quanto tempo ficaram.</p>
             </div>
             {(() => {
-              const landingStats = quizStats.filter(q => q.last_step === 'landing');
+              const landingStats = quizStats.filter(q => q.last_step === 0);
               const total = landingStats.length;
               
               // Calculate average time overall
@@ -1111,7 +1111,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {quizStats.filter(q => q.last_step === 'landing').map(q => {
+                {quizStats.filter(q => q.last_step === 0).map(q => {
                   const isOnline = (new Date() - new Date(q.last_updated_at_local || q.last_updated_at)) < 60000;
                   const start = new Date(q.created_at_local || q.created_at);
                   const end = new Date(q.last_updated_at_local || q.last_updated_at);
@@ -1156,7 +1156,7 @@ export default function AdminDashboard() {
                   </tr>
                   );
                 })}
-                {quizStats.filter(q => q.last_step === 'landing').length === 0 && (
+                {quizStats.filter(q => q.last_step === 0).length === 0 && (
                   <tr>
                     <td colSpan="3" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Nenhuma visita na Landing Page registrada ainda.</td>
                   </tr>
