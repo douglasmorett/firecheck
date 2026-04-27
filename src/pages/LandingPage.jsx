@@ -87,7 +87,7 @@ export default function LandingPage() {
 
           <div className="video-mockup" style={{ width: '100%', maxWidth: '280px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
             
-            {/* Botão de Som Discreto */}
+            {/* Overlay Click Anywhere to Play */}
             {!isVideoActive && (
               <div 
                 onClick={() => {
@@ -103,17 +103,32 @@ export default function LandingPage() {
                   }
                 }}
                 style={{
-                  position: 'absolute', bottom: '20px', right: '20px',
-                  backgroundColor: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(5px)',
-                  padding: '8px 16px', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '8px',
-                  zIndex: 10, cursor: 'pointer', transition: 'all 0.3s ease', border: '1px solid rgba(255,255,255,0.2)',
-                  animation: 'pulse 2s infinite'
+                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                  zIndex: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: 'rgba(0,0,0,0.1)'
                 }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.9)'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.7)'}
               >
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4d00' }}></div>
-                <span style={{ fontWeight: 'bold', fontSize: '0.8rem', color: 'white' }}>Ativar Som</span>
+                <div style={{
+                  backgroundColor: '#ef4444',
+                  color: 'white',
+                  padding: '24px 32px',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '12px',
+                  boxShadow: '0 10px 25px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.3)',
+                  border: '2px solid rgba(255,255,255,0.4)',
+                  animation: 'pulse 2s infinite',
+                  transform: 'scale(1.05)',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.25rem', fontWeight: '800', letterSpacing: '0.5px' }}>Clique aqui</div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '4px 0' }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: '800' }}>para ativar o som</div>
+                </div>
               </div>
             )}
 
