@@ -138,7 +138,7 @@ export default function LandingPage() {
             <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               
               {/* Push Notification Animada */}
-              <div style={{ animation: 'fadeUp 1s ease-out 1.5s both' }}>
+              <div style={{ animation: 'fadeUpLoop 4s infinite 1.5s' }}>
                 <div style={{ backgroundColor: 'rgba(239,68,68,0.15)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(239,68,68,0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
                     <Flame size={14} color="#ef4444" />
