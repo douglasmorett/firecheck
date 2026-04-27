@@ -281,14 +281,16 @@ export default function LandingPage() {
 
                   <div style={{ backgroundColor: '#18181b', borderRadius: '12px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'white' }}>1. pintaar parede de azul</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'white' }}>1. A chapa foi limpa e desengordurada?</div>
                       <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '6px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Sim</div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
                       <div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</div>
-                        <div style={{ width: '100%', height: '180px', backgroundColor: '#d1d5db', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}></div>
+                        <div style={{ width: '100%', height: '180px', backgroundColor: '#3f3f46', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <ImageIcon size={32} color="#71717a" />
+                        </div>
                       </div>
                       
                       <div>
@@ -297,7 +299,7 @@ export default function LandingPage() {
                             ⚠️ Alerta da IA
                           </div>
                           <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', lineHeight: '1.5' }}>
-                            A parede na imagem não está pintada de azul.
+                            A imagem mostra crostas de gordura carbonizada na lateral direita da chapa e resíduos no coletor. Limpeza incompleta.
                           </div>
                         </div>
                       </div>
