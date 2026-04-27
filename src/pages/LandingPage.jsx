@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy } from 'lucide-react';
+import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy, Image as ImageIcon } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -261,49 +261,45 @@ export default function LandingPage() {
           </div>
 
           <div className="hide-on-mobile" style={{ flex: '1 1 300px' }}>
-            <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
+            <div style={{ backgroundColor: '#18181b', borderRadius: '12px', padding: '1px', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 0 50px rgba(0, 0, 0, 0.5)', position: 'relative' }}>
               
-              <div style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', backgroundColor: 'var(--bg-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+              <div style={{ borderRadius: '12px', backgroundColor: '#1f1f23', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '24px', backgroundColor: '#18181b', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: 'linear-gradient(135deg, #a1a1aa, #71717a)', border: '2px solid #ff4d00' }}></div>
                   <div>
-                    <div style={{ color: '#ff4d00', fontSize: '0.8rem', fontWeight: 'bold', letterSpacing: '2px', marginBottom: '4px' }}>FIRECHECK CORE</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Distribuidor Automático</div>
+                    <h3 style={{ fontSize: '1.4rem', fontWeight: 'bold', margin: 0, color: 'white' }}>turno da manha</h3>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>teste1 • Duga Burguer</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>📅 24/04/2026, 12:28:23</div>
                   </div>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 10px #10b981' }}></div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', borderLeft: '2px solid rgba(255, 77, 0, 0.3)', paddingLeft: '24px', position: 'relative' }}>
-                  
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#10b981', border: '3px solid var(--bg-color)' }}></div>
-                    <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '16px', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 'bold', color: 'white' }}>Abertura Loja</span>
-                        <span style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: 'bold' }}>CONCLUÍDO (06:05)</span>
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Equipe Manhã • 100% de precisão</div>
-                    </div>
+                <div style={{ padding: '24px' }}>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '20px', color: 'white' }}>
+                    Respostas do Checklist
                   </div>
 
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#ff4d00', border: '3px solid var(--bg-color)', boxShadow: '0 0 10px #ff4d00' }}></div>
-                    <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid rgba(255, 77, 0, 0.3)', padding: '16px', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 'bold', color: 'white' }}>Fechamento Caixa</span>
-                        <span style={{ color: '#ff4d00', fontSize: '0.85rem', fontWeight: 'bold' }}>RODANDO AGORA</span>
-                      </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Aguardando fotos do caixa...</div>
+                  <div style={{ backgroundColor: '#18181b', borderRadius: '12px', padding: '20px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'white' }}>1. pintaar parede de azul</div>
+                      <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '6px 16px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>Sim</div>
                     </div>
-                  </div>
 
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: '-31px', top: '10px', width: '12px', height: '12px', borderRadius: '50%', backgroundColor: '#3b82f6', border: '3px solid var(--bg-color)' }}></div>
-                    <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', opacity: 0.5 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 'bold', color: 'white' }}>Auditoria Madrugada</span>
-                        <span style={{ color: '#3b82f6', fontSize: '0.85rem', fontWeight: 'bold' }}>AGENDADO (02:00)</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '20px' }}>
+                      <div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</div>
+                        <div style={{ width: '100%', height: '180px', backgroundColor: '#d1d5db', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}></div>
                       </div>
-                      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Vigilância Patrimonial</div>
+                      
+                      <div>
+                        <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid rgba(255, 77, 0, 0.2)', borderRadius: '8px', padding: '16px' }}>
+                          <div style={{ color: '#ffb300', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            ⚠️ Alerta da IA
+                          </div>
+                          <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                            A parede na imagem não está pintada de azul.
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
