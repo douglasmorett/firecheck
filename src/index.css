@@ -354,4 +354,43 @@ body {
     padding: 10px !important;
     font-size: 0.85rem !important;
   }
+  
+  .grid-3-col-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    gap: 4px !important;
+  }
+  .grid-3-col-mobile > div {
+    padding: 8px !important;
+  }
+  .grid-3-col-mobile h3 {
+    font-size: 0.85rem !important;
+    margin-bottom: 2px !important;
+  }
+  .grid-3-col-mobile p {
+    display: none !important;
+  }
+  .grid-3-col-mobile .price-text {
+    font-size: 1.1rem !important;
+    margin-bottom: 6px !important;
+  }
+  .grid-3-col-mobile .price-text span {
+    font-size: 0.65rem !important;
+  }
+  .grid-3-col-mobile ul {
+    display: none !important;
+  }
+  .grid-3-col-mobile button {
+    padding: 6px !important;
+    font-size: 0.65rem !important;
+  }
+  .grid-3-col-mobile .card > div:first-child {
+    font-size: 0.45rem !important;
+    padding: 2px 4px !important;
+    top: -8px !important;
+    white-space: nowrap;
+  }
+  .grid-3-col-mobile .card > div > div {
+    font-size: 0.65rem !important;
+  }
 }

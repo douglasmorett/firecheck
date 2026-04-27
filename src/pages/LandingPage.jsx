@@ -368,7 +368,7 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
+        <div className="grid-3-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
           
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
