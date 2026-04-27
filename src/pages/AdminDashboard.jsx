@@ -702,19 +702,19 @@ export default function AdminDashboard() {
         
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
-              <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Menu size={20} color="white" />
-              </div>
-              <span style={{ fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
                 {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
             </div>
+            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
+              <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Menu size={20} color="white" />
+              </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'white' }}>Menu</span>
+            </button>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>

@@ -303,14 +303,10 @@ body {
 
   .mobile-menu-btn {
     display: flex !important;
-    position: fixed !important;
-    top: 24px;
-    left: 24px;
-    z-index: 998;
     background-color: var(--primary) !important;
     border-radius: 12px;
-    padding: 10px 14px !important;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 15px rgba(255, 77, 0, 0.4);
+    padding: 8px 12px !important;
+    box-shadow: 0 4px 15px rgba(255, 77, 0, 0.4);
     flex-direction: row !important;
     gap: 8px !important;
     align-items: center;
