@@ -57,7 +57,7 @@ export default function LandingPage() {
           </div>
           
           <h1 style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px' }}>
-            Auditoria com IA que <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>economiza seu tempo.</span>
+            Garanta o padrão da sua franquia e <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tenha paz de espírito.</span>
           </h1>
           
           <p style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
@@ -68,96 +68,54 @@ export default function LandingPage() {
             <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => navigate('/checkout')}>
               Começar 7 Dias Grátis <ArrowRight size={20} />
             </button>
-            <button className="btn-secondary" style={{ fontSize: '1.1rem', padding: '16px 32px', backgroundColor: 'transparent', border: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center' }} onClick={() => {
-              setIsVideoActive(true);
-              if (videoRef.current) {
-                videoRef.current.muted = false;
-                videoRef.current.currentTime = 0;
-                videoRef.current.play().catch(() => {});
-                videoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              }
-            }}>
-              <PlayCircle size={20} style={{ display: 'inline', marginRight: '8px' }} /> Ver demonstração
-            </button>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
             Acesso imediato. Não pedimos cartão de crédito.
           </p>
         </div>
 
-        {/* Right Column: Video Mockup */}
+        {/* Right Column: AI Mockup */}
         <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
           
-          <div style={{ marginBottom: '16px', color: '#06b6d4', fontWeight: '800', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1.5px', textAlign: 'center' }}>
-            VEJA A IA EM AÇÃO NO NOSSO APP:
-          </div>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100%', height: '100%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
 
-          <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
-
-          <div className="video-mockup" style={{ width: '100%', maxWidth: '280px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
+          <div className="scale-on-mobile" style={{ width: '100%', maxWidth: '320px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: '#f8fafc' }}>
             
-            {!isVideoActive && (
-              <div 
-                onClick={() => {
-                  setIsVideoActive(true);
-                  if (videoRef.current) {
-                    videoRef.current.muted = false;
-                    videoRef.current.currentTime = 0;
-                    videoRef.current.play().catch(() => {});
-                  }
-                  if (!sessionStorage.getItem('video_played')) {
-                    fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
-                    sessionStorage.setItem('video_played', 'true');
-                  }
-                }}
-                style={{
-                  position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                  zIndex: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  backgroundColor: 'rgba(0,0,0,0.1)'
-                }}
-              >
-                <div style={{
-                  backgroundColor: '#ef4444',
-                  color: 'white',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '4px',
-                  boxShadow: '0 8px 20px rgba(239, 68, 68, 0.4), 0 0 30px rgba(239, 68, 68, 0.2)',
-                  border: '2px solid rgba(255,255,255,0.4)',
-                  animation: 'pulse 2s infinite',
-                  textAlign: 'center'
-                }}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: '800', letterSpacing: '0.5px' }}>Clique aqui</div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px 0' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            {/* Top Bar do App */}
+            <div style={{ padding: '16px', backgroundColor: 'white', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #e2e8f0' }}>
+              <img src="/avatar.png" alt="Eduardo" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+              <div>
+                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.9rem' }}>Eduardo Silva</div>
+                <div style={{ color: '#64748b', fontSize: '0.75rem' }}>Fechamento da Cozinha</div>
+              </div>
+            </div>
+
+            {/* Conteúdo do Mockup */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ backgroundColor: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px rgba(0,0,0,0.02)' }}>
+                <div style={{ color: '#0f172a', fontWeight: 'bold', fontSize: '0.9rem', marginBottom: '12px' }}>A chapa foi limpa e desengordurada?</div>
+                <div style={{ width: '100%', height: '160px', borderRadius: '8px', overflow: 'hidden', position: 'relative', marginBottom: '12px' }}>
+                  <img src="/dirty-grill.png" alt="Evidência" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ position: 'absolute', bottom: '8px', right: '8px', backgroundColor: 'rgba(0,0,0,0.6)', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle size={10} color="#10b981" /> Enviado
                   </div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: '800' }}>para ativar o som</div>
+                </div>
+
+                {/* AI Analysis Feedback (Animado) */}
+                <div style={{ animation: 'fadeUp 1s ease-out 1s both' }}>
+                  <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '12px', borderRadius: '8px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                    <div style={{ color: '#ef4444', marginTop: '2px' }}><Bot size={18} /></div>
+                    <div>
+                      <div style={{ color: '#ef4444', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>Auditoria IA: REPROVADO</div>
+                      <div style={{ color: '#7f1d1d', fontSize: '0.75rem', lineHeight: '1.4' }}>Crostas de gordura carbonizada na lateral direita e resíduos no coletor. Limpeza incompleta. Refazer.</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            )}
-
-            <video 
-              ref={videoRef}
-              src="/demo.mp4.MOV" 
-              poster="/capa.jpg" 
-              autoPlay
-              muted
-              defaultMuted
-              loop
-              playsInline
-              controls={isVideoActive}
-              onLoadedData={() => {
-                if (!isVideoActive && videoRef.current) {
-                  videoRef.current.play().catch(e => console.log('Autoplay bloqueado pelo celular:', e));
-                }
-              }}
-              style={{ width: '100%', display: 'block', maxHeight: '75vh', objectFit: 'cover' }}
-            >
-              Seu navegador não suporta a reprodução deste vídeo.
-            </video>
+            </div>
+            
+            {/* Overlay Animado simulando escaneamento */}
+            <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', background: 'linear-gradient(to bottom, transparent, rgba(255, 77, 0, 0.2), transparent)', animation: 'scan 3s cubic-bezier(0.4, 0, 0.2, 1) infinite', pointerEvents: 'none', zIndex: 10 }}></div>
           </div>
         </div>
       </section>
