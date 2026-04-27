@@ -331,7 +331,6 @@ body {
   .badges-mobile > div { padding: 6px 12px !important; gap: 6px !important; border-radius: 8px !important; }
   .badges-mobile span { font-size: 0.75rem !important; }
   .badges-mobile svg { width: 14px !important; height: 14px !important; }
-}
 
   .grid-2-col-mobile {
     display: grid !important;
