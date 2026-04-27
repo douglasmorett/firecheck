@@ -1748,7 +1748,8 @@ export default function AdminDashboard() {
                         {task.photo && (
                           <div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</p>
-                            <img src={task.photo} alt="Evidência" style={{ width: '100%', maxHeight: '250px', objectFit: 'contain', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                            <img src={task.photo} alt="Evidência" onClick={() => window.open(task.photo, '_blank')} title="Clique para ampliar" style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'zoom-in', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>👆 Clique para ampliar foto</p>
                           </div>
                         )}
                         
