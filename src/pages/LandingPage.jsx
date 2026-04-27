@@ -76,10 +76,14 @@ export default function LandingPage() {
         </div>
 
         {/* Right Column: Video Mockup */}
-        <div style={{ flex: '1 1 350px', display: 'flex', justifyContent: 'center', position: 'relative' }}>
+        <div style={{ flex: '1 1 350px', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
           
+          <div style={{ marginBottom: '16px', color: '#06b6d4', fontWeight: 'bold', fontSize: '0.9rem', textAlign: 'center' }}>
+            Veja a demonstração de como funciona nosso app 👇
+          </div>
+
           {/* Glowing Background Element */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
+          <div style={{ position: 'absolute', top: '60%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', height: '90%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(40px)', zIndex: -1 }}></div>
 
           <div className="video-mockup" style={{ width: '100%', maxWidth: '280px', borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 60px rgba(255,77,0,0.2)', border: '6px solid #1a1a1a', position: 'relative', backgroundColor: 'var(--bg-card)' }}>
             
@@ -137,7 +141,7 @@ export default function LandingPage() {
       </section>
 
       {/* 4 Badges de Benefícios (Resumo Rápido) */}
-      <section style={{ padding: '0 5% 60px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
+      <section className="hide-on-mobile" style={{ padding: '0 5% 60px 5%', display: 'flex', justifyContent: 'center', position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', justifyContent: 'center', maxWidth: '1000px' }}>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255,255,255,0.03)', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -319,7 +323,7 @@ export default function LandingPage() {
         <div className="grid-2x2-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           
           {/* Criar Novo (Em Branco) */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div style={{ backgroundColor: 'rgba(255,255,255,0.05)', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <span style={{ fontSize: '1.2rem' }}>➕</span>
             </div>
@@ -329,7 +333,7 @@ export default function LandingPage() {
           </div>
 
           {/* Criar com IA */}
-          <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.05)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(6, 182, 212, 0.3)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 0 20px rgba(6, 182, 212, 0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.05)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(6, 182, 212, 0.3)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 0 20px rgba(6, 182, 212, 0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
               <Bot size={20} />
             </div>
@@ -339,7 +343,7 @@ export default function LandingPage() {
           </div>
 
           {/* Templates */}
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div className="badge-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>COZINHA</span>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>FECHAMENTO</span>
@@ -349,7 +353,7 @@ export default function LandingPage() {
             <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => navigate('/login')}>
+          <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
             <div className="badge-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>SALÃO</span>
               <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>ABERTURA</span>
