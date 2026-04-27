@@ -92,8 +92,9 @@ export default function LandingPage() {
                   setIsVideoActive(true);
                   if (videoRef.current) {
                     videoRef.current.muted = false;
-                    videoRef.current.currentTime = 0;
-                    videoRef.current.play().catch(() => {});
+                    setTimeout(() => {
+                      if (videoRef.current) videoRef.current.play().catch(() => {});
+                    }, 50);
                   }
                   if (!sessionStorage.getItem('video_played')) {
                     fetch(`${API_URL}/api/track-video`, { method: 'POST' }).catch(() => {});
@@ -384,7 +385,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=mensal')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.location.href = 'https://pay.cakto.com.br/3eph5ko_856837'}>
               Assinar Agora
             </button>
           </div>
@@ -407,7 +408,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=anual')}>
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => window.location.href = 'https://pay.cakto.com.br/e7c88df'}>
               Assinar Agora
             </button>
           </div>
