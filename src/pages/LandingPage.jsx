@@ -19,7 +19,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1 }}>
+    <div style={{ backgroundColor: 'var(--bg-color)', color: 'white', minHeight: '100vh', display: 'flex', flexDirection: 'column', position: 'relative', zIndex: 1, width: '100%', maxWidth: '100vw', overflowX: 'hidden' }}>
       
       {/* NavBar */}
       <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 5%', borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
@@ -39,10 +39,10 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section (2 Columns) */}
-      <section style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '60px', maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
+      <section style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '30px', maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 2 }}>
         
         {/* Left Column: Text & CTA */}
-        <div style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
           <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)', backgroundColor: 'rgba(255, 77, 0, 0.05)' }}>
             ✨ O primeiro checklist do Brasil movido por IA
           </div>
@@ -182,7 +182,7 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
           
           {/* Card 1 - AI Alert */}
           <div style={{ background: 'linear-gradient(145deg, #27272a 0%, #27272a 100%)', borderRadius: '30px', padding: '40px', border: '1px solid rgba(255, 77, 0, 0.2)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', overflow: 'hidden' }}>
@@ -261,10 +261,10 @@ export default function LandingPage() {
         {/* Background Grid Pattern */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)', backgroundSize: '30px 30px', opacity: 0.5, pointerEvents: 'none' }}></div>
 
-        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '80px', position: 'relative', zIndex: 10 }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '40px', position: 'relative', zIndex: 10 }}>
           
           {/* Text Content */}
-          <div style={{ flex: '1 1 500px' }}>
+          <div style={{ flex: '1 1 300px' }}>
             <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', marginBottom: '24px', lineHeight: '1.1' }}>
               Automação de Tarefas <br/><span style={{ color: '#ff4d00' }}>como uma Máquina.</span>
             </h2>
@@ -287,7 +287,7 @@ export default function LandingPage() {
           </div>
 
           {/* UI Mockup Card - Mission Control */}
-          <div style={{ flex: '1 1 500px' }}>
+          <div style={{ flex: '1 1 300px' }}>
             <div style={{ backgroundColor: 'var(--bg-card)', borderRadius: '24px', padding: '8px', border: '1px solid rgba(255, 77, 0, 0.3)', boxShadow: '0 0 50px rgba(255, 77, 0, 0.15)', position: 'relative' }}>
               
               <div style={{ border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '16px', padding: '32px', backgroundColor: 'var(--bg-color)' }}>
@@ -349,7 +349,7 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)' }}>Sistemas comuns apenas digitam formulários. Nós pensamos por você.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', maxWidth: '1200px', margin: '0 auto' }}>
           
           <div className="card" style={{ borderTop: '4px solid #3b82f6' }}>
             <Bot size={40} color="#3b82f6" style={{ marginBottom: '20px' }} />
@@ -438,7 +438,7 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
           
           {/* Plano Mensal */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
