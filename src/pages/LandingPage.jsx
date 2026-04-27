@@ -65,6 +65,7 @@ export default function LandingPage() {
                 videoRef.current.muted = false;
                 videoRef.current.currentTime = 0;
                 videoRef.current.play().catch(() => {});
+                videoRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
               }
             }}>
               <PlayCircle size={20} style={{ display: 'inline', marginRight: '8px' }} /> Ver demonstração
