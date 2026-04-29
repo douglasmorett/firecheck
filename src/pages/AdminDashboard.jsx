@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -125,6 +125,7 @@ export default function AdminDashboard() {
     end: new Date().toISOString().split('T')[0]
   });
   const [notifiedIds, setNotifiedIds] = useState(new Set());
+  const isFirstFetch = useRef(true);
   const [liveVisitors, setLiveVisitors] = useState(0);
   const [todayVisitors, setTodayVisitors] = useState(0);
   const [todayMobile, setTodayMobile] = useState(0);
@@ -392,8 +393,8 @@ export default function AdminDashboard() {
                 const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
                 
                 if (feedbacks.length > 0) {
-                  // Se tem feedback e foi reprovado, dispara push
-                  if (hasWarnings && 'Notification' in window && Notification.permission === 'granted') {
+                  // Se tem feedback, foi reprovado, e NÃO é a primeira carga da página
+                  if (!isFirstFetch.current && hasWarnings && 'Notification' in window && Notification.permission === 'granted') {
                     new Notification("⚠️ Alerta FireCheck", { 
                       body: `Reprovação detectada na tarefa de ${s.employee_name}!`,
                       icon: '/fire-icon.png' 
@@ -403,6 +404,7 @@ export default function AdminDashboard() {
                 }
               }
             });
+            isFirstFetch.current = false; // Marca que a primeira carga já passou
             return nextSet;
           });
         } else {
