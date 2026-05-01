@@ -119,11 +119,11 @@ export default function LandingPage() {
             .anim-flow-container {
               flex-wrap: nowrap !important;
               gap: 12px !important;
-              position: relative;
-              left: 50%;
-              transform: translateX(-50%) scale(0.65) !important;
+              transform: scale(0.6) !important;
               transform-origin: center top;
-              margin-bottom: -160px;
+              margin-left: -100px;
+              margin-right: -100px;
+              margin-bottom: -180px;
             }
             .anim-flow-container > div {
                font-size: 1.4rem;
@@ -334,7 +334,7 @@ export default function LandingPage() {
             <h2 style={{ fontSize: 'min(2.5rem, 5vw)', fontWeight: '900', marginBottom: '16px', color: 'var(--text-main)' }}>A IA audita <span style={{ color: '#ff4d00' }}>Qualquer Padrão</span></h2>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>Veja o FireCheck reprovando falhas reais em 4 setores diferentes.</p>
             <div className="mobile-swipe-hint" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#ff4d00', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '16px' }}>
-              Role para o lado <ArrowRight size={16} />
+              Role para o lado para ver mais exemplos <ArrowRight size={16} />
             </div>
           </div>
         </div>

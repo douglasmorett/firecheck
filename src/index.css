@@ -274,7 +274,7 @@ body {
 
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
-  .scale-on-mobile { transform: scale(0.7); transform-origin: top center; margin-bottom: -120px; margin-top: 10px; width: 480px; max-width: none; position: relative; left: 50%; transform: translateX(-50%) scale(0.7); }
+  .scale-on-mobile { transform: scale(0.7); transform-origin: top center; margin-bottom: -120px; margin-top: 10px; width: 480px !important; min-width: 480px !important; flex-shrink: 0 !important; max-width: none !important; position: relative; left: 50%; transform: translateX(-50%) scale(0.7); }
   
   .sidebar {
     position: fixed !important;
