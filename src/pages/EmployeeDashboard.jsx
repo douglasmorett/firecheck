@@ -86,7 +86,7 @@ export default function EmployeeDashboard() {
         </div>
       </header>
 
-      <div style={{ backgroundColor: '#121318', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)' }}>
+      <div style={{ backgroundColor: 'var(--bg-color)', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)' }}>
          <div style={{ backgroundColor: 'rgba(255, 69, 0, 0.1)', padding: '12px', borderRadius: '12px' }}>
             <User size={24} color="var(--primary)" />
          </div>
@@ -96,9 +96,40 @@ export default function EmployeeDashboard() {
          </div>
       </div>
 
+      {/* NOVO MÓDULO: CONTROLE DE PONTO */}
       <section style={{ marginBottom: '32px' }}>
         <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Clock size={16} /> Pendentes ({pendingChecklists.length})
+          <Clock size={16} /> Meu Ponto (Hoje)
+        </h4>
+        <div className="card" style={{ padding: '24px', textAlign: 'center', border: '1px solid #3b82f6' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>
+              <h3 style={{ fontSize: '1.5rem', margin: 0 }}>08:00</h3>
+            </div>
+            <div style={{ borderLeft: '1px solid var(--border-color)' }}></div>
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Saída</p>
+              <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-muted)' }}>--:--</h3>
+            </div>
+          </div>
+          
+          <button 
+            onClick={() => navigate('/ponto')} 
+            className="btn" 
+            style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#3b82f6', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+          >
+            <Smartphone size={20} /> Registrar Ponto com IA
+          </button>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <ShieldCheck size={12} color="#3b82f6" /> GPS e Câmera obrigatórios
+          </p>
+        </div>
+      </section>
+
+      <section style={{ marginBottom: '32px' }}>
+        <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
         </h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => (
@@ -121,7 +152,7 @@ export default function EmployeeDashboard() {
               </div>
             </div>
           )) : (
-            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
+            <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
               <CheckCircle size={32} color="var(--success)" style={{ marginBottom: '12px' }} />
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Tudo em dia! Nenhuma tarefa pendente.</p>
             </div>

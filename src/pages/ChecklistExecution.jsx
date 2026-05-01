@@ -271,12 +271,12 @@ export default function ChecklistExecution() {
         </button>
 
         {showSummary && (
-          <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: '#121318', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
+          <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: 'var(--bg-color)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
             {tasks.map((task, idx) => (
-              <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
                 <p style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 'bold' }}>{idx + 1}. {task.text}</p>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', backgroundColor: task.done === true ? 'var(--success)' : 'var(--error)', color: 'white', padding: '2px 8px', borderRadius: '4px' }}>
+                  <span style={{ fontSize: '0.8rem', backgroundColor: task.done === true ? 'var(--success)' : 'var(--error)', color: 'var(--text-main)', padding: '2px 8px', borderRadius: '4px' }}>
                     {task.done === true ? 'Sim' : task.done === false ? 'Não' : task.done || 'Não respondido'}
                   </span>
                   {aiFeedback[task.id] && (
@@ -292,7 +292,7 @@ export default function ChecklistExecution() {
         )}
       </div>
 
-      <div style={{ padding: '16px', backgroundColor: '#121318', borderRadius: '12px' }}>
+      <div style={{ padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px' }}>
         <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
         {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
       </div>
@@ -350,7 +350,7 @@ export default function ChecklistExecution() {
                   {task.photo ? (
                     <div style={{ position: 'relative' }}>
                       <img src={task.photo} alt="Foto" style={{ width: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'cover' }} />
-                      <button style={{ position: 'absolute', top: 10, right: 10, padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'white' }}
+                      <button style={{ position: 'absolute', top: 10, right: 10, padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'var(--text-main)' }}
                         onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null } : t))}>
                         <X size={16} />
                       </button>
@@ -365,10 +365,10 @@ export default function ChecklistExecution() {
                       <video ref={videoRef} style={{ width: '100%', maxHeight: '400px', objectFit: 'cover' }} autoPlay playsInline></video>
                       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                       <div style={{ display: 'flex', gap: '8px', padding: '16px', position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
-                        <button className="btn" style={{ flex: 2, backgroundColor: 'white', color: 'black' }} onClick={() => takePhoto(task.id, task.text)}>
+                        <button className="btn" style={{ flex: 2, backgroundcolor: 'var(--text-main)', color: 'black' }} onClick={() => takePhoto(task.id, task.text)}>
                           <Camera size={20} /> Capturar
                         </button>
-                        <button className="btn-secondary" style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }} onClick={stopCamera}>
+                        <button className="btn-secondary" style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: 'none', color: 'var(--text-main)' }} onClick={stopCamera}>
                           Cancelar
                         </button>
                       </div>

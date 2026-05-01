@@ -115,17 +115,17 @@ export default function QuizFunnel() {
 
   if (isProcessing) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
+      <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
         <Loader2 size={60} color="#22c55e" style={{ animation: 'spin 1s linear infinite', marginBottom: '24px' }} />
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{loadingText}</h2>
-        <p style={{ color: '#64748b', marginTop: '16px', maxWidth: '400px' }}>Nossa Inteligência Artificial está processando suas respostas para encontrar o real prejuízo oculto na sua operação.</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '16px', maxWidth: '400px' }}>Nossa Inteligência Artificial está processando suas respostas para encontrar o real prejuízo oculto na sua operação.</p>
       </div>
     );
   }
 
   if (step === 100) {
     return (
-      <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255, 59, 48, 0.1)', color: '#ef4444', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
             <ShieldAlert size={20} /> ALERTA DE RISCO
@@ -135,7 +135,7 @@ export default function QuizFunnel() {
           
           <div style={{ backgroundColor: 'rgba(255, 59, 48, 0.05)', borderLeft: '4px solid #ef4444', padding: '20px', textAlign: 'left', marginBottom: '32px', borderRadius: '0 8px 8px 0' }}>
             <p style={{ marginBottom: '12px', fontSize: '1.1rem' }}><strong>O Diagnóstico:</strong> Você está preso na microgestão. Sem você vigiando de perto, o padrão da sua loja cai drasticamente.</p>
-            <p style={{ color: '#64748b' }}>Você passa mais tempo cobrando tarefas básicas (limpeza, validade, organização) do que pensando em como crescer sua empresa. O pior: seus funcionários sabem disso e entregam o mínimo.</p>
+            <p style={{ color: 'var(--text-muted)' }}>Você passa mais tempo cobrando tarefas básicas (limpeza, validade, organização) do que pensando em como crescer sua empresa. O pior: seus funcionários sabem disso e entregam o mínimo.</p>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
@@ -150,7 +150,7 @@ export default function QuizFunnel() {
 
           <button 
             className="btn-pulse-green"
-            style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'white', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
+            style={{ width: '100%', padding: '20px', fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', backgroundColor: '#16a34a', color: 'var(--text-main)', borderRadius: '12px', fontWeight: 'bold', border: 'none', cursor: 'pointer', transition: 'all 0.3s ease' }} 
             onClick={() => {
               trackStep(100, answers, true, true);
               navigate('/');
@@ -158,7 +158,7 @@ export default function QuizFunnel() {
           >
             Ver a Inteligência Artificial na Prática <ArrowRight />
           </button>
-          <p style={{ marginTop: '16px', color: '#64748b', fontSize: '0.9rem' }}>Chega de ser babá de funcionário. Assuma o controle hoje.</p>
+          <p style={{ marginTop: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Chega de ser babá de funcionário. Assuma o controle hoje.</p>
         </div>
       </div>
     );
@@ -166,7 +166,7 @@ export default function QuizFunnel() {
 
   if (step === -1) {
     return (
-      <div style={{ backgroundColor: '#0f172a', color: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
           
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
@@ -176,7 +176,7 @@ export default function QuizFunnel() {
             Assista ao vídeo abaixo e descubra como auditar sua operação no piloto automático.
           </p>
 
-          <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'black' }}>
+          <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'var(--bg-color)' }}>
             {!isPlaying && (
               <div 
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', zIndex: 10, cursor: 'pointer' }}
@@ -193,7 +193,7 @@ export default function QuizFunnel() {
                   }
                 }}
               >
-                <div style={{ backgroundColor: '#ef4444', color: 'white', padding: '24px 40px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(239, 68, 68, 0.6)', animation: 'pulse 1.5s infinite', border: '3px solid white', textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#ef4444', color: 'var(--text-main)', padding: '24px 40px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(239, 68, 68, 0.6)', animation: 'pulse 1.5s infinite', border: '3px solid white', textAlign: 'center' }}>
                   <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Clique aqui</span>
                   <VolumeX size={50} />
                   <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>para ativar o som</span>
@@ -258,14 +258,14 @@ export default function QuizFunnel() {
   }
 
   return (
-    <div style={{ backgroundColor: '#f8fafc', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+    <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       
       <div style={{ width: '100%', maxWidth: '600px', marginBottom: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#64748b', fontSize: '0.9rem', fontWeight: 'bold' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>
           <span>Diagnóstico Operacional</span>
           <span>Pergunta {step + 1} de {questions.length}</span>
         </div>
-        <div style={{ width: '100%', height: '8px', backgroundColor: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '8px', backgroundcolor: 'var(--text-main)', borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{ height: '100%', backgroundColor: '#22c55e', width: `${((step) / questions.length) * 100}%`, transition: 'width 0.5s ease' }}></div>
         </div>
       </div>
@@ -281,7 +281,7 @@ export default function QuizFunnel() {
               key={idx}
               onClick={() => handleAnswer(idx)}
               style={{
-                backgroundColor: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b',
+                backgroundcolor: 'var(--text-main)', border: '2px solid #e2e8f0', color: '#1e293b',
                 padding: '20px', borderRadius: '12px', fontSize: '1.1rem', textAlign: 'left',
                 cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500'
               }}

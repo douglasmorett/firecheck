@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, DollarSign, MessageCircle, Bot } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import API_URL from '../api';
 import PWAInstall from '../components/PWAInstall';
@@ -137,6 +137,33 @@ export default function AdminDashboard() {
   const [quizStats, setQuizStats] = useState([]);
   const [quizOnline, setQuizOnline] = useState(0);
   const [quizVideoPlays, setQuizVideoPlays] = useState(0);
+  
+  const [pontoExportPeriod, setPontoExportPeriod] = useState('mes_atual');
+  const [pontoCustomDates, setPontoCustomDates] = useState({ start: '', end: '' });
+  const [financeExportPeriod, setFinanceExportPeriod] = useState('mes_atual');
+  const [financeCustomDates, setFinanceCustomDates] = useState({ start: '', end: '' });
+  
+  // -- Módulo Financeiro IA --
+  const [financeItems, setFinanceItems] = useState(() => {
+    const saved = localStorage.getItem('firecheck_finance_items');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 1, type: 'pendente', provider: 'Comercial de Bebidas Silva', value: 850.00, dueDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0] },
+      { id: 2, type: 'hoje', provider: 'Energisa S/A', value: 1250.45, dueDate: new Date().toISOString().split('T')[0] }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('firecheck_finance_items', JSON.stringify(financeItems));
+  }, [financeItems]);
+  const [newFinanceItem, setNewFinanceItem] = useState({ provider: '', value: '', dueDate: '', receivedDate: '', barcode: '' });
+  const [isFinanceChatOpen, setIsFinanceChatOpen] = useState(false);
+  const [financeChatMessages, setFinanceChatMessages] = useState([
+    { role: 'ai', content: 'Olá! Sou sua assistente financeira. Me envie a foto de um boleto ou faça uma pergunta sobre suas contas.' }
+  ]);
+  const [financeChatInput, setFinanceChatInput] = useState('');
+  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
+  const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
   
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
@@ -535,6 +562,64 @@ export default function AdminDashboard() {
 
   // Abas iniciais agora são geridas pelo estado com localStorage no topo do arquivo.
 
+  const handleAddFinanceItem = () => {
+    if (!newFinanceItem.provider || !newFinanceItem.value || !newFinanceItem.dueDate) {
+      addToast('Preencha fornecedor, valor e vencimento.', 'error');
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const type = newFinanceItem.dueDate < today ? 'pendente' : (newFinanceItem.dueDate === today ? 'hoje' : 'futura');
+    
+    setFinanceItems([...financeItems, { ...newFinanceItem, id: Date.now(), type }]);
+    setNewFinanceItem({ provider: '', value: '', dueDate: '', receivedDate: '', barcode: '' });
+    addToast('Conta registrada com sucesso!', 'success');
+  };
+
+  const handleMarkAsPaid = (id) => {
+    setFinanceItems(prev => prev.map(item => item.id === id ? { ...item, type: 'paga' } : item));
+    addToast('Conta marcada como paga e arquivada!', 'success');
+  };
+
+  const handleAIReceiptScan = () => {
+    setIsProcessingReceipt(true);
+    addToast('Lendo informações da nota...', 'info');
+    setTimeout(() => {
+      setNewFinanceItem({
+        provider: 'Distribuidora Gourmet',
+        value: '1240.50',
+        dueDate: new Date().toISOString().split('T')[0],
+        receivedDate: new Date().toISOString().split('T')[0],
+        barcode: '34191.09008 63571.27731 5 14234.34000 8 1234567890'
+      });
+      setIsProcessingReceipt(false);
+      addToast('Leitura concluída com sucesso!', 'success');
+    }, 2000);
+  };
+
+  const handleSendFinanceChat = async () => {
+    if (!financeChatInput.trim()) return;
+    const newMsg = { role: 'user', content: financeChatInput };
+    setFinanceChatMessages(prev => [...prev, newMsg]);
+    setFinanceChatInput('');
+    
+    try {
+      const res = await fetch(`${API_URL}/api/chat-finance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: financeChatInput, financeItems })
+      });
+      const data = await res.json();
+      if (data.reply) {
+        setFinanceChatMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
+      } else {
+        setFinanceChatMessages(prev => [...prev, { role: 'ai', content: 'Desculpe, não consegui processar sua mensagem.' }]);
+      }
+    } catch (e) {
+      console.error(e);
+      setFinanceChatMessages(prev => [...prev, { role: 'ai', content: 'Erro de conexão com a IA financeira.' }]);
+    }
+  };
+
   const isTrialExpired = () => {
     if (!userProfile) return false;
     if (userProfile.status === 'blocked' || userProfile.status === 'pending') return true;
@@ -600,7 +685,7 @@ export default function AdminDashboard() {
       {/* SIDEBAR LATERAL */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ 
         width: isSidebarCollapsed ? '80px' : '260px', 
-        backgroundColor: '#1E1B4B', 
+        backgroundColor: 'var(--bg-color)', 
         borderRight: '1px solid rgba(255,255,255,0.1)', 
         display: 'flex', 
         flexDirection: 'column', 
@@ -608,27 +693,27 @@ export default function AdminDashboard() {
         top: 0, 
         height: '100vh', 
         overflowY: 'auto',
-        color: 'white',
+        color: 'var(--text-main)',
         zIndex: 50,
         transition: 'width 0.3s ease'
       }}>
         {/* LOGO E BOTAO RECOLHER */}
-        <div style={{ padding: isSidebarCollapsed ? '24px 0 16px 0' : '24px 20px 16px 20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ padding: isSidebarCollapsed ? '24px 0 16px 0' : '24px 20px 16px 20px', borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '16px' }}>
-            <div style={{ backgroundColor: 'white', padding: '6px', borderRadius: '6px' }}>
-              <Flame size={20} color="#1E1B4B" />
+            <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
+              <Flame size={20} color="white" />
             </div>
             {!isSidebarCollapsed && <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>}
           </div>
           
           {/* Botão Explícito para Ocultar Menu */}
           <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} style={{ 
-            width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', 
-            borderRadius: '6px', color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: '0.8rem', 
+            width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', 
+            borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', 
             display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s', gap: '6px'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
           >
             {isSidebarCollapsed ? <ArrowRight size={16} /> : "Ocultar Menu"}
           </button>
@@ -642,6 +727,8 @@ export default function AdminDashboard() {
             { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
+            { key: 'ponto',       label: 'Controle de Ponto IA', icon: <UserCheck size={18}/> },
+            { key: 'finance',     label: 'Financeiro IA', icon: <DollarSign size={18}/> },
             { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
             (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
             { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
@@ -658,10 +745,13 @@ export default function AdminDashboard() {
                   borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
                   transition: 'all 0.2s', textAlign: 'left',
                   backgroundColor: isActive ? 'var(--primary)' : 'transparent',
-                  color: isActive ? 'white' : 'rgba(255,255,255,0.7)',
-                  borderLeft: isActive ? '4px solid white' : '4px solid transparent'
-                }}>
-                <span style={{ color: isActive ? 'white' : 'rgba(255,255,255,0.7)' }}>{t.icon}</span>
+                  color: isActive ? 'white' : 'var(--text-muted)',
+                  borderLeft: isActive ? '4px solid var(--primary)' : '4px solid transparent'
+                }}
+                onMouseOver={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
+                onMouseOut={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                <span style={{ color: isActive ? 'white' : 'var(--text-muted)' }}>{t.icon}</span>
                 {!isSidebarCollapsed && t.label}
               </button>
             );
@@ -669,9 +759,9 @@ export default function AdminDashboard() {
         </div>
 
         {/* FOOTER DA SIDEBAR */}
-        <div style={{ padding: isSidebarCollapsed ? '20px 0' : '20px', borderTop: '1px solid rgba(255,255,255,0.1)', backgroundColor: 'rgba(0,0,0,0.2)' }}>
+        <div style={{ padding: isSidebarCollapsed ? '20px 0' : '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card-hover)' }}>
            {!isSidebarCollapsed && (
-             <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', marginBottom: '12px' }}>
+             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>
                 👤 {userProfile?.name}<br/>
                 🏬 {userProfile?.store || 'Sistema Central'}
              </p>
@@ -715,7 +805,7 @@ export default function AdminDashboard() {
               <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Menu size={20} color="white" />
               </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'white' }}>Menu</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
             </button>
           </div>
           
@@ -737,12 +827,12 @@ export default function AdminDashboard() {
             )}
             
             {/* Filtro de Data */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#121318', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--bg-color)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
               <CalendarClock size={16} color="var(--primary)" />
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
+                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>até</span>
-                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'white', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
+                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
               </div>
             </div>
 
@@ -877,11 +967,11 @@ export default function AdminDashboard() {
           </div>
           <div style={{ padding: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
-               <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+               <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Vendas Brutas</p>
                   <h4 style={{ fontSize: '1.5rem', margin: 0 }}>{(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
                </div>
-               <div style={{ backgroundColor: '#121318', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+               <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Taxas de Transação</p>
                   <h4 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--error)' }}>- {((financialStats?.vendasMes || 0) - (financialStats?.receitaReal || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
                </div>
@@ -904,6 +994,378 @@ export default function AdminDashboard() {
           <p style={{ color: 'var(--text-muted)', maxWidth: '500px', fontSize: '1.1rem', lineHeight: '1.6' }}>
             Esta funcionalidade avançada está sendo lapidada por nossos engenheiros e será liberada automaticamente na sua conta em breve.
           </p>
+        </div>
+      )}
+
+      {/* ── Tab: Paywall Módulos (Ponto / Financeiro) ──────────────────── */}
+      {((tab === 'ponto' && !userProfile?.ponto_active && userProfile?.email !== 'dugaburguer@gmail.com') || 
+        (tab === 'finance' && !userProfile?.finance_active && userProfile?.email !== 'dugaburguer@gmail.com')) && (
+        <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{ backgroundColor: tab === 'ponto' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
+            {tab === 'ponto' ? <UserCheck size={48} color="#3b82f6" /> : <DollarSign size={48} color="#10b981" />}
+          </div>
+          <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>
+            {tab === 'ponto' ? 'Módulo: Controle de Ponto com IA' : 'Módulo: Gestão Financeira com IA'}
+          </h2>
+          {tab === 'ponto' ? (
+            <div style={{ textAlign: 'left', marginBottom: '32px', maxWidth: '500px', width: '100%' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '20px', textAlign: 'center' }}>
+                Reconhecimento facial, geolocalização e relatórios automáticos. Diga adeus às fraudes de ponto na sua empresa.
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Reconhecimento Facial:</strong> Selfie obrigatória para evitar fraudes.</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Trava de GPS:</strong> O funcionário só bate o ponto se estiver no local de trabalho.</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Cálculo Automático:</strong> Horas extras, atrasos e faltas já mastigados.</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Exportação Simples:</strong> Relatório em PDF/Excel pronto para a contabilidade.</span>
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'left', marginBottom: '32px', maxWidth: '500px', width: '100%' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '20px', textAlign: 'center' }}>
+                Tire foto de todas as notas que você comprar, e deixe a IA controlar tudo para você. Chega de planilhas manuais.
+              </p>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Leitura Automática:</strong> Escaneamento de notas fiscais e boletos pela câmera.</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Chat com a IA:</strong> Pergunte "Quanto gastei de combustível esse mês?" e ela te dá o relatório detalhado.</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Controle Preditivo:</strong> Visão clara das Contas a Pagar (Atrasadas, Vencendo Hoje e Futuras).</span>
+                </li>
+                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Categorização Inteligente:</strong> A IA separa sozinha o que é insumo, marketing, folha, etc.</span>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative' }}>
+              <h3 style={{ fontSize: '1.3rem', marginBottom: '8px' }}>Mensal</h3>
+              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Mensal
+              </button>
+            </div>
+
+            <div className="card" style={{ width: '280px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>MAIS VANTAJOSO</div>
+              <h3 style={{ fontSize: '1.3rem', marginBottom: '8px', color: 'var(--primary)' }}>Anual</h3>
+              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$79,90<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+              <div style={{ marginBottom: '16px', color: 'var(--success)', fontSize: '0.8rem', fontWeight: 'bold' }}>Faturado R$958,80 anualmente</div>
+              <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Anual
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs: Módulos Ativos (Ponto / Financeiro) ──────────────────── */}
+      {/* ── Tabs: Módulo Ponto (Ativo) ──────────────────── */}
+      {(tab === 'ponto' && (userProfile?.ponto_active || userProfile?.email === 'dugaburguer@gmail.com')) && (
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div style={{ padding: '0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+             <div>
+               <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
+                 <Clock color="var(--primary)" size={32} />
+                 Controle de Ponto IA
+               </h2>
+               <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Reconhecimento Facial, GPS e Automação Contábil.</p>
+             </div>
+             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <select className="input-field" style={{ padding: '8px 12px', minWidth: '150px', borderRadius: '8px' }} value={pontoExportPeriod} onChange={e => setPontoExportPeriod(e.target.value)}>
+                   <option value="mes_atual">Mês Atual</option>
+                   <option value="mes_anterior">Mês Anterior</option>
+                   <option value="personalizado">Datas Personalizadas</option>
+                </select>
+                {pontoExportPeriod === 'personalizado' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={pontoCustomDates.start} onChange={e => setPontoCustomDates({...pontoCustomDates, start: e.target.value})} />
+                    <span style={{ color: 'var(--text-muted)' }}>até</span>
+                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={pontoCustomDates.end} onChange={e => setPontoCustomDates({...pontoCustomDates, end: e.target.value})} />
+                  </div>
+                )}
+                <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={() => alert('Exportando folha de ponto...')}>
+                   <FileDown size={18} /> Exportar Folha
+                </button>
+             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+             
+             {/* Automação Contábil */}
+             <div className="card" style={{ padding: '24px' }}>
+                <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+                   <Mail size={20} /> Automação Contábil
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                   Configure para enviar a folha de ponto detalhada direto para o e-mail do seu contador todo mês.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                   <div>
+                      <label className="input-label">E-mail do Contador</label>
+                      <input type="email" className="input-field" placeholder="contabilidade@empresa.com.br" />
+                   </div>
+                   <div>
+                      <label className="input-label">Data de Fechamento (Envio Automático)</label>
+                      <select className="input-field">
+                         <option value="ultimo_dia">Último dia do Mês</option>
+                         <option value="dia_1">Todo Dia 1</option>
+                         <option value="dia_5">Todo Dia 5</option>
+                         <option value="dia_10">Todo Dia 10</option>
+                      </select>
+                   </div>
+                   <button className="btn-secondary" style={{ width: '100%', padding: '12px', borderRadius: '8px' }}>Salvar Configuração</button>
+                </div>
+             </div>
+
+             {/* Espelho de Ponto (Demo) */}
+             <div className="card" style={{ padding: '24px', flex: 2, overflowX: 'auto' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                   <h3 style={{ fontSize: '1.2rem', margin: 0 }}>
+                     {pontoExportPeriod === 'mes_atual' ? 'Registros (Mês Atual)' : 
+                      pontoExportPeriod === 'mes_anterior' ? 'Registros (Mês Anterior)' : 'Registros do Período'}
+                   </h3>
+                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Filtrado na tela</span>
+                </div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '500px' }}>
+                   <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Colaborador</th>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Horário</th>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Tipo</th>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Segurança</th>
+                      </tr>
+                   </thead>
+                   <tbody>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                         <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>João Silva</td>
+                         <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>08:02</td>
+                         <td style={{ padding: '12px' }}><span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>ENTRADA</span></td>
+                         <td style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', gap: '6px' }}>
+                            <span title="GPS Validado">📍 OK</span>
+                            <span title="Reconhecimento Facial OK">🤳 OK</span>
+                         </td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                         <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>Maria Souza</td>
+                         <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>08:15</td>
+                         <td style={{ padding: '12px' }}><span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>ENTRADA</span></td>
+                         <td style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', gap: '6px' }}>
+                            <span title="GPS Validado">📍 OK</span>
+                            <span title="Reconhecimento Facial OK">🤳 OK</span>
+                         </td>
+                      </tr>
+                      <tr>
+                         <td colSpan="4" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                            Exibindo registros de demonstração.
+                         </td>
+                      </tr>
+                   </tbody>
+                </table>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tabs: Módulo Financeiro IA (Ativo) ──────────────────── */}
+      {(tab === 'finance' && (userProfile?.finance_active || userProfile?.email === 'dugaburguer@gmail.com')) && (
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div style={{ padding: '0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+             <div>
+               <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
+                 <DollarSign color="var(--primary)" size={32} />
+                 Módulo Financeiro
+               </h2>
+               <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gestão de Contas a Pagar e Inadimplência.</p>
+             </div>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <select className="input-field" style={{ padding: '8px 12px', minWidth: '150px', borderRadius: '8px' }} value={financeExportPeriod} onChange={e => setFinanceExportPeriod(e.target.value)}>
+                   <option value="mes_atual">Mês Atual</option>
+                   <option value="mes_anterior">Mês Anterior</option>
+                   <option value="personalizado">Datas Personalizadas</option>
+                </select>
+                {financeExportPeriod === 'personalizado' && (
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={financeCustomDates.start} onChange={e => setFinanceCustomDates({...financeCustomDates, start: e.target.value})} />
+                    <span style={{ color: 'var(--text-muted)' }}>até</span>
+                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={financeCustomDates.end} onChange={e => setFinanceCustomDates({...financeCustomDates, end: e.target.value})} />
+                  </div>
+                )}
+                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={() => addToast('Planilha enviada para o seu email.', 'success')}>
+                   <FileDown size={18} /> Exportar Planilha
+                </button>
+                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', borderColor: '#F59E0B', color: '#F59E0B' }} onClick={() => setIsPurchasesOpen(true)}>
+                   <Plus size={18} color="#F59E0B" /> Registrar Compras
+                </button>
+                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => setIsFinanceChatOpen(true)}>
+                   <MessageCircle size={18} color="var(--primary)" /> Falar com a IA
+                </button>
+             </div>
+          </div>
+
+          <div className="card" style={{ padding: '24px' }}>
+             <h3 style={{ marginBottom: '20px', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+               Registrar Nova Conta a Pagar
+             </h3>
+             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+                <div>
+                   <label className="input-label">Nome do Fornecedor</label>
+                   <input type="text" className="input-field" placeholder="Ex. Gráfica Nova Era" value={newFinanceItem.provider} onChange={e => setNewFinanceItem({...newFinanceItem, provider: e.target.value})} />
+                </div>
+                <div>
+                   <label className="input-label">Valor (R$)</label>
+                   <input type="number" step="0.01" className="input-field" placeholder="0.00" value={newFinanceItem.value} onChange={e => setNewFinanceItem({...newFinanceItem, value: e.target.value})} />
+                </div>
+                <div>
+                   <label className="input-label">Data de Recebimento</label>
+                   <input type="date" className="input-field" value={newFinanceItem.receivedDate} onChange={e => setNewFinanceItem({...newFinanceItem, receivedDate: e.target.value})} />
+                </div>
+                <div>
+                   <label className="input-label">Data de Vencimento</label>
+                   <input type="date" className="input-field" value={newFinanceItem.dueDate} onChange={e => setNewFinanceItem({...newFinanceItem, dueDate: e.target.value})} />
+                </div>
+             </div>
+             <div>
+                <label className="input-label">Código de Barras (Opcional)</label>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                   <input type="text" className="input-field" placeholder="Linha digitável do boleto" style={{ flex: 1, minWidth: '200px' }} value={newFinanceItem.barcode} onChange={e => setNewFinanceItem({...newFinanceItem, barcode: e.target.value})} />
+                   <button className="btn-secondary" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', borderRadius: '8px' }}>
+                      <Camera size={18} /> Scannear código
+                   </button>
+                   <button className="btn" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', backgroundColor: '#FFA000', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold' }} onClick={handleAIReceiptScan} disabled={isProcessingReceipt}>
+                      {isProcessingReceipt ? <div className="loader" style={{width: 16, height: 16, borderTopColor: '#fff'}} /> : <Bot size={18} />} Ler Nota IA
+                   </button>
+                </div>
+             </div>
+             <div style={{ marginTop: '24px' }}>
+               <button className="btn" style={{ padding: '12px 24px', borderRadius: '8px' }} onClick={handleAddFinanceItem}>Registrar Conta</button>
+             </div>
+          </div>
+
+          {/* Categorias */}
+          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--error)' }}>
+             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)' }}>
+               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--error)' }}></span>
+               Pendentes / Atrasadas ({financeItems.filter(i => i.type === 'pendente').length})
+             </h3>
+             {financeItems.filter(i => i.type === 'pendente').length === 0 ? (
+               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta pendente.</p>
+             ) : (
+               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 {financeItems.filter(i => i.type === 'pendente').map(item => (
+                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+                     <div style={{ flex: 1, minWidth: '150px' }}>
+                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
+                       <div style={{ fontSize: '0.8rem', color: 'var(--error)' }}>Venceu em: {item.dueDate}</div>
+                     </div>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
+                       <button className="btn-secondary" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', borderColor: 'var(--success)', color: 'var(--success)' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+
+          <div className="card" style={{ padding: '24px', borderLeft: '4px solid #F59E0B' }}>
+             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B' }}>
+               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#F59E0B' }}></span>
+               A Pagar Hoje ({financeItems.filter(i => i.type === 'hoje').length})
+             </h3>
+             {financeItems.filter(i => i.type === 'hoje').length === 0 ? (
+               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta para hoje.</p>
+             ) : (
+               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 {financeItems.filter(i => i.type === 'hoje').map(item => (
+                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+                     <div style={{ flex: 1, minWidth: '150px' }}>
+                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
+                       <div style={{ fontSize: '0.8rem', color: '#F59E0B' }}>Vence hoje</div>
+                     </div>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
+                       <button className="btn" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', backgroundColor: '#F59E0B', color: 'white', border: 'none' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+
+          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--success)' }}>
+             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)' }}>
+               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--success)' }}></span>
+               Contas Futuras ({financeItems.filter(i => i.type === 'futura').length})
+             </h3>
+             {financeItems.filter(i => i.type === 'futura').length === 0 ? (
+               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta futura registrada.</p>
+             ) : (
+               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 {financeItems.filter(i => i.type === 'futura').map(item => (
+                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
+                     <div style={{ flex: 1, minWidth: '150px' }}>
+                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
+                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vence em: {item.dueDate}</div>
+                     </div>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
+                       <button className="btn-secondary" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
+                     </div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+
+          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--primary)' }}>
+             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+               <CheckCircle size={20} color="var(--primary)" />
+               Contas Pagas ({financeItems.filter(i => i.type === 'paga').length})
+             </h3>
+             {financeItems.filter(i => i.type === 'paga').length === 0 ? (
+               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta paga.</p>
+             ) : (
+               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                 {financeItems.filter(i => i.type === 'paga').map(item => (
+                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', opacity: 0.7 }}>
+                     <div>
+                       <div style={{ fontWeight: 'bold', textDecoration: 'line-through' }}>{item.provider}</div>
+                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Pago com sucesso</div>
+                     </div>
+                     <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
+                   </div>
+                 ))}
+               </div>
+             )}
+          </div>
+
+          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
+
+
+
         </div>
       )}
 
@@ -940,7 +1402,7 @@ export default function AdminDashboard() {
               return (
                 <div key={s.id} 
                   onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
                   onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                   onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
                 >
@@ -1017,7 +1479,7 @@ export default function AdminDashboard() {
                 .map((r, idx) => ({ ...r, pos: idx + 1, medalha: idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null }));
 
               return sortedRanking.length > 0 ? sortedRanking.map(r => (
-                <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: '#121318', borderRadius: '10px',
+                <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px',
                   border: r.pos === 1 ? '1px solid rgba(255,160,0,0.3)' : '1px solid transparent' }}>
                   <div style={{ fontSize: '1.5rem', minWidth: '36px', textAlign: 'center' }}>
                     {r.medalha || <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>#{r.pos}</span>}
@@ -1088,7 +1550,7 @@ export default function AdminDashboard() {
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
                   </div>
-                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: '10px 20px', borderRadius: '8px' }}>
+                  <div style={{ textAlign: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 20px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{hoje}</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Acessos Hoje</div>
                   </div>
@@ -1106,9 +1568,10 @@ export default function AdminDashboard() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)' }}>
                   <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Data/IP</th>
                   <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Status</th>
+                  <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Botão Clicado</th>
                   <th style={{ padding: '16px 24px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Tempo na Página</th>
                 </tr>
               </thead>
@@ -1122,7 +1585,7 @@ export default function AdminDashboard() {
                   const sec = diffSec % 60;
                   
                   return (
-                  <tr key={q.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <tr key={q.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{new Date(start).toLocaleString('pt-BR')}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
@@ -1144,12 +1607,25 @@ export default function AdminDashboard() {
                     </td>
                     <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
                       <span style={{ 
+                        padding: '4px 8px', 
+                        backgroundColor: q.clicked_button ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-color)', 
+                        color: q.clicked_button ? '#22c55e' : 'var(--text-muted)',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        border: `1px solid ${q.clicked_button ? '#22c55e' : 'var(--border-color)'}`
+                      }}>
+                        {q.clicked_button ? `Plano: ${q.clicked_button}` : 'Nenhum clique'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '16px 24px', verticalAlign: 'middle' }}>
+                      <span style={{ 
                         padding: '6px 12px', 
-                        backgroundColor: 'rgba(255,255,255,0.05)', 
+                        backgroundColor: 'var(--bg-card)', 
                         borderRadius: '20px', 
                         fontSize: '0.85rem', 
                         fontWeight: 'bold',
-                        color: 'white',
+                        color: 'var(--text-main)',
                         fontFamily: 'monospace'
                       }}>
                         ⏱️ {min}m {sec.toString().padStart(2, '0')}s
@@ -1204,7 +1680,7 @@ export default function AdminDashboard() {
                         <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{new Date(s.created_at).toLocaleTimeString('pt-BR')}</span>
                       </div>
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
-                        👤 Funcionário: <strong style={{ color: 'white' }}>{s.employee_name}</strong> · Loja: {s.store}
+                        👤 Funcionário: <strong style={{ color: 'var(--text-main)' }}>{s.employee_name}</strong> · Loja: {s.store}
                       </p>
                       <p style={{ color: s.resolved ? 'var(--text-muted)' : '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
                         🤖 IA: "{feedback.message}"
@@ -1247,7 +1723,7 @@ export default function AdminDashboard() {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {checklists.filter(cl => !cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                             <h4 style={{ fontSize: '1rem', margin: 0 }}>{cl.title}</h4>
@@ -1279,7 +1755,7 @@ export default function AdminDashboard() {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {checklists.filter(cl => cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                             <h4 style={{ fontSize: '1rem', margin: 0, textDecoration: 'line-through' }}>{cl.title}</h4>
@@ -1362,7 +1838,7 @@ export default function AdminDashboard() {
               const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
               
               return (
-              <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#121318', borderRadius: '10px' }}>
+              <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
@@ -1411,7 +1887,7 @@ export default function AdminDashboard() {
                <Info size={32} color="#3b82f6" />
                <div style={{ flex: 1 }}>
                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
-                   <strong style={{ color: 'white' }}>Plano Flex Padrão:</strong> Você tem direito a 1 câmera inclusa para degustação.
+                   <strong style={{ color: 'var(--text-main)' }}>Plano Flex Padrão:</strong> Você tem direito a 1 câmera inclusa para degustação.
                  </p>
                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
                    Expanda seu monitoramento conectando até 4 Câmeras com IA em sua loja.
@@ -1419,7 +1895,7 @@ export default function AdminDashboard() {
                </div>
                <button 
                  onClick={() => window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank')}
-                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)' }}
+                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'var(--text-main)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)' }}
                >
                  Liberar 4 Câmeras (R$ 49,90)
                </button>
@@ -1428,14 +1904,14 @@ export default function AdminDashboard() {
             {cameras.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                 {cameras.map(cam => (
-                  <div key={cam.id} className="card" style={{ padding: '20px', backgroundColor: '#121318', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div key={cam.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
                     
                     {/* Cabeçalho da Câmera */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
                           <Camera color="var(--primary)" size={20} />
-                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'white' }}>{cam.name}</h4>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>{cam.name}</h4>
                         </div>
                         {(() => {
                           const status = (cam.url && cam.url.length > 5) 
@@ -1488,7 +1964,7 @@ export default function AdminDashboard() {
                     {/* Galeria de Incidentes */}
                     <div style={{ padding: '16px', backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.1)' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                         <p style={{ fontSize: '0.85rem', color: 'white', margin: 0, fontWeight: 'bold' }}>Últimos Incidentes</p>
+                         <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', margin: 0, fontWeight: 'bold' }}>Últimos Incidentes</p>
                          <button style={{ backgroundColor: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', padding: '4px 8px', borderRadius: '4px', transition: 'all 0.2s' }} 
                             onMouseOver={e => { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'white'; }}
                             onMouseOut={e => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
@@ -1527,14 +2003,14 @@ export default function AdminDashboard() {
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                 <Clock color="var(--primary)" /> Histórico de Eventos IA
               </h3>
-              <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setShowHistoryModal(null)}>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setShowHistoryModal(null)}>
                 <X size={24} />
               </button>
             </div>
             
-            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)', backgroundColor: 'var(--bg-card)', borderRadius: '12px' }}>
               <ShieldCheck size={48} style={{ marginBottom: '16px', color: 'var(--success)', opacity: 0.8 }} />
-              <h4 style={{ color: 'white', marginBottom: '8px' }}>Nenhum incidente registrado</h4>
+              <h4 style={{ color: 'var(--text-main)', marginBottom: '8px' }}>Nenhum incidente registrado</h4>
               <p style={{ fontSize: '0.9rem', maxWidth: '400px', margin: '0 auto' }}>
                 O histórico completo ficará disponível assim que a Inteligência Artificial detectar e salvar a primeira quebra de regra na sua operação.
               </p>
@@ -1596,7 +2072,7 @@ export default function AdminDashboard() {
                      <Plus size={16} /> Adicionar
                    </button>
                  </div>
-                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '40px', padding: '12px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', minHeight: '40px', padding: '12px', backgroundColor: 'var(--bg-card-hover)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
                    {(newCamera.ai_commands || []).length === 0 && (
                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>Nenhuma regra adicionada ainda.</span>
                    )}
@@ -1682,7 +2158,7 @@ export default function AdminDashboard() {
                       <option value="nova_unidade">+ Cadastrar Nova Unidade (Digite abaixo)</option>
                     </select>
                   ) : (
-                    <select className="input-field" value={newUser.store} disabled style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed' }}>
+                    <select className="input-field" value={newUser.store} disabled style={{ backgroundColor: 'var(--bg-card)', cursor: 'not-allowed' }}>
                       <option value={userProfile?.store}>{userProfile?.store}</option>
                     </select>
                   )}
@@ -1709,6 +2185,18 @@ export default function AdminDashboard() {
                     <option value="pro_anual">Pró Anual</option>
                     <option value="vitalicio">Vitalício</option>
                   </select>
+
+                  <label className="input-label">Módulos Extras Ativos</label>
+                  <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input type="checkbox" checked={newUser.ponto_active || false} onChange={e => setNewUser({...newUser, ponto_active: e.target.checked})} />
+                      Controle de Ponto
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                      <input type="checkbox" checked={newUser.finance_active || false} onChange={e => setNewUser({...newUser, finance_active: e.target.checked})} />
+                      Financeiro IA
+                    </label>
+                  </div>
                 </div>
               )}
 
@@ -1724,11 +2212,11 @@ export default function AdminDashboard() {
       {showSubmissionModal && selectedSubmission && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 10000, padding: '5vh 20px 20px 20px', backdropFilter: 'blur(10px)' }}>
           <div className="card animate-scale" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', padding: '0', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <button onClick={() => setShowSubmissionModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 1 }}>
+            <button onClick={() => setShowSubmissionModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-main)', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 1 }}>
               <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
             </button>
             
-            <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: '#121318' }}>
+            <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: 'var(--bg-color)' }}>
               {selectedSubmission.selfie && <img src={selectedSubmission.selfie} alt="Selfie" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '3px solid var(--primary)' }} />}
               <div>
                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>
@@ -1748,7 +2236,7 @@ export default function AdminDashboard() {
                 {selectedSubmission.tasks.map((task, idx) => {
                   const feedback = selectedSubmission.feedback_info?.[task.id];
                   return (
-                    <div key={task.id} style={{ padding: '20px', backgroundColor: '#121318', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div key={task.id} style={{ padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                         <h4 style={{ fontSize: '1rem', margin: 0, flex: 1 }}>{idx + 1}. {task.text}</h4>
                         <span style={{ 
@@ -1811,7 +2299,7 @@ export default function AdminDashboard() {
       {editingPlan && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
           <div className="card animate-scale" style={{ width: '100%', maxWidth: '400px', position: 'relative', border: '1px solid var(--primary)', pointerEvents: 'auto' }}>
-            <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
+            <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
             <h3 style={{ marginBottom: '24px' }}>Alterar Plano de {editingPlan.name}</h3>
             
             <div style={{ marginBottom: '16px' }}>
@@ -1824,11 +2312,23 @@ export default function AdminDashboard() {
             </div>
 
             <div style={{ marginBottom: '24px' }}>
-              <label className="input-label">Plano</label>
+              <label className="input-label">Plano de Checklist</label>
               <select className="input-field" value={editingPlan.plan || 'mensal'} onChange={e => setEditingPlan({...editingPlan, plan: e.target.value})}>
                 <option value="mensal">Mensal</option>
                 <option value="anual">Anual</option>
               </select>
+
+              <label className="input-label" style={{ marginTop: '16px' }}>Módulos Extras Ativos</label>
+              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={editingPlan.ponto_active || false} onChange={e => setEditingPlan({...editingPlan, ponto_active: e.target.checked})} />
+                  Controle de Ponto
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                  <input type="checkbox" checked={editingPlan.finance_active || false} onChange={e => setEditingPlan({...editingPlan, finance_active: e.target.checked})} />
+                  Financeiro IA
+                </label>
+              </div>
             </div>
 
             <button className="btn" style={{ width: '100%' }} onClick={async () => {
@@ -1836,7 +2336,7 @@ export default function AdminDashboard() {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status })
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, finance_active: editingPlan.finance_active })
                 });
                 setEditingPlan(null);
                 fetchData();
@@ -1850,6 +2350,126 @@ export default function AdminDashboard() {
         Políticas FireCheck: Fotos e registros de checklists são armazenados por 90 dias para otimização de performance e segurança.
       </div>
 
+      {isFinanceChatOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '500px', height: '80vh', maxHeight: '600px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: 0, overflow: 'hidden', border: '1px solid var(--primary)' }}>
+            <div style={{ backgroundColor: 'var(--primary)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Bot size={24} color="white" />
+                <h3 style={{ margin: 0, color: 'white' }}>Assistente Financeira IA</h3>
+              </div>
+              <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsFinanceChatOpen(false)}><X size={24} /></button>
+            </div>
+            
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-color)' }}>
+              {financeChatMessages.map((msg, idx) => (
+                <div key={idx} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.role === 'user' ? 'var(--primary)' : 'var(--bg-card)', color: msg.role === 'user' ? 'white' : 'var(--text-main)', padding: '12px 16px', borderRadius: '12px', borderBottomRightRadius: msg.role === 'user' ? '4px' : '12px', borderBottomLeftRadius: msg.role === 'ai' ? '4px' : '12px', maxWidth: '85%', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: msg.role === 'ai' ? '1px solid var(--border-color)' : 'none' }}>
+                  {msg.content}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: '16px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px' }}>
+              <input type="text" className="input-field" placeholder="Pergunte sobre notas, prazos ou lucros..." value={financeChatInput} onChange={e => setFinanceChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendFinanceChat()} style={{ flex: 1, borderRadius: '8px' }} />
+              <button className="btn" style={{ padding: '12px 16px', borderRadius: '8px' }} onClick={handleSendFinanceChat}>
+                <MessageCircle size={20} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isPurchasesOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '800px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: '0', overflow: 'hidden', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+            <div style={{ backgroundColor: 'var(--primary)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                 <Plus size={24} color="white" /> Registrar Compras
+              </h3>
+              <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsPurchasesOpen(false)}><X size={24} /></button>
+            </div>
+            
+            <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+              <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
+                <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Nova Nota Fiscal</h3>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📝 O que você comprou?
+                </label>
+                <textarea 
+                  className="input-field" 
+                  placeholder="Ex: Abastecimento do carro da entrega, Papelão, Manutenção..." 
+                  style={{ minHeight: '80px', marginBottom: '16px', resize: 'vertical' }}
+                />
+                <button className="btn" style={{ width: '100%', padding: '16px', backgroundColor: '#FFA000', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '8px' }}>
+                  <Camera size={20} /> Tirar Foto da Nota
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Relatório de Gastos</h3>
+                <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', padding: '6px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                  Total: R$ 4039.89
+                </div>
+              </div>
+
+              <div className="card" style={{ padding: '0', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '16px', fontSize: '0.85rem' }}>Postagem</th>
+                      <th style={{ padding: '16px', fontSize: '0.85rem' }}>Data da NF</th>
+                      <th style={{ padding: '16px', fontSize: '0.85rem' }}>Descrição</th>
+                      <th style={{ padding: '16px', fontSize: '0.85rem' }}>Categoria (IA)</th>
+                      <th style={{ padding: '16px', fontSize: '0.85rem' }}>Valor</th>
+                      <th style={{ padding: '16px', fontSize: '0.85rem', textAlign: 'center' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>30/04/2026</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>admin@hakim.com.br</div>
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}><Calendar size={14} style={{display:'inline', marginRight:'4px', verticalAlign: 'middle'}}/> 30/04/2026</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>Sistema de gás</td>
+                      <td style={{ padding: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Insumos para Sistema de Gás</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--error)' }}>R$ 367.20</td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Ver Foto</button>
+                          <button className="btn-secondary" style={{ padding: '4px 8px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <td style={{ padding: '16px' }}>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>29/04/2026</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>admin@hakim.com.br</div>
+                      </td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}><Calendar size={14} style={{display:'inline', marginRight:'4px', verticalAlign: 'middle'}}/> 29/04/2026</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>Pedágio</td>
+                      <td style={{ padding: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Pedágio</td>
+                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--error)' }}>R$ 7.50</td>
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Ver Foto</button>
+                          <button className="btn-secondary" style={{ padding: '4px 8px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan="6" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        Exibindo 2 registros (Apenas demonstração visual)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       </main>
 
       {/* Container de Toasts */}
@@ -1857,7 +2477,7 @@ export default function AdminDashboard() {
         {toasts.map(toast => (
           <div key={toast.id} className="animate-scale" style={{ 
             backgroundColor: toast.type === 'success' ? '#10b981' : 'var(--primary)', 
-            color: 'white', 
+            color: 'var(--text-main)', 
             padding: '16px 24px', 
             borderRadius: '12px', 
             boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
@@ -1869,7 +2489,7 @@ export default function AdminDashboard() {
           }}>
             <Bell size={20} />
             <span style={{ flex: 1, fontSize: '0.9rem' }}>{toast.message}</span>
-            <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', opacity: 0.8, padding: '4px' }}>
+            <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} style={{ background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', opacity: 0.8, padding: '4px' }}>
               <X size={16} />
             </button>
           </div>

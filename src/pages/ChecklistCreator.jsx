@@ -216,7 +216,7 @@ export default function ChecklistCreator() {
         {!isEditing && (
           <button 
             className="btn btn-pulse" 
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: '#06b6d4', color: 'white', boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: '#06b6d4', color: 'var(--text-main)', boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' }}
             onClick={() => setShowAIModal(true)}
           >
             <Sparkles size={20} /> Gerar com Inteligência Artificial
@@ -256,7 +256,7 @@ export default function ChecklistCreator() {
                   className="input-field" 
                   value={store} 
                   readOnly
-                  style={{ backgroundColor: 'rgba(255,255,255,0.05)', cursor: 'not-allowed', color: 'var(--text-muted)' }}
+                  style={{ backgroundColor: 'var(--bg-card)', cursor: 'not-allowed', color: 'var(--text-muted)' }}
                   placeholder="Nome da sua loja"
                 />
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
@@ -313,9 +313,9 @@ export default function ChecklistCreator() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {tasks.map((task, index) => (
-              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: '#121318' }}>
+              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span className="badge" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>Tarefa {index + 1}</span>
+                  <span className="badge" style={{ backgroundColor: 'var(--bg-card)' }}>Tarefa {index + 1}</span>
                   <button onClick={() => removeTask(task.id)}
                     style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }}>
                     <Trash2 size={20} />
@@ -380,7 +380,7 @@ export default function ChecklistCreator() {
                 </div>
 
                 {/* Atribuição de Funcionário Específico */}
-                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
+                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
                    <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                      <Users size={14} color="var(--primary)" /> Responsável pela Tarefa
                    </label>
@@ -450,7 +450,7 @@ export default function ChecklistCreator() {
             >
               {isAIGenerating ? (
                 <>
-                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopcolor: 'var(--text-main)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                   {aiSteps}
                 </>
               ) : (

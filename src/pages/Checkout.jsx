@@ -54,16 +54,29 @@ export default function Checkout() {
         const userEmail = encodeURIComponent(formData.email);
         const userName = encodeURIComponent(formData.name);
         
-        // Timeout de segurança de 300ms para garantir que o Facebook receba o rastreio antes da página mudar
-        setTimeout(() => {
-          if (plan === 'mensal') {
-             window.location.href = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
-          } else if (plan === 'anual') {
-             window.location.href = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
-          } else {
-             navigate('/admin');
-          }
-        }, 300);
+        // Transição instantânea sem timeout longo
+        let checkoutLink = '';
+        
+        if (plan === 'mensal') {
+          checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'anual') {
+          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'ponto_mensal') {
+          checkoutLink = `https://pay.cakto.com.br/kfx3fri_869702?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'ponto_anual') {
+          checkoutLink = `https://pay.cakto.com.br/otm7qgn?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
+          checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
+        } else if (plan.includes('completo')) {
+           // Fallback for completo se não houver link específico ainda
+          checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
+        }
+
+        if (checkoutLink) {
+           window.location.href = checkoutLink;
+        } else {
+           navigate('/admin');
+        }
       } else {
         alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
@@ -161,7 +174,7 @@ export default function Checkout() {
 
         {/* Resumo Benefícios */}
         <div style={{ alignSelf: 'start' }}>
-          <div className="card" style={{ backgroundColor: '#121318', border: '1px solid var(--primary)' }}>
+          <div className="card" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '20px' }}>O que está incluso no Teste?</h3>
             <ul style={{ padding: 0, margin: 0, listStyle: 'none', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Flame size={20} color="var(--primary)" /> <strong>Acesso total</strong> ao painel administrativo.</li>

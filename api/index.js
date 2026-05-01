@@ -23,6 +23,7 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -73,6 +74,7 @@ export default async function handler(req, res) {
         )
       `);
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_cta BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_button VARCHAR(255)");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -468,6 +470,35 @@ export default async function handler(req, res) {
       }
     }
 
+    if (url.includes('/api/chat-finance')) {
+      if (method === 'POST') {
+        const { message, financeItems } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+        
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+          
+          const prompt = `Você é a assistente financeira inteligente da FireCheck.
+          Aqui está o status atual de contas da empresa (dados em JSON):
+          ${JSON.stringify(financeItems)}
+          
+          O usuário enviou a seguinte mensagem/pergunta: "${message}"
+          
+          Responda de forma extremamente objetiva, prestativa e amigável. Fale em português do Brasil. Use os dados de contas para embasar sua resposta caso a pergunta seja sobre as contas. Não mencione os termos "JSON" ou "dados". Não crie informações que não estão no contexto.`;
+          
+          const result = await model.generateContent(prompt);
+          const response = await result.response;
+          
+          return res.status(200).json({ reply: response.text() });
+        } catch (error) {
+          console.error('Erro no Chat IA Financeira:', error);
+          return res.status(500).json({ error: 'Falha no processamento da IA' });
+        }
+      }
+    }
+
     if (url.includes('/api/resolve-submission')) {
       if (method === 'POST') {
         const { id, resolvedBy } = req.body;
@@ -590,12 +621,12 @@ export default async function handler(req, res) {
     // --- Quiz Analytics ---
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
-        const { sessionId, step, q1, q2, q3, q4, completed, clickedCta } = req.body;
+        const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton } = req.body;
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
         
         await pool.query(`
-          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (session_id) DO UPDATE SET 
             last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
             last_step = $3,
@@ -604,8 +635,9 @@ export default async function handler(req, res) {
             q3_answer = COALESCE($6, quiz_responses.q3_answer),
             q4_answer = COALESCE($7, quiz_responses.q4_answer),
             completed = $8,
-            clicked_cta = COALESCE($9, quiz_responses.clicked_cta)
-        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta]);
+            clicked_cta = COALESCE($9, quiz_responses.clicked_cta),
+            clicked_button = COALESCE($10, quiz_responses.clicked_button)
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton]);
         
         return res.status(200).json({ success: true });
       }

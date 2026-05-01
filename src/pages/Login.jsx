@@ -87,7 +87,7 @@ export default function Login() {
           <div style={{ backgroundColor: 'var(--primary)', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
             <Flame color="white" size={32} />
           </div>
-          <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'white' }}>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', color: 'var(--text-main)' }}>
             {isForgot ? 'Recuperar Senha' : 'Acessar Painel'}
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '8px' }}>
@@ -153,7 +153,7 @@ export default function Login() {
             Ainda não tem uma conta? <br/>
             <button 
               onClick={() => navigate('/')}
-              style={{ background: 'none', border: 'none', color: 'white', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}
             >
               Ver Planos e Assinar
             </button>

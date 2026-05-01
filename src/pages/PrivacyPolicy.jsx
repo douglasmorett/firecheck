@@ -2,15 +2,15 @@ import React from 'react';
 
 const PrivacyPolicy = () => {
   return (
-    <div style={{ backgroundColor: '#0a0b0e', color: 'white', minHeight: '100vh', padding: '60px 20px', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', minHeight: '100vh', padding: '60px 20px', fontFamily: 'Inter, sans-serif' }}>
       <div style={{ 
         maxWidth: '850px', 
         margin: '0 auto', 
         lineHeight: '1.7',
-        backgroundColor: '#16181d',
+        backgroundColor: 'var(--bg-card-hover)',
         padding: '50px',
         borderRadius: '24px',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        border: '1px solid var(--border-color)',
         boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
       }}>
         <h1 style={{ 
@@ -96,7 +96,7 @@ const PrivacyPolicy = () => {
           fontSize: '0.85rem', 
           color: '#555', 
           textAlign: 'center',
-          borderTop: '1px solid rgba(255, 255, 255, 0.05)',
+          borderTop: '1px solid var(--border-color)',
           paddingTop: '20px'
         }}>
           Última atualização: 22 de abril de 2026. <br /> FireCheck Inc. — Todos os direitos reservados.
