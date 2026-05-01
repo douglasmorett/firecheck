@@ -333,6 +333,9 @@ export default function LandingPage() {
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <h2 style={{ fontSize: 'min(2.5rem, 5vw)', fontWeight: '900', marginBottom: '16px', color: 'var(--text-main)' }}>A IA audita <span style={{ color: '#ff4d00' }}>Qualquer Padrão</span></h2>
             <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>Veja o FireCheck reprovando falhas reais em 4 setores diferentes.</p>
+            <div className="mobile-swipe-hint" style={{ display: 'none', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#ff4d00', fontWeight: 'bold', fontSize: '0.9rem', marginTop: '16px' }}>
+              Role para o lado <ArrowRight size={16} />
+            </div>
           </div>
         </div>
 
@@ -348,6 +351,12 @@ export default function LandingPage() {
             }
             @media (max-width: 768px) {
               .example-mockup { flex: 0 0 240px; }
+              .mobile-swipe-hint { display: flex !important; animation: pulse-swipe 1.5s infinite; }
+            }
+            @keyframes pulse-swipe {
+              0% { transform: translateX(0); }
+              50% { transform: translateX(10px); }
+              100% { transform: translateX(0); }
             }
           `}</style>
 
