@@ -675,7 +675,7 @@ export default function LandingPage() {
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para testar na sua operação.</p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>
 
@@ -695,11 +695,11 @@ export default function LandingPage() {
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$79,90<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R$55,83<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: 'var(--success)', fontSize: '1rem', fontWeight: 'bold' }}>Menos que um cafezinho: R$ 2,66 /dia</div>
-              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem', marginTop: '4px' }}>Faturado R$958,80 anualmente</div>
+              <div style={{ color: 'var(--success)', fontSize: '1rem', fontWeight: 'bold' }}>Menos que um cafezinho: R$ 1,83 /dia</div>
+              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem', marginTop: '4px' }}>Faturado R$670,00 anualmente</div>
             </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
