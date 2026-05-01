@@ -608,45 +608,35 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid-2x2-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', maxWidth: '1000px', margin: '0 auto', position: 'relative' }}>
           
-          <div style={{ backgroundColor: 'var(--bg-color)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
-            <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-              <span style={{ fontSize: '1.2rem' }}>📄</span>
-            </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Importar Planilha/Word</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Envie seu checklist antigo em Excel, Word ou imagem e a IA converte automaticamente.</p>
-            <div style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Testar importação <ArrowRight size={14} /></div>
+          {/* Step 1 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '32px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.5rem', margin: '0 auto 24px', boxShadow: '0 0 0 8px rgba(255, 77, 0, 0.1)' }}>1</div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '16px' }}>Diga o que você precisa</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.5' }}>
+              Descreva em texto livre ou mande a foto de uma planilha velha. Nossa IA entende qualquer formato.
+            </p>
           </div>
 
-          <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.05)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(6, 182, 212, 0.3)', display: 'flex', flexDirection: 'column', transition: 'all 0.3s ease', cursor: 'pointer', boxShadow: '0 4px 12px rgba(6, 182, 212, 0.1)' }} onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-5px)'} onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
-            <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', color: '#06b6d4', width: '40px', height: '40px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' }}>
-              <Bot size={20} />
-            </div>
-            <h3 className="price-text" style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#06b6d4' }}>Criar com IA</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Descreva sua operação e a Inteligência Artificial cria o checklist completo para você.</p>
-            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Gerar checklist <ArrowRight size={14} /></div>
+          {/* Step 2 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '32px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', backgroundColor: '#06b6d4', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.5rem', margin: '0 auto 24px', boxShadow: '0 0 0 8px rgba(6, 182, 212, 0.1)' }}>2</div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '16px' }}>A Mágica Acontece</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.5' }}>
+              A Inteligência Artificial estrutura o checklist perfeito com validações obrigatórias de câmera.
+            </p>
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-color)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
-            <div className="badge-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>COZINHA</span>
-              <span style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>FECHAMENTO</span>
-            </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Fechamento Cozinha</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Checklist para garantir o correto fechamento, higiene e desligamento de equipamentos.</p>
-            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
+          {/* Step 3 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '32px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center' }}>
+            <div style={{ width: '64px', height: '64px', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.5rem', margin: '0 auto 24px', boxShadow: '0 0 0 8px rgba(16, 185, 129, 0.1)' }}>3</div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '16px' }}>Pronto para Executar</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1rem', lineHeight: '1.5' }}>
+              Seus funcionários recebem no aplicativo e já podem começar a executar a tarefa instantaneamente.
+            </p>
           </div>
 
-          <div style={{ backgroundColor: 'var(--bg-color)', borderRadius: '20px', padding: '24px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'all 0.3s ease', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }} onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>
-            <div className="badge-wrap" style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>SALÃO</span>
-              <span style={{ backgroundColor: '#e2e8f0', color: '#475569', fontSize: '0.7rem', padding: '4px 8px', borderRadius: '8px', fontWeight: 'bold' }}>ABERTURA</span>
-            </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px' }}>Abertura Salão</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', flex: 1 }}>Verificação de mesas, banheiros, uniformes e iluminação antes de abrir ao público.</p>
-            <div style={{ color: '#06b6d4', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>Usar esse template <ArrowRight size={14} /></div>
-          </div>
         </div>
       </section>
 
