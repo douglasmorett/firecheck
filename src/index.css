@@ -1,16 +1,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-color: #18181b;
-  --bg-card: #27272a;
-  --bg-card-hover: #3f3f46;
+  --bg-color: #F4F4F5;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #FAFAFA;
   --primary: #FF4D00;
   --primary-hover: #FF6622;
-  --text-main: #FFFFFF;
-  --text-muted: #a1a1aa;
+  --text-main: #18181B;
+  --text-muted: #71717A;
   --success: #10b981;
   --error: #ef4444;
-  --border-color: #3f3f46;
+  --border-color: #E4E4E7;
   --radius: 12px;
   --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
@@ -103,9 +103,9 @@ body {
 
 .input-field {
   width: 100%;
-  background-color: #121318;
+  background-color: #FFFFFF;
   border: 1px solid var(--border-color);
-  color: white;
+  color: var(--text-main);
   padding: 14px 16px;
   border-radius: 8px;
   font-size: 1rem;
@@ -160,7 +160,7 @@ body {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--border-color);
-  background: rgba(26, 28, 35, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(10px);
   position: sticky;
   top: 0;
@@ -237,7 +237,7 @@ body {
 .checkmark {
   height: 24px;
   width: 24px;
-  background-color: #121318;
+  background-color: #FFFFFF;
   border: 2px solid var(--border-color);
   border-radius: 6px;
   display: flex;
@@ -274,7 +274,7 @@ body {
 
 @media (max-width: 768px) {
   .hide-on-mobile { display: none !important; }
-  .scale-on-mobile { transform: scale(0.8); transform-origin: top center; margin-bottom: -50px; margin-top: 20px; }
+  .scale-on-mobile { transform: scale(0.8); transform-origin: top center; margin-bottom: -50px; margin-top: 10px; width: 100%; max-width: 300px; margin-left: auto; margin-right: auto; }
   
   .sidebar {
     position: fixed !important;
@@ -368,50 +368,52 @@ body {
   }
   .grid-2x2-mobile svg { width: 16px !important; height: 16px !important; }
   .grid-2x2-mobile .cta-link { font-size: 0.75rem !important; }
-  .video-mockup { max-width: 200px !important; margin: 0 auto; }
-  .section-mobile-padding { padding-top: 40px !important; padding-bottom: 40px !important; }
+  .video-mockup { max-width: 180px !important; margin: 0 auto; }
+  .section-mobile-padding { padding-top: 30px !important; padding-bottom: 30px !important; }
   .badges-mobile { gap: 8px !important; }
-  .badges-mobile > div { padding: 6px 12px !important; gap: 6px !important; border-radius: 8px !important; }
-  .badges-mobile span { font-size: 0.75rem !important; }
-  .badges-mobile svg { width: 14px !important; height: 14px !important; }
+  .badges-mobile > div { padding: 6px 10px !important; gap: 4px !important; border-radius: 8px !important; }
+  .badges-mobile span { font-size: 0.7rem !important; }
+  .badges-mobile svg { width: 12px !important; height: 12px !important; }
 
   .grid-2-col-mobile {
     display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 12px !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
   }
   .grid-2-col-mobile > div {
-    padding: 16px !important;
+    padding: 20px !important;
   }
-  .grid-2-col-mobile h3 {
+  .grid-2-col-mobile h3, .grid-2-col-mobile h4 {
     font-size: 1.1rem !important;
   }
   .grid-2-col-mobile .price-text {
-    font-size: 1.8rem !important;
+    font-size: 1.5rem !important;
   }
   .grid-2-col-mobile ul li {
-    font-size: 0.75rem !important;
-    margin-bottom: 8px !important;
+    font-size: 0.85rem !important;
+    margin-bottom: 6px !important;
   }
   .grid-2-col-mobile button {
     padding: 10px !important;
-    font-size: 0.85rem !important;
+    font-size: 0.9rem !important;
   }
   
   .grid-3-col-mobile {
     display: grid !important;
-    grid-template-columns: 1fr 1fr 1fr !important;
-    gap: 4px !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
   }
   .grid-3-col-mobile > div {
     padding: 8px !important;
   }
   .grid-3-col-mobile h3 {
-    font-size: 0.85rem !important;
-    margin-bottom: 2px !important;
+    font-size: 0.95rem !important;
+    margin-bottom: 4px !important;
   }
   .grid-3-col-mobile p {
-    display: none !important;
+    display: block !important;
+    font-size: 0.75rem !important;
+    margin-bottom: 8px !important;
   }
   .grid-3-col-mobile .price-text {
     font-size: 1.1rem !important;
@@ -435,6 +437,14 @@ body {
   }
   .grid-3-col-mobile .card > div > div {
     font-size: 0.65rem !important;
+  }
+
+  /* Make tab contents smaller and stacked */
+  .scale-on-mobile > div {
+    max-width: 100% !important;
+  }
+  .scale-on-mobile .card {
+    padding: 16px !important;
   }
 }
 
