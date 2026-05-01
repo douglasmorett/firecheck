@@ -97,7 +97,7 @@ export default function LandingPage() {
             width: 250px;
             height: 500px;
             background: #ffffff;
-            border: 12px solid #e2e8f0;
+            border: 12px solid #18181b;
             border-radius: 36px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05) inset;
             position: relative;
@@ -134,7 +134,7 @@ export default function LandingPage() {
             transform: translateX(-50%);
             width: 120px;
             height: 24px;
-            background: #cbd5e1;
+            background: #18181b;
             border-bottom-left-radius: 16px;
             border-bottom-right-radius: 16px;
             z-index: 50;
@@ -346,8 +346,8 @@ export default function LandingPage() {
           `}</style>
 
           {/* Exemplo 1: Cozinha */}
-          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #e2e8f0', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
-            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
+          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #18181b', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
+            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#18181b' }}></div>
             <div style={{ padding: '40px 16px 16px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowLeft size={16}/> Cozinha Comercial</div>
             <div style={{ position: 'relative', height: '220px', width: '100%' }}>
               <img src="/dirty-grill.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -363,8 +363,8 @@ export default function LandingPage() {
           </div>
 
           {/* Exemplo 2: Academia */}
-          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #e2e8f0', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
-            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
+          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #18181b', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
+            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#18181b' }}></div>
             <div style={{ padding: '40px 16px 16px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowLeft size={16}/> Academia Fitness</div>
             <div style={{ position: 'relative', height: '220px', width: '100%' }}>
               <img src="/gym-treadmill.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -380,8 +380,8 @@ export default function LandingPage() {
           </div>
 
           {/* Exemplo 3: Frota */}
-          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #e2e8f0', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
-            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
+          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #18181b', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
+            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#18181b' }}></div>
             <div style={{ padding: '40px 16px 16px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowLeft size={16}/> Logística e Frota</div>
             <div style={{ position: 'relative', height: '220px', width: '100%' }}>
               <img src="/fleet-tire.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -397,8 +397,8 @@ export default function LandingPage() {
           </div>
 
           {/* Exemplo 4: Hotel */}
-          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #e2e8f0', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
-            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#cbd5e1' }}></div>
+          <div className="example-mockup phone-mockup" style={{ backgroundColor: '#ffffff', border: '8px solid #18181b', borderRadius: '32px', height: '520px', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', overflow: 'hidden', position: 'relative' }}>
+            <div className="phone-notch" style={{ width: '100px', height: '20px', backgroundColor: '#18181b' }}></div>
             <div style={{ padding: '40px 16px 16px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}><ArrowLeft size={16}/> Hotelaria</div>
             <div style={{ position: 'relative', height: '220px', width: '100%' }}>
               <img src="/hotel-bed.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
