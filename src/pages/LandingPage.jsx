@@ -119,7 +119,9 @@ export default function LandingPage() {
             .anim-flow-container {
               flex-wrap: nowrap !important;
               gap: 12px !important;
-              transform: scale(0.65) !important;
+              position: relative;
+              left: 50%;
+              transform: translateX(-50%) scale(0.65) !important;
               transform-origin: center top;
               margin-bottom: -160px;
             }
@@ -341,6 +343,9 @@ export default function LandingPage() {
             .horizontal-scroll-container::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; margin: 0 5%; }
             .horizontal-scroll-container::-webkit-scrollbar-thumb { background: rgba(255,77,0,0.5); border-radius: 4px; }
             .example-mockup { flex: 0 0 280px; scroll-snap-align: center; }
+            @media (min-width: 1280px) {
+              .horizontal-scroll-container { justify-content: center; }
+            }
             @media (max-width: 768px) {
               .example-mockup { flex: 0 0 240px; }
             }
@@ -488,8 +493,16 @@ export default function LandingPage() {
             <div style={{ color: '#10b981', marginBottom: '16px' }}><Trophy size={28} /></div>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '800', marginBottom: '8px' }}>Ranking</h3>
             <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.9rem', lineHeight: '1.4' }}>Engaje sua equipe. O app ranqueia automaticamente.</p>
-            <div style={{ backgroundColor: 'rgba(16,185,129,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#10b981' }}>
-              🥇 1º Lugar: Carlos
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ backgroundColor: 'rgba(16,185,129,0.1)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#10b981' }}>
+                🥇 1º Lugar: Carlos
+              </div>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#475569' }}>
+                🥈 2º Lugar: Marcos
+              </div>
+              <div style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>
+                🥉 3º Lugar: João
+              </div>
             </div>
           </div>
         </div>
