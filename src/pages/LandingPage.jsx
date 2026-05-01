@@ -96,6 +96,7 @@ export default function LandingPage() {
           .phone-mockup {
             width: 250px;
             height: 500px;
+            flex-shrink: 0;
             background: #ffffff;
             border: 12px solid #18181b;
             border-radius: 36px;
@@ -634,7 +635,7 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div className="grid-3-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', alignItems: 'center' }}>
+        <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '800px', margin: '0 auto', alignItems: 'center' }}>
           
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
@@ -678,17 +679,17 @@ export default function LandingPage() {
             </button>
           </div>
 
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Custom</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Faremos um plano personalizado para sua empresa.</p>
-            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '24px' }}>A combinar</div>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Acima de 10 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Treinamento de IA Personalizado</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Gerente de Conta Dedicado</li>
-            </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>Falar com nossos consultores</button>
-          </div>
+        </div>
+
+        {/* Plano Custom abaixo */}
+        <div className="card" style={{ maxWidth: '800px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Mais de 10 funcionários?</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
+            Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
+          </p>
+          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>
+            Falar com nossos consultores
+          </button>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
