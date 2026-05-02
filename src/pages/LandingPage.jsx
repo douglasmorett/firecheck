@@ -91,7 +91,7 @@ export default function LandingPage() {
              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '24px' }}
            />
         </div>
-      </div>
+      </section>
 
       {/* Templates de Checklist */}
       <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
