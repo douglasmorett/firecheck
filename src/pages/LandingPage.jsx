@@ -83,7 +83,7 @@ export default function LandingPage() {
         {/* Right Column: Video Placeholder */}
         <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
-           <div style={{ width: '280px', height: '580px', background: '#ffffff', border: '12px solid #18181b', borderRadius: '36px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', overflow: 'hidden' }}>
+           <div style={{ width: '280px', height: '580px', background: '#000000', border: '12px solid #18181b', borderRadius: '36px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', overflow: 'hidden' }}>
              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '120px', height: '24px', background: '#18181b', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', zIndex: 50 }}></div>
              <video 
                src="/demo2.mp4" 
@@ -91,7 +91,7 @@ export default function LandingPage() {
                loop 
                muted 
                playsInline
-               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
              />
            </div>
         </div>
