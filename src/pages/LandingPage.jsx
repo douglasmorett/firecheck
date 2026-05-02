@@ -80,10 +80,95 @@ export default function LandingPage() {
           </p>
         </div>
 
+        {/* Right Column: Video Placeholder */}
+        <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px', background: 'var(--bg-card)', borderRadius: '24px', border: '2px dashed var(--border-color)' }}>
+           <video 
+             src="/demo2.mp4" 
+             autoPlay 
+             loop 
+             muted 
+             playsInline
+             style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '24px' }}
+           />
+        </div>
+      </div>
+
+      {/* Templates de Checklist */}
+      <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
+            O seu negócio rodando <br/><span style={{ color: 'var(--primary)' }}>no piloto automático</span>
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto' }}>
+            Veja como é simples transformar a gestão da sua empresa em 4 passos rápidos.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
+          
+          {/* Step 1 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step1.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Crie o checklist" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(255, 77, 0, 0.1)' }}>1</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Criação Simples</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Crie o checklist para sua equipe de forma manual ou com ajuda da nossa IA.
+            </p>
+          </div>
+
+          {/* Step 2 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step2.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Funcionários executam" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(6, 182, 212, 0.1)' }}>2</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Execução Imediata</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Seus funcionários recebem no aplicativo e já podem começar a executar a tarefa instantaneamente respondendo se foi feito e tirando foto.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step3.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Notificação de falha" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(239, 68, 68, 0.1)' }}>3</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Alertas Inteligentes</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Caso alguma tarefa não seja executada na hora programada ou do jeito que você pediu, nossa IA envia uma notificação push para seu celular para que você só precise agir se realmente algum comando não for cumprido.
+            </p>
+          </div>
+
+          {/* Step 4 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step4.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Férias e relaxamento" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.1)' }}>4</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Empresa Auto-Gerenciável</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Relaxe e programe suas férias, agora você tem uma empresa auto gerenciável!
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* NOVA SEÇÃO: Processo Simples */}
+      <section className="section-mobile-padding" style={{ padding: '80px 0', backgroundColor: 'var(--bg-color)', position: 'relative', zIndex: 11, overflow: 'hidden' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 5%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+            <h2 style={{ fontSize: 'min(2.5rem, 5vw)', fontWeight: '900', marginBottom: '16px', color: 'var(--text-main)' }}>Veja como é <span style={{ color: '#ff4d00' }}>simples o nosso processo</span></h2>
+            <p style={{ fontSize: '1.1rem', color: 'var(--text-muted)', maxWidth: '600px', margin: '0 auto' }}>Do celular do funcionário para o seu bolso em segundos.</p>
+          </div>
+        </div>
         {/* Right Column: Animated Dual Phones */}
         <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
-          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '32px', textAlign: 'center', zIndex: 10 }}>veja como é simples o nosso processo:</div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '32px', textAlign: 'center', zIndex: 10 }}></div>
           <style>{`
           .anim-flow-container {
               transform: scale(0.85);
@@ -326,71 +411,9 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
+
       </section>
 
-      {/* Templates de Checklist */}
-      <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
-            O seu negócio rodando <br/><span style={{ color: 'var(--primary)' }}>no piloto automático</span>
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto' }}>
-            Veja como é simples transformar a gestão da sua empresa em 4 passos rápidos.
-          </p>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
-          
-          {/* Step 1 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step1.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Crie o checklist" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(255, 77, 0, 0.1)' }}>1</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Criação Simples</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Crie o checklist para sua equipe de forma manual ou com ajuda da nossa IA.
-            </p>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step2.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Funcionários executam" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(6, 182, 212, 0.1)' }}>2</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Execução Imediata</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Seus funcionários recebem no aplicativo e já podem começar a executar a tarefa instantaneamente respondendo se foi feito e tirando foto.
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step3.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Notificação de falha" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(239, 68, 68, 0.1)' }}>3</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Alertas Inteligentes</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Caso alguma tarefa não seja executada na hora programada ou do jeito que você pediu, nossa IA envia uma notificação push para seu celular para que você só precise agir se realmente algum comando não for cumprido.
-            </p>
-          </div>
-
-          {/* Step 4 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step4.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Férias e relaxamento" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.1)' }}>4</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Empresa Auto-Gerenciável</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Relaxe e programe suas férias, agora você tem uma empresa auto gerenciável!
-            </p>
-          </div>
-
-        </div>
-      </section>
 
       {/* Seção: Exemplos Práticos da IA (Cozinha, Academia, Frota, Hotel) */}
       <section className="section-mobile-padding" style={{ padding: '80px 0', backgroundColor: 'var(--bg-card)', position: 'relative', zIndex: 11, overflow: 'hidden' }}>
