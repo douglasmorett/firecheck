@@ -82,8 +82,32 @@ export default function LandingPage() {
 
         {/* Right Column: Video Placeholder */}
         <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
+           <h3 className="mobile-video-title" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '24px', textAlign: 'center', zIndex: 10 }}>Veja como funciona nosso aplicativo:</h3>
+           <style>{`
+             .video-phone-mockup {
+                width: 280px; 
+                height: 580px; 
+                background: #000000; 
+                border: 12px solid #18181b; 
+                border-radius: 36px; 
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+                position: relative; 
+                overflow: hidden;
+             }
+             @media (max-width: 768px) {
+                .video-phone-mockup {
+                   transform: scale(0.85);
+                   transform-origin: center top;
+                   margin-bottom: -60px;
+                }
+                .mobile-video-title { display: block !important; }
+             }
+             @media (min-width: 769px) {
+                .mobile-video-title { display: none !important; }
+             }
+           `}</style>
            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
-           <div style={{ width: '280px', height: '580px', background: '#000000', border: '12px solid #18181b', borderRadius: '36px', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)', position: 'relative', overflow: 'hidden' }}>
+           <div className="video-phone-mockup">
              <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '120px', height: '24px', background: '#18181b', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', zIndex: 50 }}></div>
              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                <video 
@@ -137,7 +161,45 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px', maxWidth: '1200px', margin: '0 auto', position: 'relative' }}>
+        <style>{`
+          .four-steps-grid {
+             display: grid;
+             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+             gap: 24px;
+             max-width: 1200px;
+             margin: 0 auto;
+             position: relative;
+          }
+          @media (max-width: 768px) {
+             .four-steps-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px !important;
+             }
+             .four-steps-grid > div {
+                padding: 12px !important;
+                border-radius: 16px !important;
+             }
+             .four-steps-grid > div > div:first-child {
+                height: 80px !important;
+                margin-bottom: 12px !important;
+                border-radius: 8px !important;
+             }
+             .four-steps-grid > div > div:nth-child(2) {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 0.9rem !important;
+                margin-bottom: 8px !important;
+             }
+             .four-steps-grid > div > h3 {
+                font-size: 0.85rem !important;
+                margin-bottom: 6px !important;
+             }
+             .four-steps-grid > div > p {
+                font-size: 0.75rem !important;
+             }
+          }
+        `}</style>
+        <div className="four-steps-grid">
           
           {/* Step 1 */}
           <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
