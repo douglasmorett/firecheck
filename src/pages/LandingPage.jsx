@@ -128,7 +128,7 @@ export default function LandingPage() {
                transform-origin: center top;
                margin-bottom: -190px;
             }
-            .hero-desc { order: 4; text-align: center; font-size: 1.05rem !important; margin-bottom: 16px !important; }
+            .hero-desc { order: 4; text-align: center; font-size: 0.85rem !important; margin-bottom: 16px !important; }
             .hero-cta { order: 5; display: flex; flex-direction: column; align-items: center; width: 100%; }
             .hero-cta button { width: 100%; justify-content: center; }
             .hero-cta p { text-align: center; width: 100%; }
