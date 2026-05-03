@@ -788,7 +788,70 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
-        <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '800px', margin: '0 auto', alignItems: 'center' }}>
+        <style>{`
+          .pricing-grid-mobile {
+             display: grid;
+             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+             gap: 24px;
+             max-width: 800px;
+             margin: 0 auto;
+             align-items: center;
+          }
+          @media (max-width: 768px) {
+             .pricing-grid-mobile {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+             }
+             .pricing-grid-mobile .card {
+                padding: 12px !important;
+                border-radius: 12px !important;
+                transform: none !important;
+             }
+             .pricing-grid-mobile .card > h3 {
+                font-size: 0.95rem !important;
+                margin-bottom: 4px !important;
+             }
+             .pricing-grid-mobile .card > p {
+                font-size: 0.7rem !important;
+                margin-bottom: 8px !important;
+             }
+             .pricing-grid-mobile .card > .price-text {
+                font-size: 1.4rem !important;
+                margin-bottom: 4px !important;
+             }
+             .pricing-grid-mobile .card > .price-text span {
+                font-size: 0.65rem !important;
+             }
+             .pricing-grid-mobile .card ul {
+                margin: 0 0 16px 0 !important;
+             }
+             .pricing-grid-mobile .card ul li {
+                font-size: 0.65rem !important;
+                margin-bottom: 6px !important;
+                gap: 4px !important;
+             }
+             .pricing-grid-mobile .card ul li svg {
+                width: 12px !important;
+                height: 12px !important;
+             }
+             .pricing-grid-mobile .card button {
+                padding: 8px !important;
+                font-size: 0.75rem !important;
+             }
+             .pricing-grid-mobile .card > div[style*="transparent"] {
+                display: none !important;
+             }
+             .pricing-grid-mobile .card > div > div {
+                font-size: 0.65rem !important;
+             }
+             .pricing-grid-mobile .card > div[style*="absolute"] {
+                font-size: 0.55rem !important;
+                padding: 2px 6px !important;
+                top: -8px !important;
+             }
+          }
+        `}</style>
+        <div className="pricing-grid-mobile">
           
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
