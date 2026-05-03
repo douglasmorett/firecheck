@@ -58,6 +58,7 @@ export default function ChecklistCreator() {
   const [recurrence, setRecurrence] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [tasks, setTasks] = useState([newTask()]);
+  const [requireSelfie, setRequireSelfie] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [team, setTeam] = useState([]);
 
@@ -123,6 +124,7 @@ export default function ChecklistCreator() {
             setStore(cl.store);
             setRecurrence(cl.recurrence);
             setScheduledDate(cl.scheduledDate);
+            setRequireSelfie(cl.require_selfie || false);
             setTasks(cl.tasks);
           }
         });
@@ -178,7 +180,7 @@ export default function ChecklistCreator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: id || null,
-          title, store, recurrence, scheduledDate, tasks
+          title, store, recurrence, scheduledDate, tasks, requireSelfie
         })
       });
 
@@ -299,6 +301,22 @@ export default function ChecklistCreator() {
                 ✅ O sistema vai distribuir automaticamente para os funcionários.
               </span>
             )}
+          </div>
+
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <Camera size={16} color="var(--primary)" /> Exigir Selfie na Finalização
+            </label>
+            <label className="custom-checkbox" style={{ padding: '4px 0', marginBottom: 0 }}>
+              <input type="checkbox" checked={requireSelfie} onChange={e => setRequireSelfie(e.target.checked)} />
+              <span className="checkmark"></span>
+              <span style={{ color: requireSelfie ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {requireSelfie ? 'Sim, obrigatório' : 'Não exigir'}
+              </span>
+            </label>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block', lineHeight: '1.4' }}>
+              O colaborador terá que tirar uma foto do próprio rosto antes de concluir o checklist.
+            </span>
           </div>
         </div>
 

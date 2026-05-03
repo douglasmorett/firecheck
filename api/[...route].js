@@ -24,6 +24,7 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_selfie BOOLEAN DEFAULT FALSE');
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
       await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
       await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
@@ -159,21 +160,29 @@ export default async function handler(req, res) {
     if (url.includes('/api/checklists')) {
        // Se for POST, cria um novo ou atualiza
        if (req.method === 'POST') {
-          const { title, store, tasks, recurrence, scheduledDate } = req.body;
+          const { title, store, tasks, recurrence, scheduledDate, requireSelfie } = req.body;
           // Tenta inserir. Se der erro de coluna, o catch vai capturar.
           try {
             const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false]
             );
             return res.status(200).json(rows[0]);
           } catch (dbErr) {
             // Fallback caso a coluna scheduled_date não exista ainda no Neon
-            const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence]
-            );
-            return res.status(200).json(rows[0]);
+            try {
+               const { rows } = await pool.query(
+                 'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+                 [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+               );
+               return res.status(200).json(rows[0]);
+            } catch (err2) {
+               const { rows } = await pool.query(
+                 'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
+                 [title, store, JSON.stringify(tasks), recurrence]
+               );
+               return res.status(200).json(rows[0]);
+            }
           }
        }
        const store = searchParams.get('store');

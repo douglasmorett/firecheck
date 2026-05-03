@@ -40,6 +40,7 @@ export default function ChecklistExecution() {
 
   const [currentChecklistId, setCurrentChecklistId] = useState(null);
   const [completedTodayInfo, setCompletedTodayInfo] = useState(null);
+  const [requireSelfie, setRequireSelfie] = useState(false);
 
   // Carregar checklists da loja
   useEffect(() => {
@@ -57,6 +58,7 @@ export default function ChecklistExecution() {
           if (cl) {
             setCurrentChecklistId(cl.id);
             setTitle(cl.title);
+            setRequireSelfie(cl.require_selfie || false);
             
             if (cl.completedToday) {
               setCompletedTodayInfo(cl.completedBy);
@@ -201,7 +203,7 @@ export default function ChecklistExecution() {
     if (pendingPhoto.length > 0) {
       alert('Envie a foto de todas as tarefas obrigatórias antes de finalizar.'); return;
     }
-    if (!selfie) {
+    if (requireSelfie && !selfie) {
       startSelfieCamera(); return;
     }
     try {
@@ -409,7 +411,7 @@ export default function ChecklistExecution() {
       )}
 
       <button className="btn" style={{ width: '100%', marginTop: '32px', padding: '16px' }} onClick={handleFinish}>
-        {selfie ? <><CheckCircle size={20} /> Finalizar e Enviar</> : <><Camera size={20} /> Tirar Selfie e Finalizar</>}
+        {requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Finalizar</> : <><CheckCircle size={20} /> Finalizar e Enviar</>}
       </button>
 
     </div>
