@@ -10,6 +10,27 @@ export default function LandingPage() {
 
   const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
 
+  const handleTrackAndNavigate = (buttonName, path) => {
+    fetch(`${API_URL}/api/track-quiz`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        sessionId, 
+        step: 0, 
+        completed: false, 
+        clickedCta: true,
+        clickedButton: buttonName
+      })
+    }).catch(() => {});
+    if (path) {
+      if (path.startsWith('http')) {
+        window.open(path);
+      } else {
+        navigate(path);
+      }
+    }
+  };
+
   useEffect(() => {
     // Ping to track live visitors
     const ping = () => {
@@ -71,7 +92,7 @@ export default function LandingPage() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => navigate('/checkout')}>
+            <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => handleTrackAndNavigate('Começar 7 Dias Grátis', '/checkout')}>
               Começar 7 Dias Grátis <ArrowRight size={20} />
             </button>
           </div>
@@ -124,6 +145,7 @@ export default function LandingPage() {
                             videoRef.current.muted = false;
                             videoRef.current.play();
                             setIsVideoActive(true);
+                            handleTrackAndNavigate('video_play', null);
                         }
                     }
                  }}
@@ -136,6 +158,7 @@ export default function LandingPage() {
                           videoRef.current.muted = false;
                           videoRef.current.play();
                           setIsVideoActive(true);
+                          handleTrackAndNavigate('video_play', null);
                       }
                    }}
                    style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', zIndex: 60 }}
@@ -867,7 +890,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=mensal')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Start Mensal', '/checkout?plan=mensal')}>
               Assinar Agora
             </button>
           </div>
@@ -890,7 +913,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => navigate('/checkout?plan=anual')}>
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Start Anual', '/checkout?plan=anual')}>
               Assinar Agora
             </button>
           </div>
@@ -903,14 +926,14 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
             Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
           </p>
-          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>
+          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>
             Falar com nossos consultores
           </button>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
           <h3 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>Ainda não tem certeza?</h3>
-          <button className="btn" style={{ padding: '16px 32px', fontSize: '1.1rem', backgroundColor: 'transparent', border: '2px solid var(--primary)', color: 'var(--primary)' }} onClick={() => navigate('/checkout')}>
+          <button className="btn" style={{ padding: '16px 32px', fontSize: '1.1rem', backgroundColor: 'transparent', border: '2px solid var(--primary)', color: 'var(--primary)' }} onClick={() => handleTrackAndNavigate('Testar Grátis 7 Dias (Footer)', '/checkout')}>
             Criar conta e Testar Grátis por 7 Dias
           </button>
           <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Acesso imediato. Não pedimos cartão de crédito.</p>
