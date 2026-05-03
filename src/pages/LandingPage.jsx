@@ -732,49 +732,48 @@ export default function LandingPage() {
           <style>{`
             @media (max-width: 768px) {
               .grid-2-col-mobile {
-                display: flex !important;
-                flex-direction: row !important;
-                overflow-x: auto !important;
-                overflow-y: hidden !important;
-                touch-action: pan-x pan-y;
-                overscroll-behavior-y: none;
-                scroll-snap-type: x mandatory;
-                gap: 16px !important;
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px !important;
                 margin-top: 24px !important;
-                padding-bottom: 24px !important;
-                margin-right: -5%; /* Let it scroll to the screen edge */
-                margin-left: -5%;
-                padding-left: 5%;
-                padding-right: 5%;
               }
-              .grid-2-col-mobile::-webkit-scrollbar { height: 4px; }
-              .grid-2-col-mobile::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); border-radius: 4px; }
-              .grid-2-col-mobile::-webkit-scrollbar-thumb { background: rgba(255,77,0,0.3); border-radius: 4px; }
-
               .grid-2-col-mobile > div {
-                flex: 0 0 80% !important; /* Show 1 card + peek of the next */
-                scroll-snap-align: center;
-                padding: 24px !important;
-                border-radius: 20px !important;
+                padding: 16px !important;
+                border-radius: 16px !important;
+                display: flex !important;
+                flex-direction: column !important;
               }
               .grid-2-col-mobile > div > div:first-child {
-                margin-bottom: 12px !important;
-              }
-              .grid-2-col-mobile h3, .grid-2-col-mobile h4 {
-                font-size: 1.1rem !important;
                 margin-bottom: 8px !important;
               }
+              .grid-2-col-mobile > div > div:first-child svg {
+                width: 24px !important;
+                height: 24px !important;
+              }
+              .grid-2-col-mobile h3, .grid-2-col-mobile h4 {
+                font-size: 0.95rem !important;
+                margin-bottom: 4px !important;
+                line-height: 1.2 !important;
+              }
               .grid-2-col-mobile p {
-                font-size: 0.9rem !important;
-                margin-bottom: 16px !important;
-                line-height: 1.4 !important;
+                font-size: 0.75rem !important;
+                margin-bottom: 12px !important;
+                line-height: 1.3 !important;
+              }
+              /* For the nested badges inside the cards */
+              .grid-2-col-mobile > div > div:last-child {
+                padding: 6px !important;
+                font-size: 0.65rem !important;
+                margin-top: auto !important;
+              }
+              .grid-2-col-mobile > div > div:last-child > div {
+                font-size: 0.65rem !important;
+                padding: 4px !important;
               }
               .scale-on-mobile {
-                transform: scale(0.85);
-                transform-origin: center top;
-                margin-bottom: -100px !important;
-                margin-left: -5%; /* Compensate for mobile padding if needed */
-                margin-right: -5%;
+                zoom: 0.75;
+                margin-top: 24px !important;
+                width: 100% !important;
               }
             }
           `}</style>
