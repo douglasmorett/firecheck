@@ -715,6 +715,48 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', maxWidth: '700px', lineHeight: '1.6' }}>
             A inteligência artificial do FireCheck age como um gerente onipresente. Se a temperatura da geladeira cair ou o chão estiver sujo, você sabe na hora.
           </p>
+          <style>{`
+            @media (max-width: 768px) {
+              .grid-2-col-mobile {
+                grid-template-columns: 1fr !important;
+                gap: 12px !important;
+                margin-top: 24px !important;
+              }
+              .grid-2-col-mobile > div {
+                padding: 16px !important;
+                border-radius: 16px !important;
+              }
+              .grid-2-col-mobile > div > div:first-child {
+                margin-bottom: 8px !important;
+              }
+              .grid-2-col-mobile > div > div:first-child svg {
+                width: 24px !important;
+                height: 24px !important;
+              }
+              .grid-2-col-mobile h3, .grid-2-col-mobile h4 {
+                font-size: 1.05rem !important;
+                margin-bottom: 4px !important;
+              }
+              .grid-2-col-mobile p {
+                font-size: 0.85rem !important;
+                margin-bottom: 12px !important;
+                line-height: 1.3 !important;
+              }
+              /* For the nested badges inside the cards */
+              .grid-2-col-mobile > div > div:last-child {
+                padding: 8px !important;
+                font-size: 0.7rem !important;
+              }
+              .grid-2-col-mobile > div > div:last-child > div {
+                font-size: 0.7rem !important;
+              }
+              .scale-on-mobile {
+                transform: scale(0.75);
+                transform-origin: center top;
+                margin-bottom: -150px !important;
+              }
+            }
+          `}</style>
           <div className="grid-2-col-mobile" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '16px', maxWidth: '1200px', margin: '40px auto 0', position: 'relative', zIndex: 10 }}>
 
           <div style={{ background: 'var(--bg-card)', borderRadius: '20px', padding: '24px', border: '1px solid rgba(255, 77, 0, 0.2)', position: 'relative', overflow: 'hidden' }}>
