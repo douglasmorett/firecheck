@@ -2,9 +2,9 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 async function run() {
   try {
-    const apiKey = 'AIzaSyDQjcenNrC2Aw1up7l7xlzlP8r88rMlhrQ';
+    const apiKey = 'AIzaSyDRDJvfIirqxTqScCHdJXBcNqEzJYHmHyA';
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const photoUrl = 'https://storage.googleapis.com/fire-check-storage.firebasestorage.app/tasks/Duga Burguer/1777819453075-wx3h4.jpeg';
     console.log('Fetching photo...', photoUrl);
