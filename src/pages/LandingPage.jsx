@@ -179,6 +179,7 @@ export default function LandingPage() {
                               videoRef.current.muted = true;
                               setIsVideoActive(false);
                           } else {
+                              videoRef.current.currentTime = 0;
                               videoRef.current.muted = false;
                               setIsVideoActive(true);
                               handleTrackAndNavigate('video_play', null);
@@ -191,6 +192,7 @@ export default function LandingPage() {
                    <div 
                      onClick={() => {
                         if (videoRef.current) {
+                            videoRef.current.currentTime = 0;
                             videoRef.current.muted = false;
                             setIsVideoActive(true);
                             handleTrackAndNavigate('video_play', null);
@@ -592,7 +594,16 @@ export default function LandingPage() {
               .horizontal-scroll-container { justify-content: center; }
             }
             @media (max-width: 768px) {
-              .example-mockup { flex: 0 0 240px; }
+              .example-mockup { 
+                flex: 0 0 280px !important; 
+                transform: scale(0.75);
+                transform-origin: left top;
+                margin-right: -70px; 
+              }
+              .horizontal-scroll-container {
+                align-items: flex-start !important;
+                height: 430px !important;
+              }
               .mobile-swipe-hint { display: flex !important; animation: pulse-swipe 1.5s infinite; }
             }
             @keyframes pulse-swipe {
