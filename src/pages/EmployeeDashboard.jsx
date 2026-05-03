@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
 import API_URL from '../api';
 
 export default function EmployeeDashboard() {
