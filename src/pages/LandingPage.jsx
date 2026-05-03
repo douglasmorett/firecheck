@@ -75,99 +75,135 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="section-mobile-padding" style={{ padding: '80px 5%', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', maxWidth: '100%', margin: '0 auto', gap: '40px', position: 'relative', zIndex: 10 }}>
+      <section className="hero-section" style={{ padding: '80px 5%', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+        <style>{`
+          .hero-section {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 40px;
+          }
+          .hero-col-left {
+            flex: 1 1 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .hero-col-right {
+            flex: 1 1 500px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            min-height: 450px;
+          }
+          .video-phone-mockup {
+            width: 280px; 
+            height: 580px; 
+            background: #000000; 
+            border: 12px solid #18181b; 
+            border-radius: 36px; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
+            position: relative; 
+            overflow: hidden;
+          }
+          @media (max-width: 768px) {
+            .hero-section {
+              display: flex;
+              flex-direction: column;
+              padding: 40px 5% 20px 5% !important;
+              gap: 16px;
+            }
+            .hero-col-left, .hero-col-right {
+              display: contents;
+            }
+            .hero-badge { order: 1; align-self: center; margin-bottom: 8px !important; }
+            .hero-title { order: 2; text-align: center; font-size: 2.2rem !important; margin-bottom: 8px !important; }
+            .mobile-video-title { display: none !important; }
+            .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 8px; }
+            .video-phone-mockup {
+               transform: scale(0.65);
+               transform-origin: center top;
+               margin-bottom: -190px;
+            }
+            .hero-desc { order: 4; text-align: center; font-size: 1.05rem !important; margin-bottom: 16px !important; }
+            .hero-cta { order: 5; display: flex; flex-direction: column; align-items: center; width: 100%; }
+            .hero-cta button { width: 100%; justify-content: center; }
+            .hero-cta p { text-align: center; width: 100%; }
+          }
+        `}</style>
         
-        {/* Left Column: Text & CTA */}
-        <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', maxWidth: '1200px', margin: '0 auto' }}>
-          <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)', backgroundColor: 'rgba(255, 77, 0, 0.05)' }}>
+        <div className="hero-col-left">
+          <div className="hero-badge" style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)', backgroundColor: 'rgba(255, 77, 0, 0.05)' }}>
             ✨ O primeiro checklist do Brasil movido por IA
           </div>
           
-          <h1 style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px', color: 'var(--text-main)' }}>
+          <h1 className="hero-title" style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px', color: 'var(--text-main)' }}>
             Garanta o padrão da sua empresa e <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tenha paz de espírito.</span>
           </h1>
           
-          <p style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
+          <p className="hero-desc" style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
             O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
           </p>
 
-          <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="hero-cta" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
             <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => handleTrackAndNavigate('Começar 7 Dias Grátis', '/checkout')}>
               Começar 7 Dias Grátis <ArrowRight size={20} />
             </button>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
+              Acesso imediato. Não pedimos cartão de crédito.
+            </p>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
-            Acesso imediato. Não pedimos cartão de crédito.
-          </p>
         </div>
 
-        {/* Right Column: Video Placeholder */}
-        <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
+        <div className="hero-col-right">
            <h3 className="mobile-video-title" style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '24px', textAlign: 'center', zIndex: 10 }}>Veja como funciona nosso aplicativo:</h3>
-           <style>{`
-             .video-phone-mockup {
-                width: 280px; 
-                height: 580px; 
-                background: #000000; 
-                border: 12px solid #18181b; 
-                border-radius: 36px; 
-                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
-                position: relative; 
-                overflow: hidden;
-             }
-             @media (max-width: 768px) {
-                .video-phone-mockup {
-                   transform: scale(0.85);
-                   transform-origin: center top;
-                   margin-bottom: -60px;
-                }
-                .mobile-video-title { display: block !important; }
-             }
-             @media (min-width: 769px) {
-                .mobile-video-title { display: none !important; }
-             }
-           `}</style>
-           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
-           <div className="video-phone-mockup">
-             <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '120px', height: '24px', background: '#18181b', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', zIndex: 50 }}></div>
-             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-               <video 
-                 ref={videoRef}
-                 src="/demo2.mp4" 
-                 loop 
-                 playsInline
-                 onClick={() => {
-                    if (videoRef.current) {
-                        if (isVideoActive) {
-                            videoRef.current.pause();
-                            setIsVideoActive(false);
-                        } else {
+           
+           <div className="hero-video-wrapper" style={{ position: 'relative' }}>
+             <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
+             <div className="video-phone-mockup">
+               <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '120px', height: '24px', background: '#18181b', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', zIndex: 50 }}></div>
+               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                 <video 
+                   ref={videoRef}
+                   src="/demo2.mp4" 
+                   loop 
+                   playsInline
+                   onClick={() => {
+                      if (videoRef.current) {
+                          if (isVideoActive) {
+                              videoRef.current.pause();
+                              setIsVideoActive(false);
+                          } else {
+                              videoRef.current.muted = false;
+                              videoRef.current.play();
+                              setIsVideoActive(true);
+                              handleTrackAndNavigate('video_play', null);
+                          }
+                      }
+                   }}
+                   style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }}
+                 />
+                 {!isVideoActive && (
+                   <div 
+                     onClick={() => {
+                        if (videoRef.current) {
                             videoRef.current.muted = false;
                             videoRef.current.play();
                             setIsVideoActive(true);
                             handleTrackAndNavigate('video_play', null);
                         }
-                    }
-                 }}
-                 style={{ width: '100%', height: '100%', objectFit: 'contain', cursor: 'pointer' }}
-               />
-               {!isVideoActive && (
-                 <div 
-                   onClick={() => {
-                      if (videoRef.current) {
-                          videoRef.current.muted = false;
-                          videoRef.current.play();
-                          setIsVideoActive(true);
-                          handleTrackAndNavigate('video_play', null);
-                      }
-                   }}
-                   style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', zIndex: 60 }}
-                 >
-                   <div className="btn btn-pulse" style={{ background: 'var(--primary)', color: 'white', padding: '16px 32px', borderRadius: '30px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 20px rgba(255,77,0,0.5)' }}>
-                     <PlayCircle size={24} /> Dar Play
+                     }}
+                     style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', zIndex: 60 }}
+                   >
+                     <div className="btn btn-pulse" style={{ background: 'var(--primary)', color: 'white', padding: '16px 32px', borderRadius: '30px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 20px rgba(255,77,0,0.5)' }}>
+                       <PlayCircle size={24} /> Dar Play
+                     </div>
                    </div>
-                 </div>
-               )}
+                 )}
+               </div>
              </div>
            </div>
         </div>
