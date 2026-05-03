@@ -46,6 +46,7 @@ export default function Checkout() {
         // Dispara os eventos do Meta Pixel para o Facebook
         if (window.fbq) {
           window.fbq('track', 'Lead');
+          window.fbq('track', 'StartTrial'); // EVENTO ADICIONADO AQUI
           if (plan === 'mensal' || plan === 'anual') {
             window.fbq('track', 'InitiateCheckout');
           }
