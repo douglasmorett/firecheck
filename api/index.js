@@ -20,10 +20,16 @@ export default async function handler(req, res) {
 
   if (!migrationsRun) {
     try {
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS tasks TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_selfie BOOLEAN DEFAULT FALSE');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_active BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS finance_active BOOLEAN DEFAULT FALSE");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -131,12 +137,28 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/checklists')) {
        if (method === 'POST') {
-          const { title, store, tasks, recurrence, scheduledDate } = req.body;
-          const { rows } = await pool.query(
-            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
-          );
-          return res.status(200).json(rows[0]);
+          const { title, store, tasks, recurrence, scheduledDate, requireSelfie } = req.body;
+          try {
+            const { rows } = await pool.query(
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false]
+            );
+            return res.status(200).json(rows[0]);
+          } catch (dbErr) {
+            try {
+               const { rows } = await pool.query(
+                 'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
+                 [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+               );
+               return res.status(200).json(rows[0]);
+            } catch (err2) {
+               const { rows } = await pool.query(
+                 'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
+                 [title, store, JSON.stringify(tasks), recurrence]
+               );
+               return res.status(200).json(rows[0]);
+            }
+          }
        }
        const store = searchParams.get('store');
        const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
@@ -245,16 +267,16 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status } = req.body;
+        const { plan, status, ponto_active, finance_active } = req.body;
         // Se mudou para ativo, renova de acordo com o plano
         if (status === 'active') {
           await pool.query(`
-            UPDATE users SET plan = $1, status = $2, 
+            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
-            WHERE id = $3
-          `, [plan, status, id]);
+            WHERE id = $5
+          `, [plan, status, ponto_active || false, finance_active || false, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2 WHERE id = $3', [plan, status, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4 WHERE id = $5', [plan, status, ponto_active || false, finance_active || false, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -265,7 +287,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -359,7 +381,7 @@ export default async function handler(req, res) {
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) throw new Error('API Key não configurada');
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // 2. Processa cada foto
         for (const task of tasks) {
@@ -446,7 +468,7 @@ export default async function handler(req, res) {
         
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
           
           const base64Data = photoBase64.split(',')[1] || photoBase64;
           const prompt = `Você é um sistema de monitoramento de segurança e auditoria operacional em tempo real.
@@ -478,7 +500,7 @@ export default async function handler(req, res) {
         
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
           
           const prompt = `Você é a assistente financeira inteligente da FireCheck.
           Aqui está o status atual de contas da empresa (dados em JSON):
@@ -527,7 +549,7 @@ export default async function handler(req, res) {
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({ 
-              model: "gemini-3-flash-preview",
+              model: "gemini-1.5-flash",
               safetySettings: [
                 { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
                 { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },

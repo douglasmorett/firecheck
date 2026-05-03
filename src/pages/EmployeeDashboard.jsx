@@ -9,6 +9,7 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasPonto, setHasPonto] = useState(false);
 
   const fetchChecklists = useCallback(async (profile, isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -35,6 +36,19 @@ export default function EmployeeDashboard() {
     }
     const profile = JSON.parse(savedUser);
     setUserProfile(profile);
+    
+    // Busca se a loja tem o módulo de ponto ativado
+    if (profile.store) {
+      fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`)
+        .then(r => r.json())
+        .then(users => {
+          const admin = users.find(u => u.role === 'admin' || u.role === 'master');
+          if (admin && admin.ponto_active) {
+             setHasPonto(true);
+          }
+        })
+        .catch(console.error);
+    }
     
     // Busca inicial
     fetchChecklists(profile);
@@ -95,6 +109,38 @@ export default function EmployeeDashboard() {
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Você tem {pendingChecklists.length} tarefas pendentes para hoje.</p>
          </div>
       </div>
+
+      {hasPonto && (
+        <section style={{ marginBottom: '32px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={16} /> Meu Ponto (Hoje)
+          </h4>
+          <div className="card" style={{ padding: '24px', textAlign: 'center', border: '1px solid #3b82f6' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
+              <div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>
+                <h3 style={{ fontSize: '1.5rem', margin: 0 }}>08:00</h3>
+              </div>
+              <div style={{ borderLeft: '1px solid var(--border-color)' }}></div>
+              <div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Saída</p>
+                <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-muted)' }}>--:--</h3>
+              </div>
+            </div>
+            
+            <button 
+              onClick={() => navigate('/ponto')} 
+              className="btn" 
+              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#3b82f6', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+            >
+              <Smartphone size={20} /> Registrar Ponto com IA
+            </button>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+              <ShieldCheck size={12} color="#3b82f6" /> GPS e Câmera obrigatórios
+            </p>
+          </div>
+        </section>
+      )}
 
       <section style={{ marginBottom: '32px' }}>
         <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
