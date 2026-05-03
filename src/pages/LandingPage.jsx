@@ -119,8 +119,8 @@ export default function LandingPage() {
             .hero-col-left, .hero-col-right {
               display: contents;
             }
-            .hero-badge { order: 1; align-self: center; margin-bottom: 8px !important; }
-            .hero-title { order: 2; text-align: center; font-size: 1.6rem !important; margin-bottom: 8px !important; }
+            .hero-badge { order: 1; align-self: center; margin-bottom: 8px !important; font-size: 0.65rem !important; padding: 6px 12px !important; white-space: nowrap; }
+            .hero-title { order: 2; text-align: center; font-size: 1.3rem !important; margin-bottom: 8px !important; }
             .mobile-video-title { display: none !important; }
             .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 8px; }
             .video-phone-mockup {
