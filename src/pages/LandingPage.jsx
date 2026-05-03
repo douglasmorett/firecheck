@@ -120,7 +120,7 @@ export default function LandingPage() {
               display: contents;
             }
             .hero-badge { order: 1; align-self: center; margin-bottom: 8px !important; }
-            .hero-title { order: 2; text-align: center; font-size: 2.2rem !important; margin-bottom: 8px !important; }
+            .hero-title { order: 2; text-align: center; font-size: 1.6rem !important; margin-bottom: 8px !important; }
             .mobile-video-title { display: none !important; }
             .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 8px; }
             .video-phone-mockup {
