@@ -219,7 +219,16 @@ export default function ChecklistCreator() {
           <button 
             className="btn btn-pulse" 
             style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: '#06b6d4', color: 'var(--text-main)', boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' }}
-            onClick={() => setShowAIModal(true)}
+            onClick={() => {
+              setShowAIModal(true);
+              setTimeout(() => {
+                const el = document.getElementById('ai-prompt-input');
+                if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el.focus();
+                }
+              }, 100);
+            }}
           >
             <Sparkles size={20} /> Gerar com Inteligência Artificial
           </button>
@@ -452,6 +461,7 @@ export default function ChecklistCreator() {
             </p>
 
             <textarea 
+              id="ai-prompt-input"
               className="input-field" 
               style={{ minHeight: '120px', resize: 'none', marginBottom: '24px', textAlign: 'left', lineHeight: '1.5' }}
               placeholder="Ex: Quero um checklist para o fechamento do caixa da minha hamburgueria. Preciso que o operador tire foto do dinheiro e da maquininha de cartão."
