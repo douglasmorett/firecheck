@@ -173,6 +173,18 @@ export default async function handler(req, res) {
       `);
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_cta BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_button VARCHAR(255)");
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS behavior_events (
+          id SERIAL PRIMARY KEY,
+          session_id VARCHAR(255),
+          ip VARCHAR(255),
+          event_type VARCHAR(100),
+          event_data TEXT,
+          page VARCHAR(255),
+          device_type VARCHAR(50) DEFAULT 'unknown',
+          created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')
+        )
+      `);
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -902,6 +914,19 @@ export default async function handler(req, res) {
       const { rows: online } = await pool.query("SELECT COUNT(*) FROM quiz_responses WHERE last_updated_at > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '45 seconds'");
       const { rows: quizVideo } = await pool.query("SELECT COUNT(*) FROM quiz_video_plays WHERE play_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
       return res.status(200).json({ stats: rows, online: parseInt(online[0].count), quizVideoPlays: parseInt(quizVideo[0].count) });
+    }
+
+    // --- Rastreamento Comportamental (Espião) ---
+    if (url.includes('/api/track-event')) {
+      if (method === 'POST') {
+        const { sessionId, eventType, eventData, page, deviceType } = req.body;
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        await pool.query(`
+          INSERT INTO behavior_events (session_id, ip, event_type, event_data, page, device_type)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [sessionId, clientIp, eventType, JSON.stringify(eventData), page, deviceType]);
+        return res.status(200).json({ success: true });
+      }
     }
 
     return res.status(200).json({ status: 'online' });

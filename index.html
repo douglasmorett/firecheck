@@ -22,6 +22,64 @@
     fbq('track', 'PageView');
     </script>
     <!-- End Meta Pixel Code -->
+
+    <!-- Microsoft Clarity - Gravação de Sessões e Mapa de Calor (GRÁTIS) -->
+    <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "COLE_SEU_ID_CLARITY_AQUI");
+    </script>
+    <!-- End Microsoft Clarity -->
+
+    <!-- Rastreamento Comportamental Customizado (FireCheck Espião) -->
+    <script>
+      (function() {
+        // Gerar ID de sessão único
+        let sessionId = localStorage.getItem('fc_session_id');
+        if (!sessionId) {
+          sessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+          localStorage.setItem('fc_session_id', sessionId);
+        }
+
+        const page = window.location.pathname;
+        const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+
+        function sendEvent(type, data) {
+          fetch(`/api/track-event`, {
+            method: 'POST',
+            keepalive: true, // Garante que envia mesmo fechando a aba
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, eventType: type, eventData: data, page, deviceType })
+          }).catch(console.error);
+        }
+
+        // Rastrear Scroll Máximo
+        let maxScroll = 0;
+        window.addEventListener('scroll', () => {
+          const scrollPct = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+          if (scrollPct > maxScroll) maxScroll = scrollPct;
+        }, { passive: true });
+
+        // Rastrear Cliques em Botões Importantes
+        document.addEventListener('click', (e) => {
+          const target = e.target.closest('button, a');
+          if (target) {
+            const btnText = target.innerText || target.value || target.id || 'botão_sem_nome';
+            sendEvent('click', { element: target.tagName, text: btnText.substring(0, 50).trim() });
+          }
+        });
+
+        // Enviar relatório ao sair da página (Tempo + Scroll)
+        const startTime = Date.now();
+        window.addEventListener('beforeunload', () => {
+          const timeSpent = Math.round((Date.now() - startTime) / 1000); // em segundos
+          sendEvent('page_unload', { time_spent_seconds: timeSpent, max_scroll_percentage: maxScroll });
+        });
+      })();
+    </script>
+    <!-- End Rastreamento Customizado -->
   </head>
   <body>
     <!-- Meta Pixel Code (Fallback) -->
