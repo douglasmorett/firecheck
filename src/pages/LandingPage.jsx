@@ -603,6 +603,9 @@ export default function LandingPage() {
               .horizontal-scroll-container {
                 align-items: flex-start !important;
                 height: 430px !important;
+                overflow-y: hidden !important;
+                touch-action: pan-x pan-y;
+                overscroll-behavior-y: none;
               }
               .mobile-swipe-hint { display: flex !important; animation: pulse-swipe 1.5s infinite; }
             }
@@ -732,6 +735,9 @@ export default function LandingPage() {
                 display: flex !important;
                 flex-direction: row !important;
                 overflow-x: auto !important;
+                overflow-y: hidden !important;
+                touch-action: pan-x pan-y;
+                overscroll-behavior-y: none;
                 scroll-snap-type: x mandatory;
                 gap: 16px !important;
                 margin-top: 24px !important;
