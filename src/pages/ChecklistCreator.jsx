@@ -13,10 +13,21 @@ const RESPONSE_TYPES = [
 ];
 
 const RECURRENCE_OPTIONS = [
-  { value: '',        label: 'Sem recorrência (único)' },
-  { value: 'daily',   label: 'Diário — repete todo dia' },
-  { value: 'weekly',  label: 'Semanal — repete toda semana' },
-  { value: 'monthly', label: 'Mensal — repete todo mês' },
+  { value: '',         label: 'Sem recorrência (único)' },
+  { value: 'daily',    label: 'Diário — repete todo dia' },
+  { value: 'weekdays', label: 'Dias Alternados — escolha os dias' },
+  { value: 'weekly',   label: 'Semanal — repete toda semana' },
+  { value: 'monthly',  label: 'Mensal — repete todo mês' },
+];
+
+const WEEKDAY_OPTIONS = [
+  { value: 'seg', label: 'Seg' },
+  { value: 'ter', label: 'Ter' },
+  { value: 'qua', label: 'Qua' },
+  { value: 'qui', label: 'Qui' },
+  { value: 'sex', label: 'Sex' },
+  { value: 'sab', label: 'Sáb' },
+  { value: 'dom', label: 'Dom' },
 ];
 
 const newTask = () => ({
@@ -61,6 +72,7 @@ export default function ChecklistCreator() {
   const [requireSelfie, setRequireSelfie] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [team, setTeam] = useState([]);
+  const [weekdays, setWeekdays] = useState([]);
 
   // States for AI Generator
   const [showAIModal, setShowAIModal] = useState(false);
@@ -204,7 +216,7 @@ export default function ChecklistCreator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: id || null,
-          title, store, recurrence, scheduledDate, tasks, requireSelfie
+          title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null
         })
       });
 
@@ -329,7 +341,25 @@ export default function ChecklistCreator() {
                 )}
               </div>
             )}
-            {recurrence !== '' && (
+            {recurrence === 'weekdays' && (
+              <div style={{ marginTop: '12px' }}>
+                <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>📅 Selecione os dias da semana:</label>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {WEEKDAY_OPTIONS.map(d => (
+                    <button key={d.value} type="button" onClick={() => setWeekdays(prev => prev.includes(d.value) ? prev.filter(x => x !== d.value) : [...prev, d.value])}
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: weekdays.includes(d.value) ? '2px solid var(--primary)' : '1px solid var(--border-color)', backgroundColor: weekdays.includes(d.value) ? 'rgba(255, 69, 0, 0.15)' : 'var(--bg-card)', color: weekdays.includes(d.value) ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: weekdays.includes(d.value) ? 'bold' : 'normal', fontSize: '0.9rem', transition: 'all 0.2s' }}>
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+                {weekdays.length > 0 && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '8px', display: 'block' }}>
+                    ✅ Checklist será executado: {weekdays.map(w => WEEKDAY_OPTIONS.find(o => o.value === w)?.label).join(', ')}
+                  </span>
+                )}
+              </div>
+            )}
+            {recurrence !== '' && recurrence !== 'weekdays' && (
               <span style={{ fontSize: '0.75rem', color: 'var(--success)', marginTop: '4px', display: 'block' }}>
                 ✅ O sistema vai distribuir automaticamente para os funcionários.
               </span>

@@ -221,13 +221,30 @@ export default function ChecklistExecution() {
       if (res.ok) {
         const data = await res.json();
         setSubmitted(true);
-        // Dispara a IA em background (fire and forget), o funcionário não fica travado!
+        // Dispara a IA em background com retry resiliente (fire and forget)
         if (data.id) {
-          fetch(`${API_URL}/api/process-audit-background`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ submissionId: data.id })
-          }).catch(e => console.error('Erro ao iniciar background audit:', e));
+          const auditWithRetry = async (attempt = 1) => {
+            try {
+              const res2 = await fetch(`${API_URL}/api/process-audit-background`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ submissionId: data.id })
+              });
+              const result = await res2.json();
+              if (!result.success && attempt < 3) {
+                console.log(`[Audit] Tentativa ${attempt} falhou, retentando em 5s...`);
+                setTimeout(() => auditWithRetry(attempt + 1), 5000);
+              }
+            } catch (e) {
+              console.error(`[Audit] Erro tentativa ${attempt}:`, e);
+              if (attempt < 3) setTimeout(() => auditWithRetry(attempt + 1), 5000);
+            }
+          };
+          auditWithRetry();
+          // Safety net: aciona auto-processador após 30s como garantia final
+          setTimeout(() => {
+            fetch(`${API_URL}/api/auto-process-pending`).catch(() => {});
+          }, 30000);
         }
       } else {
         const errData = await res.json();

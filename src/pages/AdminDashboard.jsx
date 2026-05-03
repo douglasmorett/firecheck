@@ -243,31 +243,52 @@ export default function AdminDashboard() {
     return () => clearInterval(globalRefresh);
   }, [dateFilter]);
 
-  // Robô Autônomo de Retentativa: Fica tentando processar fotos pendentes a cada 30 segundos
+  // Estado de saúde da IA
+  const [aiHealth, setAiHealth] = useState(null);
+
+  // Robô Autônomo Melhorado: usa endpoint centralizado + health check
   useEffect(() => {
-    if (!userProfile || userProfile.role === 'employee' || userProfile.role === 'funcionario') return; // Só roda no painel gerencial
+    if (!userProfile || userProfile.role === 'employee' || userProfile.role === 'funcionario') return;
     
+    // Health check da IA a cada 60s
+    const checkHealth = () => {
+      fetch(`${API_URL}/api/health`).then(r => r.json()).then(d => setAiHealth(d.ai)).catch(() => setAiHealth(false));
+    };
+    checkHealth();
+
     const interval = setInterval(() => {
-      // submissions já está no state
+      // Usa o endpoint centralizado que é mais inteligente
+      fetch(`${API_URL}/api/auto-process-pending`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.processed && data.processed.length > 0) {
+            console.log(`[Auto-Retry] Processou ${data.processed.length} submissões pendentes!`);
+            fetchData();
+          }
+        }).catch(() => {});
+      
+      // Também tenta individualmente as que ainda ficaram pendentes no state
       submissions.forEach(s => {
         const hasPhotos = (s.tasks || []).some(t => t.photo);
-        const feedbacks = Object.keys(s.feedback_info || {});
-        // Se tem foto mas não tem feedback (ficou pendente/falhou na 1ª vez)
-        if (hasPhotos && feedbacks.length === 0) {
-          console.log(`[Auto-Retry] Tentando processar IA novamente para submissão ${s.id}...`);
+        const feedbacks = s.feedback_info || {};
+        const feedbackKeys = Object.keys(feedbacks).filter(k => k !== '_meta' && k !== 'global_error');
+        const photosWithFeedback = (s.tasks || []).filter(t => t.photo && feedbacks[t.id]);
+        const totalPhotos = (s.tasks || []).filter(t => t.photo).length;
+        
+        // Se tem foto sem feedback OU feedback parcial (não cobrindo todas as fotos)
+        if (hasPhotos && (feedbackKeys.length === 0 || photosWithFeedback.length < totalPhotos)) {
           fetch(`${API_URL}/api/process-audit-background`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ submissionId: s.id })
-          }).then(res => res.json()).then(data => {
-            if (data.processed > 0) {
-               console.log(`[Auto-Retry] Sucesso na retentativa da submissão ${s.id}! Atualizando painel.`);
-               fetchData(); // Atualiza os cards
-            }
+          }).then(r => r.json()).then(data => {
+            if (data.processed > 0) fetchData();
           }).catch(() => {});
         }
       });
-    }, 15000); // Tenta a cada 15 segundos
+
+      checkHealth();
+    }, 20000);
     
     return () => clearInterval(interval);
   }, [submissions, userProfile]);
@@ -810,6 +831,13 @@ export default function AdminDashboard() {
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            {/* Indicador de Saúde da IA */}
+            {aiHealth !== null && (
+              <div style={{ padding: '6px 12px', backgroundColor: aiHealth ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 23, 68, 0.15)', color: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '8px', height: '8px', backgroundColor: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '50%', boxShadow: aiHealth ? '0 0 8px var(--success)' : '0 0 8px var(--error)', animation: 'pulse 2s infinite' }}></div>
+                🤖 IA {aiHealth ? 'Online' : 'Offline'}
+              </div>
+            )}
             {isMaster && (
                <div style={{ display: 'flex', gap: '8px' }}>
                  <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -11,6 +11,96 @@ const pool = new Pool({
 
 let migrationsRun = false;
 
+// ── Função Central de Auditoria IA (Reutilizável) ───────────────
+async function processAuditForSubmission(pool, submissionId) {
+  const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
+  if (rows.length === 0) return { success: false, error: 'Not found' };
+
+  const submission = rows[0];
+  const retryCount = (submission.retry_count || 0) + 1;
+
+  // Limite de 15 tentativas — depois marca como revisão manual (NÃO erro permanente)
+  if (retryCount > 15) {
+    const existing = typeof submission.feedback_info === 'string' ? JSON.parse(submission.feedback_info || '{}') : (submission.feedback_info || {});
+    if (Object.keys(existing).length === 0) {
+      await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2',
+        [JSON.stringify({ _meta: { status: 'revisao_manual', reason: 'IA indisponível após 15 tentativas. Revisão humana necessária.', retries: retryCount } }), submissionId]);
+    }
+    return { success: false, error: 'Max retries exceeded — marcado para revisão manual' };
+  }
+
+  const tasks = typeof submission.tasks === 'string' ? JSON.parse(submission.tasks) : submission.tasks;
+  const existingFeedback = typeof submission.feedback_info === 'string' ? JSON.parse(submission.feedback_info || '{}') : (submission.feedback_info || {});
+  const feedbackInfo = { ...existingFeedback };
+  // Remove meta de erro anterior se existir
+  delete feedbackInfo._meta;
+  delete feedbackInfo.global_error;
+  let hasErrors = false;
+
+  await pool.query('UPDATE checklist_submissions SET retry_count = $1 WHERE id = $2', [retryCount, submissionId]);
+
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) return { success: false, error: 'API Key não configurada' };
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+  const errors = [];
+  let processedCount = 0;
+
+  for (const task of tasks) {
+    // Pula se já tem feedback para esta task, ou se não tem foto
+    if (!task.photo || task.forceOverride || feedbackInfo[task.id]) continue;
+
+    try {
+      let base64Data = '';
+      let mimeType = "image/jpeg";
+
+      if (task.photo.startsWith('http')) {
+        const encodedUrl = encodeURI(task.photo);
+        const imgRes = await fetch(encodedUrl);
+        if (!imgRes.ok) throw new Error(`Fetch da foto falhou: ${imgRes.status}`);
+        const arrayBuffer = await imgRes.arrayBuffer();
+        base64Data = Buffer.from(arrayBuffer).toString('base64');
+        mimeType = imgRes.headers.get('content-type') || "image/jpeg";
+      } else {
+        base64Data = task.photo.split(',')[1] || task.photo;
+      }
+
+      const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
+      Regras:
+      1. Foque APENAS em verificar se a instrução principal foi cumprida.
+      2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
+      3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
+      Responda ESTRITAMENTE em JSON: {"approved": boolean, "message": "string"}.`;
+
+      const result = await model.generateContent([prompt, { inlineData: { data: base64Data, mimeType } }]);
+      const response = await result.response;
+      const aiResponse = JSON.parse(response.text().match(/\{[\s\S]*\}/)?.[0] || response.text());
+
+      feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
+      if (!aiResponse.approved) hasErrors = true;
+      processedCount++;
+
+      // Delay de 1s entre chamadas para evitar rate-limit do Gemini
+      if (tasks.indexOf(task) < tasks.length - 1) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (error) {
+      console.error(`[Auditoria IA] Erro task "${task.text}" (Tentativa ${retryCount}):`, error.message);
+      errors.push({ taskId: task.id, error: error.message });
+    }
+  }
+
+  // Salva resultado parcial ou completo
+  if (processedCount > 0 || Object.keys(feedbackInfo).length > 0) {
+    await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
+  }
+
+  return { success: true, processed: processedCount, hasErrors, errors, retryCount };
+}
+
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,DELETE');
@@ -24,6 +114,7 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS recurrence TEXT');
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS scheduled_date TEXT');
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_selfie BOOLEAN DEFAULT FALSE');
+      await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS weekdays TEXT');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
@@ -137,48 +228,56 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/checklists')) {
-       if (method === 'POST') {
-          const { title, store, tasks, recurrence, scheduledDate, requireSelfie } = req.body;
+      if (method === 'POST') {
+        const { title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays } = req.body;
+        try {
+          const { rows } = await pool.query(
+            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null]
+          );
+          return res.status(200).json(rows[0]);
+        } catch (dbErr) {
           try {
             const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false]
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
             );
             return res.status(200).json(rows[0]);
-          } catch (dbErr) {
-            try {
-               const { rows } = await pool.query(
-                 'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *', 
-                 [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
-               );
-               return res.status(200).json(rows[0]);
-            } catch (err2) {
-               const { rows } = await pool.query(
-                 'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *', 
-                 [title, store, JSON.stringify(tasks), recurrence]
-               );
-               return res.status(200).json(rows[0]);
-            }
+          } catch (err2) {
+            const { rows } = await pool.query(
+              'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *',
+              [title, store, JSON.stringify(tasks), recurrence]
+            );
+            return res.status(200).json(rows[0]);
           }
-       }
-       const store = searchParams.get('store');
-       const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
-       const today = new Date().toISOString().split('T')[0];
-       const { rows: todaySubs } = await pool.query('SELECT checklist_id, employee_name FROM checklist_submissions WHERE store = $1 AND created_at >= $2', [store, today + ' 00:00:00']);
-       const { rows: everSubs } = await pool.query('SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE store = $1 GROUP BY checklist_id', [store]);
-       
-       return res.status(200).json(checklists.map(r => {
-         let isCompleted = false;
-         let completedBy = null;
-         if (r.recurrence === 'unico') {
-             const sub = everSubs.find(s => s.checklist_id === r.id);
-             if (sub) { isCompleted = true; completedBy = sub.employee_name; }
-         } else {
-             const sub = todaySubs.find(s => s.checklist_id === r.id);
-             if (sub) { isCompleted = true; completedBy = sub.employee_name; }
-         }
-         return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), completedToday: isCompleted, completedBy };
-       }));
+        }
+      }
+      const store = searchParams.get('store');
+      const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
+      const today = new Date().toISOString().split('T')[0];
+      const { rows: todaySubs } = await pool.query('SELECT checklist_id, employee_name FROM checklist_submissions WHERE store = $1 AND created_at >= $2', [store, today + ' 00:00:00']);
+      const { rows: everSubs } = await pool.query('SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE store = $1 GROUP BY checklist_id', [store]);
+
+      const dayMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+      const todayWeekday = dayMap[new Date().getDay()];
+
+      return res.status(200).json(checklists.map(r => {
+        if (r.recurrence === 'weekdays') {
+          const dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
+          if (dias.length > 0 && !dias.includes(todayWeekday)) return null;
+        }
+        let isCompleted = false;
+        let completedBy = null;
+        if (r.recurrence === 'unico' || r.recurrence === '') {
+          const sub = everSubs.find(s => s.checklist_id === r.id);
+          if (sub) { isCompleted = true; completedBy = sub.employee_name; }
+        } else {
+          const sub = todaySubs.find(s => s.checklist_id === r.id);
+          if (sub) { isCompleted = true; completedBy = sub.employee_name; }
+        }
+        const wk = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
+        return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), weekdays: wk, completedToday: isCompleted, completedBy };
+      }).filter(Boolean));
     }
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
@@ -187,12 +286,12 @@ export default async function handler(req, res) {
         try {
           const payload = req.body;
           console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
-          
+
           // A Cakto envia dados de diferentes formas dependendo do evento.
           // Tentamos capturar o email do comprador
           const customerEmail = payload?.data?.customer?.email || payload?.customer?.email || payload?.email;
           const status = payload?.data?.status || payload?.status || payload?.event;
-          
+
           if (!customerEmail) {
             return res.status(400).json({ error: 'E-mail não encontrado no payload' });
           }
@@ -206,7 +305,7 @@ export default async function handler(req, res) {
           const blockedStatuses = ['refunded', 'chargeback', 'refused', 'canceled', 'overdue', 'charge.refunded', 'subscription.canceled'];
 
           const lowerStatus = String(status).toLowerCase();
-          
+
           let newStatus = null;
           if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
           if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
@@ -215,25 +314,25 @@ export default async function handler(req, res) {
           await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
 
           if (newStatus === 'active') {
-             const productName = payload?.data?.product?.name || payload?.product?.name || '';
-             const isCameraModule = String(productName).toLowerCase().includes('camera') || String(productName).toLowerCase().includes('câmera');
+            const productName = payload?.data?.product?.name || payload?.product?.name || '';
+            const isCameraModule = String(productName).toLowerCase().includes('camera') || String(productName).toLowerCase().includes('câmera');
 
-             if (isCameraModule) {
-               await pool.query(`
+            if (isCameraModule) {
+              await pool.query(`
                  UPDATE users 
                  SET camera_expiration = NOW() + INTERVAL '30 days'
                  WHERE email = $1
                `, [customerEmail]);
-               console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
-             } else {
-               await pool.query(`
+              console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
+            } else {
+              await pool.query(`
                  UPDATE users 
                  SET status = 'active', 
                      expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
                  WHERE email = $1
                `, [customerEmail]);
-               console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
-             }
+              console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+            }
           } else if (newStatus) {
             // Se for bloqueio, bloqueia a conta principal (que indiretamente bloqueia tudo)
             await pool.query('UPDATE users SET status = $1 WHERE email = $2', [newStatus, customerEmail]);
@@ -253,9 +352,47 @@ export default async function handler(req, res) {
         const { name, email, password, store, phone, plan } = req.body;
         const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
         const { rows } = await pool.query(
-          'INSERT INTO users (name, email, password, role, store, status, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, status, phone, created_at', 
+          'INSERT INTO users (name, email, password, role, store, status, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, status, phone, created_at',
           [name, email, password, 'admin', store, initialStatus, phone]
         );
+
+        // ── WhatsApp de Boas-Vindas (fire and forget) ──────────────
+        if (phone) {
+          const cleanPhone = phone.replace(/\D/g, '');
+          const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+          const firstName = (name || '').split(' ')[0];
+          
+          const welcomeMsg = `🔥 *Olá, ${firstName}! Bem-vindo(a) ao FireCheck!*\n\n` +
+            `Que bom ter você com a gente! 🎉\n\n` +
+            `Sua conta para a loja *${store}* já está sendo preparada.\n\n` +
+            `📋 *O que você pode fazer agora:*\n` +
+            `✅ Criar checklists inteligentes com IA\n` +
+            `✅ Auditar tarefas com fotos em tempo real\n` +
+            `✅ Monitorar sua equipe de qualquer lugar\n\n` +
+            `💡 *Dica:* Acesse seu painel em firecheckapp.com.br/login\n\n` +
+            `Qualquer dúvida, é só chamar aqui neste número! Estamos à disposição 24h. 🚀\n\n` +
+            `— Equipe FireCheck 🔥`;
+
+          // Tenta enviar via Evolution API (configurar EVOLUTION_API_URL e EVOLUTION_API_KEY na Vercel)
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          if (evoUrl && evoKey) {
+            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify({ number: fullPhone, text: welcomeMsg })
+            }).then(r => r.json()).then(d => {
+              console.log(`[WhatsApp] Boas-vindas enviada para ${fullPhone}:`, d?.key?.id || 'ok');
+            }).catch(e => {
+              console.error(`[WhatsApp] Falha ao enviar para ${fullPhone}:`, e.message);
+            });
+          } else {
+            console.log(`[WhatsApp] API não configurada. Mensagem não enviada para ${fullPhone}`);
+          }
+        }
+
         return res.status(200).json({ status: 'success', user: rows[0] });
       }
     }
@@ -296,12 +433,12 @@ export default async function handler(req, res) {
       const { rows } = await pool.query("SELECT plan FROM users WHERE status = 'active' AND role = 'admin'");
       let vendasMes = 0;
       rows.forEach(u => {
-         const valor = u.plan === 'anual' ? 1764 : 197;
-         vendasMes += valor;
+        const valor = u.plan === 'anual' ? 1764 : 197;
+        vendasMes += valor;
       });
       // Receita Real descontando aproximadamente 8% de taxa Cakto
       const receitaReal = vendasMes * 0.92;
-      
+
       return res.status(200).json({
         vendasMes,
         receitaReal,
@@ -315,7 +452,7 @@ export default async function handler(req, res) {
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
         const { employeeName, store, tasks, feedbackInfo, selfie, checklistId } = req.body;
-        
+
         // --- INTEGRAÇÃO FIREBASE STORAGE ---
         // Faz o upload das fotos das tasks
         const updatedTasks = await Promise.all(tasks.map(async (task) => {
@@ -336,9 +473,9 @@ export default async function handler(req, res) {
         const today = new Date().toISOString().split('T')[0];
         const checkDupe = await pool.query('SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3', [checklistId, store, today + ' 00:00:00']);
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
-        
+
         const { rows } = await pool.query(
-          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id', 
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
           [employeeName, store, JSON.stringify(updatedTasks), JSON.stringify(feedbackInfo || {}), finalSelfie, checklistId]
         );
 
@@ -355,80 +492,50 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Health Check da IA ──────────────────────────────────────────
+    if (url.includes('/api/health')) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) return res.status(200).json({ ai: false, reason: 'API Key ausente' });
+      try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent("Responda apenas: OK");
+        const text = (await result.response).text();
+        return res.status(200).json({ ai: true, response: text.substring(0, 20) });
+      } catch (e) {
+        return res.status(200).json({ ai: false, reason: e.message.substring(0, 100) });
+      }
+    }
+
+    // ── Auto-Processador de Pendentes (Piggyback) ─────────────────
+    // Roda silenciosamente em CADA request ao backend, sem depender do admin
+    if (url.includes('/api/auto-process-pending')) {
+      try {
+        const { rows: pending } = await pool.query(
+          `SELECT id FROM checklist_submissions 
+           WHERE (feedback_info IS NULL OR feedback_info = '{}' OR feedback_info::text = 'null')
+           AND retry_count < 15
+           AND created_at > NOW() - INTERVAL '7 days'
+           ORDER BY created_at DESC LIMIT 3`
+        );
+        const processed = [];
+        for (const row of pending) {
+          try {
+            const innerRes = await processAuditForSubmission(pool, row.id);
+            if (innerRes.processed > 0) processed.push(row.id);
+          } catch (e) { console.error(`[Auto-Process] Falha no id=${row.id}:`, e.message); }
+        }
+        return res.status(200).json({ success: true, checked: pending.length, processed });
+      } catch (e) {
+        return res.status(200).json({ success: false, error: e.message });
+      }
+    }
+
     if (url.includes('/api/process-audit-background')) {
       if (method === 'POST') {
         const { submissionId } = req.body;
-        
-        // 1. Busca a submissão
-        const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
-        if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-        
-        const submission = rows[0];
-        const retryCount = (submission.retry_count || 0) + 1;
-        
-        // Se já tentou muitas vezes, marca como erro para não travar o painel
-        if (retryCount > 5) {
-          await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify({ global_error: "IA Temporariamente Indisponível (Limite de tentativas excedido)" }), submissionId]);
-          return res.status(200).json({ success: false, error: "Max retries exceeded" });
-        }
-
-        const tasks = typeof submission.tasks === 'string' ? JSON.parse(submission.tasks) : submission.tasks;
-        const feedbackInfo = {};
-        let hasErrors = false;
-
-        // Atualiza contagem de retentativa
-        await pool.query('UPDATE checklist_submissions SET retry_count = $1 WHERE id = $2', [retryCount, submissionId]);
-
-        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-        if (!apiKey) throw new Error('API Key não configurada');
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        // 2. Processa cada foto
-        const errors = [];
-        for (const task of tasks) {
-          if (task.photo && !task.forceOverride) {
-            try {
-              let base64Data = '';
-              let mimeType = "image/jpeg";
-
-              if (task.photo.startsWith('http')) {
-                const encodedUrl = encodeURI(task.photo);
-                const imgRes = await fetch(encodedUrl);
-                const arrayBuffer = await imgRes.arrayBuffer();
-                base64Data = Buffer.from(arrayBuffer).toString('base64');
-                mimeType = imgRes.headers.get('content-type') || "image/jpeg";
-              } else {
-                base64Data = task.photo.split(',')[1] || task.photo;
-              }
-
-              const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
-              Regras:
-              1. Foque APENAS em verificar se a instrução principal foi cumprida.
-              2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
-              3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
-              Responda ESTRITAMENTE em JSON: {"approved": boolean, "message": "string"}.`;
-
-              const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType } } ]);
-              const response = await result.response;
-              const aiResponse = JSON.parse(response.text().match(/\{[\s\S]*\}/)?.[0] || response.text());
-              
-              feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
-              if (!aiResponse.approved) hasErrors = true;
-            } catch (error) {
-              console.error(`Erro na IA background (Tentativa ${retryCount}):`, error.message);
-              errors.push(error.message);
-              // Não preenchemos para esta tarefa, forçando retentativa pelo robô do painel se houver fotos sem feedback
-            }
-          }
-        }
-
-        // 3. Salva o resultado no banco
-        if (Object.keys(feedbackInfo).length > 0) {
-           await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
-        }
-
-        return res.status(200).json({ success: true, processed: Object.keys(feedbackInfo).length, hasErrors, errors });
+        const result = await processAuditForSubmission(pool, submissionId);
+        return res.status(200).json(result);
       }
     }
 
@@ -446,13 +553,13 @@ export default async function handler(req, res) {
       }
       if (method === 'POST') {
         const { store, name, url: camUrl, username, password, ai_commands } = req.body;
-        await pool.query('INSERT INTO store_cameras (store, name, url, username, password, ai_commands) VALUES ($1, $2, $3, $4, $5, $6)', 
+        await pool.query('INSERT INTO store_cameras (store, name, url, username, password, ai_commands) VALUES ($1, $2, $3, $4, $5, $6)',
           [store, name, camUrl, username, password, JSON.stringify(ai_commands || [])]);
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
         const { id, store, name, url: camUrl, ai_commands } = req.body;
-        await pool.query('UPDATE store_cameras SET name = $1, url = $2, ai_commands = $3 WHERE id = $4 AND store = $5', 
+        await pool.query('UPDATE store_cameras SET name = $1, url = $2, ai_commands = $3 WHERE id = $4 AND store = $5',
           [name, camUrl, JSON.stringify(ai_commands || []), id, store]);
         return res.status(200).json({ success: true });
       }
@@ -466,14 +573,14 @@ export default async function handler(req, res) {
     if (url.includes('/api/process-camera-ai')) {
       if (method === 'POST') {
         const { store, cameraName, photoBase64, commands } = req.body;
-        
+
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
-        
+
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
           const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          
+
           const base64Data = photoBase64.split(',')[1] || photoBase64;
           const prompt = `Você é um sistema de monitoramento de segurança e auditoria operacional em tempo real.
           Sua tarefa é analisar o frame atual da câmera "${cameraName}" e verificar as seguintes regras operacionais:
@@ -484,10 +591,10 @@ export default async function handler(req, res) {
           Se estiver tudo normal, retorne um array vazio [].
           Formato: [{"command": "A regra quebrada", "alert": "O que você viu na imagem que quebra a regra"}]`;
 
-          const result = await model.generateContent([ prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } } ]);
+          const result = await model.generateContent([prompt, { inlineData: { data: base64Data, mimeType: "image/jpeg" } }]);
           const response = await result.response;
           const aiResponse = JSON.parse(response.text().match(/\[[\s\S]*\]/)?.[0] || '[]');
-          
+
           return res.status(200).json({ alerts: aiResponse });
         } catch (error) {
           console.error('Erro na IA da Câmera:', error);
@@ -538,11 +645,11 @@ export default async function handler(req, res) {
         const { message, financeItems } = req.body;
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
-        
+
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
           const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-          
+
           const prompt = `Você é a assistente financeira inteligente da FireCheck.
           Aqui está o status atual de contas da empresa (dados em JSON):
           ${JSON.stringify(financeItems)}
@@ -550,10 +657,10 @@ export default async function handler(req, res) {
           O usuário enviou a seguinte mensagem/pergunta: "${message}"
           
           Responda de forma extremamente objetiva, prestativa e amigável. Fale em português do Brasil. Use os dados de contas para embasar sua resposta caso a pergunta seja sobre as contas. Não mencione os termos "JSON" ou "dados". Não crie informações que não estão no contexto.`;
-          
+
           const result = await model.generateContent(prompt);
           const response = await result.response;
-          
+
           return res.status(200).json({ reply: response.text() });
         } catch (error) {
           console.error('Erro no Chat IA Financeira:', error);
@@ -573,13 +680,13 @@ export default async function handler(req, res) {
     if (url.includes('/api/audit')) {
       if (method === 'POST') {
         const { taskId, taskText, photoBase64 } = req.body;
-        
+
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
-          return res.status(200).json({ 
-            approved: false, 
-            message: 'ERRO DE CONFIGURAÇÃO: Chave da IA (GEMINI_API_KEY) não encontrada. A auditoria não pôde ser realizada.' 
+          return res.status(200).json({
+            approved: false,
+            message: 'ERRO DE CONFIGURAÇÃO: Chave da IA (GEMINI_API_KEY) não encontrada. A auditoria não pôde ser realizada.'
           });
         }
 
@@ -589,7 +696,7 @@ export default async function handler(req, res) {
         while (retries > 0) {
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({ 
+            const model = genAI.getGenerativeModel({
               model: "gemini-2.5-flash",
               safetySettings: [
                 { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
@@ -614,11 +721,11 @@ export default async function handler(req, res) {
 
             const response = await result.response;
             const text = response.text();
-            
+
             // Extração robusta de JSON para evitar quebra com markdown (```json ... ```)
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             const cleanJson = jsonMatch ? jsonMatch[0] : text;
-            
+
             const aiResponse = JSON.parse(cleanJson);
             return res.status(200).json(aiResponse);
 
@@ -629,9 +736,9 @@ export default async function handler(req, res) {
               console.error('Falha definitiva na auditoria SDK:', error);
               // Limpar a mensagem para remover a URL longa e mostrar apenas o erro real
               const cleanError = lastError.includes('[') ? lastError.split(': [')[1] || lastError : lastError;
-              return res.status(200).json({ 
-                approved: false, 
-                message: `Falha: [${cleanError}` 
+              return res.status(200).json({
+                approved: false,
+                message: `Falha: [${cleanError}`
               });
             }
           }
@@ -686,7 +793,7 @@ export default async function handler(req, res) {
       if (method === 'POST') {
         const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton } = req.body;
         const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        
+
         await pool.query(`
           INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -701,7 +808,7 @@ export default async function handler(req, res) {
             clicked_cta = COALESCE($9, quiz_responses.clicked_cta),
             clicked_button = COALESCE($10, quiz_responses.clicked_button)
         `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton]);
-        
+
         return res.status(200).json({ success: true });
       }
     }
