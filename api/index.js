@@ -392,7 +392,8 @@ export default async function handler(req, res) {
               let mimeType = "image/jpeg";
 
               if (task.photo.startsWith('http')) {
-                const imgRes = await fetch(task.photo);
+                const encodedUrl = encodeURI(task.photo);
+                const imgRes = await fetch(encodedUrl);
                 const arrayBuffer = await imgRes.arrayBuffer();
                 base64Data = Buffer.from(arrayBuffer).toString('base64');
                 mimeType = imgRes.headers.get('content-type') || "image/jpeg";
