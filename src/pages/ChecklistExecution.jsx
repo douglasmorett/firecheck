@@ -376,8 +376,16 @@ export default function ChecklistExecution() {
                       </div>
                     </div>
                   ) : (
-                    <button className="btn" style={{ width: '100%', backgroundColor: '#1A1C23', border: '1px dashed var(--primary)', color: 'var(--primary)', boxShadow: 'none' }} onClick={() => startCamera(task.id)}>
-                      <Camera size={20} /> Ligar Câmera para Comprovar
+                    <button 
+                      className="btn btn-pulse animate-fade" 
+                      style={{ width: '100%', backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '16px', fontSize: '1.05rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease' }} 
+                      onClick={(e) => {
+                         e.currentTarget.style.backgroundColor = 'var(--primary)';
+                         e.currentTarget.style.color = 'white';
+                         startCamera(task.id);
+                      }}
+                    >
+                      <Camera size={22} /> Tirar Foto do Serviço Executado
                     </button>
                   )}
                 </div>
