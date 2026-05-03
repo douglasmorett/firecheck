@@ -75,25 +75,49 @@ export default function ChecklistCreator() {
     }
     setIsAIGenerating(true);
     setAiSteps("Analisando processo...");
-    
-    // Simulate AI thinking steps
-    setTimeout(() => setAiSteps("Criando parâmetros de auditoria visual..."), 1000);
-    setTimeout(() => setAiSteps("Definindo travas antifraude..."), 2000);
-    setTimeout(() => setAiSteps("Finalizando checklist..."), 3000);
 
-    setTimeout(() => {
-      setTitle(`Auditoria: ${aiPrompt.charAt(0).toUpperCase() + aiPrompt.slice(1)}`);
-      setTasks([
-        { id: Date.now(), text: `Verificar organização de ${aiPrompt}`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
-        { id: Date.now()+1, text: `Evidência em foto da limpeza concluída`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
-        { id: Date.now()+2, text: `Avaliação do padrão da IA (1 a 5)`, type: 'rating', requirePhoto: false, timeLimit: '', notifyDelay: false, options: [], assignee: '' },
-        { id: Date.now()+3, text: `Houve alguma avaria detectada?`, type: 'multiple', requirePhoto: false, timeLimit: '', notifyDelay: false, options: ['Não', 'Sim, equipamento quebrado', 'Sim, estrutura danificada'], assignee: '' }
-      ]);
+    try {
+      const res = await fetch(`${API_URL}/api/generate-checklist-ai`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: aiPrompt })
+      });
+
+      setAiSteps("Criando parâmetros de auditoria visual...");
+
+      const data = await res.json();
+
+      if (data.title && data.tasks && data.tasks.length > 0) {
+        setTitle(data.title);
+        setTasks(data.tasks.map((t, i) => ({
+          id: Date.now() + i,
+          text: t.text || t,
+          type: t.type || 'boolean',
+          requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
+          timeLimit: t.timeLimit || '',
+          notifyDelay: true,
+          options: t.options || [],
+          assignee: ''
+        })));
+      } else {
+        // Fallback caso a IA retorne formato inesperado
+        setTitle(`Auditoria: ${aiPrompt.charAt(0).toUpperCase() + aiPrompt.slice(1)}`);
+        setTasks([
+          { id: Date.now(), text: `Verificar organização de ${aiPrompt}`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
+          { id: Date.now()+1, text: `Evidência em foto do serviço concluído`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
+          { id: Date.now()+2, text: `Avaliação do padrão (1 a 5)`, type: 'rating', requirePhoto: false, timeLimit: '', notifyDelay: false, options: [], assignee: '' },
+          { id: Date.now()+3, text: `Houve alguma avaria detectada?`, type: 'multiple', requirePhoto: false, timeLimit: '', notifyDelay: false, options: ['Não', 'Sim, equipamento quebrado', 'Sim, estrutura danificada'], assignee: '' }
+        ]);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar checklist com IA:', error);
+      alert('❌ Erro ao conectar com a IA. Tente novamente.');
+    } finally {
       setIsAIGenerating(false);
       setShowAIModal(false);
       setAiPrompt('');
       setAiSteps('');
-    }, 4000);
+    }
   };
 
   useEffect(() => {

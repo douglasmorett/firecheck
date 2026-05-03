@@ -385,6 +385,7 @@ export default async function handler(req, res) {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // 2. Processa cada foto
+        const errors = [];
         for (const task of tasks) {
           if (task.photo && !task.forceOverride) {
             try {
@@ -416,6 +417,7 @@ export default async function handler(req, res) {
               if (!aiResponse.approved) hasErrors = true;
             } catch (error) {
               console.error(`Erro na IA background (Tentativa ${retryCount}):`, error.message);
+              errors.push(error.message);
               // Não preenchemos para esta tarefa, forçando retentativa pelo robô do painel se houver fotos sem feedback
             }
           }
@@ -426,7 +428,7 @@ export default async function handler(req, res) {
            await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
         }
 
-        return res.status(200).json({ success: true, processed: Object.keys(feedbackInfo).length, hasErrors });
+        return res.status(200).json({ success: true, processed: Object.keys(feedbackInfo).length, hasErrors, errors });
       }
     }
 
@@ -470,7 +472,7 @@ export default async function handler(req, res) {
         
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
           
           const base64Data = photoBase64.split(',')[1] || photoBase64;
           const prompt = `Você é um sistema de monitoramento de segurança e auditoria operacional em tempo real.
@@ -494,6 +496,43 @@ export default async function handler(req, res) {
       }
     }
 
+    if (url.includes('/api/generate-checklist-ai')) {
+      if (method === 'POST') {
+        const { prompt } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          const aiPrompt = `Você é um especialista em auditoria operacional e criação de checklists empresariais.
+          O dono de um negócio descreveu o seguinte processo que ele quer auditar: "${prompt}"
+
+          Crie um checklist profissional e completo para auditar esse processo. Siga estas regras:
+          1. Gere entre 4 e 8 tarefas relevantes e específicas para o processo descrito.
+          2. Pelo menos 2 tarefas devem exigir foto como prova (requirePhoto: true).
+          3. Inclua pelo menos 1 tarefa do tipo "rating" (avaliação 1-5) e 1 do tipo "multiple" (múltipla escolha com opções).
+          4. Cada tarefa deve ter: text (descrição clara), type (boolean/check/rating/numeric/multiple/text), requirePhoto (boolean), options (array de strings, só para type multiple).
+          5. Dê um título profissional e curto para o checklist.
+
+          Responda ESTRITAMENTE em JSON no formato:
+          {"title": "string", "tasks": [{"text": "string", "type": "string", "requirePhoto": boolean, "options": []}]}`;
+
+          const result = await model.generateContent(aiPrompt);
+          const response = await result.response;
+          const text = response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro ao gerar checklist com IA:', error);
+          return res.status(500).json({ error: 'Falha na geração com IA' });
+        }
+      }
+    }
+
     if (url.includes('/api/chat-finance')) {
       if (method === 'POST') {
         const { message, financeItems } = req.body;
@@ -502,7 +541,7 @@ export default async function handler(req, res) {
         
         try {
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
           
           const prompt = `Você é a assistente financeira inteligente da FireCheck.
           Aqui está o status atual de contas da empresa (dados em JSON):
@@ -551,7 +590,7 @@ export default async function handler(req, res) {
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
             const model = genAI.getGenerativeModel({ 
-              model: "gemini-1.5-flash",
+              model: "gemini-2.5-flash",
               safetySettings: [
                 { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
                 { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
