@@ -113,25 +113,25 @@ export default function LandingPage() {
             .hero-section {
               display: flex;
               flex-direction: column;
-              padding: 40px 5% 20px 5% !important;
-              gap: 16px;
+              padding: 24px 5% 24px 5% !important;
+              gap: 8px !important;
             }
             .hero-col-left, .hero-col-right {
               display: contents;
             }
-            .hero-badge { order: 1; align-self: center; margin-bottom: 8px !important; font-size: 0.65rem !important; padding: 6px 12px !important; white-space: nowrap; }
-            .hero-title { order: 2; text-align: center; font-size: 1.3rem !important; margin-bottom: 8px !important; }
+            .hero-badge { order: 1; align-self: center; margin-bottom: 0px !important; font-size: 0.6rem !important; padding: 4px 10px !important; white-space: nowrap; }
+            .hero-title { order: 2; text-align: center; font-size: 1.15rem !important; margin-bottom: 4px !important; line-height: 1.1 !important; }
             .mobile-video-title { display: none !important; }
-            .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 8px; }
+            .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 4px; }
             .video-phone-mockup {
-               transform: scale(0.65);
-               transform-origin: center top;
-               margin-bottom: -190px;
+               transform: scale(0.55);
+               transform-origin: top center;
+               margin-bottom: -261px;
             }
-            .hero-desc { order: 4; text-align: center; font-size: 0.85rem !important; margin-bottom: 16px !important; }
-            .hero-cta { order: 5; display: flex; flex-direction: column; align-items: center; width: 100%; }
-            .hero-cta button { width: 100%; justify-content: center; }
-            .hero-cta p { text-align: center; width: 100%; }
+            .hero-desc { order: 4; text-align: center; font-size: 0.75rem !important; margin-bottom: 8px !important; line-height: 1.2 !important; }
+            .hero-cta { order: 5; display: flex; flex-direction: column; align-items: center; width: 100%; gap: 6px !important; }
+            .hero-cta button { width: 100%; justify-content: center; padding: 12px 24px !important; font-size: 0.95rem !important; }
+            .hero-cta p { text-align: center; width: 100%; margin-top: 0 !important; font-size: 0.7rem !important; }
           }
         `}</style>
         
