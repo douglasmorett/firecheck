@@ -188,7 +188,59 @@ export default async function handler(req, res) {
         const { email, password } = req.body;
         const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
         if (rows.length > 0) {
-          return res.status(200).json({ status: 'success', user: rows[0] });
+          const user = rows[0];
+
+          // ── Verificação de Bloqueio ──────────────────────────
+          // Funcionários herdam o status do admin da loja
+          if (user.role === 'funcionario' || user.role === 'employee') {
+            const { rows: admins } = await pool.query(
+              "SELECT status, created_at, expiration_date FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              [user.store]
+            );
+            if (admins.length > 0) {
+              const admin = admins[0];
+              if (admin.status === 'blocked') {
+                return res.status(403).json({ status: 'error', error: 'A conta da sua empresa foi suspensa. Entre em contato com o administrador.' });
+              }
+              if (admin.status === 'pending') {
+                return res.status(403).json({ status: 'error', error: 'O pagamento da sua empresa está pendente. Solicite ao administrador que regularize.' });
+              }
+              // Verificar trial expirado do admin
+              if (admin.status === 'trial') {
+                const diffDays = Math.ceil(Math.abs(new Date() - new Date(admin.created_at)) / (1000 * 60 * 60 * 24));
+                if ((7 - diffDays) < 0) {
+                  return res.status(403).json({ status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' });
+                }
+              }
+              // Verificar plano expirado do admin
+              if (admin.status === 'active' && admin.expiration_date) {
+                if (new Date(admin.expiration_date) < new Date()) {
+                  return res.status(403).json({ status: 'error', error: 'O plano da sua empresa expirou. Solicite renovação ao administrador.' });
+                }
+              }
+            }
+          } else if (user.role !== 'master') {
+            // Admin: verificar próprio status
+            if (user.status === 'blocked') {
+              return res.status(403).json({ status: 'error', error: 'Sua conta foi suspensa. Entre em contato pelo WhatsApp para regularizar.' });
+            }
+            if (user.status === 'pending') {
+              return res.status(403).json({ status: 'error', error: 'Seu pagamento está pendente. Finalize o pagamento para acessar o sistema.' });
+            }
+            if (user.status === 'trial') {
+              const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at)) / (1000 * 60 * 60 * 24));
+              if ((7 - diffDays) < 0) {
+                return res.status(403).json({ status: 'error', error: 'Seu período de teste de 7 dias expirou. Assine um plano para continuar usando o FireCheck.' });
+              }
+            }
+            if (user.status === 'active' && user.expiration_date) {
+              if (new Date(user.expiration_date) < new Date()) {
+                return res.status(403).json({ status: 'error', error: 'Seu plano expirou. Renove sua assinatura para continuar usando o sistema.' });
+              }
+            }
+          }
+
+          return res.status(200).json({ status: 'success', user });
         }
         return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
       }

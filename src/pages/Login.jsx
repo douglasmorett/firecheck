@@ -51,7 +51,7 @@ export default function Login() {
           navigate('/admin');
         }
       } else {
-        alert(data.error);
+        alert(data.error || 'Erro ao fazer login.');
       }
     } catch {
       alert('Erro ao conectar com o servidor.');

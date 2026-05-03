@@ -35,7 +35,7 @@ export default function Checkout() {
       const response = await fetch(`${API_URL}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, plan: plan || 'trial' })
       });
 
       const data = await response.json();
