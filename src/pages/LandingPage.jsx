@@ -141,7 +141,7 @@ export default function LandingPage() {
           </div>
           
           <h1 className="hero-title" style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px', color: 'var(--text-main)' }}>
-            Garanta o padrão da sua empresa e <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>tenha paz de espírito.</span>
+            Transforme sua empresa em um negócio <br/><span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>autogerenciável.</span>
           </h1>
           
           <p className="hero-desc" style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
@@ -169,16 +169,17 @@ export default function LandingPage() {
                  <video 
                    ref={videoRef}
                    src="/demo2.mp4" 
+                   autoPlay
+                   muted={!isVideoActive}
                    loop 
                    playsInline
                    onClick={() => {
                       if (videoRef.current) {
                           if (isVideoActive) {
-                              videoRef.current.pause();
+                              videoRef.current.muted = true;
                               setIsVideoActive(false);
                           } else {
                               videoRef.current.muted = false;
-                              videoRef.current.play();
                               setIsVideoActive(true);
                               handleTrackAndNavigate('video_play', null);
                           }
@@ -191,12 +192,11 @@ export default function LandingPage() {
                      onClick={() => {
                         if (videoRef.current) {
                             videoRef.current.muted = false;
-                            videoRef.current.play();
                             setIsVideoActive(true);
                             handleTrackAndNavigate('video_play', null);
                         }
                      }}
-                     style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.5)', cursor: 'pointer', zIndex: 60 }}
+                     style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)', cursor: 'pointer', zIndex: 60 }}
                    >
                      <div className="btn btn-pulse" style={{ background: 'var(--primary)', color: 'white', padding: '16px 32px', borderRadius: '30px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 20px rgba(255,77,0,0.5)' }}>
                        <PlayCircle size={24} /> Dar Play
