@@ -402,10 +402,17 @@ export default async function handler(req, res) {
     if (url.includes('/api/signup')) {
       if (method === 'POST') {
         const { name, email, password, store, phone, plan } = req.body;
+
+        // Verificar email duplicado
+        const { rows: existing } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (existing.length > 0) {
+          return res.status(400).json({ status: 'error', error: 'Este e-mail já está cadastrado. Faça login ou use outro e-mail.' });
+        }
+
         const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
         const { rows } = await pool.query(
-          'INSERT INTO users (name, email, password, role, store, status, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, status, phone, created_at',
-          [name, email, password, 'admin', store, initialStatus, phone]
+          'INSERT INTO users (name, email, password, role, store, status, phone, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, store, status, phone, created_at',
+          [name, email, password, 'admin', store, initialStatus, phone, plan || 'trial']
         );
 
         // ── WhatsApp de Boas-Vindas (fire and forget) ──────────────
@@ -446,6 +453,25 @@ export default async function handler(req, res) {
         }
 
         return res.status(200).json({ status: 'success', user: rows[0] });
+      }
+    }
+
+    // ── Esqueci Minha Senha ──────────────────────────────────────
+    if (url.includes('/api/forgot-password')) {
+      if (method === 'POST') {
+        const { email } = req.body;
+        const { rows } = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (rows.length === 0) {
+          return res.status(200).json({ status: 'error', message: 'E-mail não encontrado. Verifique e tente novamente.' });
+        }
+        // Gera senha temporária de 6 dígitos
+        const tempPass = Math.random().toString(36).slice(-6).toUpperCase();
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [tempPass, rows[0].id]);
+        
+        return res.status(200).json({ 
+          status: 'success', 
+          message: `Sua nova senha temporária é: ${tempPass} — Use ela para fazer login e depois altere sua senha.` 
+        });
       }
     }
 
