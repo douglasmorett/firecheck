@@ -1103,7 +1103,10 @@ export default function LandingPage() {
           .wpp-time { font-size: 0.65rem; color: #999; text-align: right; margin-top: 4px; display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
           .wpp-tick { color: #4FC3F7; font-size: 0.8rem; }
           .wpp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1200px; margin: 0 auto; justify-items: center; }
-          @media (max-width: 768px) { .wpp-grid { grid-template-columns: 1fr; } .wpp-card { max-width: 100%; } }
+          @media (max-width: 768px) {
+            .wpp-grid { grid-template-columns: 1fr; gap: 12px; }
+            .wpp-card { max-width: 100%; transform: scale(0.72); transform-origin: top center; margin-bottom: -80px; }
+          }
         `}</style>
 
         <div style={{ textAlign: 'center', marginBottom: '48px' }}>
