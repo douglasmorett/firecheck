@@ -1187,6 +1187,213 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Seção: Depoimentos WhatsApp ── */}
+      <section style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)', position: 'relative', overflow: 'hidden' }}>
+        <style>{`
+          .wpp-card {
+            background: #fff;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+            display: flex;
+            flex-direction: column;
+            max-width: 340px;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          }
+          .wpp-header {
+            background: #075E54;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+          }
+          .wpp-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            color: white;
+            flex-shrink: 0;
+          }
+          .wpp-contact-name {
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
+          .wpp-contact-status {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.7rem;
+          }
+          .wpp-body {
+            background: #ECE5DD url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23C2B280' fill-opacity='0.12'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+          }
+          .wpp-bubble-received {
+            background: white;
+            border-radius: 0 10px 10px 10px;
+            padding: 8px 12px;
+            max-width: 85%;
+            align-self: flex-start;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.13);
+            position: relative;
+            font-size: 0.85rem;
+            color: #111;
+            line-height: 1.45;
+          }
+          .wpp-bubble-sent {
+            background: #DCF8C6;
+            border-radius: 10px 0 10px 10px;
+            padding: 8px 12px;
+            max-width: 85%;
+            align-self: flex-end;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.13);
+            font-size: 0.85rem;
+            color: #111;
+            line-height: 1.45;
+          }
+          .wpp-time {
+            font-size: 0.65rem;
+            color: #999;
+            text-align: right;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 2px;
+          }
+          .wpp-tick { color: #4FC3F7; font-size: 0.8rem; }
+          .wpp-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            justify-items: center;
+          }
+          @media (max-width: 768px) {
+            .wpp-grid { grid-template-columns: 1fr; }
+            .wpp-card { max-width: 100%; }
+          }
+        `}</style>
+
+        <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#25D366', color: 'white', padding: '6px 18px', borderRadius: '30px', fontSize: '0.8rem', fontWeight: '700', marginBottom: '16px' }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.888-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.347-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+            Clientes Reais no WhatsApp
+          </div>
+          <h2 style={{ fontSize: 'min(2.5rem, 6vw)', fontWeight: '900', marginBottom: '12px' }}>
+            O que os clientes estão <span style={{ color: '#25D366' }}>dizendo</span>
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem' }}>Mensagens reais de quem já usa o FireCheck no dia a dia.</p>
+        </div>
+
+        <div className="wpp-grid">
+
+          {/* Card 1 — Dono de restaurante */}
+          <div className="wpp-card">
+            <div className="wpp-header">
+              <div className="wpp-avatar" style={{ backgroundColor: '#E67E22' }}>R</div>
+              <div>
+                <div className="wpp-contact-name">Ricardo M.</div>
+                <div className="wpp-contact-status">Restaurante • São Paulo, SP</div>
+              </div>
+            </div>
+            <div className="wpp-body">
+              <div className="wpp-bubble-received">
+                Cara, o FireCheck mudou tudo aqui. Antes eu tinha que ficar em cima da equipe toda hora pra saber se fecharam a cozinha direito 😅
+                <div className="wpp-time">14:32</div>
+              </div>
+              <div className="wpp-bubble-received">
+                Agora a IA reprova na hora se tiver errado. Semana passada pegou um funcionário que não tinha limpado a chapa e tirou foto de outro dia 🔥
+                <div className="wpp-time">14:33</div>
+              </div>
+              <div className="wpp-bubble-sent">
+                Fico feliz que tá ajudando! Isso é exatamente o anti-fraude do sistema funcionando 👊
+                <div className="wpp-time">14:35 <span className="wpp-tick">✓✓</span></div>
+              </div>
+              <div className="wpp-bubble-received">
+                Simplesmente incrível. Já indiquei pra 3 amigos que têm restaurante também 👏👏
+                <div className="wpp-time">14:36</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2 — Dono de academia */}
+          <div className="wpp-card">
+            <div className="wpp-header">
+              <div className="wpp-avatar" style={{ backgroundColor: '#2980B9' }}>F</div>
+              <div>
+                <div className="wpp-contact-name">Fernanda L.</div>
+                <div className="wpp-contact-status">Academia • Belo Horizonte, MG</div>
+              </div>
+            </div>
+            <div className="wpp-body">
+              <div className="wpp-bubble-received">
+                Oi! Queria agradecer muito, o sistema tá funcionando perfeitamente na academia. Os instrutores já se acostumaram rápido 😊
+                <div className="wpp-time">09:15</div>
+              </div>
+              <div className="wpp-bubble-sent">
+                Que ótimo Fernanda! Como tá sendo o uso no dia a dia?
+                <div className="wpp-time">09:18 <span className="wpp-tick">✓✓</span></div>
+              </div>
+              <div className="wpp-bubble-received">
+                A limpeza dos equipamentos melhorou 100%! Antes os alunos reclamavam, agora zero reclamação. A foto como prova foi a melhor ideia 📸
+                <div className="wpp-time">09:19</div>
+              </div>
+              <div className="wpp-bubble-received">
+                Já valeu muito o investimento. Melhor software que já comprei pra academia ⭐⭐⭐⭐⭐
+                <div className="wpp-time">09:20</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 3 — Dono de rede de lojas */}
+          <div className="wpp-card">
+            <div className="wpp-header">
+              <div className="wpp-avatar" style={{ backgroundColor: '#27AE60' }}>M</div>
+              <div>
+                <div className="wpp-contact-name">Marcos A.</div>
+                <div className="wpp-contact-status">Rede de Lojas • Rio de Janeiro, RJ</div>
+              </div>
+            </div>
+            <div className="wpp-body">
+              <div className="wpp-bubble-received">
+                Bom dia! Tenho 4 lojas e usar planilha tava virando um caos. Com o FireCheck centralizei tudo num lugar só 🙌
+                <div className="wpp-time">08:41</div>
+              </div>
+              <div className="wpp-bubble-received">
+                Ontem à noite fiquei viajando e recebi a notificação que uma loja não fez o checklist de fechamento. Ligei, resolveram. Sensacional!
+                <div className="wpp-time">08:42</div>
+              </div>
+              <div className="wpp-bubble-sent">
+                Isso! Esse é o poder do monitoramento em tempo real 💪
+                <div className="wpp-time">08:44 <span className="wpp-tick">✓✓</span></div>
+              </div>
+              <div className="wpp-bubble-received">
+                Melhor decisão que tomei esse ano. Obrigado pela ferramenta de qualidade! 🔥
+                <div className="wpp-time">08:45</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div style={{ textAlign: 'center', marginTop: '48px' }}>
+          <button className="btn" style={{ padding: '16px 40px', fontSize: '1.05rem' }} onClick={() => handleTrackAndNavigate('CTA Depoimentos WhatsApp', '/checkout')}>
+            Quero Resultados como Esses →
+          </button>
+          <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>7 dias grátis • sem cartão de crédito</p>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer style={{ padding: '40px 5%', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto' }}>
         <p>© 2026 FireCheck Inc. O futuro da auditoria de varejo.</p>
