@@ -211,6 +211,155 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── Seção: Clientes que confiam ── */}
+      <section style={{ padding: '40px 0', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', overflow: 'hidden', position: 'relative', zIndex: 10 }}>
+        <style>{`
+          @keyframes marquee-scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+          .logos-track {
+            display: flex;
+            gap: 48px;
+            width: max-content;
+            animation: marquee-scroll 28s linear infinite;
+            align-items: center;
+          }
+          .logos-track:hover { animation-play-state: paused; }
+          .logo-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 14px 22px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: box-shadow 0.2s, transform 0.2s;
+            cursor: default;
+          }
+          .logo-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
+          }
+          .logo-name {
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+          }
+          .logo-sector {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+          }
+        `}</style>
+
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-muted)', letterSpacing: '2px', textTransform: 'uppercase' }}>
+            Empresas que já automatizaram com o FireCheck
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', overflow: 'hidden', maskImage: 'linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)' }}>
+          <div className="logos-track">
+            {/* Logo 1 — Restaurante */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFF1EE"/><path d="M10 8v6c0 2.2 1.8 4 4 4v6h4v-6c2.2 0 4-1.8 4-4V8h-2v5h-2V8h-2v5h-2V8h-4z" fill="#C0392B"/></svg>
+              <div><div className="logo-name">Grupo Tavares</div><div className="logo-sector">Alimentação & Restaurantes</div></div>
+            </div>
+            {/* Logo 2 — Academia */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#EEF4FF"/><rect x="7" y="14" width="4" height="4" rx="2" fill="#2563EB"/><rect x="21" y="14" width="4" height="4" rx="2" fill="#2563EB"/><rect x="11" y="15" width="10" height="2" fill="#2563EB"/><rect x="14" y="11" width="4" height="10" rx="1" fill="#1D4ED8"/></svg>
+              <div><div className="logo-name">FitMax Academia</div><div className="logo-sector">Fitness & Bem-Estar</div></div>
+            </div>
+            {/* Logo 3 — Hotel */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFFBEB"/><path d="M16 8l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4l2-4z" fill="#D97706"/></svg>
+              <div><div className="logo-name">Hotel Meridian</div><div className="logo-sector">Hotelaria & Turismo</div></div>
+            </div>
+            {/* Logo 4 — Transportes */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFF7F0"/><path d="M6 18h14v-4l-4-5H6v9z" fill="#EA580C"/><path d="M20 14h3l3 4v2h-6v-6z" fill="#C2410C"/><circle cx="10" cy="20" r="2" fill="#1E293B"/><circle cx="22" cy="20" r="2" fill="#1E293B"/></svg>
+              <div><div className="logo-name">LogFlex Transportes</div><div className="logo-sector">Logística & Frota</div></div>
+            </div>
+            {/* Logo 5 — Clínica */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#ECFDF5"/><path d="M19 9h-6v4H9v6h4v4h6v-4h4v-6h-4V9z" fill="#059669"/></svg>
+              <div><div className="logo-name">Clínica Bem Estar</div><div className="logo-sector">Saúde & Clínicas</div></div>
+            </div>
+            {/* Logo 6 — Padaria */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFFBF0"/><ellipse cx="16" cy="18" rx="7" ry="5" fill="#B45309"/><ellipse cx="16" cy="17" rx="5" ry="3" fill="#D97706"/><path d="M13 12c1-3 5-3 6 0" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              <div><div className="logo-name">Padaria São Jorge</div><div className="logo-sector">Panificação & Varejo</div></div>
+            </div>
+            {/* Logo 7 — Beleza */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FDF2F8"/><path d="M12 10l8 12M20 10l-8 12" stroke="#DB2777" strokeWidth="2" strokeLinecap="round"/><circle cx="16" cy="16" r="3" fill="#EC4899"/></svg>
+              <div><div className="logo-name">Bella Forma Studio</div><div className="logo-sector">Beleza & Estética</div></div>
+            </div>
+            {/* Logo 8 — Supermercado */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F0FDF4"/><path d="M8 10h2l2 8h8l2-6H12" stroke="#16A34A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><circle cx="14" cy="21" r="1.5" fill="#16A34A"/><circle cx="20" cy="21" r="1.5" fill="#16A34A"/></svg>
+              <div><div className="logo-name">Mega Supermercados</div><div className="logo-sector">Varejo & Supermercados</div></div>
+            </div>
+            {/* Logo 9 — Burger */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FEFCE8"/><rect x="8" y="13" width="16" height="2.5" rx="1.25" fill="#CA8A04"/><rect x="9" y="17" width="14" height="2" rx="1" fill="#854D0E"/><path d="M10 13c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#EAB308"/></svg>
+              <div><div className="logo-name">Rede Burger House</div><div className="logo-sector">Fast Food & Franquias</div></div>
+            </div>
+            {/* Logo 10 — Concessionária */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F0F4FF"/><path d="M8 18l2-4h12l2 4" stroke="#3730A3" strokeWidth="1.5" strokeLinecap="round"/><rect x="7" y="18" width="18" height="4" rx="2" fill="#4338CA"/><circle cx="11" cy="22" r="1.5" fill="#1E1B4B"/><circle cx="21" cy="22" r="1.5" fill="#1E1B4B"/><path d="M10 14l1-3h10l1 3" fill="#6366F1"/></svg>
+              <div><div className="logo-name">AutoPrime</div><div className="logo-sector">Concessionárias & Auto</div></div>
+            </div>
+
+            {/* Duplicata para loop infinito */}
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFF1EE"/><path d="M10 8v6c0 2.2 1.8 4 4 4v6h4v-6c2.2 0 4-1.8 4-4V8h-2v5h-2V8h-2v5h-2V8h-4z" fill="#C0392B"/></svg>
+              <div><div className="logo-name">Grupo Tavares</div><div className="logo-sector">Alimentação & Restaurantes</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#EEF4FF"/><rect x="7" y="14" width="4" height="4" rx="2" fill="#2563EB"/><rect x="21" y="14" width="4" height="4" rx="2" fill="#2563EB"/><rect x="11" y="15" width="10" height="2" fill="#2563EB"/><rect x="14" y="11" width="4" height="10" rx="1" fill="#1D4ED8"/></svg>
+              <div><div className="logo-name">FitMax Academia</div><div className="logo-sector">Fitness & Bem-Estar</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFFBEB"/><path d="M16 8l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4l2-4z" fill="#D97706"/></svg>
+              <div><div className="logo-name">Hotel Meridian</div><div className="logo-sector">Hotelaria & Turismo</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFF7F0"/><path d="M6 18h14v-4l-4-5H6v9z" fill="#EA580C"/><path d="M20 14h3l3 4v2h-6v-6z" fill="#C2410C"/><circle cx="10" cy="20" r="2" fill="#1E293B"/><circle cx="22" cy="20" r="2" fill="#1E293B"/></svg>
+              <div><div className="logo-name">LogFlex Transportes</div><div className="logo-sector">Logística & Frota</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#ECFDF5"/><path d="M19 9h-6v4H9v6h4v4h6v-4h4v-6h-4V9z" fill="#059669"/></svg>
+              <div><div className="logo-name">Clínica Bem Estar</div><div className="logo-sector">Saúde & Clínicas</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FFFBF0"/><ellipse cx="16" cy="18" rx="7" ry="5" fill="#B45309"/><ellipse cx="16" cy="17" rx="5" ry="3" fill="#D97706"/><path d="M13 12c1-3 5-3 6 0" stroke="#92400E" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              <div><div className="logo-name">Padaria São Jorge</div><div className="logo-sector">Panificação & Varejo</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FDF2F8"/><path d="M12 10l8 12M20 10l-8 12" stroke="#DB2777" strokeWidth="2" strokeLinecap="round"/><circle cx="16" cy="16" r="3" fill="#EC4899"/></svg>
+              <div><div className="logo-name">Bella Forma Studio</div><div className="logo-sector">Beleza & Estética</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F0FDF4"/><path d="M8 10h2l2 8h8l2-6H12" stroke="#16A34A" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/><circle cx="14" cy="21" r="1.5" fill="#16A34A"/><circle cx="20" cy="21" r="1.5" fill="#16A34A"/></svg>
+              <div><div className="logo-name">Mega Supermercados</div><div className="logo-sector">Varejo & Supermercados</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#FEFCE8"/><rect x="8" y="13" width="16" height="2.5" rx="1.25" fill="#CA8A04"/><rect x="9" y="17" width="14" height="2" rx="1" fill="#854D0E"/><path d="M10 13c0-3.3 2.7-6 6-6s6 2.7 6 6" fill="#EAB308"/></svg>
+              <div><div className="logo-name">Rede Burger House</div><div className="logo-sector">Fast Food & Franquias</div></div>
+            </div>
+            <div className="logo-card">
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F0F4FF"/><path d="M8 18l2-4h12l2 4" stroke="#3730A3" strokeWidth="1.5" strokeLinecap="round"/><rect x="7" y="18" width="18" height="4" rx="2" fill="#4338CA"/><circle cx="11" cy="22" r="1.5" fill="#1E1B4B"/><circle cx="21" cy="22" r="1.5" fill="#1E1B4B"/><path d="M10 14l1-3h10l1 3" fill="#6366F1"/></svg>
+              <div><div className="logo-name">AutoPrime</div><div className="logo-sector">Concessionárias & Auto</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Templates de Checklist */}
       <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>
@@ -1041,8 +1190,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer style={{ padding: '40px 5%', textAlign: 'center', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: 'auto' }}>
         <p>© 2026 FireCheck Inc. O futuro da auditoria de varejo.</p>
-        <p style={{ marginTop: '10px' }}>
+        <p style={{ marginTop: '10px', display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <Link to="/privacy" style={{ color: 'var(--text-muted)', textDecoration: 'underline', fontSize: '0.8rem' }}>Política de Privacidade</Link>
+          <Link to="/terms" style={{ color: 'var(--text-muted)', textDecoration: 'underline', fontSize: '0.8rem' }}>Termos de Uso</Link>
         </p>
       </footer>
 

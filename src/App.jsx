@@ -9,6 +9,7 @@ import LandingPage from './pages/LandingPage';
 import Checkout from './pages/Checkout';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import QuizFunnel from './pages/QuizFunnel';
+import TermsOfUse from './pages/TermsOfUse';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         {/* Site Institucional de Vendas */}
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/privacy.html" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfUse />} />
         
         {/* Se for App (Nativo), abre no Login. Se for Web, abre na Landing Page */}
         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
