@@ -813,6 +813,35 @@ export default function AdminDashboard() {
       {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} className="animate-fade">
         
+        {/* TRIAL BANNER */}
+        {userProfile?.status === 'trial' && userProfile?.role === 'admin' && (
+          <div style={{
+            backgroundColor: 'rgba(255, 160, 0, 0.1)',
+            border: '1px solid #FFA000',
+            borderRadius: '12px',
+            padding: '16px 24px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ backgroundColor: '#FFA000', padding: '8px', borderRadius: '50%' }}>
+                <Clock size={24} color="#fff" />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: '#FFA000' }}>Seu período de teste acaba em {7 - Math.ceil(Math.abs(new Date() - new Date(userProfile.created_at || Date.now())) / (1000 * 60 * 60 * 24))} dias!</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Após esse período, o sistema será bloqueado. Não perca seus checklists e dados.</p>
+              </div>
+            </div>
+            <button className="btn" onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile.email)}&name=${encodeURIComponent(userProfile.name)}`, '_blank')} style={{ whiteSpace: 'nowrap' }}>
+              Assinar Plano Agora
+            </button>
+          </div>
+        )}
+        
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%' }}>
