@@ -1144,7 +1144,7 @@ export default function LandingPage() {
           {/* Card 1 */}
           <div className="wpp-card">
             <div className="wpp-header">
-              <div className="wpp-avatar" style={{ backgroundColor: '#E67E22' }}>R</div>
+              <div className="wpp-avatar" style={{ backgroundColor: '#E67E22', padding: 0, overflow: 'hidden' }}><img src="/avatar_ricardo.png" alt="Ricardo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
               <div><div className="wpp-contact-name">Ricardo M.</div><div className="wpp-contact-status">Restaurante • São Paulo, SP</div></div>
             </div>
             <div className="wpp-body">
@@ -1155,7 +1155,7 @@ export default function LandingPage() {
           {/* Card 2 */}
           <div className="wpp-card">
             <div className="wpp-header">
-              <div className="wpp-avatar" style={{ backgroundColor: '#2980B9' }}>F</div>
+              <div className="wpp-avatar" style={{ backgroundColor: '#2980B9', padding: 0, overflow: 'hidden' }}><img src="/avatar_fernanda.png" alt="Fernanda" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
               <div><div className="wpp-contact-name">Fernanda L.</div><div className="wpp-contact-status">Academia • Belo Horizonte, MG</div></div>
             </div>
             <div className="wpp-body">
@@ -1166,7 +1166,7 @@ export default function LandingPage() {
           {/* Card 3 */}
           <div className="wpp-card">
             <div className="wpp-header">
-              <div className="wpp-avatar" style={{ backgroundColor: '#27AE60' }}>M</div>
+              <div className="wpp-avatar" style={{ backgroundColor: '#27AE60', padding: 0, overflow: 'hidden' }}><img src="/avatar_marcos.png" alt="Marcos" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
               <div><div className="wpp-contact-name">Marcos A.</div><div className="wpp-contact-status">Rede de Lojas • Rio de Janeiro, RJ</div></div>
             </div>
             <div className="wpp-body">
