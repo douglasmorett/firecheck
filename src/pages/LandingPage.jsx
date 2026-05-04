@@ -1145,7 +1145,7 @@ export default function LandingPage() {
           <div className="wpp-card">
             <div className="wpp-header">
               <div className="wpp-avatar" style={{ backgroundColor: '#E67E22', padding: 0, overflow: 'hidden' }}><img src="/avatar_ricardo.png" alt="Ricardo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
-              <div><div className="wpp-contact-name">Ricardo M.</div><div className="wpp-contact-status">Restaurante • São Paulo, SP</div></div>
+              <div><div className="wpp-contact-name">Ricardo Mendes</div><div className="wpp-contact-status">visto por último às 14:41</div></div>
             </div>
             <div className="wpp-body">
               <div className="wpp-bubble-received">A IA pegou um funcionário que tirou foto de outro dia pra enganar o sistema. Nunca mais isso aconteceu aqui 🔥<div className="wpp-time">14:33</div></div>
@@ -1156,7 +1156,7 @@ export default function LandingPage() {
           <div className="wpp-card">
             <div className="wpp-header">
               <div className="wpp-avatar" style={{ backgroundColor: '#2980B9', padding: 0, overflow: 'hidden' }}><img src="/avatar_fernanda.png" alt="Fernanda" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
-              <div><div className="wpp-contact-name">Fernanda L.</div><div className="wpp-contact-status">Academia • Belo Horizonte, MG</div></div>
+              <div><div className="wpp-contact-name">Fernanda Lima</div><div className="wpp-contact-status">visto por último às 09:27</div></div>
             </div>
             <div className="wpp-body">
               <div className="wpp-bubble-received">A limpeza dos equipamentos melhorou 100%! Zero reclamação dos alunos agora 📸<div className="wpp-time">09:19</div></div>
@@ -1167,7 +1167,7 @@ export default function LandingPage() {
           <div className="wpp-card">
             <div className="wpp-header">
               <div className="wpp-avatar" style={{ backgroundColor: '#27AE60', padding: 0, overflow: 'hidden' }}><img src="/avatar_marcos.png" alt="Marcos" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /></div>
-              <div><div className="wpp-contact-name">Marcos A.</div><div className="wpp-contact-status">Rede de Lojas • Rio de Janeiro, RJ</div></div>
+              <div><div className="wpp-contact-name">Marcos Alves</div><div className="wpp-contact-status">visto por último às 08:53</div></div>
             </div>
             <div className="wpp-body">
               <div className="wpp-bubble-received">Viajando recebi notificação que uma loja não fez o checklist. Ligei, resolveram. Sensacional! 🙌<div className="wpp-time">08:42</div></div>
