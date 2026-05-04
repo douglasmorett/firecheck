@@ -225,7 +225,7 @@ export default function LandingPage() {
             animation: marquee-scroll 28s linear infinite;
             align-items: center;
           }
-          .logos-track:hover { animation-play-state: paused; }
+          /* Removed hover pause */
           .logo-card {
             display: flex;
             align-items: center;
