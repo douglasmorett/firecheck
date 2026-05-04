@@ -1116,8 +1116,8 @@ export default function LandingPage() {
             }
             .wpp-grid::-webkit-scrollbar { display: none; }
             .wpp-card {
-              flex: 0 0 78vw;
-              max-width: 300px;
+              flex: 0 0 62vw;
+              max-width: 240px;
               scroll-snap-align: center;
               transform: none;
               margin-bottom: 0;
