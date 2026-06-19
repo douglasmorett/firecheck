@@ -2,12 +2,68 @@ import pkg from 'pg';
 const { Pool } = pkg;
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import admin, { uploadImage } from './firebase-admin.js';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
+// ── Segurança: Connection string via env var (NUNCA hardcoded) ──
 const pool = new Pool({
-  connectionString: 'postgresql://neondb_owner:npg_YymnUpK7OED8@ep-green-fog-anfbkql2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   max: 1
 });
+
+// ── JWT Secret ──
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
+const JWT_EXPIRY = '7d'; // Token válido por 7 dias
+
+// ── Rate Limiting em Memória ──
+const loginAttempts = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minuto
+const RATE_LIMIT_MAX = 7; // Máx 7 tentativas por minuto
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+  if (!record || (now - record.firstAttempt > RATE_LIMIT_WINDOW)) {
+    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+    return true;
+  }
+  record.count++;
+  if (record.count > RATE_LIMIT_MAX) return false;
+  return true;
+}
+
+// Limpar rate limit cache a cada 5 min para evitar memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of loginAttempts) {
+    if (now - record.firstAttempt > RATE_LIMIT_WINDOW * 2) loginAttempts.delete(ip);
+  }
+}, 300000);
+
+// ── Middleware de Autenticação JWT ──
+function authenticateToken(req) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return null;
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return null;
+  }
+}
+
+// ── Domínios Permitidos (CORS) ──
+const ALLOWED_ORIGINS = [
+  'https://firecheckapp.com.br',
+  'https://www.firecheckapp.com.br',
+  'https://firecheck.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'capacitor://localhost',
+  'http://localhost'
+];
 
 let migrationsRun = false;
 
@@ -127,9 +183,22 @@ async function processAuditForSubmission(pool, submissionId) {
 
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS,DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // ── CORS Restrito ──
+  const origin = req.headers.origin || '';
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    // Permitir requests sem origin (ex: mobile apps, curl) mas sem cookie sharing
+    res.setHeader('Access-Control-Allow-Origin', ALLOWED_ORIGINS[0]);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,OPTIONS,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  // ── Headers de Segurança ──
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -265,13 +334,41 @@ export default async function handler(req, res) {
     const url = req.url || '';
     const searchParams = new URL(url, `http://${req.headers.host}`).searchParams;
 
-    // --- LOGIN / AUTH (CORRIGIDO PARA O QUE O SITE ESPERA) ---
+    // --- LOGIN / AUTH (SEGURO: bcrypt + JWT + Rate Limiting) ---
     if (url.includes('/api/auth')) {
       if (method === 'POST') {
+        // Rate limiting
+        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        if (!checkRateLimit(clientIp)) {
+          return res.status(429).json({ status: 'error', error: 'Muitas tentativas de login. Aguarde 1 minuto e tente novamente.' });
+        }
+
         const { email, password } = req.body;
-        const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND password = $2', [email, password]);
+        if (!email || !password) return res.status(400).json({ status: 'error', error: 'E-mail e senha são obrigatórios.' });
+
+        // Buscar usuário SEM comparar senha na query (bcrypt faz isso em memória)
+        const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
         if (rows.length > 0) {
           const user = rows[0];
+          
+          // Comparar senha com bcrypt (suporta senha legacy plaintext durante migração)
+          let passwordMatch = false;
+          if (user.password && user.password.startsWith('$2')) {
+            // Senha já hasheada com bcrypt
+            passwordMatch = await bcrypt.compare(password, user.password);
+          } else {
+            // Senha legado em plaintext — comparar direto e hashear para o futuro
+            passwordMatch = (password === user.password);
+            if (passwordMatch) {
+              // Auto-migrar: hashear a senha para bcrypt
+              const hash = await bcrypt.hash(password, 12);
+              await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, user.id]);
+            }
+          }
+
+          if (!passwordMatch) {
+            return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
+          }
 
           // ── Verificação de Bloqueio ──────────────────────────
           // Funcionários herdam o status do admin da loja
@@ -281,29 +378,26 @@ export default async function handler(req, res) {
               [user.store]
             );
             if (admins.length > 0) {
-              const admin = admins[0];
-              if (admin.status === 'blocked') {
+              const adm = admins[0];
+              if (adm.status === 'blocked') {
                 return res.status(403).json({ status: 'error', error: 'A conta da sua empresa foi suspensa. Entre em contato com o administrador.' });
               }
-              if (admin.status === 'pending') {
+              if (adm.status === 'pending') {
                 return res.status(403).json({ status: 'error', error: 'O pagamento da sua empresa está pendente. Solicite ao administrador que regularize.' });
               }
-              // Verificar trial expirado do admin
-              if (admin.status === 'trial') {
-                const diffDays = Math.ceil(Math.abs(new Date() - new Date(admin.created_at)) / (1000 * 60 * 60 * 24));
+              if (adm.status === 'trial') {
+                const diffDays = Math.ceil(Math.abs(new Date() - new Date(adm.created_at)) / (1000 * 60 * 60 * 24));
                 if ((7 - diffDays) < 0) {
                   return res.status(403).json({ status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' });
                 }
               }
-              // Verificar plano expirado do admin
-              if (admin.status === 'active' && admin.expiration_date) {
-                if (new Date(admin.expiration_date) < new Date()) {
+              if (adm.status === 'active' && adm.expiration_date) {
+                if (new Date(adm.expiration_date) < new Date()) {
                   return res.status(403).json({ status: 'error', error: 'O plano da sua empresa expirou. Solicite renovação ao administrador.' });
                 }
               }
             }
           } else if (user.role !== 'master') {
-            // Admin: verificar próprio status
             if (user.status === 'blocked') {
               return res.status(403).json({ status: 'error', error: 'Sua conta foi suspensa. Entre em contato pelo WhatsApp para regularizar.' });
             }
@@ -323,14 +417,23 @@ export default async function handler(req, res) {
             }
           }
 
-          return res.status(200).json({ status: 'success', user });
+          // ── Gerar JWT Token ──
+          const tokenPayload = { id: user.id, email: user.email, role: user.role, store: user.store };
+          const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+
+          // ── Retornar SEM senha ──
+          const { password: _, ...safeUser } = user;
+          return res.status(200).json({ status: 'success', token, user: safeUser });
         }
         return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
       }
     }
 
+
     if (url.includes('/api/stats')) {
-      const store = searchParams.get('store');
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       const start = searchParams.get('start');
       const end = searchParams.get('end');
       let params = [];
@@ -380,6 +483,8 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/checklists')) {
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       if (method === 'POST') {
         const { title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays } = req.body;
         try {
@@ -510,9 +615,11 @@ export default async function handler(req, res) {
         }
 
         const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
+        // Hash da senha com bcrypt
+        const hashedPassword = await bcrypt.hash(password, 12);
         const { rows } = await pool.query(
           'INSERT INTO users (name, email, password, role, store, status, phone, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, store, status, phone, created_at',
-          [name, email, password, 'admin', store, initialStatus, phone, plan || 'trial']
+          [name, email, hashedPassword, 'admin', store, initialStatus, phone, plan || 'trial']
         );
 
         // ── WhatsApp de Boas-Vindas (fire and forget) ──────────────
@@ -556,17 +663,47 @@ export default async function handler(req, res) {
       }
     }
 
-    // ── Esqueci Minha Senha ──────────────────────────────────────
+    // ── Esqueci Minha Senha ──────────────────────────────────────────
     if (url.includes('/api/forgot-password')) {
       if (method === 'POST') {
         const { email } = req.body;
         const { rows } = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = LOWER($1)', [email]);
         if (rows.length === 0) {
-          return res.status(200).json({ status: 'error', message: 'E-mail não encontrado. Verifique e tente novamente.' });
+          // Retornar sucesso genérico para não revelar se o email existe
+          return res.status(200).json({ status: 'success', message: 'Se o e-mail estiver cadastrado, uma nova senha temporária será gerada. Verifique seu e-mail ou entre em contato pelo WhatsApp.' });
         }
-        // Gera senha temporária de 6 dígitos
-        const tempPass = Math.random().toString(36).slice(-6).toUpperCase();
-        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [tempPass, rows[0].id]);
+        // Gera senha temporária segura de 8 caracteres
+        const tempPass = crypto.randomBytes(4).toString('hex').toUpperCase();
+        // Hash da senha temporária antes de salvar
+        const hashedTemp = await bcrypt.hash(tempPass, 12);
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedTemp, rows[0].id]);
+        
+        // Tentar enviar por WhatsApp se disponível
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+        
+        if (evoUrl && evoKey) {
+          // Buscar telefone do usuário
+          const { rows: userPhone } = await pool.query('SELECT phone FROM users WHERE id = $1', [rows[0].id]);
+          if (userPhone[0]?.phone) {
+            const cleanPhone = userPhone[0].phone.replace(/\D/g, '');
+            const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify({ number: fullPhone, text: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.` })
+            }).catch(e => console.error('[WhatsApp] Erro ao enviar senha:', e.message));
+          }
+        }
+        
+        // Se não tem WhatsApp configurado, retorna a senha (fallback temporário)
+        if (!evoUrl || !evoKey) {
+          return res.status(200).json({ 
+            status: 'success', 
+            message: `Sua nova senha temporária é: ${tempPass} — Use ela para fazer login e depois altere sua senha.` 
+          });
+        }
         
         return res.status(200).json({ 
           status: 'success', 
@@ -576,18 +713,36 @@ export default async function handler(req, res) {
     }
 
     if (url.match(/\/api\/users\/([^\/?]+)/)) {
+      // ── Proteção JWT: Somente admin/master pode editar usuários ──
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+      if (authUser.role !== 'admin' && authUser.role !== 'master') {
+        return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+      }
+
       const match = url.match(/\/api\/users\/([^\/?]+)/);
       const id = match[1];
       if (method === 'DELETE') {
+        // Admin só pode deletar usuários da própria loja (master pode deletar qualquer)
+        if (authUser.role !== 'master') {
+          const { rows: target } = await pool.query('SELECT store FROM users WHERE id = $1', [id]);
+          if (target.length > 0 && target[0].store !== authUser.store) {
+            return res.status(403).json({ error: 'Você só pode remover usuários da sua própria loja.' });
+          }
+        }
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
         const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia } = req.body;
-        // Fetch current user first to merge and prevent partial updates overwriting active configurations
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
+
+        // Admin só pode editar usuários da própria loja
+        if (authUser.role !== 'master' && user.store !== authUser.store) {
+          return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
+        }
 
         const finalPlan = plan !== undefined ? plan : user.plan;
         const finalStatus = status !== undefined ? status : user.status;
@@ -611,17 +766,30 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
     } else if (url.includes('/api/users')) {
+      // ── Proteção JWT ──
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+
       if (method === 'POST') {
+        if (authUser.role !== 'admin' && authUser.role !== 'master') {
+          return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
+        }
         const { name, email, password, role, store, plan } = req.body;
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store', [name, email, password, role, store, plan]);
+        // Hash da senha do novo funcionário
+        const hashedPassword = await bcrypt.hash(password, 12);
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store', [name, email, hashedPassword, role, store, plan]);
         return res.status(200).json(rows[0]);
       }
-      const store = searchParams.get('store');
+      // GET users: admin vê só da sua loja, master vê tudo
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
     if (url.includes('/api/financials')) {
+      // ── Proteção JWT: Somente master pode ver financeiro geral ──
+      const authUser = authenticateToken(req);
+      if (!authUser || authUser.role !== 'master') return res.status(403).json({ error: 'Acesso restrito.' });
       const { rows } = await pool.query("SELECT plan FROM users WHERE status = 'active' AND role = 'admin'");
       let vendasMes = 0;
       rows.forEach(u => {
@@ -813,13 +981,17 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/submissions')) {
-      const store = searchParams.get('store');
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       const { rows } = await pool.query('SELECT * FROM checklist_submissions' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC LIMIT 50', store ? [store] : []);
       return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
     }
 
     if (url.includes('/api/cameras')) {
-      const store = searchParams.get('store');
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       if (method === 'GET') {
         const { rows } = await pool.query('SELECT * FROM store_cameras' + (store ? ' WHERE store = $1' : '') + ' ORDER BY id DESC', store ? [store] : []);
         return res.status(200).json(rows.map(r => ({ ...r, ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands })));

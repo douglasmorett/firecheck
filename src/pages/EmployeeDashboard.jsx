@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
 import API_URL from '../api';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+
+const handle401 = (res, navigate) => {
+  if (res.status === 401) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
+    navigate('/login');
+  }
+  return res;
+};
+
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const [checklists, setChecklists] = useState([]);
@@ -16,7 +30,10 @@ export default function EmployeeDashboard() {
     if (isManual) setIsRefreshing(true);
     const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
     try {
-      const res = await fetch(`${API_URL}/api/checklists${storeParam}`);
+      const res = await fetch(`${API_URL}/api/checklists${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      handle401(res, navigate);
       const data = await res.json();
       if (Array.isArray(data)) {
         setChecklists(data);
@@ -40,15 +57,19 @@ export default function EmployeeDashboard() {
     
     // Busca se a loja tem o módulo de ponto ativado
     if (profile.store) {
-      fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`)
-        .then(r => r.json())
+      fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`, {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+        })
+        .then(r => { handle401(r, navigate); return r.json(); })
         .then(users => {
           const admin = users.find(u => u.role === 'admin' || u.role === 'master');
           if (admin && admin.ponto_active) {
              setHasPonto(true);
              // Busca dados reais do ponto de hoje
-             fetch(`${API_URL}/api/ponto/today?userId=${profile.id}&store=${encodeURIComponent(profile.store)}`)
-               .then(r => r.json())
+             fetch(`${API_URL}/api/ponto/today?userId=${profile.id}&store=${encodeURIComponent(profile.store)}`, {
+                 headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+               })
+               .then(r => { handle401(r, navigate); return r.json(); })
                .then(data => setPontoData(data))
                .catch(console.error);
           }
@@ -69,6 +90,7 @@ export default function EmployeeDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
     navigate('/login');
   };
 

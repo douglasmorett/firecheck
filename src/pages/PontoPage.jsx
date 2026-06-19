@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X } from 'lucide-react';
 import API_URL from '../api';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+
+const handle401 = (res, navigate) => {
+  if (res.status === 401) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
+    navigate('/login');
+  }
+  return res;
+};
+
 // Comprime a selfie para max 600px de largura, JPEG 60% qualidade
 function compressSelfie(canvas) {
   const maxWidth = 600;
@@ -134,8 +148,10 @@ export default function PontoPage() {
     setLoadingRecords(true);
     try {
       const res = await fetch(
-        `${API_URL}/api/ponto/today?userId=${encodeURIComponent(user.id)}&store=${encodeURIComponent(user.store)}`
+        `${API_URL}/api/ponto/today?userId=${encodeURIComponent(user.id)}&store=${encodeURIComponent(user.store)}`,
+        { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }
       );
+      handle401(res, navigate);
       const data = await res.json();
       if (data && Array.isArray(data.records)) {
         setTodayRecords(data.records);
@@ -226,7 +242,7 @@ export default function PontoPage() {
     try {
       const res = await fetch(`${API_URL}/api/ponto`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           userId: user.id,
           userName: user.name,
@@ -261,6 +277,7 @@ export default function PontoPage() {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
     navigate('/login');
   };
 

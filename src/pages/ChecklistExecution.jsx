@@ -3,6 +3,20 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame } from 'lucide-react';
 import API_URL from '../api';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+
+const handle401 = (res, navigate) => {
+  if (res.status === 401) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
+    navigate('/login');
+  }
+  return res;
+};
+
 export default function ChecklistExecution() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -11,6 +25,7 @@ export default function ChecklistExecution() {
   
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
     navigate('/login');
   };
 
@@ -48,8 +63,10 @@ export default function ChecklistExecution() {
     const profile = JSON.parse(localStorage.getItem('user') || '{}');
     const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
 
-    fetch(`${API_URL}/api/checklists${storeParam}`)
-      .then(res => res.json())
+    fetch(`${API_URL}/api/checklists${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      })
+      .then(res => { handle401(res, navigate); return res.json(); })
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           // Se houver um ID na URL, busca esse específico. Senão pega o primeiro.
@@ -78,8 +95,10 @@ export default function ChecklistExecution() {
 
             // Buscar os detalhes da submissão se já estiver concluído
             if (cl.completedToday) {
-              fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`)
-                .then(res => res.json())
+              fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`, {
+                  headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+                })
+                .then(res => { handle401(res, navigate); return res.json(); })
                 .then(subs => {
                   const today = new Date().toISOString().split('T')[0];
                   const mySub = subs.find(s => s.checklist_id === cl.id && s.created_at.startsWith(today));
@@ -208,7 +227,7 @@ export default function ChecklistExecution() {
     }
     try {
       const res = await fetch(`${API_URL}/api/finalize`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: getAuthHeaders(),
         body: JSON.stringify({ 
           employeeName: EMPLOYEE.name, 
           store: EMPLOYEE.store, 
@@ -227,7 +246,7 @@ export default function ChecklistExecution() {
             try {
               const res2 = await fetch(`${API_URL}/api/process-audit-background`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ submissionId: data.id })
               });
               const result = await res2.json();
@@ -243,7 +262,9 @@ export default function ChecklistExecution() {
           auditWithRetry();
           // Safety net: aciona auto-processador após 30s como garantia final
           setTimeout(() => {
-            fetch(`${API_URL}/api/auto-process-pending`).catch(() => {});
+            fetch(`${API_URL}/api/auto-process-pending`, {
+              headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+            }).catch(() => {});
           }, 30000);
         }
       } else {

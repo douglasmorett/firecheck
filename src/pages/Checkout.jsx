@@ -41,6 +41,7 @@ export default function Checkout() {
       const data = await response.json();
 
       if (data.status === 'success') {
+        if (data.token) localStorage.setItem('firecheck_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         // Dispara os eventos do Meta Pixel para o Facebook

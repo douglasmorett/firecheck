@@ -35,6 +35,7 @@ export default function Login() {
       });
       const data = await response.json();
       if (data.status === 'success') {
+        localStorage.setItem('firecheck_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         if (rememberMe) {

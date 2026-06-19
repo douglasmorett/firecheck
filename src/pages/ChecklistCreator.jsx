@@ -3,6 +3,20 @@ import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarCloc
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+
+const handle401 = (res, navigate) => {
+  if (res.status === 401) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
+    navigate('/login');
+  }
+  return res;
+};
+
 const RESPONSE_TYPES = [
   { value: 'check',    label: '☑️  Checkbox (Feito)' },
   { value: 'boolean',  label: '✅  Sim / Não' },
@@ -91,7 +105,7 @@ export default function ChecklistCreator() {
     try {
       const res = await fetch(`${API_URL}/api/generate-checklist-ai`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ prompt: aiPrompt })
       });
 
@@ -141,8 +155,10 @@ export default function ChecklistCreator() {
         setStore(profile.store);
       }
       if (profile.store) {
-        fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`)
-          .then(r => r.json())
+        fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`, {
+            headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+          })
+          .then(r => { handle401(r, navigate); return r.json(); })
           .then(data => {
              if (Array.isArray(data)) setTeam(data.filter(u => u.role === 'funcionario' || u.role === 'employee'));
           })
@@ -151,8 +167,10 @@ export default function ChecklistCreator() {
     } catch (e) { console.error('Erro ao ler perfil para loja'); }
 
     if (isEditing) {
-      fetch(`${API_URL}/api/checklists`)
-        .then(res => res.json())
+      fetch(`${API_URL}/api/checklists`, {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+        })
+        .then(res => { handle401(res, navigate); return res.json(); })
         .then(data => {
           const cl = data.find(c => String(c.id) === String(id));
           if (cl) {
@@ -213,7 +231,7 @@ export default function ChecklistCreator() {
     try {
       const response = await fetch(`${API_URL}/api/checklists`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           id: id || null,
           title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null

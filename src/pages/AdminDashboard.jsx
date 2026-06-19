@@ -5,6 +5,20 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import API_URL from '../api';
 import PWAInstall from '../components/PWAInstall';
 
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+
+const handle401 = (res) => {
+  if (res.status === 401) {
+    localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
+    window.location.href = '/login';
+  }
+  return res;
+};
+
 // ── Dados Iniciais (Vazios) ──────────────────────────────────────────────────
 const STATS = {
   checklistsHoje: 0,
@@ -251,7 +265,7 @@ export default function AdminDashboard() {
 
      const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
-          fetch(`${API_URL}/api/live-visitors`).then(r => r.json()).then(d => {
+          fetch(`${API_URL}/api/live-visitors`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }).then(r => r.json()).then(d => {
              setLiveVisitors(d.visitors || 0);
              setTodayVisitors(d.today || 0);
              setTodayMobile(d.todayMobile || 0);
@@ -259,7 +273,7 @@ export default function AdminDashboard() {
              setVideoPlays(d.videoPlays || 0);
           }).catch(() => {});
           
-          fetch(`${API_URL}/api/quiz-stats`).then(r => r.json()).then(d => {
+          fetch(`${API_URL}/api/quiz-stats`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }).then(r => r.json()).then(d => {
              setQuizStats(d.stats || []);
              setQuizOnline(d.online || 0);
              setQuizVideoPlays(d.quizVideoPlays || 0);
@@ -292,13 +306,13 @@ export default function AdminDashboard() {
     
     // Health check da IA a cada 60s
     const checkHealth = () => {
-      fetch(`${API_URL}/api/health`).then(r => r.json()).then(d => setAiHealth(d.ai)).catch(() => setAiHealth(false));
+      fetch(`${API_URL}/api/health`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }).then(r => r.json()).then(d => setAiHealth(d.ai)).catch(() => setAiHealth(false));
     };
     checkHealth();
 
     const interval = setInterval(() => {
       // Usa o endpoint centralizado que é mais inteligente
-      fetch(`${API_URL}/api/auto-process-pending`)
+      fetch(`${API_URL}/api/auto-process-pending`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } })
         .then(r => r.json())
         .then(data => {
           if (data.processed && data.processed.length > 0) {
@@ -319,7 +333,7 @@ export default function AdminDashboard() {
         if (hasPhotos && (feedbackKeys.length === 0 || photosWithFeedback.length < totalPhotos)) {
           fetch(`${API_URL}/api/process-audit-background`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ submissionId: s.id })
           }).then(r => r.json()).then(data => {
             if (data.processed > 0) fetchData();
@@ -343,7 +357,7 @@ export default function AdminDashboard() {
           PushNotifications.addListener('registration', async (token) => {
             await fetch(`${API_URL}/api/register-token`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: getAuthHeaders(),
               body: JSON.stringify({ email, fcmToken: token.value })
             });
           });
@@ -370,7 +384,9 @@ export default function AdminDashboard() {
     const user = JSON.parse(savedUser);
     const storeParam = user.role !== 'master' ? `?store=${encodeURIComponent(user.store)}` : '';
     try {
-      const res = await fetch(`${API_URL}/api/cameras${storeParam}`);
+      const res = await fetch(`${API_URL}/api/cameras${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
       const data = await res.json();
       if (Array.isArray(data)) setCameras(data);
     } catch (err) { console.error('Erro ao buscar câmeras:', err); }
@@ -383,7 +399,9 @@ export default function AdminDashboard() {
       const user = JSON.parse(savedUser);
       if (user.role === 'master') return; // Master não tem cota
       if (!user.store) return;
-      const res = await fetch(`${API_URL}/api/quota?store=${encodeURIComponent(user.store)}`);
+      const res = await fetch(`${API_URL}/api/quota?store=${encodeURIComponent(user.store)}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
       const data = await res.json();
       setQuotaInfo(data);
     } catch (err) { console.error('Erro ao buscar cota:', err); }
@@ -394,7 +412,9 @@ export default function AdminDashboard() {
       const savedUser = localStorage.getItem('user');
       if (!savedUser) return;
       const user = JSON.parse(savedUser);
-      const res = await fetch(`${API_URL}/api/ponto?store=${encodeURIComponent(user.store)}&month=${pontoMonth}`);
+      const res = await fetch(`${API_URL}/api/ponto?store=${encodeURIComponent(user.store)}&month=${pontoMonth}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
       const data = await res.json();
       if (Array.isArray(data)) setPontoRecords(data);
     } catch (err) { console.error('Erro ponto:', err); }
@@ -414,8 +434,8 @@ export default function AdminDashboard() {
 
       if (currentUser?.role === 'master') {
         const [userRes, finRes] = await Promise.all([
-          fetch(`${API_URL}/api/users${query}`),
-          fetch(`${API_URL}/api/financials${query}`) // Endpoint fictício para Cacto
+          fetch(`${API_URL}/api/users${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }),
+          fetch(`${API_URL}/api/financials${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }) // Endpoint fictício para Cacto
         ]);
         
         const userData = await userRes.json();
@@ -453,9 +473,9 @@ export default function AdminDashboard() {
         }
       } else {
         const [clRes, userRes, statsRes] = await Promise.all([
-          fetch(`${API_URL}/api/checklists${query}`),
-          fetch(`${API_URL}/api/users${query}`),
-          fetch(`${API_URL}/api/stats${query}`)
+          fetch(`${API_URL}/api/checklists${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }),
+          fetch(`${API_URL}/api/users${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }),
+          fetch(`${API_URL}/api/stats${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } })
         ]);
         const checklistsData = await clRes.json();
         setChecklists(Array.isArray(checklistsData) ? checklistsData : []);
@@ -490,7 +510,9 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData);
 
-        const subRes = await fetch(`${API_URL}/api/submissions${query}`);
+        const subRes = await fetch(`${API_URL}/api/submissions${query}`, {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+        });
         const subData = await subRes.json();
         
         if (Array.isArray(subData)) {
@@ -549,7 +571,7 @@ export default function AdminDashboard() {
       
       const res = await fetch(url, {
         method: method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(bodyPayload)
       });
       if (res.ok) {
@@ -565,7 +587,7 @@ export default function AdminDashboard() {
   const handleDeleteCamera = async (id) => {
     if (!confirm('Deseja remover esta câmera?')) return;
     try {
-      await fetch(`${API_URL}/api/cameras/${id}`, { method: 'DELETE' });
+      await fetch(`${API_URL}/api/cameras/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } });
       fetchCameras();
     } catch (e) { alert('Erro ao remover.'); }
   };
@@ -574,7 +596,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/resolve-submission`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ id, resolvedBy: userProfile?.name || 'Admin' })
       });
       if (res.ok) {
@@ -590,7 +612,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/process-audit-background`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ submissionId })
       });
       if (res.ok) {
@@ -604,7 +626,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(newUser)
       });
       
@@ -624,7 +646,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id) => {
     if (!confirm('Tem certeza que deseja remover este colaborador?')) return;
     try {
-      await fetch(`${API_URL}/api/users/${id}`, { method: 'DELETE' });
+      await fetch(`${API_URL}/api/users/${id}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } });
       fetchData();
     } catch (e) { alert('Erro ao remover.'); }
   };
@@ -642,6 +664,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem('user');
+    localStorage.removeItem('firecheck_token');
     navigate('/login');
   };
 
@@ -682,7 +705,7 @@ export default function AdminDashboard() {
         try {
           const res = await fetch(`${API_URL}/api/scan-receipt`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ photoBase64: base64 })
           });
           if (res.ok) {
@@ -718,7 +741,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/users/${userProfile.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           timezone: pontoTimezone,
           contador_email: contadorEmail,
@@ -773,7 +796,7 @@ export default function AdminDashboard() {
         try {
           const res = await fetch(`${API_URL}/api/scan-purchase`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ photoBase64: base64 })
           });
           if (res.ok) {
@@ -833,7 +856,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_URL}/api/chat-finance`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ message: financeChatInput, financeItems })
       });
       const data = await res.json();
@@ -2701,7 +2724,7 @@ export default function AdminDashboard() {
               try {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
+                  headers: getAuthHeaders(),
                   body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, finance_active: editingPlan.finance_active, checklist_limit: editingPlan.checklist_limit })
                 });
                 setEditingPlan(null);
