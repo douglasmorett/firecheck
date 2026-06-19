@@ -532,7 +532,7 @@ export default function ChecklistCreator() {
             >
               {isAIGenerating ? (
                 <>
-                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopcolor: 'var(--text-main)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--text-main)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
                   {aiSteps}
                 </>
               ) : (

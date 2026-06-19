@@ -10,6 +10,7 @@ import Checkout from './pages/Checkout';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import QuizFunnel from './pages/QuizFunnel';
 import TermsOfUse from './pages/TermsOfUse';
+import PontoPage from './pages/PontoPage';
 
 function App() {
   return (
@@ -35,7 +36,11 @@ function App() {
 
         {/* Visão do Funcionário na Loja */}
         <Route path="/funcionario" element={<EmployeeDashboard />} />
+        <Route path="/ponto" element={<PontoPage />} />
         <Route path="/execucao/:id" element={<ChecklistExecution />} />
+
+        {/* Rota 404 — redireciona para a página inicial */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

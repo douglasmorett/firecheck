@@ -140,6 +140,9 @@ export default function AdminDashboard() {
   
   const [pontoExportPeriod, setPontoExportPeriod] = useState('mes_atual');
   const [pontoCustomDates, setPontoCustomDates] = useState({ start: '', end: '' });
+  const [pontoRecords, setPontoRecords] = useState([]);
+  const [pontoMonth, setPontoMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
   const [financeExportPeriod, setFinanceExportPeriod] = useState('mes_atual');
   const [financeCustomDates, setFinanceCustomDates] = useState({ start: '', end: '' });
   
@@ -219,6 +222,7 @@ export default function AdminDashboard() {
     fetchData();
     fetchCameras();
     fetchQuota();
+    fetchPontoRecords();
 
      const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
@@ -248,6 +252,11 @@ export default function AdminDashboard() {
 
     return () => clearInterval(globalRefresh);
   }, [dateFilter]);
+
+  // Atualiza registros de ponto quando o mês muda
+  useEffect(() => {
+    fetchPontoRecords();
+  }, [pontoMonth]);
 
   // Estado de saúde da IA
   const [aiHealth, setAiHealth] = useState(null);
@@ -353,6 +362,17 @@ export default function AdminDashboard() {
       const data = await res.json();
       setQuotaInfo(data);
     } catch (err) { console.error('Erro ao buscar cota:', err); }
+  };
+
+  const fetchPontoRecords = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      const res = await fetch(`${API_URL}/api/ponto?store=${encodeURIComponent(user.store)}&month=${pontoMonth}`);
+      const data = await res.json();
+      if (Array.isArray(data)) setPontoRecords(data);
+    } catch (err) { console.error('Erro ponto:', err); }
   };
 
   const fetchData = async () => {
@@ -688,23 +708,23 @@ export default function AdminDashboard() {
 
         <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
           <div className="card" style={{ width: '300px', padding: '32px' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Starter Mensal</h3>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
             <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
               Assinar Mensal
             </button>
           </div>
 
           <div className="card" style={{ width: '300px', padding: '32px', border: '2px solid var(--primary)', transform: 'scale(1.05)' }}>
-            <div style={{ backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content', margin: '0 auto 12px auto' }}>2 MESES GRÁTIS</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$147<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+            <div style={{ backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content', margin: '0 auto 12px auto' }}>MAIS POPULAR</div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro Mensal</h3>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
             <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>Faturado R$1.764 anualmente</div>
-              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Economia de R$600/ano</div>
+              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>600 checklists/mês</div>
+              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Melhor custo-benefício</div>
             </div>
             <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-              Assinar Anual
+              Assinar Pro
             </button>
           </div>
         </div>
@@ -1245,7 +1265,7 @@ export default function AdminDashboard() {
                     <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={pontoCustomDates.end} onChange={e => setPontoCustomDates({...pontoCustomDates, end: e.target.value})} />
                   </div>
                 )}
-                <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={() => alert('Exportando folha de ponto...')}>
+                <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={() => window.open(`${API_URL}/api/ponto/export?store=${encodeURIComponent(userProfile?.store)}&month=${pontoMonth}`, '_blank')}>
                    <FileDown size={18} /> Exportar Folha
                 </button>
              </div>
@@ -1253,7 +1273,7 @@ export default function AdminDashboard() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
              
-             {/* Automação Contábil */}
+             {/* Automação Contábil + Timezone */}
              <div className="card" style={{ padding: '24px' }}>
                 <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
                    <Mail size={20} /> Automação Contábil
@@ -1275,52 +1295,72 @@ export default function AdminDashboard() {
                          <option value="dia_10">Todo Dia 10</option>
                       </select>
                    </div>
+                   <div>
+                      <label className="input-label">Fuso Horário</label>
+                      <select className="input-field" value={pontoTimezone} onChange={e => setPontoTimezone(e.target.value)}>
+                         <option value="America/Sao_Paulo">Brasília, SP, RJ, MG, Sul (BRT)</option>
+                         <option value="America/Manaus">Manaus, MT, MS (AMT)</option>
+                         <option value="America/Rio_Branco">Acre (ACT)</option>
+                         <option value="America/Noronha">Fernando de Noronha (FNT)</option>
+                      </select>
+                   </div>
+                   <div>
+                      <label className="input-label">Mês de Referência</label>
+                      <input type="month" className="input-field" value={pontoMonth} onChange={e => setPontoMonth(e.target.value)} />
+                   </div>
                    <button className="btn-secondary" style={{ width: '100%', padding: '12px', borderRadius: '8px' }}>Salvar Configuração</button>
                 </div>
              </div>
 
-             {/* Espelho de Ponto (Demo) */}
+             {/* Espelho de Ponto (Dados Reais) */}
              <div className="card" style={{ padding: '24px', flex: 2, overflowX: 'auto' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                    <h3 style={{ fontSize: '1.2rem', margin: 0 }}>
-                     {pontoExportPeriod === 'mes_atual' ? 'Registros (Mês Atual)' : 
-                      pontoExportPeriod === 'mes_anterior' ? 'Registros (Mês Anterior)' : 'Registros do Período'}
+                     Registros — {pontoMonth}
                    </h3>
-                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Filtrado na tela</span>
+                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pontoRecords.length} registro(s)</span>
                 </div>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '500px' }}>
                    <thead>
                       <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
                          <th style={{ padding: '12px', fontSize: '0.85rem' }}>Colaborador</th>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Horário</th>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Data / Horário</th>
                          <th style={{ padding: '12px', fontSize: '0.85rem' }}>Tipo</th>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Segurança</th>
+                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Local</th>
                       </tr>
                    </thead>
                    <tbody>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                         <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>João Silva</td>
-                         <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>08:02</td>
-                         <td style={{ padding: '12px' }}><span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>ENTRADA</span></td>
-                         <td style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', gap: '6px' }}>
-                            <span title="GPS Validado">📍 OK</span>
-                            <span title="Reconhecimento Facial OK">🤳 OK</span>
-                         </td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                         <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>Maria Souza</td>
-                         <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>08:15</td>
-                         <td style={{ padding: '12px' }}><span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>ENTRADA</span></td>
-                         <td style={{ padding: '12px', fontSize: '0.8rem', display: 'flex', gap: '6px' }}>
-                            <span title="GPS Validado">📍 OK</span>
-                            <span title="Reconhecimento Facial OK">🤳 OK</span>
-                         </td>
-                      </tr>
-                      <tr>
-                         <td colSpan="4" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                            Exibindo registros de demonstração.
-                         </td>
-                      </tr>
+                      {pontoRecords.length === 0 ? (
+                        <tr>
+                           <td colSpan="4" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                              Nenhum registro de ponto encontrado para {pontoMonth}.
+                           </td>
+                        </tr>
+                      ) : (
+                        pontoRecords.map((rec, idx) => {
+                          const dt = new Date(rec.timestamp);
+                          const dataStr = dt.toLocaleDateString('pt-BR', { timeZone: pontoTimezone });
+                          const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: pontoTimezone });
+                          const isEntrada = rec.type === 'entrada';
+                          return (
+                            <tr key={rec.id || idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                               <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>{rec.user_name || '—'}</td>
+                               <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                                 <div>{dataStr}</div>
+                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{horaStr}</div>
+                               </td>
+                               <td style={{ padding: '12px' }}>
+                                 <span style={{ backgroundColor: isEntrada ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isEntrada ? 'var(--success)' : 'var(--error)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                   {rec.type || '—'}
+                                 </span>
+                               </td>
+                               <td style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rec.address || ''}>
+                                  {rec.address ? `📍 ${rec.address}` : '—'}
+                               </td>
+                            </tr>
+                          );
+                        })
+                      )}
                    </tbody>
                 </table>
              </div>

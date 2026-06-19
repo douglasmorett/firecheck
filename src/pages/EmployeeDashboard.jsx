@@ -10,6 +10,7 @@ export default function EmployeeDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasPonto, setHasPonto] = useState(false);
+  const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
 
   const fetchChecklists = useCallback(async (profile, isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -45,6 +46,11 @@ export default function EmployeeDashboard() {
           const admin = users.find(u => u.role === 'admin' || u.role === 'master');
           if (admin && admin.ponto_active) {
              setHasPonto(true);
+             // Busca dados reais do ponto de hoje
+             fetch(`${API_URL}/api/ponto/today?userId=${profile.id}&store=${encodeURIComponent(profile.store)}`)
+               .then(r => r.json())
+               .then(data => setPontoData(data))
+               .catch(console.error);
           }
         })
         .catch(console.error);
@@ -119,12 +125,12 @@ export default function EmployeeDashboard() {
             <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>
-                <h3 style={{ fontSize: '1.5rem', margin: 0 }}>08:00</h3>
+                <h3 style={{ fontSize: '1.5rem', margin: 0, color: pontoData.entrada ? 'var(--success)' : 'var(--text-muted)' }}>{pontoData.entrada || '--:--'}</h3>
               </div>
               <div style={{ borderLeft: '1px solid var(--border-color)' }}></div>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Saída</p>
-                <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-muted)' }}>--:--</h3>
+                <h3 style={{ fontSize: '1.5rem', margin: 0, color: pontoData.saida ? 'var(--success)' : 'var(--text-muted)' }}>{pontoData.saida || '--:--'}</h3>
               </div>
             </div>
             

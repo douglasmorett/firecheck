@@ -1,7 +1,7 @@
 import pkg from 'pg';
 const { Pool } = pkg;
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { uploadImage } from './firebase-admin.js';
+import admin, { uploadImage } from './firebase-admin.js';
 
 const pool = new Pool({
   connectionString: 'postgresql://neondb_owner:npg_YymnUpK7OED8@ep-green-fog-anfbkql2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require',
@@ -220,6 +220,40 @@ export default async function handler(req, res) {
           created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')
         )
       `);
+      // ── Tabela de Ponto ──
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ponto_records (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          user_name VARCHAR(255),
+          store VARCHAR(255),
+          type VARCHAR(10),
+          timestamp TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
+          latitude DECIMAL(10, 8),
+          longitude DECIMAL(11, 8),
+          accuracy DECIMAL(10, 2),
+          selfie_url TEXT,
+          address TEXT,
+          device_info TEXT
+        )
+      `);
+      // ── Tabela de Câmeras ──
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS store_cameras (
+          id SERIAL PRIMARY KEY,
+          store VARCHAR(255),
+          name VARCHAR(255),
+          url TEXT,
+          username VARCHAR(255),
+          password VARCHAR(255),
+          ai_commands TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      // ── FCM Token para Push Notifications ──
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT");
+      // ── Fuso Horário da Loja ──
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo'");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -317,11 +351,28 @@ export default async function handler(req, res) {
           if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) alertasCount++;
         } catch (e) { }
       });
+      // Calcular checklists de hoje
+      const today = new Date().toISOString().split('T')[0];
+      let todayParams = [today + ' 00:00:00', today + ' 23:59:59'];
+      let todayStoreQuery = '';
+      if (store && store !== 'undefined' && store !== 'null') {
+        todayStoreQuery = ' AND store = $3';
+        todayParams.push(store);
+      }
+      const todayCount = await pool.query('SELECT COUNT(*) FROM checklist_submissions WHERE created_at BETWEEN $1 AND $2' + todayStoreQuery, todayParams);
+      // Contar colaboradores
+      let colabParams = [];
+      let colabQuery = "SELECT COUNT(*) FROM users WHERE role = 'funcionario' OR role = 'employee'";
+      if (store && store !== 'undefined' && store !== 'null') {
+        colabQuery += ' AND store = $1';
+        colabParams.push(store);
+      }
+      const colabCount = await pool.query(colabQuery, colabParams);
       return res.status(200).json({
-        checklistsHoje: 0,
+        checklistsHoje: parseInt(todayCount.rows[0].count),
         concluidos: subQuery.rows.length,
         alertasIA: alertasCount,
-        colaboradores: 0,
+        colaboradores: parseInt(colabCount.rows[0].count),
         conformidade: subQuery.rows.length > 0 ? Math.round(((subQuery.rows.length - alertasCount) / subQuery.rows.length) * 100) : 100
       });
     }
@@ -530,19 +581,19 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit } = req.body;
+        const { plan, status, ponto_active, finance_active, checklist_limit, timezone } = req.body;
         const planLimitMap = { starter: 300, pro: 600, business: 1000, enterprise: 999999, mensal: 600, anual: 1000 };
         const finalLimit = checklist_limit || planLimitMap[plan] || 300;
-        // Se mudou para ativo, renova de acordo com o plano
+        const tz = timezone || 'America/Sao_Paulo';
         if (status === 'active') {
           await pool.query(`
-            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5,
+            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
-            WHERE id = $6
-          `, [plan, status, ponto_active || false, finance_active || false, finalLimit, id]);
+            WHERE id = $7
+          `, [plan, status, ponto_active || false, finance_active || false, finalLimit, tz, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5 WHERE id = $6', [plan, status, ponto_active || false, finance_active || false, finalLimit, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6 WHERE id = $7', [plan, status, ponto_active || false, finance_active || false, finalLimit, tz, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -553,7 +604,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -675,6 +726,26 @@ export default async function handler(req, res) {
         if (storeAdmins && storeAdmins.length > 0) {
           await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [storeAdmins[0].id]);
         }
+        // ─────────────────────────────────────────────────────────
+        // ── PUSH NOTIFICATION ──────────────────────────────
+        try {
+          const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
+          const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
+          if (hasWarnings && storeAdmins && storeAdmins.length > 0) {
+            const adminToken = storeAdmins[0].fcm_token;
+            if (adminToken) {
+              await admin.messaging().send({
+                token: adminToken,
+                notification: {
+                  title: '⚠️ Alerta na Operação',
+                  body: `Irregularidade detectada na ${store} por ${employeeName}. Verifique o painel.`
+                },
+                data: { url: '/admin' },
+                apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+              });
+            }
+          }
+        } catch (pushErr) { console.error('Erro push notification:', pushErr); }
         // ─────────────────────────────────────────────────────────
 
         return res.status(200).json({ success: true, id: rows[0].id });
@@ -1025,6 +1096,128 @@ export default async function handler(req, res) {
           VALUES ($1, $2, $3, $4, $5, $6)
         `, [sessionId, clientIp, eventType, JSON.stringify(eventData), page, deviceType]);
         return res.status(200).json({ success: true });
+      }
+    }
+
+    // ── CONTROLE DE PONTO ────────────────────────────────────────────
+    if (url.includes('/api/ponto/today')) {
+      const userId = searchParams.get('userId');
+      const store = searchParams.get('store');
+      if (!userId) return res.status(400).json({ error: 'userId obrigatório' });
+      // Buscar timezone da loja
+      let tz = 'America/Sao_Paulo';
+      if (store) {
+        const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
+        if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+      }
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+      const { rows } = await pool.query(
+        "SELECT * FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 ORDER BY timestamp ASC",
+        [userId, today]
+      );
+      const entrada = rows.find(r => r.type === 'entrada');
+      const saida = rows.find(r => r.type === 'saida');
+      return res.status(200).json({
+        entrada: entrada ? new Date(entrada.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz }) : null,
+        saida: saida ? new Date(saida.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz }) : null,
+        entradaRecord: entrada || null,
+        saidaRecord: saida || null,
+        records: rows,
+        timezone: tz
+      });
+    }
+
+    if (url.includes('/api/ponto/export')) {
+      const store = searchParams.get('store');
+      const month = searchParams.get('month'); // yyyy-mm
+      if (!store || !month) return res.status(400).json({ error: 'store e month obrigatórios' });
+      // Buscar timezone da loja
+      let tz = 'America/Sao_Paulo';
+      const { rows: tzAdmins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
+      if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = tzAdmins[0].timezone;
+      const startDate = `${month}-01`;
+      const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
+      const { rows } = await pool.query(
+        "SELECT * FROM ponto_records WHERE store = $1 AND timestamp::date BETWEEN $2 AND $3 ORDER BY timestamp ASC",
+        [store, startDate, endDate]
+      );
+      // Gerar CSV
+      let csv = 'Funcionário,Tipo,Data,Horário,Latitude,Longitude,Endereço\n';
+      rows.forEach(r => {
+        const dt = new Date(r.timestamp);
+        csv += `"${r.user_name}","${r.type}","${dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}","${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
+        csv += '\n';
+      });
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename=folha-ponto-${store}-${month}.csv`);
+      return res.status(200).send(csv);
+    }
+
+    if (url.includes('/api/ponto')) {
+      if (method === 'POST') {
+        const { userId, userName, store, type, latitude, longitude, accuracy, selfie, address, deviceInfo } = req.body;
+        if (!userId || !store || !type) return res.status(400).json({ error: 'userId, store e type obrigatórios' });
+        if (!['entrada', 'saida'].includes(type)) return res.status(400).json({ error: 'type deve ser entrada ou saida' });
+        // Validar GPS
+        if (!latitude || !longitude) return res.status(400).json({ error: 'Geolocalização obrigatória. Ative o GPS.' });
+        if (accuracy && accuracy > 200) return res.status(400).json({ error: `Precisão do GPS muito baixa (${Math.round(accuracy)}m). Vá para um local aberto.` });
+        // Verificar duplicata
+        const today = new Date().toISOString().split('T')[0];
+        const { rows: existing } = await pool.query(
+          "SELECT * FROM ponto_records WHERE user_id = $1 AND type = $2 AND timestamp::date = $3",
+          [userId, type, today]
+        );
+        if (existing.length > 0) return res.status(400).json({ error: `Você já registrou ${type} hoje às ${new Date(existing[0].timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}.` });
+        // Verificar sequência: precisa ter entrada antes de saída
+        if (type === 'saida') {
+          const { rows: entradas } = await pool.query(
+            "SELECT * FROM ponto_records WHERE user_id = $1 AND type = 'entrada' AND timestamp::date = $2",
+            [userId, today]
+          );
+          if (entradas.length === 0) return res.status(400).json({ error: 'Registre a entrada antes da saída.' });
+        }
+        // Upload selfie se houver
+        let selfieUrl = null;
+        if (selfie && selfie.startsWith('data:image')) {
+          try { selfieUrl = await uploadImage(selfie, `ponto/${store}`); } catch (e) { console.error('Erro upload selfie ponto:', e); }
+        }
+        const { rows } = await pool.query(
+          `INSERT INTO ponto_records (user_id, user_name, store, type, latitude, longitude, accuracy, selfie_url, address, device_info)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+          [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo]
+        );
+        return res.status(200).json({ success: true, record: rows[0] });
+      }
+      // GET — listar registros
+      const store = searchParams.get('store');
+      const date = searchParams.get('date');
+      const month = searchParams.get('month');
+      if (!store) return res.status(400).json({ error: 'store obrigatória' });
+      let query = 'SELECT * FROM ponto_records WHERE store = $1';
+      let qParams = [store];
+      if (date) {
+        query += ' AND timestamp::date = $2';
+        qParams.push(date);
+      } else if (month) {
+        const startDate = `${month}-01`;
+        const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
+        query += ' AND timestamp::date BETWEEN $2 AND $3';
+        qParams.push(startDate, endDate);
+      }
+      query += ' ORDER BY timestamp DESC';
+      const { rows } = await pool.query(query, qParams);
+      return res.status(200).json(rows);
+    }
+
+    // ── Registrar FCM Token para Push ─────────────────────────────
+    if (url.includes('/api/register-token')) {
+      if (method === 'POST') {
+        const { userId, token } = req.body;
+        if (userId && token) {
+          await pool.query('UPDATE users SET fcm_token = $1 WHERE id = $2', [token, userId]);
+          return res.status(200).json({ success: true });
+        }
+        return res.status(400).json({ error: 'userId e token obrigatórios' });
       }
     }
 

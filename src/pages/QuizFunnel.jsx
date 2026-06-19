@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowRight, Loader2, Activity, Play, Gift, VolumeX } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || '';
+import API_URL from '../api';
 
 export default function QuizFunnel() {
   const navigate = useNavigate();
@@ -115,7 +115,7 @@ export default function QuizFunnel() {
 
   if (isProcessing) {
     return (
-      <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
+      <div style={{ backgroundColor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
         <Loader2 size={60} color="#22c55e" style={{ animation: 'spin 1s linear infinite', marginBottom: '24px' }} />
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{loadingText}</h2>
         <p style={{ color: 'var(--text-muted)', marginTop: '16px', maxWidth: '400px' }}>Nossa Inteligência Artificial está processando suas respostas para encontrar o real prejuízo oculto na sua operação.</p>
@@ -125,7 +125,7 @@ export default function QuizFunnel() {
 
   if (step === 100) {
     return (
-      <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+      <div style={{ backgroundColor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255, 59, 48, 0.1)', color: '#ef4444', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
             <ShieldAlert size={20} /> ALERTA DE RISCO
@@ -258,14 +258,14 @@ export default function QuizFunnel() {
   }
 
   return (
-    <div style={{ backgroundcolor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+    <div style={{ backgroundColor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
       
       <div style={{ width: '100%', maxWidth: '600px', marginBottom: '40px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.9rem', fontWeight: 'bold' }}>
           <span>Diagnóstico Operacional</span>
           <span>Pergunta {step + 1} de {questions.length}</span>
         </div>
-        <div style={{ width: '100%', height: '8px', backgroundcolor: 'var(--text-main)', borderRadius: '4px', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: '8px', backgroundColor: 'var(--text-main)', borderRadius: '4px', overflow: 'hidden' }}>
           <div style={{ height: '100%', backgroundColor: '#22c55e', width: `${((step) / questions.length) * 100}%`, transition: 'width 0.5s ease' }}></div>
         </div>
       </div>
@@ -281,7 +281,7 @@ export default function QuizFunnel() {
               key={idx}
               onClick={() => handleAnswer(idx)}
               style={{
-                backgroundcolor: 'var(--text-main)', border: '2px solid #e2e8f0', color: '#1e293b',
+                backgroundColor: 'var(--text-main)', border: '2px solid #e2e8f0', color: '#1e293b',
                 padding: '20px', borderRadius: '12px', fontSize: '1.1rem', textAlign: 'left',
                 cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500'
               }}
