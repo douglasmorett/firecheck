@@ -365,6 +365,101 @@ export default function ChecklistExecution() {
                 </div>
               )}
 
+              {(task.type === 'check' || task.type === 'toggle') && (
+                <button
+                  className="btn animate-scale"
+                  style={{
+                    width: '100%',
+                    backgroundColor: task.done === true ? 'var(--success)' : 'transparent',
+                    border: '1px solid var(--border-color)',
+                    color: task.done === true ? 'white' : 'var(--text-muted)',
+                    boxShadow: 'none',
+                    padding: '12px',
+                    borderRadius: '8px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                  onClick={() => handleToggle(task.id)}
+                >
+                  <CheckCircle size={18} /> {task.done === true ? 'Feito' : 'Marcar como Feito'}
+                </button>
+              )}
+
+              {task.type === 'rating' && (
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', justifyContent: 'center', backgroundColor: 'var(--bg-card)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                  {[1, 2, 3, 4, 5].map(stars => (
+                    <button
+                      key={stars}
+                      type="button"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+                      onClick={() => handleRating(task.id, stars)}
+                    >
+                      <Star
+                        size={32}
+                        fill={stars <= (task.done || 0) ? 'var(--primary)' : 'none'}
+                        color={stars <= (task.done || 0) ? 'var(--primary)' : 'var(--text-muted)'}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {task.type === 'numeric' && (
+                <div style={{ marginBottom: '8px' }}>
+                  <input
+                    type="number"
+                    className="input-field"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }}
+                    value={task.done !== null && task.done !== undefined ? task.done : ''}
+                    onChange={e => handleNumeric(task.id, e.target.value === '' ? null : parseFloat(e.target.value))}
+                    placeholder="Insira o valor numérico..."
+                  />
+                </div>
+              )}
+
+              {task.type === 'multiple' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                  {(task.options || []).map((opt, idx) => {
+                    const isSelected = task.done === opt;
+                    return (
+                      <button
+                        key={idx}
+                        className="btn-secondary"
+                        style={{
+                          width: '100%',
+                          textAlign: 'left',
+                          padding: '12px 16px',
+                          borderRadius: '8px',
+                          border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                          backgroundColor: isSelected ? 'rgba(255, 69, 0, 0.1)' : 'transparent',
+                          color: isSelected ? 'var(--primary)' : 'var(--text-main)',
+                          fontWeight: isSelected ? 'bold' : 'normal',
+                          boxShadow: 'none'
+                        }}
+                        onClick={() => handleMultiple(task.id, opt)}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {task.type === 'text' && (
+                <div style={{ marginBottom: '8px' }}>
+                  <textarea
+                    className="input-field"
+                    style={{ width: '100%', minHeight: '80px', padding: '12px', borderRadius: '8px', resize: 'vertical' }}
+                    value={task.done !== null && task.done !== undefined ? task.done : ''}
+                    onChange={e => handleText(task.id, e.target.value)}
+                    placeholder="Escreva sua resposta..."
+                  />
+                </div>
+              )}
+
               {task.requirePhoto && (
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', marginBottom: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>

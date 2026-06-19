@@ -254,6 +254,8 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT");
       // ── Fuso Horário da Loja ──
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS contador_email VARCHAR(255)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS fechamento_dia VARCHAR(50) DEFAULT 'ultimo_dia'");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -581,19 +583,30 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit, timezone } = req.body;
-        const planLimitMap = { starter: 300, pro: 600, business: 1000, enterprise: 999999, mensal: 600, anual: 1000 };
-        const finalLimit = checklist_limit || planLimitMap[plan] || 300;
-        const tz = timezone || 'America/Sao_Paulo';
-        if (status === 'active') {
+        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia } = req.body;
+        // Fetch current user first to merge and prevent partial updates overwriting active configurations
+        const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
+        const user = current[0];
+
+        const finalPlan = plan !== undefined ? plan : user.plan;
+        const finalStatus = status !== undefined ? status : user.status;
+        const finalPonto = ponto_active !== undefined ? ponto_active : user.ponto_active;
+        const finalFinance = finance_active !== undefined ? finance_active : user.finance_active;
+        const finalLimit = checklist_limit !== undefined ? checklist_limit : user.checklist_limit;
+        const finalTz = timezone !== undefined ? timezone : user.timezone;
+        const finalContador = contador_email !== undefined ? contador_email : user.contador_email;
+        const finalFechamento = fechamento_dia !== undefined ? fechamento_dia : user.fechamento_dia;
+
+        if (finalStatus === 'active' && user.status !== 'active') {
           await pool.query(`
-            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6,
+            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
-            WHERE id = $7
-          `, [plan, status, ponto_active || false, finance_active || false, finalLimit, tz, id]);
+            WHERE id = $9
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6 WHERE id = $7', [plan, status, ponto_active || false, finance_active || false, finalLimit, tz, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8 WHERE id = $9', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -604,7 +617,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -924,6 +937,109 @@ export default async function handler(req, res) {
           return res.status(200).json({ reply: response.text() });
         } catch (error) {
           console.error('Erro no Chat IA Financeira:', error);
+          return res.status(500).json({ error: 'Falha no processamento da IA' });
+        }
+      }
+    }
+
+    if (url.includes('/api/scan-receipt')) {
+      if (method === 'POST') {
+        const { photoBase64 } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          const base64Data = photoBase64.split(',')[1] || photoBase64;
+          const prompt = `Você é um scanner OCR financeiro inteligente de notas fiscais, boletos e recibos de pagamento.
+          Analise a imagem fornecida e extraia as seguintes informações no formato JSON:
+          1. provider: Nome fantasia ou razão social do emissor/fornecedor (ex. Gráfica Nova Era). Se não achar nada, chute o mais provável ou use "Fornecedor Desconhecido".
+          2. value: Valor total do boleto/nota fiscal/recibo, em formato numérico float (ex. 1240.50).
+          3. dueDate: Data de vencimento no formato YYYY-MM-DD. Se não encontrar, retorne a data de hoje.
+          4. receivedDate: Data de emissão/recebimento no formato YYYY-MM-DD. Se não encontrar, retorne a data de hoje.
+          5. barcode: O código de barras numérico (linha digitável do boleto) se visível na imagem. Senão retorne "".
+          
+          Responda ESTRITAMENTE em JSON sem markdown ou formatações extras no formato:
+          {
+            "provider": "string",
+            "value": number,
+            "dueDate": "string",
+            "receivedDate": "string",
+            "barcode": "string"
+          }`;
+
+          const result = await model.generateContent([
+            prompt,
+            { inlineData: { data: base64Data, mimeType: "image/jpeg" } }
+          ]);
+
+          const response = await result.response;
+          const text = response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const cleanJson = jsonMatch ? jsonMatch[0] : text;
+          const parsed = JSON.parse(cleanJson);
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro no escaneamento de nota com IA:', error);
+          return res.status(500).json({ error: 'Falha no processamento da IA' });
+        }
+      }
+    }
+
+    if (url.includes('/api/scan-purchase')) {
+      if (method === 'POST') {
+        const { photoBase64, description } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          let prompt = `Você é um assistente financeiro inteligente da FireCheck.
+          Analise a compra e classifique em uma Categoria curta (ex. "Combustível", "Insumos", "Manutenção", "Limpeza", "Outros").
+          `;
+
+          const content = [prompt];
+          if (photoBase64) {
+            const base64Data = photoBase64.split(',')[1] || photoBase64;
+            content.push({ inlineData: { data: base64Data, mimeType: "image/jpeg" } });
+            prompt += ` Extraia da imagem da nota fiscal/recibo:
+            1. description: Descrição curta do que foi comprado.
+            2. value: Valor total da compra (como float, ex. 367.20).
+            3. date: Data da nota fiscal no formato YYYY-MM-DD (ou a data de hoje se não encontrar).
+            `;
+          } else {
+            prompt += ` Com base na descrição fornecida pelo usuário: "${description}", extraia e classifique:
+            1. description: A própria descrição do usuário.
+            2. value: O valor total da compra se contido na descrição (caso contrário retorne 0).
+            3. date: Data de hoje.
+            `;
+          }
+
+          prompt += `\nResponda ESTRITAMENTE em JSON sem markdown no formato:
+          {
+            "description": "string",
+            "value": number,
+            "category": "string",
+            "date": "string"
+          }`;
+
+          content[0] = prompt;
+
+          const result = await model.generateContent(content);
+          const response = await result.response;
+          const text = response.text();
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const cleanJson = jsonMatch ? jsonMatch[0] : text;
+          const parsed = JSON.parse(cleanJson);
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro ao processar compra com IA:', error);
           return res.status(500).json({ error: 'Falha no processamento da IA' });
         }
       }

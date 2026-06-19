@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, Mail, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Flame, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import API_URL from '../api';
 
 export default function Login() {
@@ -9,25 +9,24 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const savedCreds = localStorage.getItem('firecheck_creds');
-    if (savedCreds) {
-      try {
-        const { savedEmail, savedPassword } = JSON.parse(savedCreds);
-        setEmail(savedEmail || '');
-        setPassword(savedPassword || '');
-        setRememberMe(true);
-      } catch (e) {
-        // Ignorar erro de parse
-      }
+    const savedEmail = localStorage.getItem('firecheck_email');
+    if (savedEmail) {
+      setEmail(savedEmail);
+      setRememberMe(true);
     }
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
     try {
       const response = await fetch(`${API_URL}/api/auth`, {
         method: 'POST',
@@ -39,9 +38,9 @@ export default function Login() {
         localStorage.setItem('user', JSON.stringify(data.user));
         
         if (rememberMe) {
-          localStorage.setItem('firecheck_creds', JSON.stringify({ savedEmail: email, savedPassword: password }));
+          localStorage.setItem('firecheck_email', email);
         } else {
-          localStorage.removeItem('firecheck_creds');
+          localStorage.removeItem('firecheck_email');
         }
 
         // Redirecionamento baseado na role
@@ -51,10 +50,10 @@ export default function Login() {
           navigate('/admin');
         }
       } else {
-        alert(data.error || 'Erro ao fazer login.');
+        setErrorMsg(data.error || 'Erro ao fazer login.');
       }
     } catch {
-      alert('Erro ao conectar com o servidor.');
+      setErrorMsg('Erro ao conectar com o servidor.');
     } finally {
       setLoading(false);
     }
@@ -63,6 +62,8 @@ export default function Login() {
   const handleForgot = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
     try {
       const response = await fetch(`${API_URL}/api/forgot-password`, {
         method: 'POST',
@@ -70,10 +71,14 @@ export default function Login() {
         body: JSON.stringify({ email })
       });
       const data = await response.json();
-      alert(data.message || data.error);
-      if (data.status === 'success') setIsForgot(false);
+      if (data.status === 'success') {
+        setSuccessMsg(data.message || 'Instruções enviadas para seu e-mail.');
+        setIsForgot(false);
+      } else {
+        setErrorMsg(data.error || 'Erro ao enviar instruções.');
+      }
     } catch {
-      alert('Erro ao conectar com o servidor.');
+      setErrorMsg('Erro ao conectar com o servidor.');
     } finally {
       setLoading(false);
     }
@@ -95,6 +100,18 @@ export default function Login() {
           </p>
         </div>
 
+        {errorMsg && (
+          <div className="animate-scale" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', border: '1px solid var(--error)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', textAlign: 'center' }}>
+            ⚠️ {errorMsg}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="animate-scale" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', border: '1px solid var(--success)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', textAlign: 'center' }}>
+            ✅ {successMsg}
+          </div>
+        )}
+
         <form onSubmit={isForgot ? handleForgot : handleLogin}>
           <div style={{ marginBottom: '20px' }}>
             <label className="input-label">E-mail</label>
@@ -114,10 +131,17 @@ export default function Login() {
               <div style={{ position: 'relative' }}>
                 <Lock size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input 
-                  type="password" className="input-field" style={{ paddingLeft: '40px' }} required 
+                  type={showPassword ? "text" : "password"} className="input-field" style={{ paddingLeft: '40px', paddingRight: '40px' }} required 
                   placeholder="******"
                   value={password} onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
           )}
@@ -131,12 +155,12 @@ export default function Login() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   style={{ accentColor: 'var(--primary)', width: '16px', height: '16px', cursor: 'pointer' }}
                 />
-                Lembrar meus dados
+                Lembrar meu e-mail
               </label>
             )}
             <button 
               type="button" 
-              onClick={() => setIsForgot(!isForgot)}
+              onClick={() => { setIsForgot(!isForgot); setErrorMsg(null); setSuccessMsg(null); }}
               style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500', marginLeft: 'auto' }}
             >
               {isForgot ? 'Voltar para o Login' : 'Esqueceu a senha?'}
@@ -168,3 +192,4 @@ export default function Login() {
     </div>
   );
 }
+

@@ -137,8 +137,8 @@ export default function PontoPage() {
         `${API_URL}/api/ponto/today?userId=${encodeURIComponent(user.id)}&store=${encodeURIComponent(user.store)}`
       );
       const data = await res.json();
-      if (Array.isArray(data)) {
-        setTodayRecords(data);
+      if (data && Array.isArray(data.records)) {
+        setTodayRecords(data.records);
       }
     } catch (err) {
       console.error('Erro ao buscar registros:', err);

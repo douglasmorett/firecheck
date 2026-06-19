@@ -143,6 +143,9 @@ export default function AdminDashboard() {
   const [pontoRecords, setPontoRecords] = useState([]);
   const [pontoMonth, setPontoMonth] = useState(new Date().toISOString().slice(0, 7));
   const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
+  const [contadorEmail, setContadorEmail] = useState('');
+  const [fechamentoDia, setFechamentoDia] = useState('ultimo_dia');
+  
   const [financeExportPeriod, setFinanceExportPeriod] = useState('mes_atual');
   const [financeCustomDates, setFinanceCustomDates] = useState({ start: '', end: '' });
   
@@ -159,6 +162,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     localStorage.setItem('firecheck_finance_items', JSON.stringify(financeItems));
   }, [financeItems]);
+  
   const [newFinanceItem, setNewFinanceItem] = useState({ provider: '', value: '', dueDate: '', receivedDate: '', barcode: '' });
   const [isFinanceChatOpen, setIsFinanceChatOpen] = useState(false);
   const [financeChatMessages, setFinanceChatMessages] = useState([
@@ -167,6 +171,24 @@ export default function AdminDashboard() {
   const [financeChatInput, setFinanceChatInput] = useState('');
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
+
+  // -- Registrar Compras Módulo Dinâmico --
+  const [purchases, setPurchases] = useState(() => {
+    const saved = localStorage.getItem('firecheck_purchases');
+    if (saved) return JSON.parse(saved);
+    return [
+      { id: 1, postedAt: '30/04/2026', postedBy: 'admin@hakim.com.br', date: '2026-04-30', description: 'Sistema de gás', category: 'Insumos para Sistema de Gás', value: 367.20, photo: null },
+      { id: 2, postedAt: '29/04/2026', postedBy: 'admin@hakim.com.br', date: '2026-04-29', description: 'Pedágio', category: 'Pedágio', value: 7.50, photo: null }
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('firecheck_purchases', JSON.stringify(purchases));
+  }, [purchases]);
+
+  const [purchaseForm, setPurchaseForm] = useState({ description: '', value: '', category: '', date: new Date().toISOString().split('T')[0], photo: null });
+  const [isProcessingPurchase, setIsProcessingPurchase] = useState(false);
+  const [viewingPhotoUrl, setViewingPhotoUrl] = useState(null);
   
   // -- Cota de Checklists --
   const [quotaInfo, setQuotaInfo] = useState(null);
@@ -209,6 +231,9 @@ export default function AdminDashboard() {
     
     const user = JSON.parse(savedUser);
     setUserProfile(user);
+    if (user.timezone) setPontoTimezone(user.timezone);
+    if (user.contador_email) setContadorEmail(user.contador_email);
+    if (user.fechamento_dia) setFechamentoDia(user.fechamento_dia);
     
     // Proteção extra: se for funcionário, não deixa ver o admin
     if (user.role === 'employee') {
@@ -640,20 +665,163 @@ export default function AdminDashboard() {
     addToast('Conta marcada como paga e arquivada!', 'success');
   };
 
-  const handleAIReceiptScan = () => {
+  const triggerReceiptUpload = () => {
+    document.getElementById('receipt-ocr-input')?.click();
+  };
+
+  const handleReceiptOCRUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
     setIsProcessingReceipt(true);
-    addToast('Lendo informações da nota...', 'info');
-    setTimeout(() => {
-      setNewFinanceItem({
-        provider: 'Distribuidora Gourmet',
-        value: '1240.50',
-        dueDate: new Date().toISOString().split('T')[0],
-        receivedDate: new Date().toISOString().split('T')[0],
-        barcode: '34191.09008 63571.27731 5 14234.34000 8 1234567890'
-      });
+    addToast('Lendo informações da nota com IA...', 'info');
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result;
+        try {
+          const res = await fetch(`${API_URL}/api/scan-receipt`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoBase64: base64 })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setNewFinanceItem({
+              provider: data.provider || '',
+              value: data.value !== undefined ? String(data.value) : '',
+              dueDate: data.dueDate || new Date().toISOString().split('T')[0],
+              receivedDate: data.receivedDate || new Date().toISOString().split('T')[0],
+              barcode: data.barcode || ''
+            });
+            addToast('Leitura concluída com sucesso!', 'success');
+          } else {
+            addToast('Não foi possível ler a nota. Preencha manualmente.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          addToast('Erro ao conectar ao servidor de IA.', 'error');
+        } finally {
+          setIsProcessingReceipt(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
       setIsProcessingReceipt(false);
-      addToast('Leitura concluída com sucesso!', 'success');
-    }, 2000);
+      addToast('Erro ao ler arquivo da imagem.', 'error');
+    }
+  };
+
+  const handleSavePontoConfig = async () => {
+    if (!userProfile) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/${userProfile.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          timezone: pontoTimezone,
+          contador_email: contadorEmail,
+          fechamento_dia: fechamentoDia
+        })
+      });
+      if (res.ok) {
+        const updatedMe = {
+          ...userProfile,
+          timezone: pontoTimezone,
+          contador_email: contadorEmail,
+          fechamento_dia: fechamentoDia
+        };
+        localStorage.setItem('user', JSON.stringify(updatedMe));
+        setUserProfile(updatedMe);
+        addToast('Configurações salvas com sucesso!', 'success');
+      } else {
+        addToast('Erro ao salvar configurações contábeis.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Erro de conexão ao salvar configurações.', 'error');
+    }
+  };
+
+  const handleExportFinanceCSV = () => {
+    let csv = 'Fornecedor,Valor,Data Recebimento,Data Vencimento,Codigo de Barras,Status\n';
+    financeItems.forEach(item => {
+      const typeLabel = item.type === 'paga' ? 'Paga' : (item.type === 'pendente' ? 'Pendente' : (item.type === 'hoje' ? 'Vence Hoje' : 'Futura'));
+      csv += `"${item.provider}","${Number(item.value).toFixed(2)}","${item.receivedDate || ''}","${item.dueDate || ''}","${item.barcode || ''}","${typeLabel}"\n`;
+    });
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `financeiro_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    addToast('Planilha baixada com sucesso!', 'success');
+  };
+
+  const handlePurchaseOCRUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setIsProcessingPurchase(true);
+    addToast('Processando foto da nota de compra...', 'info');
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result;
+        try {
+          const res = await fetch(`${API_URL}/api/scan-purchase`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoBase64: base64 })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setPurchaseForm({
+              description: data.description || '',
+              value: data.value !== undefined ? String(data.value) : '',
+              category: data.category || 'Geral',
+              date: data.date || new Date().toISOString().split('T')[0],
+              photo: base64
+            });
+            addToast('Nota processada com sucesso!', 'success');
+          } else {
+            addToast('Erro ao ler a nota fiscal. Digite os dados.', 'error');
+          }
+        } catch (err) {
+          console.error(err);
+          addToast('Erro de conexão ao processar compra.', 'error');
+        } finally {
+          setIsProcessingPurchase(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error(err);
+      setIsProcessingPurchase(false);
+      addToast('Erro ao abrir arquivo da imagem.', 'error');
+    }
+  };
+
+  const handleAddPurchase = () => {
+    if (!purchaseForm.description || !purchaseForm.value) {
+      addToast('Por favor, preencha a descrição e o valor da compra.', 'error');
+      return;
+    }
+    const newP = {
+      id: Date.now(),
+      postedAt: new Date().toLocaleDateString('pt-BR'),
+      postedBy: userProfile?.email || 'admin@firecheck.com.br',
+      date: purchaseForm.date,
+      description: purchaseForm.description,
+      category: purchaseForm.category || 'Geral',
+      value: parseFloat(purchaseForm.value),
+      photo: purchaseForm.photo
+    };
+    setPurchases([newP, ...purchases]);
+    setPurchaseForm({ description: '', value: '', category: '', date: new Date().toISOString().split('T')[0], photo: null });
+    addToast('Compra registrada com sucesso!', 'success');
   };
 
   const handleSendFinanceChat = async () => {
@@ -1284,11 +1452,11 @@ export default function AdminDashboard() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                    <div>
                       <label className="input-label">E-mail do Contador</label>
-                      <input type="email" className="input-field" placeholder="contabilidade@empresa.com.br" />
+                      <input type="email" className="input-field" placeholder="contabilidade@empresa.com.br" value={contadorEmail} onChange={e => setContadorEmail(e.target.value)} />
                    </div>
                    <div>
                       <label className="input-label">Data de Fechamento (Envio Automático)</label>
-                      <select className="input-field">
+                      <select className="input-field" value={fechamentoDia} onChange={e => setFechamentoDia(e.target.value)}>
                          <option value="ultimo_dia">Último dia do Mês</option>
                          <option value="dia_1">Todo Dia 1</option>
                          <option value="dia_5">Todo Dia 5</option>
@@ -1308,7 +1476,7 @@ export default function AdminDashboard() {
                       <label className="input-label">Mês de Referência</label>
                       <input type="month" className="input-field" value={pontoMonth} onChange={e => setPontoMonth(e.target.value)} />
                    </div>
-                   <button className="btn-secondary" style={{ width: '100%', padding: '12px', borderRadius: '8px' }}>Salvar Configuração</button>
+                   <button className="btn-secondary" onClick={handleSavePontoConfig} style={{ width: '100%', padding: '12px', borderRadius: '8px' }}>Salvar Configuração</button>
                 </div>
              </div>
 
@@ -1393,7 +1561,7 @@ export default function AdminDashboard() {
                     <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={financeCustomDates.end} onChange={e => setFinanceCustomDates({...financeCustomDates, end: e.target.value})} />
                   </div>
                 )}
-                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={() => addToast('Planilha enviada para o seu email.', 'success')}>
+                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={handleExportFinanceCSV}>
                    <FileDown size={18} /> Exportar Planilha
                 </button>
                 <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', borderColor: '#F59E0B', color: '#F59E0B' }} onClick={() => setIsPurchasesOpen(true)}>
@@ -1429,12 +1597,13 @@ export default function AdminDashboard() {
              </div>
              <div>
                 <label className="input-label">Código de Barras (Opcional)</label>
+                <input type="file" id="receipt-ocr-input" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleReceiptOCRUpload} />
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                    <input type="text" className="input-field" placeholder="Linha digitável do boleto" style={{ flex: 1, minWidth: '200px' }} value={newFinanceItem.barcode} onChange={e => setNewFinanceItem({...newFinanceItem, barcode: e.target.value})} />
-                   <button className="btn-secondary" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', borderRadius: '8px' }}>
+                   <button className="btn-secondary" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', borderRadius: '8px' }} onClick={triggerReceiptUpload}>
                       <Camera size={18} /> Scannear código
                    </button>
-                   <button className="btn" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', backgroundColor: '#FFA000', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold' }} onClick={handleAIReceiptScan} disabled={isProcessingReceipt}>
+                   <button className="btn" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', backgroundColor: '#FFA000', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold' }} onClick={triggerReceiptUpload} disabled={isProcessingReceipt}>
                       {isProcessingReceipt ? <div className="loader" style={{width: 16, height: 16, borderTopColor: '#fff'}} /> : <Bot size={18} />} Ler Nota IA
                    </button>
                 </div>
@@ -2588,24 +2757,75 @@ export default function AdminDashboard() {
             
             <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
               <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-                <h3 style={{ marginBottom: '16px', fontSize: '1.1rem' }}>Nova Nota Fiscal</h3>
-                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  📝 O que você comprou?
-                </label>
-                <textarea 
-                  className="input-field" 
-                  placeholder="Ex: Abastecimento do carro da entrega, Papelão, Manutenção..." 
-                  style={{ minHeight: '80px', marginBottom: '16px', resize: 'vertical' }}
-                />
-                <button className="btn" style={{ width: '100%', padding: '16px', backgroundColor: '#FFA000', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '8px' }}>
-                  <Camera size={20} /> Tirar Foto da Nota
-                </button>
+                <h3 style={{ marginBottom: '16px', fontSize: '1.1rem', color: 'var(--primary)' }}>Nova Nota Fiscal / Despesa</h3>
+                
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="input-label">📝 O que você comprou?</label>
+                  <textarea 
+                    className="input-field" 
+                    placeholder="Ex: Abastecimento do carro da entrega, Papelão, Manutenção..." 
+                    style={{ minHeight: '80px', resize: 'vertical' }}
+                    value={purchaseForm.description}
+                    onChange={e => setPurchaseForm({ ...purchaseForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+                  <div>
+                    <label className="input-label">Valor (R$)</label>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      className="input-field" 
+                      placeholder="0.00" 
+                      value={purchaseForm.value}
+                      onChange={e => setPurchaseForm({ ...purchaseForm, value: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Categoria</label>
+                    <input 
+                      type="text" 
+                      className="input-field" 
+                      placeholder="Combustível, Insumos..." 
+                      value={purchaseForm.category}
+                      onChange={e => setPurchaseForm({ ...purchaseForm, category: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="input-label">Data da NF</label>
+                    <input 
+                      type="date" 
+                      className="input-field" 
+                      value={purchaseForm.date}
+                      onChange={e => setPurchaseForm({ ...purchaseForm, date: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {purchaseForm.photo && (
+                  <div style={{ marginBottom: '16px', textAlign: 'center' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Foto da Nota Fiscal anexada:</p>
+                    <img src={purchaseForm.photo} alt="Nota Fiscal" style={{ maxWidth: '150px', maxHeight: '150px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'block', margin: '0 auto' }} />
+                  </div>
+                )}
+
+                <input type="file" id="purchase-ocr-input" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handlePurchaseOCRUpload} />
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button className="btn-secondary" style={{ flex: 1, padding: '12px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderColor: '#FFA000', color: '#FFA000' }} onClick={() => document.getElementById('purchase-ocr-input')?.click()} disabled={isProcessingPurchase}>
+                    {isProcessingPurchase ? <div className="loader" style={{ width: 16, height: 16, borderTopColor: '#FFA000' }} /> : <Camera size={18} />} {isProcessingPurchase ? 'Lendo...' : 'Tirar Foto da Nota (IA)'}
+                  </button>
+                  <button className="btn" style={{ flex: 1.5, padding: '12px', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 'bold' }} onClick={handleAddPurchase}>
+                    Confirmar e Registrar Compra
+                  </button>
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '32px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
                 <h3 style={{ fontSize: '1.2rem', margin: 0 }}>Relatório de Gastos</h3>
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: 'var(--error)', padding: '6px 16px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                  Total: R$ 4039.89
+                  Total: R$ {purchases.reduce((acc, curr) => acc + curr.value, 0).toFixed(2)}
                 </div>
               </div>
 
@@ -2622,47 +2842,50 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '16px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>30/04/2026</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>admin@hakim.com.br</div>
-                      </td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}><Calendar size={14} style={{display:'inline', marginRight:'4px', verticalAlign: 'middle'}}/> 30/04/2026</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>Sistema de gás</td>
-                      <td style={{ padding: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Insumos para Sistema de Gás</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--error)' }}>R$ 367.20</td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Ver Foto</button>
-                          <button className="btn-secondary" style={{ padding: '4px 8px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '16px' }}>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>29/04/2026</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>admin@hakim.com.br</div>
-                      </td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}><Calendar size={14} style={{display:'inline', marginRight:'4px', verticalAlign: 'middle'}}/> 29/04/2026</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>Pedágio</td>
-                      <td style={{ padding: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Pedágio</td>
-                      <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--error)' }}>R$ 7.50</td>
-                      <td style={{ padding: '16px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>Ver Foto</button>
-                          <button className="btn-secondary" style={{ padding: '4px 8px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }}><Trash2 size={14} /></button>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan="6" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                        Exibindo 2 registros (Apenas demonstração visual)
-                      </td>
-                    </tr>
+                    {purchases.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                          Nenhuma compra registrada.
+                        </td>
+                      </tr>
+                    ) : (
+                      purchases.map(p => (
+                        <tr key={p.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '16px' }}>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.postedAt}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', opacity: 0.7 }}>{p.postedBy}</div>
+                          </td>
+                          <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}><Calendar size={14} style={{display:'inline', marginRight:'4px', verticalAlign: 'middle'}}/> {p.date}</td>
+                          <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold' }}>{p.description}</td>
+                          <td style={{ padding: '16px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>{p.category}</td>
+                          <td style={{ padding: '16px', fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--error)' }}>R$ {Number(p.value).toFixed(2)}</td>
+                          <td style={{ padding: '16px', textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              {p.photo ? (
+                                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem' }} onClick={() => setViewingPhotoUrl(p.photo)}>Ver Foto</button>
+                              ) : (
+                                <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', opacity: 0.5, cursor: 'not-allowed' }} disabled>Sem Foto</button>
+                              )}
+                              <button className="btn-secondary" style={{ padding: '4px 8px', color: 'var(--error)', borderColor: 'rgba(239, 68, 68, 0.2)' }} onClick={() => { setPurchases(prev => prev.filter(item => item.id !== p.id)); addToast('Compra removida.', 'success'); }}><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {viewingPhotoUrl && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999999, padding: '20px', pointerEvents: 'auto' }}>
+          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', padding: '20px', textAlign: 'center', position: 'relative', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+            <button style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setViewingPhotoUrl(null)}><X size={24} /></button>
+            <h3 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Comprovante / Nota Fiscal</h3>
+            <img src={viewingPhotoUrl} alt="Comprovante" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />
           </div>
         </div>
       )}
