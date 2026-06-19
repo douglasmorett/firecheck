@@ -23,7 +23,7 @@ export default function TermsOfUse() {
     {
       icon: <CreditCard size={20} color="#ff4d00" />,
       title: '4. Pagamentos e Assinaturas',
-      content: `O FireCheck oferece os seguintes planos:\n\n• Período de Teste: 7 dias gratuitos, sem necessidade de cartão de crédito\n• Plano Mensal: R$ 97,00/mês, cobrado mensalmente\n• Plano Anual: R$ 970,00/ano (equivalente a R$ 80,83/mês)\n\nAs cobranças são processadas por plataformas de pagamento terceirizadas. O cancelamento pode ser feito a qualquer momento, sem multa ou fidelidade. Ao cancelar, o acesso permanece ativo até o fim do período pago. Não realizamos reembolsos por períodos parcialmente utilizados.`
+      content: `O FireCheck oferece os seguintes planos:\n\n• Período de Teste: 7 dias gratuitos com checklists ilimitados, sem necessidade de cartão de crédito\n• Plano Starter: R$ 67,00/mês — até 300 checklists por mês\n• Plano Pro: R$ 97,00/mês — até 600 checklists por mês\n• Plano Business: R$ 197,00/mês — até 1.000 checklists por mês\n• Plano Custom: valores sob consulta para operações acima de 1.000 checklists mensais\n\nAs cobranças são processadas por plataformas de pagamento terceirizadas. O cancelamento pode ser feito a qualquer momento, sem multa ou fidelidade. Ao cancelar, o acesso permanece ativo até o fim do período pago. Não realizamos reembolsos por períodos parcialmente utilizados. A cota de checklists é renovada mensalmente na data de aniversário da assinatura.`
     },
     {
       icon: <Lock size={20} color="#ff4d00" />,

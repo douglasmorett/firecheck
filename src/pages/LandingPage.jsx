@@ -1192,15 +1192,26 @@ export default function LandingPage() {
         <style>{`
           .pricing-grid-mobile {
              display: grid;
-             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+             grid-template-columns: repeat(3, 1fr);
              gap: 24px;
-             max-width: 800px;
+             max-width: 1100px;
              margin: 0 auto;
              align-items: center;
+          }
+          @media (max-width: 960px) {
+             .pricing-grid-mobile {
+                grid-template-columns: 1fr !important;
+                max-width: 400px !important;
+                gap: 16px !important;
+             }
+             .pricing-grid-mobile .card {
+                transform: none !important;
+             }
           }
           @media (max-width: 768px) {
              .pricing-grid-mobile {
                 grid-template-columns: repeat(2, 1fr) !important;
+                max-width: 100% !important;
                 gap: 8px !important;
              }
              .pricing-grid-mobile .card {
@@ -1254,44 +1265,63 @@ export default function LandingPage() {
         `}</style>
         <div className="pricing-grid-mobile">
           
+          {/* Plano Starter */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Start Mensal</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para testar na sua operação.</p>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Starter</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para pequenas operações.</p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ color: 'transparent', fontSize: '0.9rem', marginBottom: '32px' }}>-</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>300 checklists/mês</div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com nossa IA</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 5 funcionários</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com IA</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Start Mensal', '/checkout?plan=mensal')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Starter', '/checkout?plan=starter')}>
               Assinar Agora
             </button>
           </div>
 
+          {/* Plano Pro (Destacado) */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
-            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold' }}>2 MESES GRÁTIS</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Start Anual</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Auditoria inteligente para sua operação decolar.</p>
+            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>MAIS POPULAR</div>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Para operações que precisam de controle total.</p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$80,83<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: 'var(--success)', fontSize: '1rem', fontWeight: 'bold' }}>Menos que um cafezinho: R$ 2,65 /dia</div>
-              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem', marginTop: '4px' }}>Faturado R$970,00 anualmente</div>
-            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>600 checklists/mês</div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 10 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com nossa IA</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push no Celular</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 funcionários</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Starter</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Ranking de equipe</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatórios avançados</li>
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Start Anual', '/checkout?plan=anual')}>
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Pro', '/checkout?plan=pro')}>
+              Assinar Agora
+            </button>
+          </div>
+
+          {/* Plano Business */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Business</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Para operações de grande escala.</p>
+            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
+              R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>1000 checklists/mês</div>
+
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Funcionários ilimitados</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Pro</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Módulos extras</li>
+            </ul>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Business', '/checkout?plan=business')}>
               Assinar Agora
             </button>
           </div>
@@ -1299,12 +1329,12 @@ export default function LandingPage() {
         </div>
 
         {/* Plano Custom abaixo */}
-        <div className="card" style={{ maxWidth: '800px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Mais de 10 funcionários?</h3>
+        <div className="card" style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Precisa de mais de 1000 checklists?</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
             Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
           </p>
-          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20falar%20com%20um%20consultor%20sobre%20o%20plano%20Custom%20do%20FireCheck.')}>
+          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20um%20plano%20Custom%20do%20FireCheck.')}>
             Falar com nossos consultores
           </button>
         </div>

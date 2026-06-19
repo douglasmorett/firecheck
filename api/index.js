@@ -11,6 +11,31 @@ const pool = new Pool({
 
 let migrationsRun = false;
 
+// ── Mapeamento de Planos → Limites de Checklists ────────────────
+const PLAN_LIMITS = {
+  'starter': 300, 'starter_mensal': 300,
+  'pro': 600, 'pro_mensal': 600, 'mensal': 600,
+  'business': 1000, 'business_mensal': 1000, 'anual': 1000,
+  'enterprise': 999999, 'master': 999999,
+  'trial': 999999, // Trial = ilimitado nos 7 dias
+  'start': 300,    // Legado
+};
+
+function getPlanLimit(plan) {
+  return PLAN_LIMITS[(plan || 'starter').toLowerCase()] || 300;
+}
+
+// ── Função de Reset de Cota ─────────────────────────────────────
+async function checkAndResetQuota(pool, userId, quotaResetDate) {
+  if (quotaResetDate && new Date(quotaResetDate) < new Date()) {
+    const nextReset = new Date();
+    nextReset.setDate(nextReset.getDate() + 30);
+    await pool.query('UPDATE users SET checklists_used = 0, quota_reset_date = $1 WHERE id = $2', [nextReset, userId]);
+    return true;
+  }
+  return false;
+}
+
 // ── Função Central de Auditoria IA (Reutilizável) ───────────────
 async function processAuditForSubmission(pool, submissionId) {
   const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
@@ -122,6 +147,16 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_active BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS finance_active BOOLEAN DEFAULT FALSE");
+      // ── Cota de Checklists ──
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklist_limit INTEGER DEFAULT 300");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_reset_date TIMESTAMP");
+      // Migrar planos existentes para os limites corretos
+      await pool.query("UPDATE users SET checklist_limit = 600 WHERE plan IN ('mensal', 'pro', 'pro_mensal') AND checklist_limit = 300");
+      await pool.query("UPDATE users SET checklist_limit = 1000 WHERE plan IN ('anual', 'business', 'business_mensal') AND checklist_limit = 300");
+      await pool.query("UPDATE users SET checklist_limit = 999999 WHERE plan IN ('enterprise') OR role = 'master'");
+      // Setar quota_reset_date para quem não tem
+      await pool.query("UPDATE users SET quota_reset_date = NOW() + INTERVAL '30 days' WHERE quota_reset_date IS NULL AND role = 'admin'");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -495,16 +530,19 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active } = req.body;
+        const { plan, status, ponto_active, finance_active, checklist_limit } = req.body;
+        const planLimitMap = { starter: 300, pro: 600, business: 1000, enterprise: 999999, mensal: 600, anual: 1000 };
+        const finalLimit = checklist_limit || planLimitMap[plan] || 300;
         // Se mudou para ativo, renova de acordo com o plano
         if (status === 'active') {
           await pool.query(`
-            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4,
-            expiration_date = NOW() + CASE WHEN $1 = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
-            WHERE id = $5
-          `, [plan, status, ponto_active || false, finance_active || false, id]);
+            UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5,
+            expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
+            quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
+            WHERE id = $6
+          `, [plan, status, ponto_active || false, finance_active || false, finalLimit, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4 WHERE id = $5', [plan, status, ponto_active || false, finance_active || false, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5 WHERE id = $6', [plan, status, ponto_active || false, finance_active || false, finalLimit, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -515,7 +553,7 @@ export default async function handler(req, res) {
         return res.status(200).json(rows[0]);
       }
       const store = searchParams.get('store');
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -539,9 +577,64 @@ export default async function handler(req, res) {
 
     // Endpoints de tracking duplicados removidos daqui
 
+    // ── Endpoint de Cota ─────────────────────────────────────────
+    if (url.includes('/api/quota')) {
+      const store = searchParams.get('store');
+      if (!store) return res.status(400).json({ error: 'Store obrigatória' });
+      const { rows: admins } = await pool.query(
+        "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+        [store]
+      );
+      if (admins.length === 0) return res.status(404).json({ error: 'Loja não encontrada' });
+      const admin = admins[0];
+      // Check e reset automático
+      const wasReset = await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
+      const used = wasReset ? 0 : (admin.checklists_used || 0);
+      const limit = admin.checklist_limit || getPlanLimit(admin.plan);
+      const remaining = Math.max(0, limit - used);
+      const resetDate = wasReset ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0] : (admin.quota_reset_date ? new Date(admin.quota_reset_date).toISOString().split('T')[0] : null);
+      return res.status(200).json({
+        limit: limit >= 999999 ? 'ilimitado' : limit,
+        used,
+        remaining: limit >= 999999 ? 'ilimitado' : remaining,
+        resetDate,
+        percentUsed: limit >= 999999 ? 0 : Math.round((used / limit) * 100),
+        plan: admin.plan,
+        isUnlimited: limit >= 999999 || admin.status === 'trial'
+      });
+    }
+
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
         const { employeeName, store, tasks, feedbackInfo, selfie, checklistId } = req.body;
+
+        // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
+        const { rows: storeAdmins } = await pool.query(
+          "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          [store]
+        );
+        if (storeAdmins.length > 0) {
+          const admin = storeAdmins[0];
+          // Reset automático se necessário
+          await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
+          // Re-fetch após possível reset
+          const { rows: freshAdmin } = await pool.query('SELECT checklists_used, checklist_limit, plan, status FROM users WHERE id = $1', [admin.id]);
+          const fa = freshAdmin[0];
+          const limit = fa.checklist_limit || getPlanLimit(fa.plan);
+          const used = fa.checklists_used || 0;
+          // Trial é ilimitado, master é ilimitado
+          const isUnlimited = limit >= 999999 || fa.status === 'trial' || admin.role === 'master';
+          if (!isUnlimited && used >= limit) {
+            return res.status(403).json({
+              status: 'error',
+              quota_exceeded: true,
+              error: `Sua empresa atingiu o limite de ${limit} checklists deste mês. Faça upgrade do plano para continuar.`,
+              used,
+              limit
+            });
+          }
+        }
+        // ─────────────────────────────────────────────────────────
 
         // --- INTEGRAÇÃO FIREBASE STORAGE ---
         // Faz o upload das fotos das tasks
@@ -577,6 +670,12 @@ export default async function handler(req, res) {
           await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
         } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
         // ----------------------------------------------
+
+        // ── INCREMENTAR COTA ──────────────────────────────────
+        if (storeAdmins && storeAdmins.length > 0) {
+          await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [storeAdmins[0].id]);
+        }
+        // ─────────────────────────────────────────────────────────
 
         return res.status(200).json({ success: true, id: rows[0].id });
       }

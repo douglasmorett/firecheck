@@ -47,7 +47,7 @@ export default function Checkout() {
         if (window.fbq) {
           window.fbq('track', 'Lead');
           window.fbq('track', 'StartTrial'); // EVENTO ADICIONADO AQUI
-          if (plan === 'mensal' || plan === 'anual') {
+          if (plan === 'mensal' || plan === 'anual' || plan === 'starter' || plan === 'pro' || plan === 'business') {
             window.fbq('track', 'InitiateCheckout');
           }
         }
@@ -58,9 +58,9 @@ export default function Checkout() {
         // Transição instantânea sem timeout longo
         let checkoutLink = '';
         
-        if (plan === 'mensal') {
+        if (plan === 'mensal' || plan === 'starter' || plan === 'pro') {
           checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'anual') {
+        } else if (plan === 'anual' || plan === 'business') {
           checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
         } else if (plan === 'ponto_mensal') {
           checkoutLink = `https://pay.cakto.com.br/kfx3fri_869702?email=${userEmail}&name=${userName}`;
@@ -164,7 +164,7 @@ export default function Checkout() {
                 disabled={loading}
               >
                 {loading ? 'Processando...' : (
-                  plan === 'mensal' || plan === 'anual' 
+                  plan === 'mensal' || plan === 'anual' || plan === 'starter' || plan === 'pro' || plan === 'business'
                   ? 'Criar Conta e Prosseguir para Pagamento' 
                   : 'Criar Conta e Acessar o Sistema'
                 )}
@@ -181,6 +181,7 @@ export default function Checkout() {
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Flame size={20} color="var(--primary)" /> <strong>Acesso total</strong> ao painel administrativo.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Zap size={20} color="var(--success)" /> Criação de <strong>Checklists com IA</strong>.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><ShieldCheck size={20} color="var(--primary)" /> Painel para seus funcionários.</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>✅ Checklists ilimitados durante o teste</li>
             </ul>
             
             <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>

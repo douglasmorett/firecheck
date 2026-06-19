@@ -165,6 +165,10 @@ export default function AdminDashboard() {
   const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
   
+  // -- Cota de Checklists --
+  const [quotaInfo, setQuotaInfo] = useState(null);
+  const [showQuotaUpgradeModal, setShowQuotaUpgradeModal] = useState(false);
+  
   const [toasts, setToasts] = useState([]);
   const [knownUserIds, setKnownUserIds] = useState(null);
 
@@ -214,6 +218,7 @@ export default function AdminDashboard() {
     }
     fetchData();
     fetchCameras();
+    fetchQuota();
 
      const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
@@ -237,6 +242,7 @@ export default function AdminDashboard() {
     // Loop global de atualização do painel a cada 10 segundos (Quase Tempo-Real)
     const globalRefresh = setInterval(() => {
       fetchData();
+      fetchQuota();
       checkVisitors();
     }, 10000);
 
@@ -334,6 +340,19 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (Array.isArray(data)) setCameras(data);
     } catch (err) { console.error('Erro ao buscar câmeras:', err); }
+  };
+
+  const fetchQuota = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      if (user.role === 'master') return; // Master não tem cota
+      if (!user.store) return;
+      const res = await fetch(`${API_URL}/api/quota?store=${encodeURIComponent(user.store)}`);
+      const data = await res.json();
+      setQuotaInfo(data);
+    } catch (err) { console.error('Erro ao buscar cota:', err); }
   };
 
   const fetchData = async () => {
@@ -894,7 +913,7 @@ export default function AdminDashboard() {
             </div>
 
             {isMaster ? (
-              <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'mensal' }); setShowUserModal(true); }}>
+              <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'starter' }); setShowUserModal(true); }}>
                 <UserPlus size={18} /> Nova Conta
               </button>
             ) : isAdmin ? (
@@ -1012,6 +1031,70 @@ export default function AdminDashboard() {
 
       {/* Instalação do App */}
       <PWAInstall />
+
+      {/* ── Card de Cota de Checklists (Admin Only) ─────────────────── */}
+      {!isMaster && quotaInfo && !quotaInfo.isUnlimited && tab === 'auditoria' && (
+        <div className="card" style={{ padding: '20px', marginBottom: '24px', border: quotaInfo.percentUsed >= 95 ? '2px solid var(--error)' : quotaInfo.percentUsed >= 80 ? '2px solid #f59e0b' : '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Target size={18} color="var(--primary)" />
+              <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Uso do Plano</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-color)', padding: '2px 8px', borderRadius: '12px' }}>
+                {quotaInfo.plan === 'starter' || quotaInfo.plan === 'start' ? 'Starter' : quotaInfo.plan === 'pro' || quotaInfo.plan === 'mensal' ? 'Pro' : quotaInfo.plan === 'business' || quotaInfo.plan === 'anual' ? 'Business' : quotaInfo.plan}
+              </span>
+            </div>
+            <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: quotaInfo.percentUsed >= 95 ? 'var(--error)' : quotaInfo.percentUsed >= 80 ? '#f59e0b' : 'var(--success)' }}>
+              {quotaInfo.used} / {quotaInfo.limit}
+            </span>
+          </div>
+          <div style={{ height: '8px', backgroundColor: 'var(--bg-color)', borderRadius: '100px', overflow: 'hidden', marginBottom: '8px' }}>
+            <div style={{ width: `${Math.min(quotaInfo.percentUsed, 100)}%`, height: '100%', backgroundColor: quotaInfo.percentUsed >= 95 ? 'var(--error)' : quotaInfo.percentUsed >= 80 ? '#f59e0b' : 'var(--primary)', borderRadius: '100px', transition: 'width 0.5s ease' }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              {quotaInfo.percentUsed >= 100 ? '🔴 Cota esgotada!' : quotaInfo.percentUsed >= 80 ? `⚠️ ${quotaInfo.remaining} restantes` : `✅ ${quotaInfo.remaining} checklists restantes`}
+              {quotaInfo.resetDate && ` • Renova em ${Math.max(0, Math.ceil((new Date(quotaInfo.resetDate) - new Date()) / (1000*60*60*24)))} dias`}
+            </span>
+            {quotaInfo.percentUsed >= 80 && (
+              <button className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setShowQuotaUpgradeModal(true)}>
+                Fazer Upgrade
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Upgrade de Cota */}
+      {showQuotaUpgradeModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowQuotaUpgradeModal(false)}>
+          <div className="card" style={{ maxWidth: '500px', width: '100%', padding: '40px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+              <Flame size={32} color="var(--primary)" />
+            </div>
+            <h2 style={{ marginBottom: '12px' }}>Hora de crescer! 🚀</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6' }}>
+              Você {quotaInfo?.percentUsed >= 100 ? 'atingiu' : 'está chegando no'} limite do seu plano.
+              Faça upgrade para continuar auditando com IA.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {(!quotaInfo?.plan || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
+                <button className="btn" style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                  Upgrade Pro — R$97/mês (600 checklists)
+                </button>
+              )}
+              {(quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
+                <button className={quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'btn' : 'btn-secondary'} style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                  {quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'Upgrade' : ''} Business — R$197/mês (1000 checklists)
+                </button>
+              )}
+              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}>
+                💬 Plano Custom (falar no WhatsApp)
+              </button>
+            </div>
+            <button onClick={() => setShowQuotaUpgradeModal(false)} style={{ marginTop: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Fechar</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Tab: Financeiro (Master Only) ─────────────────────────────────── */}
       {isMaster && tab === 'financeiro' && (
@@ -1908,6 +1991,16 @@ export default function AdminDashboard() {
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
                     {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
                   </p>
+                  {isMaster && member.role === 'admin' && member.checklist_limit && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                      <div style={{ width: '80px', height: '6px', backgroundColor: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: `${Math.min(100, Math.round(((member.checklists_used || 0) / (member.checklist_limit || 300)) * 100))}%`, height: '100%', backgroundColor: ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.95 ? 'var(--error)' : ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.8 ? '#f59e0b' : 'var(--primary)', borderRadius: '100px' }} />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.95 ? 'var(--error)' : ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.8 ? '#f59e0b' : 'var(--text-muted)' }}>
+                        {member.checklists_used || 0}/{member.checklist_limit >= 999999 ? '∞' : member.checklist_limit} checklists
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {isMaster && member.role === 'admin' && (
@@ -2236,11 +2329,10 @@ export default function AdminDashboard() {
                 <div style={{ marginBottom: '24px' }}>
                   <label className="input-label">Plano Selecionado</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.plan} onChange={e => setNewUser({...newUser, plan: e.target.value})}>
-                    <option value="start_mensal">Start Mensal</option>
-                    <option value="start_anual">Start Anual</option>
-                    <option value="pro_mensal">Pró Mensal</option>
-                    <option value="pro_anual">Pró Anual</option>
-                    <option value="vitalicio">Vitalício</option>
+                    <option value="starter">Starter (300/mês — R$67)</option>
+                    <option value="pro">Pro (600/mês — R$97)</option>
+                    <option value="business">Business (1000/mês — R$197)</option>
+                    <option value="enterprise">Enterprise (Ilimitado)</option>
                   </select>
 
                   <label className="input-label">Módulos Extras Ativos</label>
@@ -2370,9 +2462,17 @@ export default function AdminDashboard() {
 
             <div style={{ marginBottom: '24px' }}>
               <label className="input-label">Plano de Checklist</label>
-              <select className="input-field" value={editingPlan.plan || 'mensal'} onChange={e => setEditingPlan({...editingPlan, plan: e.target.value})}>
-                <option value="mensal">Mensal</option>
-                <option value="anual">Anual</option>
+              <select className="input-field" value={editingPlan.plan || 'starter'} onChange={e => {
+                const newPlan = e.target.value;
+                const limitMap = { starter: 300, pro: 600, business: 1000, enterprise: 999999, mensal: 600, anual: 1000 };
+                setEditingPlan({...editingPlan, plan: newPlan, checklist_limit: limitMap[newPlan] || 300 });
+              }}>
+                <option value="starter">Starter (300 checklists/mês — R$67)</option>
+                <option value="pro">Pro (600 checklists/mês — R$97)</option>
+                <option value="business">Business (1000 checklists/mês — R$197)</option>
+                <option value="enterprise">Enterprise (Ilimitado)</option>
+                <option value="mensal">Mensal (Legado)</option>
+                <option value="anual">Anual (Legado)</option>
               </select>
 
               <label className="input-label" style={{ marginTop: '16px' }}>Módulos Extras Ativos</label>
@@ -2393,7 +2493,7 @@ export default function AdminDashboard() {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, finance_active: editingPlan.finance_active })
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, finance_active: editingPlan.finance_active, checklist_limit: editingPlan.checklist_limit })
                 });
                 setEditingPlan(null);
                 fetchData();

@@ -248,7 +248,11 @@ export default function ChecklistExecution() {
         }
       } else {
         const errData = await res.json();
-        alert(errData.message || 'Erro ao enviar.');
+        if (errData.quota_exceeded) {
+          alert('⚠️ Sua empresa atingiu o limite de checklists do plano deste mês. Fale com o seu gerente para fazer upgrade.');
+        } else {
+          alert(errData.message || errData.error || 'Erro ao enviar.');
+        }
       }
     } catch { alert('Erro ao conectar com o servidor.'); }
   };
