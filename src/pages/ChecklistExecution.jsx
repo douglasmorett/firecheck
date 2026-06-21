@@ -180,6 +180,20 @@ export default function ChecklistExecution() {
   const handleText = (id, value) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: value } : t));
 
+  const handleItemList = (taskId, itemIndex, checked) =>
+    setTasks(prev => prev.map(t => {
+      if (t.id !== taskId) return t;
+      const checkedItems = Array.isArray(t.done) ? [...t.done] : [];
+      if (checked) {
+        if (!checkedItems.includes(itemIndex)) checkedItems.push(itemIndex);
+      } else {
+        const pos = checkedItems.indexOf(itemIndex);
+        if (pos !== -1) checkedItems.splice(pos, 1);
+      }
+      // done = array de índices marcados; se todos marcados, também deixa verdadeiro para contar progresso
+      return { ...t, done: checkedItems.length === (t.options || []).length && checkedItems.length > 0 ? checkedItems : checkedItems };
+    }));
+
   const handleToggle = (id) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
 
@@ -278,7 +292,10 @@ export default function ChecklistExecution() {
     } catch { alert('Erro ao conectar com o servidor.'); }
   };
 
-  const completedCount = tasks.filter(t => t.done !== null && t.done !== false && t.done !== '').length;
+  const completedCount = tasks.filter(t => {
+    if (t.type === 'itemlist') return Array.isArray(t.done) && t.done.length > 0;
+    return t.done !== null && t.done !== false && t.done !== '';
+  }).length;
   const progress = Math.round((completedCount / (tasks.length || 1)) * 100);
 
   // Redirecionamento automático após sucesso
@@ -478,6 +495,74 @@ export default function ChecklistExecution() {
                     onChange={e => handleText(task.id, e.target.value)}
                     placeholder="Escreva sua resposta..."
                   />
+                </div>
+              )}
+
+              {task.type === 'itemlist' && (
+                <div style={{ marginBottom: '8px' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '10px' }}>
+                    Marque cada item que foi conferido:
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {(task.options || []).map((item, idx) => {
+                      const checkedItems = Array.isArray(task.done) ? task.done : [];
+                      const isChecked = checkedItems.includes(idx);
+                      return (
+                        <label
+                          key={idx}
+                          onClick={() => handleItemList(task.id, idx, !isChecked)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '12px',
+                            padding: '12px 14px',
+                            borderRadius: '8px',
+                            border: isChecked ? '1.5px solid var(--success)' : '1px solid var(--border-color)',
+                            backgroundColor: isChecked ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-color)',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            userSelect: 'none',
+                          }}
+                        >
+                          <div style={{
+                            width: '22px',
+                            height: '22px',
+                            borderRadius: '6px',
+                            border: isChecked ? '2px solid var(--success)' : '2px solid var(--border-color)',
+                            backgroundColor: isChecked ? 'var(--success)' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease',
+                          }}>
+                            {isChecked && (
+                              <svg width="13" height="10" viewBox="0 0 13 10" fill="none">
+                                <path d="M1 4.5L4.5 8.5L12 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
+                          <span style={{
+                            fontSize: '0.95rem',
+                            color: isChecked ? 'var(--text-main)' : 'var(--text-muted)',
+                            fontWeight: isChecked ? '600' : 'normal',
+                            textDecoration: isChecked ? 'none' : 'none',
+                            flex: 1,
+                          }}>
+                            {item}
+                          </span>
+                          {isChecked && (
+                            <CheckCircle size={16} color="var(--success)" style={{ flexShrink: 0 }} />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {(task.options || []).length > 0 && (
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '10px', textAlign: 'right' }}>
+                      {Array.isArray(task.done) ? task.done.length : 0}/{task.options.length} itens conferidos
+                    </p>
+                  )}
                 </div>
               )}
 

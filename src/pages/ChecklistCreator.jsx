@@ -23,6 +23,7 @@ const RESPONSE_TYPES = [
   { value: 'rating',   label: '⭐  Avaliação (1 a 5 estrelas)' },
   { value: 'numeric',  label: '🔢  Número (quantidade, temperatura…)' },
   { value: 'multiple', label: '📋  Múltipla Escolha' },
+  { value: 'itemlist', label: '🗳️  Lista de Itens (conferir um por um)' },
   { value: 'text',     label: '✏️  Texto Livre' },
 ];
 
@@ -451,6 +452,35 @@ export default function ChecklistCreator() {
                       onClick={() => addOption(task.id)}>
                       <Plus size={14} /> Adicionar opção
                     </button>
+                  </div>
+                )}
+
+                {task.type === 'itemlist' && (
+                  <div style={{ marginBottom: '12px', paddingLeft: '12px', borderLeft: '2px solid #7c3aed' }}>
+                    <label className="input-label" style={{ color: '#7c3aed' }}>
+                      🗳️ Itens da lista (o funcionário vai conferir cada um)
+                    </label>
+                    {(task.options || []).map((opt, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '6px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', minWidth: '20px' }}>{idx + 1}.</span>
+                        <input type="text" className="input-field" style={{ flex: 1 }}
+                          placeholder={`Ex: Coca-Cola, Sprite, Fanta...`} value={opt}
+                          onChange={e => updateOption(task.id, idx, e.target.value)} />
+                        <button onClick={() => removeOption(task.id, idx)}
+                          style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }}>
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    <button className="btn-secondary" style={{ fontSize: '0.8rem', padding: '6px 12px', marginTop: '4px', borderColor: '#7c3aed', color: '#7c3aed' }}
+                      onClick={() => addOption(task.id)}>
+                      <Plus size={14} /> Adicionar item
+                    </button>
+                    {(task.options || []).length > 0 && (
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        ℹ️ O funcionário verá {task.options.length} {task.options.length === 1 ? 'item' : 'itens'} com uma caixinha para marcar cada um.
+                      </p>
+                    )}
                   </div>
                 )}
 
