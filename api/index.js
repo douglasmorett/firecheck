@@ -71,7 +71,7 @@ let migrationsRun = false;
 const PLAN_LIMITS = {
   'starter': 300, 'starter_mensal': 300,
   'pro': 600, 'pro_mensal': 600, 'mensal': 600,
-  'business': 1000, 'business_mensal': 1000, 'anual': 1000,
+  'business': 1500, 'business_mensal': 1500, 'anual': 1500,
   'enterprise': 999999, 'master': 999999,
   'trial': 999999, // Trial = ilimitado nos 7 dias
   'start': 300,    // Legado
@@ -222,7 +222,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_reset_date TIMESTAMP");
       // Migrar planos existentes para os limites corretos
       await pool.query("UPDATE users SET checklist_limit = 600 WHERE plan IN ('mensal', 'pro', 'pro_mensal') AND checklist_limit = 300");
-      await pool.query("UPDATE users SET checklist_limit = 1000 WHERE plan IN ('anual', 'business', 'business_mensal') AND checklist_limit = 300");
+      await pool.query("UPDATE users SET checklist_limit = 1500 WHERE plan IN ('anual', 'business', 'business_mensal') AND checklist_limit = 300");
       await pool.query("UPDATE users SET checklist_limit = 999999 WHERE plan IN ('enterprise') OR role = 'master'");
       // Setar quota_reset_date para quem não tem
       await pool.query("UPDATE users SET quota_reset_date = NOW() + INTERVAL '30 days' WHERE quota_reset_date IS NULL AND role = 'admin'");
@@ -407,12 +407,12 @@ export default async function handler(req, res) {
             if (user.status === 'trial') {
               const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at)) / (1000 * 60 * 60 * 24));
               if ((7 - diffDays) < 0) {
-                return res.status(403).json({ status: 'error', error: 'Seu período de teste de 7 dias expirou. Assine um plano para continuar usando o FireCheck.' });
+                return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu período de teste de 7 dias expirou. Assine um plano para continuar usando o FireCheck.' });
               }
             }
             if (user.status === 'active' && user.expiration_date) {
               if (new Date(user.expiration_date) < new Date()) {
-                return res.status(403).json({ status: 'error', error: 'Seu plano expirou. Renove sua assinatura para continuar usando o sistema.' });
+                return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu plano expirou. Renove sua assinatura para continuar usando o sistema.' });
               }
             }
           }

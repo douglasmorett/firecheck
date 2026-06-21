@@ -51,7 +51,12 @@ export default function Login() {
           navigate('/admin');
         }
       } else {
-        setErrorMsg(data.error || 'Erro ao fazer login.');
+        // Se o plano expirou e o usuário é admin, redireciona para a tela de renovação
+        if (data.plan_expired) {
+          navigate(`/renovar?email=${encodeURIComponent(email)}`);
+        } else {
+          setErrorMsg(data.error || 'Erro ao fazer login.');
+        }
       }
     } catch {
       setErrorMsg('Erro ao conectar com o servidor.');

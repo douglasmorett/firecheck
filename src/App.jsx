@@ -11,6 +11,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import QuizFunnel from './pages/QuizFunnel';
 import TermsOfUse from './pages/TermsOfUse';
 import PontoPage from './pages/PontoPage';
+import RenewPlan from './pages/RenewPlan';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         
         {/* Tela de Login do Sistema */}
         <Route path="/login" element={<Login />} />
+        <Route path="/renovar" element={<RenewPlan />} />
         
         {/* Painel do Dono */}
         <Route path="/admin" element={<AdminDashboard />} />

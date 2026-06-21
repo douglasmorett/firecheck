@@ -1313,7 +1313,7 @@ export default function LandingPage() {
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
               R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>1000 checklists/mês</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>1.500 checklists/mês</div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Funcionários ilimitados</li>
@@ -1330,7 +1330,7 @@ export default function LandingPage() {
 
         {/* Plano Custom abaixo */}
         <div className="card" style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Precisa de mais de 1000 checklists?</h3>
+          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Precisa de mais de 1.500 checklists?</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
             Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
           </p>
