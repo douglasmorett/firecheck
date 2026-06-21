@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -94,6 +94,42 @@ export default function ChecklistCreator() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAIGenerating, setIsAIGenerating] = useState(false);
   const [aiSteps, setAiSteps] = useState('');
+
+  // States for Copy Checklist Modal
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [availableChecklists, setAvailableChecklists] = useState([]);
+  const [isLoadingChecklists, setIsLoadingChecklists] = useState(false);
+  const [copySearch, setCopySearch] = useState('');
+
+  const openCopyModal = async () => {
+    setShowCopyModal(true);
+    setCopySearch('');
+    setIsLoadingChecklists(true);
+    try {
+      const res = await fetch(`${API_URL}/api/checklists`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      handle401(res, navigate);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // Exclui o próprio checklist sendo editado da lista
+        setAvailableChecklists(data.filter(c => String(c.id) !== String(id)));
+      }
+    } catch (e) {
+      console.error('Erro ao buscar checklists:', e);
+    } finally {
+      setIsLoadingChecklists(false);
+    }
+  };
+
+  const handleCopyChecklist = (source) => {
+    const copiedTasks = (source.tasks || []).map((t, i) => ({
+      ...t,
+      id: Date.now() + i,
+    }));
+    setTasks(copiedTasks);
+    setShowCopyModal(false);
+  };
 
   const handleGenerateAI = async () => {
     if (!aiPrompt.trim()) {
@@ -404,11 +440,21 @@ export default function ChecklistCreator() {
 
         {/* Painel Direito */}
         <div style={{ flex: '2', minWidth: '350px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <h3>Tarefas ({tasks.length})</h3>
-            <button className="btn btn-secondary" onClick={addTask} style={{ padding: '8px 16px' }}>
-              <Plus size={16} /> Adicionar Tarefa
-            </button>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <button
+                className="btn-secondary"
+                onClick={openCopyModal}
+                style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', borderColor: 'var(--primary)', color: 'var(--primary)', fontWeight: '600' }}
+                title="Copiar tarefas de outro checklist existente"
+              >
+                <Copy size={16} /> Copiar de outro Checklist
+              </button>
+              <button className="btn btn-secondary" onClick={addTask} style={{ padding: '8px 16px' }}>
+                <Plus size={16} /> Adicionar Tarefa
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -539,6 +585,99 @@ export default function ChecklistCreator() {
           </div>
         </div>
       </div>
+
+      {/* Modal de Copiar Checklist */}
+      {showCopyModal && (
+        <div className="modal-overlay animate-fade">
+          <div className="modal-content" style={{ maxWidth: '560px', width: '90%', padding: '32px', position: 'relative', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+            <button
+              className="btn-secondary"
+              style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px', borderRadius: '50%', background: 'transparent', border: 'none' }}
+              onClick={() => setShowCopyModal(false)}
+            >
+              <X size={20} color="var(--text-muted)" />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
+              <div style={{ backgroundColor: 'rgba(255, 69, 0, 0.12)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <ClipboardList size={24} color="var(--primary)" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.3rem', fontWeight: 'bold', marginBottom: '4px' }}>Copiar de outro Checklist</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', lineHeight: '1.4' }}>
+                  Selecione um checklist existente para copiar todas as suas tarefas para este novo checklist.
+                </p>
+              </div>
+            </div>
+
+            {/* Aviso de substituição */}
+            {tasks.length > 0 && (
+              <div style={{ backgroundColor: 'rgba(255, 165, 0, 0.1)', border: '1px solid rgba(255, 165, 0, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '0.82rem', color: 'var(--warning)', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                ⚠️ As {tasks.length} tarefa{tasks.length > 1 ? 's' : ''} atuais serão substituídas pelas do checklist selecionado.
+              </div>
+            )}
+
+            {/* Campo de busca */}
+            <input
+              type="text"
+              className="input-field"
+              placeholder="🔍 Buscar checklist..."
+              value={copySearch}
+              onChange={e => setCopySearch(e.target.value)}
+              style={{ marginBottom: '12px' }}
+              autoFocus
+            />
+
+            {/* Lista de checklists */}
+            <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', paddingRight: '4px' }}>
+              {isLoadingChecklists ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                  <div style={{ width: '32px', height: '32px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 12px auto' }} />
+                  Carregando checklists...
+                </div>
+              ) : availableChecklists.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                  <ClipboardList size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
+                  <p>Nenhum checklist encontrado.</p>
+                  <p style={{ fontSize: '0.82rem' }}>Crie e salve outro checklist primeiro.</p>
+                </div>
+              ) : (
+                availableChecklists
+                  .filter(c => c.title?.toLowerCase().includes(copySearch.toLowerCase()))
+                  .map(cl => (
+                    <button
+                      key={cl.id}
+                      onClick={() => handleCopyChecklist(cl)}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '10px',
+                        border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)',
+                        cursor: 'pointer', transition: 'all 0.15s', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(255,69,0,0.05)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.backgroundColor = 'var(--bg-color)'; }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: '600', color: 'var(--text-main)', fontSize: '0.95rem', marginBottom: '4px' }}>{cl.title}</div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>
+                          <span>🏪 {cl.store || 'Sem loja'}</span>
+                          <span>📋 {(cl.tasks || []).length} tarefa{(cl.tasks || []).length !== 1 ? 's' : ''}</span>
+                          {cl.recurrence && <span>🔄 {cl.recurrence === 'daily' ? 'Diário' : cl.recurrence === 'weekly' ? 'Semanal' : cl.recurrence === 'weekdays' ? 'Dias alternados' : cl.recurrence}</span>}
+                        </div>
+                      </div>
+                      <Copy size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginLeft: '12px' }} />
+                    </button>
+                  ))
+              )}
+              {!isLoadingChecklists && availableChecklists.length > 0 &&
+                availableChecklists.filter(c => c.title?.toLowerCase().includes(copySearch.toLowerCase())).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '0.88rem' }}>
+                    Nenhum resultado para "{copySearch}"
+                  </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Criação por IA */}
       {showAIModal && (
