@@ -226,6 +226,11 @@ export default async function handler(req, res) {
       await pool.query("UPDATE users SET checklist_limit = 999999 WHERE plan IN ('enterprise') OR role = 'master'");
       // Setar quota_reset_date para quem não tem
       await pool.query("UPDATE users SET quota_reset_date = NOW() + INTERVAL '30 days' WHERE quota_reset_date IS NULL AND role = 'admin'");
+      // ── Integração Bill SaaS ──
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_user_id TEXT");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_token TEXT");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_name TEXT");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_plan TEXT");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -1081,6 +1086,181 @@ export default async function handler(req, res) {
         } catch (error) {
           console.error('Erro ao gerar checklist com IA:', error);
           return res.status(500).json({ error: 'Falha na geração com IA' });
+        }
+      }
+    }
+
+    // ── Transcrição de Áudio via Gemini (STT) ──────────────────────
+    if (url.includes('/api/transcribe-audio')) {
+      if (method === 'POST') {
+        const { audio, mimeType } = req.body;
+        if (!audio) return res.status(400).json({ error: 'Nenhum áudio enviado' });
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          const result = await model.generateContent([
+            {
+              inlineData: {
+                mimeType: mimeType || 'audio/webm',
+                data: audio,
+              },
+            },
+            { text: 'Transcreva exatamente o que foi dito neste áudio em português brasileiro. Retorne APENAS o texto transcrito, sem explicações, sem aspas, sem formatação. Se não houver fala, retorne uma string vazia.' },
+          ]);
+
+          const response = await result.response;
+          const text = (response.text() || '').trim();
+          console.log(`🎤 STT FireCheck: "${text.substring(0, 80)}..."`);
+          return res.status(200).json({ text });
+        } catch (error) {
+          console.error('Erro na transcrição de áudio:', error);
+          return res.status(500).json({ error: 'Falha na transcrição do áudio' });
+        }
+      }
+    }
+
+    // ── Geração de Checklist com IA v2 (Conversacional) ────────────
+    if (url.includes('/api/generate-checklist-ai-v2')) {
+      if (method === 'POST') {
+        const { description, conversation = [] } = req.body;
+        if (!description && conversation.length === 0) {
+          return res.status(400).json({ error: 'Descrição ou conversa obrigatória' });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          // Monta o histórico de conversa para contexto
+          const conversationContext = conversation.length > 0
+            ? '\n\nHistórico da conversa até agora:\n' + conversation.map(m => `${m.role === 'user' ? 'Usuário' : 'Bill'}: ${m.content}`).join('\n')
+            : '';
+
+          const aiPrompt = `Você é o Bill, um assistente de IA especialista em criar checklists operacionais para negócios.
+
+O dono de um negócio descreveu o seguinte processo que quer transformar em checklist:
+"${description}"
+${conversationContext}
+
+REGRAS IMPORTANTES:
+1. Analise se a descrição tem informações SUFICIENTES para criar um checklist completo e profissional.
+2. Se FALTAR informação importante (como quantidades específicas, horários, produtos, responsáveis, frequência), faça de 2 a 4 perguntas objetivas para complementar. Neste caso, responda com o JSON: {"needsMoreInfo": true, "message": "sua mensagem amigável", "questions": ["pergunta1", "pergunta2"]}
+3. Se tiver informação SUFICIENTE, crie o checklist completo. Neste caso, responda com o JSON:
+{"needsMoreInfo": false, "title": "título curto", "tasks": [{"text": "descrição clara", "type": "boolean|check|rating|numeric|multiple|text", "requirePhoto": boolean, "timeLimit": "HH:MM ou vazio", "options": ["só para type multiple"]}]}
+4. Gere entre 4 e 12 tarefas relevantes na ORDEM LÓGICA de execução.
+5. Pelo menos 2 tarefas devem exigir foto (requirePhoto: true) para auditoria.
+6. Use tipos variados: boolean para sim/não, check para tarefas simples, rating para qualidade, numeric para contagem, multiple para opções específicas.
+7. Seja amigável e profissional nas perguntas. Fale como um consultor experiente.
+8. Ao fazer perguntas, explique brevemente por que precisa dessa informação.
+
+Responda APENAS com JSON válido, sem markdown, sem blocos de código.`;
+
+          const result = await model.generateContent(aiPrompt);
+          const response = await result.response;
+          const text = response.text().trim();
+
+          // Tenta extrair JSON da resposta
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro ao gerar checklist v2 com IA:', error);
+          return res.status(500).json({ error: 'Falha na geração com IA' });
+        }
+      }
+    }
+
+    // ── Integração com Bill SaaS ───────────────────────────────────
+    if (url.includes('/api/bill/link')) {
+      if (method === 'POST') {
+        const user = authenticateToken(req);
+        if (!user) return res.status(401).json({ error: 'Não autenticado' });
+
+        const { email, password } = req.body;
+        if (!email || !password) return res.status(400).json({ error: 'Email e senha obrigatórios' });
+
+        try {
+          // Tenta autenticar no Bill SaaS
+          const billRes = await fetch('https://backend-grupohakim.vercel.app/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+          });
+
+          if (!billRes.ok) {
+            const errData = await billRes.json().catch(() => ({}));
+            return res.status(401).json({ error: errData.error || 'Credenciais do Bill inválidas' });
+          }
+
+          const billData = await billRes.json();
+          const billUser = billData.user || {};
+          const billToken = billData.token;
+
+          // Salva a vinculação no banco
+          await pool.query(
+            `UPDATE users SET bill_user_id = $1, bill_token = $2, bill_name = $3, bill_plan = $4 WHERE id = $5`,
+            [billUser.id || email, billToken, billUser.name || email, billUser.plan || 'starter', user.id]
+          );
+
+          return res.status(200).json({
+            linked: true,
+            billUser: { name: billUser.name || email, plan: billUser.plan || 'starter' }
+          });
+        } catch (error) {
+          console.error('Erro ao vincular Bill:', error);
+          return res.status(500).json({ error: 'Falha ao conectar com o Bill. Verifique sua conexão.' });
+        }
+      }
+    }
+
+    if (url.includes('/api/bill/unlink')) {
+      if (method === 'POST') {
+        const user = authenticateToken(req);
+        if (!user) return res.status(401).json({ error: 'Não autenticado' });
+
+        try {
+          await pool.query(
+            `UPDATE users SET bill_user_id = NULL, bill_token = NULL, bill_name = NULL, bill_plan = NULL WHERE id = $1`,
+            [user.id]
+          );
+          return res.status(200).json({ unlinked: true });
+        } catch (error) {
+          console.error('Erro ao desvincular Bill:', error);
+          return res.status(500).json({ error: 'Falha ao desvincular' });
+        }
+      }
+    }
+
+    if (url.includes('/api/bill/status')) {
+      if (method === 'GET') {
+        const user = authenticateToken(req);
+        if (!user) return res.status(401).json({ error: 'Não autenticado' });
+
+        try {
+          const result = await pool.query(
+            `SELECT bill_user_id, bill_name, bill_plan FROM users WHERE id = $1`,
+            [user.id]
+          );
+          const row = result.rows[0];
+          if (row && row.bill_user_id) {
+            return res.status(200).json({
+              linked: true,
+              billUser: { name: row.bill_name, plan: row.bill_plan }
+            });
+          }
+          return res.status(200).json({ linked: false });
+        } catch (error) {
+          console.error('Erro ao checar status Bill:', error);
+          return res.status(200).json({ linked: false });
         }
       }
     }

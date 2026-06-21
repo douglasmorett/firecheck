@@ -152,6 +152,14 @@ export default function AdminDashboard() {
   const [quizOnline, setQuizOnline] = useState(0);
   const [quizVideoPlays, setQuizVideoPlays] = useState(0);
   
+  // -- Bill Integration --
+  const [billLinked, setBillLinked] = useState(false);
+  const [billUser, setBillUser] = useState(null);
+  const [billEmail, setBillEmail] = useState('');
+  const [billPassword, setBillPassword] = useState('');
+  const [billLoading, setBillLoading] = useState(false);
+  const [billError, setBillError] = useState('');
+  
   const [pontoExportPeriod, setPontoExportPeriod] = useState('mes_atual');
   const [pontoCustomDates, setPontoCustomDates] = useState({ start: '', end: '' });
   const [pontoRecords, setPontoRecords] = useState([]);
@@ -291,6 +299,25 @@ export default function AdminDashboard() {
 
     return () => clearInterval(globalRefresh);
   }, [dateFilter]);
+
+  // Verificar status do Bill ao montar
+  useEffect(() => {
+    const checkBillStatus = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/bill/status`, { headers: getAuthHeaders() });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.linked) {
+            setBillLinked(true);
+            setBillUser({ name: data.name || 'Usuário Bill', plan: data.plan || 'Padrão' });
+          }
+        }
+      } catch (err) {
+        // silently fail — user just hasn't linked yet
+      }
+    };
+    checkBillStatus();
+  }, []);
 
   // Atualiza registros de ponto quando o mês muda
   useEffect(() => {
@@ -847,6 +874,50 @@ export default function AdminDashboard() {
     addToast('Compra registrada com sucesso!', 'success');
   };
 
+  // -- Bill Handlers --
+  const handleBillLink = async (e) => {
+    e.preventDefault();
+    setBillLoading(true);
+    setBillError('');
+    try {
+      const res = await fetch(`${API_URL}/api/bill/link`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ email: billEmail, password: billPassword })
+      });
+      handle401(res);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao conectar com o Bill');
+      setBillLinked(true);
+      setBillUser({ name: data.name || 'Usuário Bill', plan: data.plan || 'Padrão' });
+      setBillEmail('');
+      setBillPassword('');
+    } catch (err) {
+      setBillError(err.message);
+    } finally {
+      setBillLoading(false);
+    }
+  };
+
+  const handleBillUnlink = async () => {
+    if (!window.confirm('Tem certeza que deseja desvincular sua conta do Bill?')) return;
+    setBillLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/bill/unlink`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+      handle401(res);
+      if (!res.ok) throw new Error('Erro ao desvincular');
+      setBillLinked(false);
+      setBillUser(null);
+    } catch (err) {
+      setBillError(err.message);
+    } finally {
+      setBillLoading(false);
+    }
+  };
+
   const handleSendFinanceChat = async () => {
     if (!financeChatInput.trim()) return;
     const newMsg = { role: 'user', content: financeChatInput };
@@ -984,6 +1055,7 @@ export default function AdminDashboard() {
             (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
             { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
             { key: 'checklists',  label: 'Checklists', icon: <ClipboardList size={18}/> },
+            { key: 'bill',        label: 'Conectar com Bill', icon: <Bot size={18}/> },
             { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
           ].filter(Boolean)).map(t => {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
@@ -2249,6 +2321,155 @@ export default function AdminDashboard() {
               </div>
             )})}
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Conectar com o Bill ───────────────────────────────────── */}
+      {tab === 'bill' && (
+        <div style={{ maxWidth: '600px', margin: '0 auto', width: '100%' }}>
+          {billLinked ? (
+            /* ── MODO CONECTADO ── */
+            <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+              <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', padding: '32px 24px', textAlign: 'center' }}>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', backdropFilter: 'blur(8px)' }}>
+                  <Bot size={32} color="white" />
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '8px 20px', borderRadius: '20px', fontSize: '0.95rem', fontWeight: '600', color: 'white', backdropFilter: 'blur(8px)' }}>
+                  ✅ Conectado ao Bill
+                </div>
+              </div>
+              <div style={{ padding: '32px 24px', textAlign: 'center' }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem' }}>{billUser?.name}</h3>
+                <p style={{ margin: '0 0 24px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                  Plano: <strong style={{ color: '#06b6d4' }}>{billUser?.plan}</strong>
+                </p>
+                <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6' }}>
+                    Sua conta FireCheck está integrada com o Bill. Os dados de checklists, financeiro e ranking são sincronizados automaticamente.
+                  </p>
+                </div>
+                <button
+                  onClick={handleBillUnlink}
+                  disabled={billLoading}
+                  style={{
+                    padding: '10px 24px', borderRadius: '8px', border: '1px solid rgba(255,23,68,0.3)',
+                    backgroundColor: 'rgba(255,23,68,0.08)', color: 'var(--error)', cursor: 'pointer',
+                    fontWeight: '600', fontSize: '0.9rem', transition: 'all 0.2s',
+                    opacity: billLoading ? 0.6 : 1
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,23,68,0.15)'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.backgroundColor = 'rgba(255,23,68,0.08)'; }}
+                >
+                  {billLoading ? 'Desvinculando...' : 'Desvincular conta'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── MODO NÃO CONECTADO ── */
+            <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+              {/* Hero */}
+              <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 50%, #164e63 100%)', padding: '48px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}></div>
+                <div style={{ position: 'absolute', bottom: '-40px', left: '-20px', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }}></div>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
+                  <Bot size={40} color="white" />
+                </div>
+                <h2 style={{ margin: '0 0 8px 0', fontSize: '1.6rem', color: 'white', fontWeight: '700' }}>Conectar com o Bill</h2>
+                <p style={{ margin: 0, color: 'rgba(255,255,255,0.75)', fontSize: '0.95rem', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto', lineHeight: '1.5' }}>
+                  O Bill é a IA dos participantes do projeto Empresa Inteligente, por <strong style={{ color: 'white' }}>@douglasmorett</strong>
+                </p>
+              </div>
+
+              {/* Benefícios */}
+              <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)' }}>
+                <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a integração faz:</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  {[
+                    { icon: <ClipboardList size={18} color="#06b6d4" />, text: 'Checklists sincronizados' },
+                    { icon: <DollarSign size={18} color="#06b6d4" />, text: 'Financeiro integrado' },
+                    { icon: <Trophy size={18} color="#06b6d4" />, text: 'Ranking unificado' },
+                    { icon: <UserCheck size={18} color="#06b6d4" />, text: 'Controle de ponto' },
+                  ].map((item, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'rgba(6, 182, 212, 0.06)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(6, 182, 212, 0.1)' }}>
+                      {item.icon}
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: '500' }}>{item.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Formulário */}
+              <form onSubmit={handleBillLink} style={{ padding: '24px' }}>
+                {billError && (
+                  <div style={{ backgroundColor: 'rgba(255,23,68,0.08)', border: '1px solid rgba(255,23,68,0.25)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={18} color="var(--error)" />
+                    <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>{billError}</span>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-main)', marginBottom: '6px' }}>E-mail do Bill</label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="email" required placeholder="seu@email.com" value={billEmail}
+                      onChange={(e) => { setBillEmail(e.target.value); setBillError(''); }}
+                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                      onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-main)', marginBottom: '6px' }}>Senha do Bill</label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={18} color="var(--text-muted)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
+                    <input
+                      type="password" required placeholder="Sua senha do Bill" value={billPassword}
+                      onChange={(e) => { setBillPassword(e.target.value); setBillError(''); }}
+                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                      onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit" disabled={billLoading}
+                  style={{
+                    width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
+                    background: billLoading ? '#6b7280' : 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                    color: 'white', fontSize: '1rem', fontWeight: '700', cursor: billLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.3s', boxShadow: billLoading ? 'none' : '0 4px 16px rgba(6,182,212,0.35)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                  }}
+                  onMouseOver={(e) => { if (!billLoading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(6,182,212,0.45)'; } }}
+                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(6,182,212,0.35)'; }}
+                >
+                  {billLoading ? (
+                    <><span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }}></span> Conectando...</>
+                  ) : (
+                    <><Bot size={20} /> Conectar minha conta</>
+                  )}
+                </button>
+              </form>
+
+              {/* Rodapé — não tem Bill? */}
+              <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-color)', textAlign: 'center', backgroundColor: 'rgba(6, 182, 212, 0.03)' }}>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                  Não tem o Bill?{' '}
+                  <a href="https://instagram.com/douglasmorett" target="_blank" rel="noopener noreferrer"
+                    style={{ color: '#06b6d4', fontWeight: '600', textDecoration: 'none' }}
+                    onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                    onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
+                  >
+                    Fale com @douglasmorett no Instagram
+                  </a>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

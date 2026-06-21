@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList, Mic, MicOff, Send, MessageCircle, ArrowRight, CheckCircle, RefreshCw } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -89,8 +89,9 @@ export default function ChecklistCreator() {
   const [team, setTeam] = useState([]);
   const [weekdays, setWeekdays] = useState([]);
 
-  // States for AI Generator
+  // States for AI Generator (Multi-step)
   const [showAIModal, setShowAIModal] = useState(false);
+  const [aiMode, setAiMode] = useState('choose'); // choose | text | audio | transcription | chat
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAIGenerating, setIsAIGenerating] = useState(false);
   const [aiSteps, setAiSteps] = useState('');
@@ -131,56 +132,171 @@ export default function ChecklistCreator() {
     setShowCopyModal(false);
   };
 
+  // Audio recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcription, setTranscription] = useState('');
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const timerRef = useRef(null);
+  const streamRef = useRef(null);
+
+  // Conversational AI states
+  const [aiConversation, setAiConversation] = useState([]);
+  const [aiChatInput, setAiChatInput] = useState('');
+  const chatEndRef = useRef(null);
+
+  // Scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [aiConversation]);
+
+  // Cleanup recording on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (streamRef.current) streamRef.current.getTracks().forEach(t => t.stop());
+    };
+  }, []);
+
+  const formatRecordingTime = (seconds) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const recorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm' });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = handleRecordingStop;
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setIsRecording(true);
+      setRecordingTime(0);
+      timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+    } catch (err) {
+      alert('❌ Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+      console.error('Mic error:', err);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    setIsRecording(false);
+  };
+
+  const handleRecordingStop = async () => {
+    const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+    setIsTranscribing(true);
+    setAiMode('transcription');
+
+    try {
+      // Convert to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+      });
+      const audioBase64 = await base64Promise;
+
+      const res = await fetch(`${API_URL}/api/transcribe-audio`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ audio: audioBase64, mimeType: 'audio/webm' }),
+      });
+      const data = await res.json();
+      setTranscription(data.text || '');
+      if (!data.text) alert('⚠️ Não foi possível identificar fala no áudio. Tente novamente.');
+    } catch (err) {
+      console.error('Transcription error:', err);
+      alert('❌ Erro na transcrição. Tente novamente.');
+      setAiMode('audio');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const handleSendToAI = async (inputText, existingConversation = []) => {
+    if (!inputText?.trim()) return;
+
+    const description = existingConversation.length === 0 ? inputText : existingConversation[0]?.content || inputText;
+    const newConv = [...existingConversation, { role: 'user', content: inputText }];
+    setAiConversation(newConv);
+    setAiMode('chat');
+    setIsAIGenerating(true);
+    setAiChatInput('');
+
+    try {
+      const res = await fetch(`${API_URL}/api/generate-checklist-ai-v2`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ description, conversation: newConv }),
+      });
+      const data = await res.json();
+
+      if (data.needsMoreInfo) {
+        // Bill needs more info — show questions
+        let billMessage = data.message || 'Preciso de mais alguns detalhes para montar o melhor checklist possível:';
+        if (data.questions?.length > 0) {
+          billMessage += '\n\n' + data.questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
+        }
+        setAiConversation(prev => [...prev, { role: 'bill', content: billMessage }]);
+      } else if (data.title && data.tasks?.length > 0) {
+        // Got the checklist!
+        setAiConversation(prev => [...prev, { role: 'bill', content: `✅ Checklist "${data.title}" criado com ${data.tasks.length} tarefas! Aplicando no formulário...` }]);
+        setTimeout(() => {
+          setTitle(data.title);
+          setTasks(data.tasks.map((t, i) => ({
+            id: Date.now() + i,
+            text: t.text || t,
+            type: t.type || 'boolean',
+            requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
+            timeLimit: t.timeLimit || '',
+            notifyDelay: true,
+            options: t.options || [],
+            assignee: '',
+          })));
+          setShowAIModal(false);
+          resetAIModal();
+        }, 1500);
+      } else {
+        setAiConversation(prev => [...prev, { role: 'bill', content: '⚠️ Não consegui gerar o checklist. Tente descrever com mais detalhes.' }]);
+      }
+    } catch (err) {
+      console.error('AI v2 error:', err);
+      setAiConversation(prev => [...prev, { role: 'bill', content: '❌ Erro ao conectar com a IA. Tente novamente.' }]);
+    } finally {
+      setIsAIGenerating(false);
+    }
+  };
+
+  // Legacy handler for text-only mode (uses old endpoint as fallback)
   const handleGenerateAI = async () => {
     if (!aiPrompt.trim()) {
       alert("⚠️ Descreva qual processo deseja auditar.");
       return;
     }
-    setIsAIGenerating(true);
-    setAiSteps("Analisando processo...");
+    handleSendToAI(aiPrompt, []);
+  };
 
-    try {
-      const res = await fetch(`${API_URL}/api/generate-checklist-ai`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ prompt: aiPrompt })
-      });
-
-      setAiSteps("Criando parâmetros de auditoria visual...");
-
-      const data = await res.json();
-
-      if (data.title && data.tasks && data.tasks.length > 0) {
-        setTitle(data.title);
-        setTasks(data.tasks.map((t, i) => ({
-          id: Date.now() + i,
-          text: t.text || t,
-          type: t.type || 'boolean',
-          requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
-          timeLimit: t.timeLimit || '',
-          notifyDelay: true,
-          options: t.options || [],
-          assignee: ''
-        })));
-      } else {
-        // Fallback caso a IA retorne formato inesperado
-        setTitle(`Auditoria: ${aiPrompt.charAt(0).toUpperCase() + aiPrompt.slice(1)}`);
-        setTasks([
-          { id: Date.now(), text: `Verificar organização de ${aiPrompt}`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
-          { id: Date.now()+1, text: `Evidência em foto do serviço concluído`, type: 'boolean', requirePhoto: true, timeLimit: '', notifyDelay: true, options: [], assignee: '' },
-          { id: Date.now()+2, text: `Avaliação do padrão (1 a 5)`, type: 'rating', requirePhoto: false, timeLimit: '', notifyDelay: false, options: [], assignee: '' },
-          { id: Date.now()+3, text: `Houve alguma avaria detectada?`, type: 'multiple', requirePhoto: false, timeLimit: '', notifyDelay: false, options: ['Não', 'Sim, equipamento quebrado', 'Sim, estrutura danificada'], assignee: '' }
-        ]);
-      }
-    } catch (error) {
-      console.error('Erro ao gerar checklist com IA:', error);
-      alert('❌ Erro ao conectar com a IA. Tente novamente.');
-    } finally {
-      setIsAIGenerating(false);
-      setShowAIModal(false);
-      setAiPrompt('');
-      setAiSteps('');
-    }
+  const resetAIModal = () => {
+    setAiMode('choose');
+    setAiPrompt('');
+    setTranscription('');
+    setAiConversation([]);
+    setAiChatInput('');
+    setRecordingTime(0);
+    setIsAIGenerating(false);
+    setAiSteps('');
   };
 
   useEffect(() => {
@@ -679,55 +795,230 @@ export default function ChecklistCreator() {
         </div>
       )}
 
-      {/* Modal de Criação por IA */}
+      {/* Modal de Criação por IA — Multi-step com Áudio */}
       {showAIModal && (
         <div className="modal-overlay animate-fade">
-          <div className="modal-content" style={{ maxWidth: '500px', width: '90%', padding: '32px', textAlign: 'center', position: 'relative' }}>
-            <button 
-              className="btn-secondary" 
-              style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px', borderRadius: '50%', background: 'transparent', border: 'none' }}
-              onClick={() => !isAIGenerating && setShowAIModal(false)}
-              disabled={isAIGenerating}
+          <div className="modal-content" style={{ maxWidth: '560px', width: '92%', padding: '32px', textAlign: 'center', position: 'relative', maxHeight: '85vh', overflowY: 'auto' }}>
+            {/* Botão fechar */}
+            <button
+              style={{ position: 'absolute', top: '16px', right: '16px', padding: '8px', borderRadius: '50%', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              onClick={() => { if (!isAIGenerating && !isRecording && !isTranscribing) { setShowAIModal(false); resetAIModal(); } }}
+              disabled={isAIGenerating || isRecording || isTranscribing}
             >
               <X size={20} color="var(--text-muted)" />
             </button>
 
-            <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: '#06b6d4', boxShadow: '0 0 20px rgba(6, 182, 212, 0.2)' }}>
-              <Bot size={32} />
+            {/* Step indicators */}
+            <div className="ai-steps-indicator">
+              {['choose', 'input', 'transcription', 'chat'].map((step, i) => {
+                const steps = aiMode === 'choose' ? 0 : aiMode === 'text' || aiMode === 'audio' ? 1 : aiMode === 'transcription' ? 2 : 3;
+                return <div key={step} className={`ai-step-dot ${i < steps ? 'done' : i === steps ? 'active' : ''}`} />;
+              })}
             </div>
 
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '12px', fontWeight: 'bold' }}>Criação Automática</h2>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.5' }}>
-              Descreva o processo que você deseja auditar e o Google Gemini vai montar o checklist completo para você, já com travas antifraude.
-            </p>
+            {/* ═══ STEP: Choose Mode ═══ */}
+            {aiMode === 'choose' && (
+              <>
+                <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: '#06b6d4', boxShadow: '0 0 20px rgba(6, 182, 212, 0.2)' }}>
+                  <Bot size={32} />
+                </div>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', fontWeight: 'bold' }}>Criação com IA</h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.5' }}>
+                  Como você prefere descrever o processo?
+                </p>
+                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <button className="ai-mode-card" onClick={() => setAiMode('audio')}>
+                    <Mic size={36} color="var(--primary)" style={{ marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '600', fontSize: '1.05rem', marginBottom: '6px' }}>🎤 Explicar por Áudio</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: '1.4' }}>Grave sua voz explicando o processo. A IA transcreve e monta o checklist.</div>
+                  </button>
+                  <button className="ai-mode-card" onClick={() => setAiMode('text')}>
+                    <MessageCircle size={36} color="#06b6d4" style={{ marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '600', fontSize: '1.05rem', marginBottom: '6px' }}>📝 Descrever por Texto</div>
+                    <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', lineHeight: '1.4' }}>Digite a descrição do processo que quer auditar.</div>
+                  </button>
+                </div>
+              </>
+            )}
 
-            <textarea 
-              id="ai-prompt-input"
-              className="input-field" 
-              style={{ minHeight: '120px', resize: 'none', marginBottom: '24px', textAlign: 'left', lineHeight: '1.5' }}
-              placeholder="Ex: Quero um checklist para o fechamento do caixa da minha hamburgueria. Preciso que o operador tire foto do dinheiro e da maquininha de cartão."
-              value={aiPrompt}
-              onChange={e => setAiPrompt(e.target.value)}
-              disabled={isAIGenerating}
-            />
+            {/* ═══ STEP: Text Input ═══ */}
+            {aiMode === 'text' && (
+              <>
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', fontWeight: 'bold' }}>📝 Descreva o Processo</h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '0.9rem' }}>
+                  Quanto mais detalhes, melhor o checklist. O Bill pode fazer perguntas se precisar.
+                </p>
+                <textarea
+                  id="ai-prompt-input"
+                  className="ai-transcription-area"
+                  style={{ marginBottom: '20px' }}
+                  placeholder="Ex: Quero um checklist para o fechamento do caixa. O operador precisa contar o dinheiro, conferir a maquininha, tirar foto do caixa..."
+                  value={aiPrompt}
+                  onChange={e => setAiPrompt(e.target.value)}
+                  disabled={isAIGenerating}
+                />
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <button className="btn-secondary" style={{ flex: 1, padding: '14px' }} onClick={() => { setAiMode('choose'); setAiPrompt(''); }}>
+                    <ArrowLeft size={16} /> Voltar
+                  </button>
+                  <button
+                    className="btn btn-pulse"
+                    style={{ flex: 2, padding: '14px', backgroundColor: '#06b6d4', opacity: isAIGenerating ? 0.7 : 1 }}
+                    onClick={handleGenerateAI}
+                    disabled={isAIGenerating || !aiPrompt.trim()}
+                  >
+                    {isAIGenerating ? (
+                      <><div style={{ width: '18px', height: '18px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }} /> Gerando...</>
+                    ) : (
+                      <><Sparkles size={18} /> Gerar Checklist</>
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
 
-            <button 
-              className="btn btn-pulse" 
-              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#06b6d4', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', opacity: isAIGenerating ? 0.7 : 1 }}
-              onClick={handleGenerateAI}
-              disabled={isAIGenerating}
-            >
-              {isAIGenerating ? (
-                <>
-                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--text-main)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-                  {aiSteps}
-                </>
-              ) : (
-                <>
-                  <Sparkles size={20} /> Criar Checklist Mágico
-                </>
-              )}
-            </button>
+            {/* ═══ STEP: Audio Recording ═══ */}
+            {aiMode === 'audio' && (
+              <>
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', fontWeight: 'bold' }}>
+                  {isRecording ? '🔴 Gravando...' : '🎤 Gravar Áudio'}
+                </h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '28px', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                  {isRecording
+                    ? 'Explique detalhadamente o processo. Fale sobre tarefas, quantidades, horários e tudo que for importante.'
+                    : 'Clique no microfone e explique o processo que quer transformar em checklist.'}
+                </p>
+
+                {/* Timer */}
+                <div className="ai-timer" style={{ marginBottom: '16px' }}>
+                  {formatRecordingTime(recordingTime)}
+                </div>
+
+                {/* Waveform */}
+                {isRecording && (
+                  <div className="ai-waveform">
+                    {Array.from({ length: 9 }).map((_, i) => <span key={i} />)}
+                  </div>
+                )}
+
+                {/* Mic button */}
+                <div style={{ margin: '24px 0' }}>
+                  <button
+                    className={`ai-mic-btn ${isRecording ? 'recording' : ''}`}
+                    onClick={isRecording ? stopRecording : startRecording}
+                  >
+                    {isRecording ? <MicOff size={40} /> : <Mic size={40} />}
+                  </button>
+                </div>
+
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '20px' }}>
+                  {isRecording ? 'Clique para parar a gravação' : 'Clique para começar a gravar'}
+                </p>
+
+                <button className="btn-secondary" style={{ padding: '10px 24px' }} onClick={() => { if (!isRecording) { setAiMode('choose'); setRecordingTime(0); } }}>
+                  <ArrowLeft size={16} /> Voltar
+                </button>
+              </>
+            )}
+
+            {/* ═══ STEP: Transcription Review ═══ */}
+            {aiMode === 'transcription' && (
+              <>
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', fontWeight: 'bold' }}>
+                  {isTranscribing ? '🤖 Transcrevendo...' : '📝 Confira a Transcrição'}
+                </h2>
+
+                {isTranscribing ? (
+                  <div style={{ padding: '48px 0' }}>
+                    <div style={{ width: '48px', height: '48px', border: '4px solid rgba(6,182,212,0.2)', borderTopColor: '#06b6d4', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>O Bill está ouvindo seu áudio...</p>
+                  </div>
+                ) : (
+                  <>
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>
+                      Revise o texto e corrija se necessário. Depois, envie para a IA gerar o checklist.
+                    </p>
+                    <textarea
+                      className="ai-transcription-area"
+                      style={{ marginBottom: '20px' }}
+                      value={transcription}
+                      onChange={e => setTranscription(e.target.value)}
+                      placeholder="Texto transcrito do áudio..."
+                    />
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      <button className="btn-secondary" style={{ flex: 1, padding: '12px', minWidth: '120px' }} onClick={() => { setAiMode('audio'); setTranscription(''); setRecordingTime(0); }}>
+                        <RefreshCw size={16} /> Regravar
+                      </button>
+                      <button
+                        className="btn btn-pulse"
+                        style={{ flex: 2, padding: '12px', backgroundColor: '#06b6d4', minWidth: '160px' }}
+                        onClick={() => handleSendToAI(transcription, [])}
+                        disabled={!transcription.trim() || isAIGenerating}
+                      >
+                        <Sparkles size={18} /> Gerar Checklist
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {/* ═══ STEP: Chat with Bill ═══ */}
+            {aiMode === 'chat' && (
+              <>
+                <h2 style={{ fontSize: '1.3rem', marginBottom: '8px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <Bot size={22} color="#06b6d4" /> Conversa com o Bill
+                </h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '16px', fontSize: '0.85rem' }}>
+                  O Bill está analisando e pode pedir mais detalhes para criar o checklist perfeito.
+                </p>
+
+                {/* Chat messages */}
+                <div className="ai-chat-container">
+                  {aiConversation.map((msg, i) => (
+                    <div key={i} className={`ai-chat-bubble ${msg.role === 'bill' ? 'bill' : 'user'}`}>
+                      {msg.role === 'bill' && <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>}
+                      {msg.content.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
+                    </div>
+                  ))}
+                  {isAIGenerating && (
+                    <div className="ai-chat-bubble bill">
+                      <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite' }} />
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.2s' }} />
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.4s' }} />
+                        <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Analisando...</span>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                {/* Reply input */}
+                {!isAIGenerating && aiConversation.length > 0 && aiConversation[aiConversation.length - 1].role === 'bill' && (
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <input
+                      type="text"
+                      className="input-field"
+                      style={{ flex: 1 }}
+                      placeholder="Responda ao Bill..."
+                      value={aiChatInput}
+                      onChange={e => setAiChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && aiChatInput.trim()) handleSendToAI(aiChatInput, aiConversation); }}
+                    />
+                    <button
+                      className="btn"
+                      style={{ padding: '12px 16px', backgroundColor: '#06b6d4' }}
+                      onClick={() => aiChatInput.trim() && handleSendToAI(aiChatInput, aiConversation)}
+                      disabled={!aiChatInput.trim()}
+                    >
+                      <Send size={18} />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       )}
