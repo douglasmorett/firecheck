@@ -81,12 +81,20 @@ function getPlanLimit(plan) {
   return PLAN_LIMITS[(plan || 'starter').toLowerCase()] || 300;
 }
 
+function getAiCreationLimit(plan) {
+  const p = (plan || 'starter').toLowerCase();
+  if (p.includes('pro') || p === 'mensal') return 100;
+  if (p.includes('business') || p === 'anual') return 250;
+  if (p === 'enterprise' || p === 'master' || p === 'trial') return 999999;
+  return 50; // default/starter (mais barato)
+}
+
 // ── Função de Reset de Cota ─────────────────────────────────────
 async function checkAndResetQuota(pool, userId, quotaResetDate) {
   if (quotaResetDate && new Date(quotaResetDate) < new Date()) {
     const nextReset = new Date();
     nextReset.setDate(nextReset.getDate() + 30);
-    await pool.query('UPDATE users SET checklists_used = 0, quota_reset_date = $1 WHERE id = $2', [nextReset, userId]);
+    await pool.query('UPDATE users SET checklists_used = 0, ai_creations_used = 0, quota_reset_date = $1 WHERE id = $2', [nextReset, userId]);
     return true;
   }
   return false;
@@ -220,6 +228,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklist_limit INTEGER DEFAULT 300");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_reset_date TIMESTAMP");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_creations_used INTEGER DEFAULT 0");
       // Migrar planos existentes para os limites corretos
       await pool.query("UPDATE users SET checklist_limit = 600 WHERE plan IN ('mensal', 'pro', 'pro_mensal') AND checklist_limit = 300");
       await pool.query("UPDATE users SET checklist_limit = 1500 WHERE plan IN ('anual', 'business', 'business_mensal') AND checklist_limit = 300");
@@ -819,7 +828,7 @@ export default async function handler(req, res) {
       const store = searchParams.get('store');
       if (!store) return res.status(400).json({ error: 'Store obrigatória' });
       const { rows: admins } = await pool.query(
-        "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+        "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, ai_creations_used FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
         [store]
       );
       if (admins.length === 0) return res.status(404).json({ error: 'Loja não encontrada' });
@@ -830,6 +839,10 @@ export default async function handler(req, res) {
       const limit = admin.checklist_limit || getPlanLimit(admin.plan);
       const remaining = Math.max(0, limit - used);
       const resetDate = wasReset ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0] : (admin.quota_reset_date ? new Date(admin.quota_reset_date).toISOString().split('T')[0] : null);
+      
+      const aiLimit = getAiCreationLimit(admin.plan);
+      const aiUsed = wasReset ? 0 : (admin.ai_creations_used || 0);
+
       return res.status(200).json({
         limit: limit >= 999999 ? 'ilimitado' : limit,
         used,
@@ -837,7 +850,10 @@ export default async function handler(req, res) {
         resetDate,
         percentUsed: limit >= 999999 ? 0 : Math.round((used / limit) * 100),
         plan: admin.plan,
-        isUnlimited: limit >= 999999 || admin.status === 'trial'
+        isUnlimited: limit >= 999999 || admin.status === 'trial',
+        aiLimit: aiLimit >= 999999 ? 'ilimitado' : aiLimit,
+        aiUsed,
+        aiRemaining: aiLimit >= 999999 ? 'ilimitado' : Math.max(0, aiLimit - aiUsed)
       });
     }
 
@@ -1096,6 +1112,26 @@ export default async function handler(req, res) {
         const { audio, mimeType } = req.body;
         if (!audio) return res.status(400).json({ error: 'Nenhum áudio enviado' });
 
+        const authUser = authenticateToken(req);
+        if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
+
+        const { rows: admins } = await pool.query(
+          "SELECT id, quota_reset_date, plan, ai_creations_used FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          [authUser.store]
+        );
+        const admin = admins[0];
+        if (admin) {
+          const wasReset = await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
+          const used = wasReset ? 0 : (admin.ai_creations_used || 0);
+          const limit = getAiCreationLimit(admin.plan);
+          if (used >= limit) {
+            return res.status(403).json({
+              quota_exceeded: true,
+              error: `Sua empresa atingiu o limite de ${limit} criações de checklist por IA este mês. Faça upgrade do plano para continuar.`
+            });
+          }
+        }
+
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
 
@@ -1130,6 +1166,26 @@ export default async function handler(req, res) {
         const { description, conversation = [] } = req.body;
         if (!description && conversation.length === 0) {
           return res.status(400).json({ error: 'Descrição ou conversa obrigatória' });
+        }
+
+        const authUser = authenticateToken(req);
+        if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
+
+        const { rows: admins } = await pool.query(
+          "SELECT id, quota_reset_date, plan, ai_creations_used FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          [authUser.store]
+        );
+        const admin = admins[0];
+        if (!admin) return res.status(404).json({ error: 'Administrador da loja não encontrado' });
+
+        const wasReset = await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
+        const used = wasReset ? 0 : (admin.ai_creations_used || 0);
+        const limit = getAiCreationLimit(admin.plan);
+        if (used >= limit) {
+          return res.status(403).json({
+            quota_exceeded: true,
+            error: `Sua empresa atingiu o limite de ${limit} criações de checklist por IA este mês. Faça upgrade do plano para continuar.`
+          });
         }
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -1170,6 +1226,10 @@ Responda APENAS com JSON válido, sem markdown, sem blocos de código.`;
           // Tenta extrair JSON da resposta
           const jsonMatch = text.match(/\{[\s\S]*\}/);
           const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+          if (parsed && !parsed.needsMoreInfo && parsed.title && parsed.tasks?.length > 0) {
+            await pool.query('UPDATE users SET ai_creations_used = COALESCE(ai_creations_used, 0) + 1 WHERE id = $1', [admin.id]);
+          }
 
           return res.status(200).json(parsed);
         } catch (error) {
