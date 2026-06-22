@@ -210,7 +210,14 @@ export default function ChecklistCreator() {
       });
       const data = await res.json();
       if (res.status === 403 || data.quota_exceeded) {
-        alert(`⚠️ ${data.error || 'Limite de criação por IA atingido.'}`);
+        setAiConversation(prev => [
+          ...prev,
+          {
+            role: 'bill',
+            type: 'upgrade_offer',
+            content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+          }
+        ]);
         return;
       }
       if (data.text) {
@@ -245,7 +252,14 @@ export default function ChecklistCreator() {
       const data = await res.json();
 
       if (res.status === 403 || data.quota_exceeded) {
-        setAiConversation(prev => [...prev, { role: 'bill', content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}` }]);
+        setAiConversation(prev => [
+          ...prev,
+          {
+            role: 'bill',
+            type: 'upgrade_offer',
+            content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+          }
+        ]);
         return;
       }
 
@@ -831,6 +845,56 @@ export default function ChecklistCreator() {
                 <div key={i} className={`ai-chat-bubble ${msg.role === 'bill' ? 'bill' : 'user'}`}>
                   {msg.role === 'bill' && <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>}
                   {msg.content.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
+
+                  {msg.type === 'upgrade_offer' && (
+                    <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {(!userPlan || userPlan === 'starter' || userPlan === 'start') && (
+                        <button
+                          className="btn"
+                          style={{
+                            padding: '12px', fontSize: '0.85rem', width: '100%',
+                            background: 'linear-gradient(135deg, var(--primary), #FF6622)',
+                            color: 'white', border: 'none', borderRadius: '8px',
+                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(255, 77, 0, 0.2)'
+                          }}
+                          onClick={() => {
+                            const profile = JSON.parse(localStorage.getItem('user') || '{}');
+                            window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
+                          }}
+                        >
+                          Upgrade Pro — R$97/mês (100 criações por IA)
+                        </button>
+                      )}
+                      {(userPlan === 'pro' || userPlan === 'mensal' || userPlan === 'starter' || userPlan === 'start') && (
+                        <button
+                          className="btn"
+                          style={{
+                            padding: '12px', fontSize: '0.85rem', width: '100%',
+                            background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                            color: 'white', border: 'none', borderRadius: '8px',
+                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(6, 182, 212, 0.2)'
+                          }}
+                          onClick={() => {
+                            const profile = JSON.parse(localStorage.getItem('user') || '{}');
+                            window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
+                          }}
+                        >
+                          Upgrade Business — R$197/mês (250 criações por IA)
+                        </button>
+                      )}
+                      <button
+                        className="btn-secondary"
+                        style={{
+                          padding: '12px', fontSize: '0.85rem', width: '100%',
+                          border: '1px solid var(--border-color)', borderRadius: '8px',
+                          cursor: 'pointer', color: 'var(--text-main)', backgroundColor: 'var(--bg-card)'
+                        }}
+                        onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}
+                      >
+                        💬 Falar no WhatsApp (Plano Custom)
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
 
