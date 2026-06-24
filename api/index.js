@@ -550,11 +550,36 @@ export default async function handler(req, res) {
           }
         }
       }
-      const store = searchParams.get('store');
-      const { rows: checklists } = await pool.query('SELECT * FROM checklists' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY id DESC', store ? [store] : []);
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+      if (!store && authUser.role !== 'master') {
+        return res.status(200).json([]);
+      }
+
       const today = new Date().toISOString().split('T')[0];
-      const { rows: todaySubs } = await pool.query('SELECT checklist_id, employee_name FROM checklist_submissions WHERE store = $1 AND created_at >= $2', [store, today + ' 00:00:00']);
-      const { rows: everSubs } = await pool.query('SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE store = $1 GROUP BY checklist_id', [store]);
+
+      let checklistsQuery = 'SELECT * FROM checklists';
+      let checklistsParams = [];
+      let todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE created_at >= $1';
+      let todaySubsParams = [today + ' 00:00:00'];
+      let everSubsQuery = 'SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions GROUP BY checklist_id';
+      let everSubsParams = [];
+
+      if (store) {
+        checklistsQuery += ' WHERE LOWER(store) = LOWER($1)';
+        checklistsParams.push(store);
+        
+        todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE LOWER(store) = LOWER($1) AND created_at >= $2';
+        todaySubsParams = [store, today + ' 00:00:00'];
+        
+        everSubsQuery = 'SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE LOWER(store) = LOWER($1) GROUP BY checklist_id';
+        everSubsParams = [store];
+      }
+
+      checklistsQuery += ' ORDER BY id DESC';
+
+      const { rows: checklists } = await pool.query(checklistsQuery, checklistsParams);
+      const { rows: todaySubs } = await pool.query(todaySubsQuery, todaySubsParams);
+      const { rows: everSubs } = await pool.query(everSubsQuery, everSubsParams);
 
       const dayMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
       const todayWeekday = dayMap[new Date().getDay()];
