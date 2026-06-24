@@ -281,7 +281,7 @@ export default function ChecklistCreator() {
   const handleSendToAI = async (inputText, existingConversation = []) => {
     if (!inputText?.trim()) return;
 
-    const description = existingConversation.length === 0 ? inputText : existingConversation[0]?.content || inputText;
+    const description = inputText;
     const newConv = [...existingConversation, { role: 'user', content: inputText }];
     setAiConversation(newConv);
     setIsAIGenerating(true);
