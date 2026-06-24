@@ -256,17 +256,23 @@ export default function ChecklistCreator() {
       } else if (data.title && data.tasks?.length > 0) {
         setAiConversation(prev => [...prev, { role: 'bill', content: `✅ Checklist "${data.title}" criado com ${data.tasks.length} tarefas! Aplicando no formulário...` }]);
         setTimeout(() => {
-          setTitle(data.title);
-          setTasks(data.tasks.map((t, i) => ({
-            id: Date.now() + i,
-            text: t.text || t,
-            type: t.type || 'boolean',
-            requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
-            timeLimit: t.timeLimit || '',
-            notifyDelay: true,
-            options: t.options || [],
-            assignee: '',
-          })));
+          if (!title) {
+            setTitle(data.title);
+          }
+          setTasks(prevTasks => {
+            const isEmpty = prevTasks.length === 1 && prevTasks[0].text.trim() === '';
+            const newTasks = data.tasks.map((t, i) => ({
+              id: Date.now() + i,
+              text: t.text || t,
+              type: t.type || 'boolean',
+              requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
+              timeLimit: t.timeLimit || '',
+              notifyDelay: true,
+              options: t.options || [],
+              assignee: '',
+            }));
+            return isEmpty ? newTasks : [...prevTasks, ...newTasks];
+          });
           setShowAIModal(false);
           resetAIModal();
         }, 1500);
@@ -324,17 +330,23 @@ export default function ChecklistCreator() {
       } else if (data.title && data.tasks?.length > 0) {
         setAiConversation(prev => [...prev, { role: 'bill', content: `✅ Checklist "${data.title}" criado com ${data.tasks.length} tarefas! Aplicando no formulário...` }]);
         setTimeout(() => {
-          setTitle(data.title);
-          setTasks(data.tasks.map((t, i) => ({
-            id: Date.now() + i,
-            text: t.text || t,
-            type: t.type || 'boolean',
-            requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
-            timeLimit: t.timeLimit || '',
-            notifyDelay: true,
-            options: t.options || [],
-            assignee: '',
-          })));
+          if (!title) {
+            setTitle(data.title);
+          }
+          setTasks(prevTasks => {
+            const isEmpty = prevTasks.length === 1 && prevTasks[0].text.trim() === '';
+            const newTasks = data.tasks.map((t, i) => ({
+              id: Date.now() + i,
+              text: t.text || t,
+              type: t.type || 'boolean',
+              requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
+              timeLimit: t.timeLimit || '',
+              notifyDelay: true,
+              options: t.options || [],
+              assignee: '',
+            }));
+            return isEmpty ? newTasks : [...prevTasks, ...newTasks];
+          });
           setShowAIModal(false);
           resetAIModal();
         }, 1500);
