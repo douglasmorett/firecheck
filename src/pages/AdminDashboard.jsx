@@ -678,6 +678,33 @@ export default function AdminDashboard() {
     } catch (e) { alert('Erro ao remover.'); }
   };
 
+  const handleDeleteChecklist = async (clId, title) => {
+    const confirmation = prompt(`Tem certeza de que deseja excluir o checklist "${title}"?\nEsta ação é irreversível.\n\nPara confirmar, digite EXCLUIR no campo abaixo:`);
+    if (confirmation !== 'EXCLUIR') {
+      if (confirmation !== null) {
+        addToast('Confirmação incorreta. O checklist não foi excluído.', 'error');
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/api/checklists/${clId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        addToast('Checklist excluído com sucesso!', 'success');
+        setChecklists(prev => prev.filter(c => c.id !== clId));
+      } else {
+        const err = await res.json();
+        addToast(`Erro ao excluir checklist: ${err.error || 'Erro desconhecido'}`, 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Erro de conexão ao tentar excluir o checklist.', 'error');
+    }
+  };
+
   const isMaster = userProfile?.role === 'master' || 
                    userProfile?.email?.toLowerCase() === 'douglas@firecheck.com' || 
                    userProfile?.email?.toLowerCase() === 'contatohakim@gmail.com';
@@ -2184,6 +2211,10 @@ export default function AdminDashboard() {
                             onClick={() => navigate(`/admin/creator/${cl.id}`)}>
                             <Edit2 size={15} /> Editar
                           </button>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }}
+                            onClick={() => handleDeleteChecklist(cl.id, cl.title)}>
+                            <Trash2 size={15} /> Excluir
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -2215,6 +2246,10 @@ export default function AdminDashboard() {
                           <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={() => navigate(`/admin/creator/${cl.id}`)}>
                             <Edit2 size={15} /> Editar
+                          </button>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }}
+                            onClick={() => handleDeleteChecklist(cl.id, cl.title)}>
+                            <Trash2 size={15} /> Excluir
                           </button>
                         </div>
                       </div>

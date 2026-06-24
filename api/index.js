@@ -526,27 +526,69 @@ export default async function handler(req, res) {
     if (url.includes('/api/checklists')) {
       const authUser = authenticateToken(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+
+      // Verificar se é uma operação em um checklist específico (ex: DELETE /api/checklists/:id)
+      const match = url.match(/\/api\/checklists\/([^\/?]+)/);
+      if (match) {
+        const checklistId = match[1];
+        if (method === 'DELETE') {
+          if (authUser.role !== 'master') {
+            const { rows: target } = await pool.query('SELECT store FROM checklists WHERE id = $1', [checklistId]);
+            if (target.length > 0 && String(target[0].store).toLowerCase() !== String(authUser.store).toLowerCase()) {
+              return res.status(403).json({ error: 'Você só pode remover checklists da sua própria loja.' });
+            }
+          }
+          await pool.query('DELETE FROM checklists WHERE id = $1', [checklistId]);
+          return res.status(200).json({ success: true });
+        }
+        return res.status(405).json({ error: 'Método não permitido.' });
+      }
+
       if (method === 'POST') {
-        const { title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays } = req.body;
-        try {
-          const { rows } = await pool.query(
-            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null]
-          );
-          return res.status(200).json(rows[0]);
-        } catch (dbErr) {
+        const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays } = req.body;
+        if (id) {
           try {
             const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+              'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7 WHERE id = $8 RETURNING *',
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, id]
             );
             return res.status(200).json(rows[0]);
-          } catch (err2) {
+          } catch (dbErr) {
+            try {
+              const { rows } = await pool.query(
+                'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5 WHERE id = $6 RETURNING *',
+                [title, store, JSON.stringify(tasks), recurrence, scheduledDate, id]
+              );
+              return res.status(200).json(rows[0]);
+            } catch (err2) {
+              const { rows } = await pool.query(
+                'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4 WHERE id = $5 RETURNING *',
+                [title, store, JSON.stringify(tasks), recurrence, id]
+              );
+              return res.status(200).json(rows[0]);
+            }
+          }
+        } else {
+          try {
             const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *',
-              [title, store, JSON.stringify(tasks), recurrence]
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null]
             );
             return res.status(200).json(rows[0]);
+          } catch (dbErr) {
+            try {
+              const { rows } = await pool.query(
+                'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
+              );
+              return res.status(200).json(rows[0]);
+            } catch (err2) {
+              const { rows } = await pool.query(
+                'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *',
+                [title, store, JSON.stringify(tasks), recurrence]
+              );
+              return res.status(200).json(rows[0]);
+            }
           }
         }
       }

@@ -401,9 +401,10 @@ export default function ChecklistCreator() {
             setTitle(cl.title);
             setStore(cl.store);
             setRecurrence(cl.recurrence);
-            setScheduledDate(cl.scheduledDate);
+            setScheduledDate(cl.scheduled_date || cl.scheduledDate || '');
             setRequireSelfie(cl.require_selfie || false);
             setTasks(cl.tasks);
+            setWeekdays(cl.weekdays || []);
           }
         });
     }
