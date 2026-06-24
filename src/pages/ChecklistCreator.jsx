@@ -203,12 +203,20 @@ export default function ChecklistCreator() {
       });
       const audioBase64 = await base64Promise;
 
-      const res = await fetch(`${API_URL}/api/transcribe-audio`, {
+      // Adiciona mensagem do usuário mostrando que enviou áudio
+      const newConv = [...aiConversation, { role: 'user', content: '🎤 [Áudio enviado]' }];
+      setAiConversation(newConv);
+      setIsTranscribing(false);
+      setIsAIGenerating(true);
+
+      // Envia áudio direto para o Gemini que escuta + entende + responde
+      const res = await fetch(`${API_URL}/api/generate-checklist-ai-audio`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ audio: audioBase64, mimeType: 'audio/webm' }),
+        body: JSON.stringify({ audio: audioBase64, mimeType: 'audio/webm', conversation: newConv }),
       });
       const data = await res.json();
+
       if (res.status === 403 || data.quota_exceeded) {
         setAiConversation(prev => [
           ...prev,
@@ -218,19 +226,55 @@ export default function ChecklistCreator() {
             content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
           }
         ]);
+        setIsAIGenerating(false);
         return;
       }
-      if (data.text) {
-        // Coloca a transcrição no campo de texto para o usuário conferir antes de enviar
-        setAiChatInput(prev => prev ? prev + ' ' + data.text : data.text);
+
+      // Mostra a transcrição do que o Bill entendeu
+      if (data.transcription) {
+        setAiConversation(prev => {
+          // Substitui o "[Áudio enviado]" pela transcrição real
+          const updated = [...prev];
+          const audioMsgIdx = updated.findLastIndex(m => m.role === 'user' && m.content === '🎤 [Áudio enviado]');
+          if (audioMsgIdx !== -1) {
+            updated[audioMsgIdx] = { role: 'user', content: `🎤 "${data.transcription}"` };
+          }
+          return updated;
+        });
+      }
+
+      if (data.needsMoreInfo) {
+        let billMessage = data.message || 'Preciso de mais alguns detalhes para montar o melhor checklist possível:';
+        if (data.questions?.length > 0) {
+          billMessage += '\n\n' + data.questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
+        }
+        setAiConversation(prev => [...prev, { role: 'bill', content: billMessage }]);
+      } else if (data.title && data.tasks?.length > 0) {
+        setAiConversation(prev => [...prev, { role: 'bill', content: `✅ Checklist "${data.title}" criado com ${data.tasks.length} tarefas! Aplicando no formulário...` }]);
+        setTimeout(() => {
+          setTitle(data.title);
+          setTasks(data.tasks.map((t, i) => ({
+            id: Date.now() + i,
+            text: t.text || t,
+            type: t.type || 'boolean',
+            requirePhoto: t.requirePhoto !== undefined ? t.requirePhoto : false,
+            timeLimit: t.timeLimit || '',
+            notifyDelay: true,
+            options: t.options || [],
+            assignee: '',
+          })));
+          setShowAIModal(false);
+          resetAIModal();
+        }, 1500);
       } else {
-        alert('⚠️ Não foi possível identificar fala no áudio. Tente novamente.');
+        setAiConversation(prev => [...prev, { role: 'bill', content: '⚠️ Não consegui entender o áudio. Tente gravar novamente com mais detalhes, ou digite o que precisa.' }]);
       }
     } catch (err) {
-      console.error('Transcription error:', err);
-      alert('❌ Erro na transcrição. Tente novamente.');
+      console.error('Audio AI error:', err);
+      setAiConversation(prev => [...prev, { role: 'bill', content: '❌ Erro ao processar o áudio. Tente novamente.' }]);
     } finally {
       setIsTranscribing(false);
+      setIsAIGenerating(false);
     }
   };
 
@@ -815,7 +859,7 @@ export default function ChecklistCreator() {
                 <div>
                   <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>Bill IA</div>
                   <div style={{ fontSize: '0.75rem', color: isAIGenerating ? '#06b6d4' : 'var(--success)' }}>
-                    {isAIGenerating ? 'analisando...' : isTranscribing ? 'transcrevendo áudio...' : 'online'}
+                      {isAIGenerating ? 'escutando e analisando...' : isTranscribing ? 'processando áudio...' : 'online'}
                   </div>
                 </div>
               </div>
@@ -834,9 +878,9 @@ export default function ChecklistCreator() {
               {aiConversation.length === 0 && (
                 <div className="ai-chat-bubble bill">
                   <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>🤖 Bill</strong>
-                  <span>Olá! Eu sou o Bill, seu assistente para criar checklists.</span><br/>
-                  <span style={{ marginTop: '4px', display: 'inline-block' }}>Descreva o processo que você quer auditar — pode <strong>digitar</strong> ou <strong>gravar um áudio</strong> clicando no microfone. 🎤</span><br/>
-                  <span style={{ marginTop: '4px', display: 'inline-block', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Quanto mais detalhes, melhor o checklist. Se eu precisar de mais informações, vou te perguntar!</span>
+                  <span>Olá! Eu sou o Bill, seu consultor para criar checklists sob medida.</span><br/>
+                  <span style={{ marginTop: '4px', display: 'inline-block' }}>Me explique o processo que você quer transformar em checklist — pode <strong>gravar um áudio</strong> 🎤 ou <strong>digitar</strong>. Fale naturalmente, como se estivesse explicando para um colega!</span><br/>
+                  <span style={{ marginTop: '6px', display: 'inline-block', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Eu vou escutar com atenção, confirmar que entendi, e te fazer perguntas antes de montar o checklist perfeito. 💡</span>
                 </div>
               )}
 
@@ -906,7 +950,7 @@ export default function ChecklistCreator() {
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite' }} />
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.2s' }} />
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.4s' }} />
-                    <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Montando o checklist...</span>
+                    <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Escutando e analisando o que você disse...</span>
                   </div>
                 </div>
               )}

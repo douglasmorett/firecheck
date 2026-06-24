@@ -1200,22 +1200,74 @@ export default async function handler(req, res) {
             ? '\n\nHistórico da conversa até agora:\n' + conversation.map(m => `${m.role === 'user' ? 'Usuário' : 'Bill'}: ${m.content}`).join('\n')
             : '';
 
-          const aiPrompt = `Você é o Bill, um assistente de IA especialista em criar checklists operacionais para negócios.
+          const isFirstMessage = conversation.filter(m => m.role === 'user').length <= 1;
+          const userStoreName = authUser.store || 'não informada';
 
-O dono de um negócio descreveu o seguinte processo que quer transformar em checklist:
+          const aiPrompt = `Você é o Bill, um consultor operacional EXPERT em processos de negócios. Você ajuda donos de negócios a criar checklists operacionais perfeitos.
+
+A loja/empresa do usuário se chama: "${userStoreName}"
+
+O usuário descreveu o seguinte (muitas vezes por ÁUDIO, então a linguagem pode ser informal e coloquial):
 "${description}"
 ${conversationContext}
 
-REGRAS IMPORTANTES:
-1. Analise se a descrição tem informações SUFICIENTES para criar um checklist completo e profissional.
-2. Se FALTAR informação importante (como quantidades específicas, horários, produtos, responsáveis, frequência), faça de 2 a 4 perguntas objetivas para complementar. Neste caso, responda com o JSON: {"needsMoreInfo": true, "message": "sua mensagem amigável", "questions": ["pergunta1", "pergunta2"]}
-3. Se tiver informação SUFICIENTE, crie o checklist completo. Neste caso, responda com o JSON:
-{"needsMoreInfo": false, "title": "título curto", "tasks": [{"text": "descrição clara", "type": "boolean|check|rating|numeric|multiple|text", "requirePhoto": boolean, "timeLimit": "HH:MM ou vazio", "options": ["só para type multiple"]}]}
-4. Gere entre 4 e 12 tarefas relevantes na ORDEM LÓGICA de execução.
-5. Pelo menos 2 tarefas devem exigir foto (requirePhoto: true) para auditoria.
-6. Use tipos variados: boolean para sim/não, check para tarefas simples, rating para qualidade, numeric para contagem, multiple para opções específicas.
-7. Seja amigável e profissional nas perguntas. Fale como um consultor experiente.
-8. Ao fazer perguntas, explique brevemente por que precisa dessa informação.
+═══════════════════════════════════════════
+ REGRA #1 — ESCUTE COM ATENÇÃO TOTAL
+═══════════════════════════════════════════
+- CADA PALAVRA que o usuário disse importa. Preste atenção em TODOS os detalhes específicos.
+- Se ele mencionou "geladeira", use "geladeira" — NÃO transforme em "equipamento de refrigeração".
+- Se ele disse "antes de abrir", entenda que é um processo de ABERTURA.
+- Se ele mencionou produtos específicos (ex: "Coca-Cola, pão francês"), USE esses nomes exatos nas tarefas.
+- Se ele falou de horários, USE esses horários no timeLimit.
+- NUNCA invente detalhes que o usuário NÃO mencionou.
+- A linguagem pode ser informal (vinda de áudio) — interprete o SIGNIFICADO, não julgue a forma.
+
+═══════════════════════════════════════════
+ REGRA #2 — PRIMEIRA INTERAÇÃO = CONFIRME E PERGUNTE
+═══════════════════════════════════════════
+${isFirstMessage ? `Esta é a PRIMEIRA mensagem do usuário. Você DEVE:
+1. Primeiro, mostrar que ENTENDEU o que ele pediu — resuma em 2-3 tópicos curtos o que captou.
+2. Depois, faça de 2 a 4 perguntas RELEVANTES para completar o checklist.
+3. NÃO gere o checklist ainda. Responda com:
+   {"needsMoreInfo": true, "message": "sua mensagem mostrando que entendeu + perguntas", "questions": ["pergunta1", "pergunta2", ...]}
+
+Exemplo de boa resposta para primeira interação:
+"Entendi! Você precisa de um checklist para [resumo do que entendeu]. Vou montar algo bem completo pra você. Só preciso de mais alguns detalhes:"
+` : `Esta NÃO é a primeira mensagem — o usuário já respondeu perguntas anteriores.
+Agora analise se já tem informação SUFICIENTE para gerar o checklist.
+- Se AINDA faltam detalhes importantes, faça mais 1-2 perguntas focadas.
+- Se já tem informação suficiente, GERE o checklist completo.
+`}
+═══════════════════════════════════════════
+ REGRA #3 — PERGUNTAS INTELIGENTES E CONTEXTUAIS
+═══════════════════════════════════════════
+- Pergunte coisas que fazem sentido para O TIPO DE NEGÓCIO do usuário.
+- Se ele falou de padaria → pergunte sobre fornos, validade, higiene, balcão.
+- Se falou de loja de roupas → pergunte sobre vitrine, provador, caixa, estoque.
+- Se falou de restaurante → pergunte sobre cozinha, mesas, estoque, mise en place.
+- Se falou de mercado → pergunte sobre gôndolas, frios, validade, limpeza.
+- NÃO faça perguntas genéricas tipo "qual o nome do processo?" — isso já foi dito.
+- Explique BREVEMENTE por que cada pergunta é importante.
+
+═══════════════════════════════════════════
+ REGRA #4 — CHECKLIST DE QUALIDADE
+═══════════════════════════════════════════
+Quando gerar o checklist, siga estas regras:
+- Gere entre 5 e 15 tarefas na ORDEM LÓGICA de execução.
+- Use os TERMOS EXATOS que o usuário mencionou.
+- Pelo menos 2-3 tarefas com requirePhoto: true (para auditoria visual).
+- Use tipos variados: "boolean" (sim/não), "check" (feito), "rating" (1-5 estrelas), "numeric" (contagem), "multiple" (opções), "text" (texto livre), "itemlist" (lista de itens pra conferir).
+- Para tipo "multiple", inclua as opções no array "options".
+- Para tipo "itemlist", inclua os itens no array "options".
+- Se o usuário mencionou horários, use-os no campo timeLimit (formato "HH:MM").
+
+FORMATO DE RESPOSTA (JSON puro, sem markdown):
+
+Se precisar de mais informações:
+{"needsMoreInfo": true, "message": "sua mensagem amigável mostrando que entendeu", "questions": ["pergunta1", "pergunta2"]}
+
+Se pronto para gerar:
+{"needsMoreInfo": false, "title": "título curto e descritivo", "tasks": [{"text": "descrição clara usando termos do usuário", "type": "boolean|check|rating|numeric|multiple|text|itemlist", "requirePhoto": true/false, "timeLimit": "HH:MM ou vazio", "options": []}]}
 
 Responda APENAS com JSON válido, sem markdown, sem blocos de código.`;
 
@@ -1235,6 +1287,137 @@ Responda APENAS com JSON válido, sem markdown, sem blocos de código.`;
         } catch (error) {
           console.error('Erro ao gerar checklist v2 com IA:', error);
           return res.status(500).json({ error: 'Falha na geração com IA' });
+        }
+      }
+    }
+
+    // ── Geração de Checklist com IA via Áudio Direto ────────────
+    if (url.includes('/api/generate-checklist-ai-audio')) {
+      if (method === 'POST') {
+        const { audio, mimeType, conversation = [] } = req.body;
+        if (!audio) {
+          return res.status(400).json({ error: 'Nenhum áudio enviado' });
+        }
+
+        const authUser = authenticateToken(req);
+        if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
+
+        const { rows: admins } = await pool.query(
+          "SELECT id, quota_reset_date, plan, ai_creations_used FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          [authUser.store]
+        );
+        const admin = admins[0];
+        if (!admin) return res.status(404).json({ error: 'Administrador da loja não encontrado' });
+
+        const wasReset = await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
+        const used = wasReset ? 0 : (admin.ai_creations_used || 0);
+        const limit = getAiCreationLimit(admin.plan);
+        if (used >= limit) {
+          return res.status(403).json({
+            quota_exceeded: true,
+            error: `Sua empresa atingiu o limite de ${limit} criações de checklist por IA este mês. Faça upgrade do plano para continuar.`
+          });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+          const isFirstMessage = conversation.filter(m => m.role === 'user').length <= 1;
+          const userStoreName = authUser.store || 'não informada';
+
+          const conversationHistory = conversation.filter(m => m.content !== '🎤 [Áudio enviado]');
+          const conversationContext = conversationHistory.length > 0
+            ? '\n\nHistórico da conversa até agora:\n' + conversationHistory.map(m => `${m.role === 'user' ? 'Usuário' : 'Bill'}: ${m.content}`).join('\n')
+            : '';
+
+          const systemPrompt = `Você é o Bill, um consultor operacional EXPERT em processos de negócios. O usuário está explicando por ÁUDIO o que precisa — a linguagem é informal, coloquial, e pode ter repetições ou pausas.
+
+A loja/empresa do usuário se chama: "${userStoreName}"
+${conversationContext}
+
+═══════════════════════════════════════════
+ INSTRUÇÕES PARA ÁUDIO
+═══════════════════════════════════════════
+- Escute o áudio com ATENÇÃO TOTAL a cada detalhe.
+- Capture TODOS os termos específicos, nomes de produtos, horários, locais mencionados.
+- A linguagem é falada — interprete o SIGNIFICADO, ignore hesitações e repetições.
+- Inclua na sua resposta uma transcrição resumida do que entendeu (campo "transcription").
+
+═══════════════════════════════════════════
+ REGRA #1 — ESCUTE COM ATENÇÃO TOTAL
+═══════════════════════════════════════════
+- CADA PALAVRA importa. Se ele mencionou "geladeira", use "geladeira".
+- Se ele disse "antes de abrir", entenda que é ABERTURA.
+- Se mencionou produtos específicos, USE esses nomes exatos.
+- NUNCA invente detalhes que NÃO foram mencionados.
+
+═══════════════════════════════════════════
+ REGRA #2 — PRIMEIRA INTERAÇÃO = CONFIRME E PERGUNTE
+═══════════════════════════════════════════
+${isFirstMessage ? `Esta é a PRIMEIRA mensagem do usuário. Você DEVE:
+1. Primeiro, mostrar que ENTENDEU o que ele pediu — resuma em tópicos curtos.
+2. Depois, faça de 2 a 4 perguntas RELEVANTES ao tipo de negócio.
+3. NÃO gere o checklist ainda.
+4. Responda com:
+   {"needsMoreInfo": true, "transcription": "o que o usuário disse no áudio", "message": "mensagem mostrando que entendeu + perguntas", "questions": ["pergunta1", "pergunta2"]}` : `O usuário já respondeu perguntas anteriores. Analise se já tem informação suficiente.
+- Se faltam detalhes, faça mais 1-2 perguntas.
+- Se já tem, GERE o checklist completo.`}
+
+═══════════════════════════════════════════
+ REGRA #3 — PERGUNTAS CONTEXTUAIS
+═══════════════════════════════════════════
+- Pergunte coisas relevantes ao TIPO DE NEGÓCIO mencionado.
+- NÃO faça perguntas genéricas. Seja específico.
+- Explique brevemente por que cada pergunta importa.
+
+═══════════════════════════════════════════
+ REGRA #4 — CHECKLIST DE QUALIDADE
+═══════════════════════════════════════════
+Quando gerar:
+- 5 a 15 tarefas na ORDEM LÓGICA de execução.
+- Termos EXATOS do usuário.
+- 2-3 tarefas com requirePhoto: true.
+- Tipos variados: boolean, check, rating, numeric, multiple, text, itemlist.
+- Para multiple/itemlist, inclua opções no array "options".
+
+FORMATO (JSON puro, sem markdown):
+Se precisar mais info:
+{"needsMoreInfo": true, "transcription": "resumo do áudio", "message": "mensagem", "questions": ["p1", "p2"]}
+
+Se pronto:
+{"needsMoreInfo": false, "transcription": "resumo do áudio", "title": "título", "tasks": [{"text": "desc", "type": "boolean", "requirePhoto": false, "timeLimit": "", "options": []}]}
+
+Responda APENAS com JSON válido.`;
+
+          const result = await model.generateContent([
+            {
+              inlineData: {
+                mimeType: mimeType || 'audio/webm',
+                data: audio,
+              },
+            },
+            { text: systemPrompt },
+          ]);
+
+          const response = await result.response;
+          const text = response.text().trim();
+          console.log(`🎤🤖 Audio AI Checklist: "${text.substring(0, 120)}..."`);
+
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+
+          if (parsed && !parsed.needsMoreInfo && parsed.title && parsed.tasks?.length > 0) {
+            await pool.query('UPDATE users SET ai_creations_used = COALESCE(ai_creations_used, 0) + 1 WHERE id = $1', [admin.id]);
+          }
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro ao gerar checklist via áudio:', error);
+          return res.status(500).json({ error: 'Falha na geração com IA via áudio' });
         }
       }
     }
