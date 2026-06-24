@@ -583,9 +583,10 @@ export default async function handler(req, res) {
 
       const dayMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
       const todayWeekday = dayMap[new Date().getDay()];
+      const filterToday = searchParams.get('todayOnly') === 'true' || authUser.role === 'funcionario' || authUser.role === 'employee';
 
       return res.status(200).json(checklists.map(r => {
-        if (r.recurrence === 'weekdays') {
+        if (filterToday && r.recurrence === 'weekdays') {
           const dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
           if (dias.length > 0 && !dias.includes(todayWeekday)) return null;
         }
