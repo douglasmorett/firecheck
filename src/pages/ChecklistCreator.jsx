@@ -216,6 +216,10 @@ export default function ChecklistCreator() {
         body: JSON.stringify({ audio: audioBase64, mimeType: 'audio/webm', conversation: newConv }),
       });
       const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro no processamento do áudio');
+      }
 
       if (res.status === 403 || data.quota_exceeded) {
         setAiConversation(prev => [
@@ -271,7 +275,7 @@ export default function ChecklistCreator() {
       }
     } catch (err) {
       console.error('Audio AI error:', err);
-      setAiConversation(prev => [...prev, { role: 'bill', content: '❌ Erro ao processar o áudio. Tente novamente.' }]);
+      setAiConversation(prev => [...prev, { role: 'bill', content: `❌ Erro ao processar o áudio: ${err.message}` }]);
     } finally {
       setIsTranscribing(false);
       setIsAIGenerating(false);
@@ -294,6 +298,10 @@ export default function ChecklistCreator() {
         body: JSON.stringify({ description, conversation: newConv }),
       });
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro na criação do checklist');
+      }
 
       if (res.status === 403 || data.quota_exceeded) {
         setAiConversation(prev => [
@@ -335,7 +343,7 @@ export default function ChecklistCreator() {
       }
     } catch (err) {
       console.error('AI v2 error:', err);
-      setAiConversation(prev => [...prev, { role: 'bill', content: '❌ Erro ao conectar com a IA. Tente novamente.' }]);
+      setAiConversation(prev => [...prev, { role: 'bill', content: `❌ Erro ao conectar com a IA: ${err.message}` }]);
     } finally {
       setIsAIGenerating(false);
     }

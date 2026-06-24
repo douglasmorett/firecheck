@@ -42,6 +42,33 @@ setInterval(() => {
   }
 }, 300000);
 
+function cleanJsonString(str) {
+  let inString = false;
+  let result = '';
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '"' && (i === 0 || str[i - 1] !== '\\')) {
+      inString = !inString;
+      result += char;
+    } else if (inString) {
+      if (char === '\n') {
+        result += '\\n';
+      } else if (char === '\r') {
+        result += '\\r';
+      } else if (char === '\t') {
+        result += '\\t';
+      } else if (char.charCodeAt(0) < 32) {
+        // Ignora outros caracteres de controle inválidos
+      } else {
+        result += char;
+      }
+    } else {
+      result += char;
+    }
+  }
+  return result;
+}
+
 // ── Middleware de Autenticação JWT ──
 function authenticateToken(req) {
   const authHeader = req.headers['authorization'];
@@ -1277,9 +1304,11 @@ Responda APENAS com JSON válido.`;
           const response = await result.response;
           const text = response.text().trim();
 
-          // Tenta extrair JSON da resposta
+          // Tenta extrair JSON da resposta e higienizar caracteres de controle inválidos
           const jsonMatch = text.match(/\{[\s\S]*\}/);
-          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          const rawJson = jsonMatch ? jsonMatch[0] : text;
+          const cleanJson = cleanJsonString(rawJson);
+          const parsed = JSON.parse(cleanJson);
 
           if (parsed && !parsed.needsMoreInfo && parsed.title && parsed.tasks?.length > 0) {
             await pool.query('UPDATE users SET ai_creations_used = COALESCE(ai_creations_used, 0) + 1 WHERE id = $1', [admin.id]);
@@ -1418,7 +1447,9 @@ Responda APENAS com JSON válido.`;
           console.log(`🎤🤖 Audio AI Checklist: "${text.substring(0, 120)}..."`);
 
           const jsonMatch = text.match(/\{[\s\S]*\}/);
-          const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+          const rawJson = jsonMatch ? jsonMatch[0] : text;
+          const cleanJson = cleanJsonString(rawJson);
+          const parsed = JSON.parse(cleanJson);
 
           if (parsed && !parsed.needsMoreInfo && parsed.title && parsed.tasks?.length > 0) {
             await pool.query('UPDATE users SET ai_creations_used = COALESCE(ai_creations_used, 0) + 1 WHERE id = $1', [admin.id]);
