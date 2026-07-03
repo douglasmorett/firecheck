@@ -109,7 +109,7 @@ jobs:
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
-              ONLY_ACTIVE_ARCH=NO
+              ONLY_ACTIVE_ARCH=YES
           elif [ -d "App.xcodeproj" ]; then
             echo "Usando xcodeproj (sem workspace)..."
             xcodebuild build \
@@ -121,7 +121,7 @@ jobs:
               CODE_SIGNING_ALLOWED=NO \
               CODE_SIGNING_REQUIRED=NO \
               CODE_SIGN_IDENTITY="" \
-              ONLY_ACTIVE_ARCH=NO
+              ONLY_ACTIVE_ARCH=YES
           else
             echo "ERRO: Nem workspace nem xcodeproj encontrado!"
             ls -la
