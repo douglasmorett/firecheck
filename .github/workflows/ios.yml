@@ -36,20 +36,28 @@ jobs:
       - name: Add iOS Platform
         run: npx cap add ios
 
-      - name: Sync iOS
-        run: npx cap sync ios
+      - name: Sync Web Assets to iOS
+        run: npx cap copy ios
 
-      - name: List Available Simulators
-        run: xcrun simctl list devices available | grep iPhone | head -10
+      - name: Update iOS Plugins
+        run: npx cap update ios
+
+      - name: Run Pod Install
+        run: |
+          cd ios/App
+          echo "=== Podfile ==="
+          cat Podfile
+          echo ""
+          echo "=== Running pod install ==="
+          pod install --verbose
+          echo ""
+          echo "=== Verificando workspace ==="
+          ls -la *.xcworkspace/ || echo "ERRO: Workspace nao criado!"
+          ls -la
 
       - name: Build iOS App
         run: |
           cd ios/App
-          
-          # Listar schemes disponiveis
-          xcodebuild -workspace App.xcworkspace -list
-          
-          # Build sem destination especifico - apenas SDK do simulador
           xcodebuild build \
             -workspace App.xcworkspace \
             -scheme App \
@@ -63,11 +71,6 @@ jobs:
 
       - name: Package App
         run: |
-          # Listar todos os .app gerados
-          echo "=== Apps encontrados ==="
-          find ios/App/build -type d -name "*.app"
-          
-          # Pegar o primeiro .app (excluindo sub-bundles)
           APP=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
           
           if [ -z "$APP" ]; then
