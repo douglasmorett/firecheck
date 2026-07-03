@@ -64,8 +64,11 @@ jobs:
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
           # Decodificar certificado e provisioning profile
-          echo -n "$IOS_CERTIFICATE_BASE64" | base64 --decode -o $CERTIFICATE_PATH
-          echo -n "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode -o $PP_PATH
+          printf '%s' "$IOS_CERTIFICATE_BASE64" | base64 --decode > $CERTIFICATE_PATH
+          printf '%s' "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > $PP_PATH
+
+          echo "P12 size: $(wc -c < $CERTIFICATE_PATH) bytes"
+          echo "PP size: $(wc -c < $PP_PATH) bytes"
 
           # Criar keychain temporária
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -81,10 +84,16 @@ jobs:
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          # Extrair UUID do provisioning profile
-          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(/usr/bin/security cms -D -i $PP_PATH))
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
-          echo "✅ Certificado e Profile instalados (UUID: $PP_UUID)"
+          # Extrair UUID do provisioning profile usando grep (mais robusto)
+          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $PP_PATH | grep -o '[-A-Fa-f0-9]\{36\}')
+          if [ -z "$PP_UUID" ]; then
+            echo "⚠️ UUID nao extraido, copiando com nome fixo"
+            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
+          else
+            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
+            echo "✅ Profile instalado (UUID: $PP_UUID)"
+          fi
+          echo "✅ Certificado instalado"
 
       - name: Build Signed Archive
         run: |
