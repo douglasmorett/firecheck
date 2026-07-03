@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-14
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -29,82 +29,59 @@ jobs:
       - name: Setup CocoaPods
         run: |
           if ! command -v pod &> /dev/null; then
-            echo "Installing CocoaPods..."
             sudo gem install cocoapods
-          else
-            echo "CocoaPods already installed: $(pod --version)"
           fi
+          pod --version
 
       - name: Add iOS Platform
         run: npx cap add ios
 
-      - name: Sync iOS (includes pod install)
+      - name: Sync iOS
         run: npx cap sync ios
 
-      - name: Build iOS App (Simulator)
+      - name: List Available Simulators
+        run: xcrun simctl list devices available | grep iPhone | head -10
+
+      - name: Build iOS App
         run: |
           cd ios/App
+          
+          # Listar schemes disponiveis
+          xcodebuild -workspace App.xcworkspace -list
+          
+          # Build sem destination especifico - apenas SDK do simulador
           xcodebuild build \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Debug \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            ONLY_ACTIVE_ARCH=YES \
-            > /tmp/xcodebuild.log 2>&1 || true
-          echo "=== Ultimas 30 linhas do build ==="
-          tail -30 /tmp/xcodebuild.log
-          echo ""
-          # Verificar se o build realmente gerou o .app
-          if find build -type d -name "*.app" 2>/dev/null | grep -q ".app"; then
-            echo "✅ Build gerou .app com sucesso!"
-          else
-            echo "❌ Build nao gerou .app"
-            echo "=== Erros do build ==="
-            grep -i "error:" /tmp/xcodebuild.log | tail -10
-            exit 1
-          fi
+            ONLY_ACTIVE_ARCH=NO
 
-      - name: Find and Package App
+      - name: Package App
         run: |
-          # Caminho padrao do Xcode para simulador
-          PRODUCTS_DIR="ios/App/build/Build/Products/Debug-iphonesimulator"
+          # Listar todos os .app gerados
+          echo "=== Apps encontrados ==="
+          find ios/App/build -type d -name "*.app"
           
-          echo "=== Procurando .app ==="
-          find ios/App/build -type d -name "*.app" 2>/dev/null
-          echo ""
+          # Pegar o primeiro .app (excluindo sub-bundles)
+          APP=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
           
-          if [ -d "$PRODUCTS_DIR" ]; then
-            echo "✅ Products dir encontrado"
-            ls -la "$PRODUCTS_DIR"
-            APP=$(ls -d "$PRODUCTS_DIR"/*.app 2>/dev/null | head -1)
-          fi
-          
-          # Fallback: procurar em qualquer lugar
           if [ -z "$APP" ]; then
-            echo "Usando fallback..."
-            APP=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
-          fi
-          
-          if [ -n "$APP" ]; then
-            APP_NAME=$(basename "$APP")
-            APP_DIR=$(dirname "$APP")
-            echo "✅ App encontrado: $APP"
-            cd "$APP_DIR"
-            zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
-            echo "✅ Empacotado!"
-            ls -lh "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
-          else
-            echo "❌ Nenhum .app encontrado"
-            find ios/App/build -maxdepth 6 -type d 2>/dev/null | head -30
+            echo "ERRO: Nenhum .app encontrado"
+            find ios/App/build -maxdepth 5 -type d | head -20
             exit 1
           fi
+          
+          echo "Empacotando: $APP"
+          cd "$(dirname "$APP")"
+          zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$(basename "$APP")"
+          ls -lh "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
 
-      - name: Upload iOS Simulator App
+      - name: Upload App
         uses: actions/upload-artifact@v4
         with:
           name: FireCheck-iOS-Simulator
