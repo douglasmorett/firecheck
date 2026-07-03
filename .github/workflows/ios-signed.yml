@@ -1,17 +1,10 @@
 name: Build & Sign iOS IPA (App Store / TestFlight)
 
 # ──────────────────────────────────────────────
-#  Este workflow gera o IPA assinado para:
-#  - Instalar direto em iPhones
-#  - Publicar na App Store / TestFlight
-#
-#  REQUER configurar os seguintes Secrets no GitHub:
-#  (Settings → Secrets and variables → Actions)
-#
-#  IOS_CERTIFICATE_BASE64    → Certificado .p12 em base64
-#  IOS_CERTIFICATE_PASSWORD  → Senha do certificado
-#  IOS_PROVISION_PROFILE_BASE64 → Provisioning Profile em base64
-#  KEYCHAIN_PASSWORD         → Qualquer senha (ex: "temp123")
+#  Gera o IPA assinado para App Store / TestFlight
+#  Requer os Secrets configurados no GitHub:
+#  IOS_CERTIFICATE_BASE64, IOS_CERTIFICATE_PASSWORD,
+#  IOS_PROVISION_PROFILE_BASE64, KEYCHAIN_PASSWORD
 # ──────────────────────────────────────────────
 
 on:
@@ -24,6 +17,14 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
+      - name: Select Xcode 16
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s $(ls -d /Applications/Xcode*.app | tail -1)
+          xcodebuild -version
+
+      - name: Install iOS Platform
+        run: xcodebuild -downloadPlatform iOS
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -35,19 +36,21 @@ jobs:
       - name: Build Web Project
         run: npm run build
 
-      - name: Remove Incomplete iOS Project
-        run: rm -rf ios
-
-      - name: Add iOS Platform
-        run: npx cap add ios
-
-      - name: Sync iOS
-        run: npx cap sync ios
-
-      - name: Install CocoaPods Dependencies
+      - name: Setup CocoaPods
         run: |
-          cd ios/App
-          pod install
+          if ! command -v pod &> /dev/null; then
+            sudo gem install cocoapods
+          fi
+
+      - name: Prepare iOS Project
+        run: |
+          rm -rf ios
+          npx cap add ios
+          npx cap sync ios
+          # Garantir que o workspace existe
+          if [ ! -d "ios/App/App.xcworkspace" ]; then
+            cd ios/App && pod install
+          fi
 
       - name: Install Apple Certificate & Provisioning Profile
         env:
@@ -56,7 +59,6 @@ jobs:
           IOS_PROVISION_PROFILE_BASE64: ${{ secrets.IOS_PROVISION_PROFILE_BASE64 }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # Criar variáveis de caminho
           CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
@@ -79,9 +81,12 @@ jobs:
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+          # Extrair UUID do provisioning profile
+          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(/usr/bin/security cms -D -i $PP_PATH))
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
+          echo "✅ Certificado e Profile instalados (UUID: $PP_UUID)"
 
-      - name: Build Signed IPA
+      - name: Build Signed Archive
         run: |
           cd ios/App
           xcodebuild archive \
@@ -90,13 +95,13 @@ jobs:
             -configuration Release \
             -archivePath build/FireCheck.xcarchive \
             -destination 'generic/platform=iOS' \
-            | tail -30
+            CODE_SIGN_STYLE=Manual \
+            2>&1 | tail -40
 
       - name: Export IPA
         run: |
           cd ios/App
 
-          # Criar ExportOptions.plist
           cat > ExportOptions.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,8 +109,6 @@ jobs:
           <dict>
             <key>method</key>
             <string>app-store-connect</string>
-            <key>teamID</key>
-            <string>${{ secrets.APPLE_TEAM_ID }}</string>
             <key>uploadSymbols</key>
             <true/>
             <key>destination</key>
@@ -118,7 +121,7 @@ jobs:
             -archivePath build/FireCheck.xcarchive \
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist \
-            | tail -10
+            2>&1 | tail -20
 
       - name: Upload Signed IPA
         uses: actions/upload-artifact@v4
