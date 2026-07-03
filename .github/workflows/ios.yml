@@ -41,20 +41,10 @@ jobs:
       - name: Sync iOS (includes pod install)
         run: npx cap sync ios
 
-      - name: Verify Xcode Project
-        run: |
-          echo "=== iOS Project Structure ==="
-          ls -la ios/App/
-          echo ""
-          echo "=== Checking for workspace ==="
-          ls -la ios/App/*.xcworkspace || echo "No workspace found"
-          echo ""
-          echo "=== Checking Podfile ==="
-          cat ios/App/Podfile || echo "No Podfile"
-
       - name: Build iOS App (Simulator)
         run: |
           cd ios/App
+          set -o pipefail
           xcodebuild build \
             -workspace App.xcworkspace \
             -scheme App \
@@ -66,29 +56,54 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             ONLY_ACTIVE_ARCH=YES \
-            2>&1 | tail -40
+            2>&1 | tee /tmp/xcodebuild.log | tail -50
+          echo ""
+          echo "=== Build result: $? ==="
 
-      - name: Package Simulator App
+      - name: Find and Package App
         run: |
-          echo "=== Listando estrutura do build ==="
-          find ios/App/build -name "*.app" -type d 2>/dev/null || true
+          echo "=== Procurando .app no build ==="
+          # Listar TUDO recursivamente dentro do build
+          find ios/App/build -type d -name "*.app" 2>/dev/null
           echo ""
           
-          # Procurar qualquer .app (pode ser App.app, FireCheck.app, etc.)
-          APP_PATH=$(find ios/App/build -name "*.app" -type d -not -path "*.app/*" | head -1)
+          # O Xcode coloca o .app em: build/Build/Products/Debug-iphonesimulator/App.app
+          PRODUCTS_DIR="ios/App/build/Build/Products/Debug-iphonesimulator"
           
-          if [ -n "$APP_PATH" ]; then
-            APP_NAME=$(basename "$APP_PATH")
-            echo "✅ App encontrado: $APP_PATH"
-            cd "$(dirname "$APP_PATH")"
-            zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
-            echo "✅ App empacotado com sucesso!"
-            ls -la "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
+          if [ -d "$PRODUCTS_DIR" ]; then
+            echo "=== Products directory encontrado ==="
+            ls -la "$PRODUCTS_DIR"
+            
+            # Encontrar o .app neste diretório
+            APP=$(ls -d "$PRODUCTS_DIR"/*.app 2>/dev/null | head -1)
+            
+            if [ -n "$APP" ]; then
+              echo "✅ App encontrado: $APP"
+              cd "$PRODUCTS_DIR"
+              APP_NAME=$(basename "$APP")
+              zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
+              echo "✅ Empacotado! Tamanho:"
+              ls -lh "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
+            else
+              echo "❌ Nenhum .app em Products"
+              exit 1
+            fi
           else
-            echo "❌ Nenhum .app encontrado"
-            echo "=== Conteudo completo do build ==="
-            find ios/App/build -maxdepth 5 -type d 2>/dev/null | head -30
-            exit 1
+            echo "❌ Products dir nao encontrado: $PRODUCTS_DIR"
+            echo "=== Estrutura completa do build ==="
+            find ios/App/build -maxdepth 6 -type d | head -40
+            
+            # Fallback: procurar em qualquer lugar
+            FALLBACK=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
+            if [ -n "$FALLBACK" ]; then
+              echo "=== Fallback encontrado: $FALLBACK ==="
+              cd "$(dirname "$FALLBACK")"
+              zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$(basename "$FALLBACK")"
+              echo "✅ Empacotado via fallback!"
+            else
+              echo "❌ Nenhum .app encontrado em lugar nenhum"
+              exit 1
+            fi
           fi
 
       - name: Upload iOS Simulator App
