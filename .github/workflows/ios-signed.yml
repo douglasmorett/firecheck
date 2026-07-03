@@ -52,6 +52,32 @@ jobs:
             cd ios/App && pod install
           fi
 
+      - name: Configure Signing
+        run: |
+          cd ios/App
+          PBXPROJ="App.xcodeproj/project.pbxproj"
+          
+          echo "=== Configurando signing manual ==="
+          
+          # Mudar Automatic para Manual signing
+          sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' $PBXPROJ
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' $PBXPROJ
+          
+          # Definir Team ID
+          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 5K9U9AF594;/g' $PBXPROJ
+          sed -i '' 's/DEVELOPMENT_TEAM = ""/DEVELOPMENT_TEAM = 5K9U9AF594/g' $PBXPROJ
+          
+          # Definir Code Sign Identity e Provisioning Profile para Release
+          sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = ""/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' $PBXPROJ
+          
+          # Adicionar PROVISIONING_PROFILE_SPECIFIER em cada build configuration
+          sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				PROVISIONING_PROFILE_SPECIFIER = "FireCheck App Store";' $PBXPROJ
+          
+          echo "✅ Signing configurado"
+          grep -c "Manual" $PBXPROJ && echo "Manual signing: OK"
+          grep -c "5K9U9AF594" $PBXPROJ && echo "Team ID: OK"
+
       - name: Install Apple Certificate & Provisioning Profile
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
