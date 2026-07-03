@@ -44,7 +44,6 @@ jobs:
       - name: Build iOS App (Simulator)
         run: |
           cd ios/App
-          set -o pipefail
           xcodebuild build \
             -workspace App.xcworkspace \
             -scheme App \
@@ -56,54 +55,53 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             ONLY_ACTIVE_ARCH=YES \
-            2>&1 | tee /tmp/xcodebuild.log | tail -50
+            > /tmp/xcodebuild.log 2>&1 || true
+          echo "=== Ultimas 30 linhas do build ==="
+          tail -30 /tmp/xcodebuild.log
           echo ""
-          echo "=== Build result: $? ==="
+          # Verificar se o build realmente gerou o .app
+          if find build -type d -name "*.app" 2>/dev/null | grep -q ".app"; then
+            echo "✅ Build gerou .app com sucesso!"
+          else
+            echo "❌ Build nao gerou .app"
+            echo "=== Erros do build ==="
+            grep -i "error:" /tmp/xcodebuild.log | tail -10
+            exit 1
+          fi
 
       - name: Find and Package App
         run: |
-          echo "=== Procurando .app no build ==="
-          # Listar TUDO recursivamente dentro do build
+          # Caminho padrao do Xcode para simulador
+          PRODUCTS_DIR="ios/App/build/Build/Products/Debug-iphonesimulator"
+          
+          echo "=== Procurando .app ==="
           find ios/App/build -type d -name "*.app" 2>/dev/null
           echo ""
           
-          # O Xcode coloca o .app em: build/Build/Products/Debug-iphonesimulator/App.app
-          PRODUCTS_DIR="ios/App/build/Build/Products/Debug-iphonesimulator"
-          
           if [ -d "$PRODUCTS_DIR" ]; then
-            echo "=== Products directory encontrado ==="
+            echo "✅ Products dir encontrado"
             ls -la "$PRODUCTS_DIR"
-            
-            # Encontrar o .app neste diretório
             APP=$(ls -d "$PRODUCTS_DIR"/*.app 2>/dev/null | head -1)
-            
-            if [ -n "$APP" ]; then
-              echo "✅ App encontrado: $APP"
-              cd "$PRODUCTS_DIR"
-              APP_NAME=$(basename "$APP")
-              zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
-              echo "✅ Empacotado! Tamanho:"
-              ls -lh "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
-            else
-              echo "❌ Nenhum .app em Products"
-              exit 1
-            fi
+          fi
+          
+          # Fallback: procurar em qualquer lugar
+          if [ -z "$APP" ]; then
+            echo "Usando fallback..."
+            APP=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
+          fi
+          
+          if [ -n "$APP" ]; then
+            APP_NAME=$(basename "$APP")
+            APP_DIR=$(dirname "$APP")
+            echo "✅ App encontrado: $APP"
+            cd "$APP_DIR"
+            zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
+            echo "✅ Empacotado!"
+            ls -lh "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
           else
-            echo "❌ Products dir nao encontrado: $PRODUCTS_DIR"
-            echo "=== Estrutura completa do build ==="
-            find ios/App/build -maxdepth 6 -type d | head -40
-            
-            # Fallback: procurar em qualquer lugar
-            FALLBACK=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
-            if [ -n "$FALLBACK" ]; then
-              echo "=== Fallback encontrado: $FALLBACK ==="
-              cd "$(dirname "$FALLBACK")"
-              zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$(basename "$FALLBACK")"
-              echo "✅ Empacotado via fallback!"
-            else
-              echo "❌ Nenhum .app encontrado em lugar nenhum"
-              exit 1
-            fi
+            echo "❌ Nenhum .app encontrado"
+            find ios/App/build -maxdepth 6 -type d 2>/dev/null | head -30
+            exit 1
           fi
 
       - name: Upload iOS Simulator App
