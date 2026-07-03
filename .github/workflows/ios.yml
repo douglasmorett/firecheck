@@ -34,51 +34,107 @@ jobs:
           pod --version
 
       - name: Add iOS Platform
-        run: npx cap add ios
+        run: |
+          npx cap add ios 2>&1 || true
+          echo ""
+          echo "=== O que foi gerado em ios/ ==="
+          find ios -maxdepth 3 -type f | head -30
+          echo ""
+          echo "=== Verificando arquivos chave ==="
+          echo "Podfile: $(test -f ios/App/Podfile && echo 'EXISTE' || echo 'NAO EXISTE')"
+          echo "xcodeproj: $(test -d ios/App/App.xcodeproj && echo 'EXISTE' || echo 'NAO EXISTE')"
+          echo "AppDelegate: $(find ios -name 'AppDelegate.swift' | head -1 || echo 'NAO EXISTE')"
 
-      - name: Sync Web Assets to iOS
-        run: npx cap copy ios
+      - name: Create Podfile if Missing
+        run: |
+          if [ ! -f ios/App/Podfile ]; then
+            echo "Podfile nao encontrado, criando manualmente..."
+            cat > ios/App/Podfile << 'PODFILE'
+          require_relative '../../node_modules/@capacitor/ios/scripts/pods_helpers'
 
-      - name: Update iOS Plugins
-        run: npx cap update ios
+          platform :ios, '16.0'
+          use_frameworks!
+
+          install! 'cocoapods', :disable_input_output_paths => true
+
+          def capacitor_pods
+            pod 'Capacitor', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorCordova', :path => '../../node_modules/@capacitor/ios'
+            pod 'CapacitorPushNotifications', :path => '../../node_modules/@capacitor/push-notifications'
+          end
+
+          target 'App' do
+            capacitor_pods
+          end
+          PODFILE
+            echo "Podfile criado!"
+            cat ios/App/Podfile
+          else
+            echo "Podfile ja existe:"
+            cat ios/App/Podfile
+          fi
+
+      - name: Create Xcode Project if Missing
+        run: |
+          if [ ! -d ios/App/App.xcodeproj ]; then
+            echo "xcodeproj nao encontrado!"
+            echo "Tentando cap sync para gerar..."
+            npx cap sync ios 2>&1
+            echo ""
+            echo "=== Apos sync ==="
+            find ios -maxdepth 3 -type f | head -30
+          fi
 
       - name: Run Pod Install
         run: |
           cd ios/App
-          echo "=== Podfile ==="
-          cat Podfile
+          pod install
           echo ""
-          echo "=== Running pod install ==="
-          pod install --verbose
-          echo ""
-          echo "=== Verificando workspace ==="
-          ls -la *.xcworkspace/ || echo "ERRO: Workspace nao criado!"
-          ls -la
+          echo "=== Workspace gerado? ==="
+          ls -la *.xcworkspace/ 2>/dev/null || echo "Sem workspace"
+          ls -la *.xcodeproj/ 2>/dev/null || echo "Sem xcodeproj"
 
       - name: Build iOS App
         run: |
           cd ios/App
-          xcodebuild build \
-            -workspace App.xcworkspace \
-            -scheme App \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            ONLY_ACTIVE_ARCH=NO
+          # Usar workspace se existir, senao usar xcodeproj
+          if [ -d "App.xcworkspace" ]; then
+            echo "Usando workspace..."
+            xcodebuild build \
+              -workspace App.xcworkspace \
+              -scheme App \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              ONLY_ACTIVE_ARCH=NO
+          elif [ -d "App.xcodeproj" ]; then
+            echo "Usando xcodeproj (sem workspace)..."
+            xcodebuild build \
+              -project App.xcodeproj \
+              -scheme App \
+              -configuration Debug \
+              -sdk iphonesimulator \
+              -derivedDataPath build \
+              CODE_SIGNING_ALLOWED=NO \
+              CODE_SIGNING_REQUIRED=NO \
+              CODE_SIGN_IDENTITY="" \
+              ONLY_ACTIVE_ARCH=NO
+          else
+            echo "ERRO: Nem workspace nem xcodeproj encontrado!"
+            ls -la
+            exit 1
+          fi
 
       - name: Package App
         run: |
           APP=$(find ios/App/build -type d -name "*.app" | grep -v ".app/" | head -1)
-          
           if [ -z "$APP" ]; then
             echo "ERRO: Nenhum .app encontrado"
-            find ios/App/build -maxdepth 5 -type d | head -20
             exit 1
           fi
-          
           echo "Empacotando: $APP"
           cd "$(dirname "$APP")"
           zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$(basename "$APP")"
