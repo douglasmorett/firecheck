@@ -10,3 +10,10 @@ server/node_modules
 api/serviceAccount.json
 *.log
 .env*
+
+# iOS Certificates (NUNCA commitar!)
+ios-certificates/
+*.p12
+*.mobileprovision
+*.certSigningRequest
+*.key

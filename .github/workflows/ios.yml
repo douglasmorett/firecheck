@@ -70,14 +70,24 @@ jobs:
 
       - name: Package Simulator App
         run: |
-          APP_PATH=$(find ios/App/build -name "App.app" -type d | head -1)
+          echo "=== Listando estrutura do build ==="
+          find ios/App/build -name "*.app" -type d 2>/dev/null || true
+          echo ""
+          
+          # Procurar qualquer .app (pode ser App.app, FireCheck.app, etc.)
+          APP_PATH=$(find ios/App/build -name "*.app" -type d -not -path "*.app/*" | head -1)
+          
           if [ -n "$APP_PATH" ]; then
+            APP_NAME=$(basename "$APP_PATH")
+            echo "✅ App encontrado: $APP_PATH"
             cd "$(dirname "$APP_PATH")"
-            zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" App.app
+            zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" "$APP_NAME"
             echo "✅ App empacotado com sucesso!"
+            ls -la "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip"
           else
-            echo "❌ App.app não encontrado, listando tudo em build:"
-            find ios/App/build -name "*.app" -type d 2>/dev/null || echo "Nenhum .app encontrado"
+            echo "❌ Nenhum .app encontrado"
+            echo "=== Conteudo completo do build ==="
+            find ios/App/build -maxdepth 5 -type d 2>/dev/null | head -30
             exit 1
           fi
 
