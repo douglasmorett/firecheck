@@ -24,7 +24,7 @@ jobs:
           xcodebuild -showsdks 2>/dev/null | grep -i ios || true
           echo ""
           echo "=== Instalando plataforma iOS ==="
-          xcodebuild -downloadPlatform iOS
+          xcodebuild -downloadPlatform iOS || echo '⚠️ Download falhou (plataforma pode ja estar instalada)'
           echo ""
           echo "=== SDKs apos instalacao ==="
           xcodebuild -showsdks 2>/dev/null | grep -i ios || true

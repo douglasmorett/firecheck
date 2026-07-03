@@ -23,7 +23,8 @@ jobs:
           xcodebuild -version
 
       - name: Install iOS Platform
-        run: xcodebuild -downloadPlatform iOS
+        run: xcodebuild -downloadPlatform iOS || echo '⚠️ Download falhou (plataforma pode ja estar instalada)'
+        continue-on-error: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -194,4 +195,4 @@ jobs:
 
       - name: Cleanup Keychain
         if: ${{ always() }}
-        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
+        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
