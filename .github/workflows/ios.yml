@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -26,16 +26,31 @@ jobs:
       - name: Remove Incomplete iOS Project
         run: rm -rf ios
 
+      - name: Setup CocoaPods
+        run: |
+          if ! command -v pod &> /dev/null; then
+            echo "Installing CocoaPods..."
+            sudo gem install cocoapods
+          else
+            echo "CocoaPods already installed: $(pod --version)"
+          fi
+
       - name: Add iOS Platform
         run: npx cap add ios
 
-      - name: Sync iOS
+      - name: Sync iOS (includes pod install)
         run: npx cap sync ios
 
-      - name: Install CocoaPods Dependencies
+      - name: Verify Xcode Project
         run: |
-          cd ios/App
-          pod install
+          echo "=== iOS Project Structure ==="
+          ls -la ios/App/
+          echo ""
+          echo "=== Checking for workspace ==="
+          ls -la ios/App/*.xcworkspace || echo "No workspace found"
+          echo ""
+          echo "=== Checking Podfile ==="
+          cat ios/App/Podfile || echo "No Podfile"
 
       - name: Build iOS App (Simulator)
         run: |
@@ -44,12 +59,14 @@ jobs:
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            | tail -20
+            ONLY_ACTIVE_ARCH=YES \
+            2>&1 | tail -40
 
       - name: Package Simulator App
         run: |
@@ -59,8 +76,8 @@ jobs:
             zip -r "$GITHUB_WORKSPACE/FireCheck-iOS-Simulator.zip" App.app
             echo "✅ App empacotado com sucesso!"
           else
-            echo "❌ App.app não encontrado"
-            find ios/App/build -name "*.app" -type d
+            echo "❌ App.app não encontrado, listando tudo em build:"
+            find ios/App/build -name "*.app" -type d 2>/dev/null || echo "Nenhum .app encontrado"
             exit 1
           fi
 
