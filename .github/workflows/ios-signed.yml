@@ -98,6 +98,11 @@ jobs:
       - name: Build Signed Archive
         run: |
           cd ios/App
+          
+          # Extrair UUID do profile instalado
+          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $RUNNER_TEMP/build_pp.mobileprovision | grep -o '[-A-Fa-f0-9]\{36\}')
+          echo "Using Provisioning Profile UUID: $PP_UUID"
+          
           xcodebuild archive \
             -workspace App.xcworkspace \
             -scheme App \
@@ -105,19 +110,36 @@ jobs:
             -archivePath build/FireCheck.xcarchive \
             -destination 'generic/platform=iOS' \
             CODE_SIGN_STYLE=Manual \
-            2>&1 | tail -40
+            DEVELOPMENT_TEAM=5K9U9AF594 \
+            PROVISIONING_PROFILE="$PP_UUID" \
+            CODE_SIGN_IDENTITY="Apple Distribution"
+          
+          echo "✅ Archive criado"
+          ls -la build/FireCheck.xcarchive/
 
       - name: Export IPA
         run: |
           cd ios/App
 
-          cat > ExportOptions.plist << 'EOF'
+          # Extrair UUID do profile
+          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $RUNNER_TEMP/build_pp.mobileprovision | grep -o '[-A-Fa-f0-9]\{36\}')
+
+          cat > ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
           <dict>
             <key>method</key>
             <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>5K9U9AF594</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.grupohakim.firecheck</key>
+              <string>$PP_UUID</string>
+            </dict>
             <key>uploadSymbols</key>
             <true/>
             <key>destination</key>
@@ -126,11 +148,17 @@ jobs:
           </plist>
           EOF
 
+          echo "=== ExportOptions.plist ==="
+          cat ExportOptions.plist
+          echo ""
+
           xcodebuild -exportArchive \
             -archivePath build/FireCheck.xcarchive \
             -exportPath build/ipa \
-            -exportOptionsPlist ExportOptions.plist \
-            2>&1 | tail -20
+            -exportOptionsPlist ExportOptions.plist
+
+          echo "✅ IPA exportado"
+          ls -la build/ipa/
 
       - name: Upload Signed IPA
         uses: actions/upload-artifact@v4
