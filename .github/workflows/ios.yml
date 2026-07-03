@@ -18,6 +18,17 @@ jobs:
           xcodebuild -version
           swift --version
 
+      - name: Install iOS Platform
+        run: |
+          echo "=== SDKs disponiveis ==="
+          xcodebuild -showsdks 2>/dev/null | grep -i ios || true
+          echo ""
+          echo "=== Instalando plataforma iOS ==="
+          xcodebuild -downloadPlatform iOS
+          echo ""
+          echo "=== SDKs apos instalacao ==="
+          xcodebuild -showsdks 2>/dev/null | grep -i ios || true
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
