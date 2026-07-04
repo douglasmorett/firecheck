@@ -122,23 +122,47 @@ jobs:
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          # Extrair UUID do provisioning profile usando grep (mais robusto)
-          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $PP_PATH | grep -o '[-A-Fa-f0-9]\{36\}')
+          
+          # Extrair UUID usando python3 (mais robusto que grep em binario)
+          PP_UUID=$(python3 -c "
+          import subprocess, plistlib
+          result = subprocess.run(['security', 'cms', '-D', '-i', '$PP_PATH'], capture_output=True)
+          if result.returncode == 0:
+              plist = plistlib.loads(result.stdout)
+              print(plist['UUID'])
+          else:
+              # Fallback: tentar extrair direto do binario
+              import re
+              with open('$PP_PATH', 'rb') as f:
+                  data = f.read().decode('latin-1')
+              match = re.search(r'<key>UUID</key>\s*<string>([-A-Fa-f0-9]{36})</string>', data)
+              if match:
+                  print(match.group(1))
+          ")
+          
+          echo "PP UUID extraido: '$PP_UUID'"
+          
           if [ -z "$PP_UUID" ]; then
-            echo "⚠️ UUID nao extraido, copiando com nome fixo"
-            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/build_pp.mobileprovision
-          else
-            cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
-            echo "✅ Profile instalado (UUID: $PP_UUID)"
+            echo "❌ ERRO: Nao foi possivel extrair UUID do provisioning profile"
+            echo "PP file size: $(wc -c < $PP_PATH)"
+            echo "PP file type: $(file $PP_PATH)"
+            exit 1
           fi
+          
+          cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
+          echo "✅ Profile instalado: ~/Library/MobileDevice/Provisioning Profiles/$PP_UUID.mobileprovision"
+          
+          # Verificar instalacao
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
           echo "✅ Certificado instalado"
+          
+          # Salvar UUID para steps seguintes
+          echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
 
       - name: Build Signed Archive
         run: |
           cd ios/App
           
-          # Extrair UUID do profile instalado
-          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $RUNNER_TEMP/build_pp.mobileprovision | grep -o '[-A-Fa-f0-9]\{36\}')
           echo "Using Provisioning Profile UUID: $PP_UUID"
           
           xcodebuild archive \
@@ -149,7 +173,8 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM=5K9U9AF594 \
-            PROVISIONING_PROFILE="$PP_UUID" \
+            PROVISIONING_PROFILE_SPECIFIER="FireCheck App Store" \
+            "PROVISIONING_PROFILE=$PP_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution"
           
           echo "✅ Archive criado"
@@ -159,8 +184,7 @@ jobs:
         run: |
           cd ios/App
 
-          # Extrair UUID do profile
-          PP_UUID=$(grep -a -A1 '<key>UUID</key>' $RUNNER_TEMP/build_pp.mobileprovision | grep -o '[-A-Fa-f0-9]\{36\}')
+          echo "Exporting with PP_UUID: $PP_UUID"
 
           cat > ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
