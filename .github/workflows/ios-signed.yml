@@ -23,7 +23,7 @@ jobs:
           xcodebuild -version
 
       - name: Install iOS Platform
-        run: xcodebuild -downloadPlatform iOS || echo '⚠️ Download falhou (plataforma pode ja estar instalada)'
+        run: xcodebuild -downloadPlatform iOS || echo 'Download falhou (plataforma pode ja estar instalada)'
         continue-on-error: true
 
       - name: Setup Node.js
@@ -51,9 +51,6 @@ jobs:
           
           cd ios/App
           
-          echo "=== Podfile original ==="
-          cat Podfile
-          
           # Desabilitar code signing nos Pods
           python3 ../../scripts/fix_podfile_signing.py Podfile
           
@@ -62,46 +59,9 @@ jobs:
           
           # Reinstalar pods com a nova configuracao
           pod install
-          echo "✅ Pods reinstalados com CODE_SIGNING_ALLOWED=NO"
+          echo "Pods reinstalados com CODE_SIGNING_ALLOWED=NO"
 
-      - name: Configure Signing
-        run: |
-          cd ios/App
-          PBXPROJ="App.xcodeproj/project.pbxproj"
-          
-          echo "=== Configurando signing manual ==="
-          
-          # Mudar Automatic para Manual signing
-          sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' $PBXPROJ
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' $PBXPROJ
-          
-          # Definir Team ID (ambos os formatos possiveis)
-          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 5K9U9AF594;/g' $PBXPROJ
-          sed -i '' 's/DEVELOPMENT_TEAM = ""/DEVELOPMENT_TEAM = 5K9U9AF594/g' $PBXPROJ
-          sed -i '' 's/DevelopmentTeam = "";/DevelopmentTeam = 5K9U9AF594;/g' $PBXPROJ
-          sed -i '' 's/DevelopmentTeam = ""/DevelopmentTeam = 5K9U9AF594/g' $PBXPROJ
-          
-          # Se DEVELOPMENT_TEAM nao existe nos build settings, adicionar apos CODE_SIGN_STYLE
-          if ! grep -q "DEVELOPMENT_TEAM = 5K9U9AF594" $PBXPROJ; then
-            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
-          				DEVELOPMENT_TEAM = 5K9U9AF594;' $PBXPROJ
-          fi
-          
-          # Definir Code Sign Identity e Provisioning Profile para Release
-          sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = ""/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' $PBXPROJ
-          
-          # Adicionar PROVISIONING_PROFILE_SPECIFIER em cada build configuration
-          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER" $PBXPROJ; then
-            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
-          				PROVISIONING_PROFILE_SPECIFIER = "FireCheck App Store";' $PBXPROJ
-          fi
-          
-          echo "✅ Signing configurado"
-          echo "Manual count: $(grep -c 'Manual' $PBXPROJ || true)"
-          echo "Team ID count: $(grep -c '5K9U9AF594' $PBXPROJ || true)"
-          echo "Profile count: $(grep -c 'PROVISIONING_PROFILE_SPECIFIER' $PBXPROJ || true)"
-
-      - name: Install Apple Certificate & Provisioning Profile
+      - name: Install Apple Certificate and Provisioning Profile
         env:
           IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -119,7 +79,7 @@ jobs:
           echo "P12 size: $(wc -c < $CERTIFICATE_PATH) bytes"
           echo "PP size: $(wc -c < $PP_PATH) bytes"
 
-          # Criar keychain temporária
+          # Criar keychain temporaria
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -133,49 +93,77 @@ jobs:
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          
-          # Extrair UUID usando python3 (mais robusto que grep em binario)
-          PP_UUID=$(python3 -c "
-          import subprocess, plistlib
-          result = subprocess.run(['security', 'cms', '-D', '-i', '$PP_PATH'], capture_output=True)
-          if result.returncode == 0:
-              plist = plistlib.loads(result.stdout)
-              print(plist['UUID'])
-          else:
-              # Fallback: tentar extrair direto do binario
-              import re
-              with open('$PP_PATH', 'rb') as f:
-                  data = f.read().decode('latin-1')
-              match = re.search(r'<key>UUID</key>\s*<string>([-A-Fa-f0-9]{36})</string>', data)
-              if match:
-                  print(match.group(1))
-          ")
-          
-          echo "PP UUID extraido: '$PP_UUID'"
-          
+
+          # Extrair UUID e Nome usando security cms + python3
+          PP_DATA=$(security cms -D -i $PP_PATH 2>/dev/null || true)
+          if [ -n "$PP_DATA" ]; then
+            PP_UUID=$(echo "$PP_DATA" | python3 -c "import sys,plistlib; d=plistlib.loads(sys.stdin.buffer.read()); print(d['UUID'])")
+            PP_NAME=$(echo "$PP_DATA" | python3 -c "import sys,plistlib; d=plistlib.loads(sys.stdin.buffer.read()); print(d.get('Name',''))" 2>/dev/null || true)
+          fi
+
+          # Fallback: extrair UUID do binario com regex
           if [ -z "$PP_UUID" ]; then
-            echo "❌ ERRO: Nao foi possivel extrair UUID do provisioning profile"
-            echo "PP file size: $(wc -c < $PP_PATH)"
-            echo "PP file type: $(file $PP_PATH)"
+            PP_UUID=$(python3 -c "
+          import re
+          with open('$PP_PATH','rb') as f: data=f.read().decode('latin-1')
+          m=re.search(r'<key>UUID</key>\s*<string>([-A-Fa-f0-9]{36})</string>',data)
+          if m: print(m.group(1))
+          ")
+          fi
+
+          echo "PP UUID: $PP_UUID"
+          echo "PP Name: $PP_NAME"
+
+          if [ -z "$PP_UUID" ]; then
+            echo "ERRO: UUID nao extraido"
+            file $PP_PATH
             exit 1
           fi
-          
+
           cp $PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles/$PP_UUID.mobileprovision
-          echo "✅ Profile instalado: ~/Library/MobileDevice/Provisioning Profiles/$PP_UUID.mobileprovision"
-          
-          # Verificar instalacao
+          echo "Profile instalado: $PP_UUID.mobileprovision"
           ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "✅ Certificado instalado"
-          
-          # Salvar UUID para steps seguintes
+
+          # Salvar para steps seguintes
           echo "PP_UUID=$PP_UUID" >> $GITHUB_ENV
+          echo "PP_NAME=$PP_NAME" >> $GITHUB_ENV
+
+      - name: Configure Signing
+        run: |
+          cd ios/App
+          PBXPROJ="App.xcodeproj/project.pbxproj"
+
+          echo "=== Configurando signing com UUID: $PP_UUID ==="
+
+          # Mudar Automatic para Manual
+          sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' $PBXPROJ
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' $PBXPROJ
+
+          # Definir Team ID
+          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 5K9U9AF594;/g' $PBXPROJ
+          sed -i '' 's/DevelopmentTeam = "";/DevelopmentTeam = 5K9U9AF594;/g' $PBXPROJ
+
+          # Adicionar DEVELOPMENT_TEAM se nao existe
+          if ! grep -q "DEVELOPMENT_TEAM = 5K9U9AF594" $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				DEVELOPMENT_TEAM = 5K9U9AF594;' $PBXPROJ
+          fi
+
+          # Adicionar PROVISIONING_PROFILE com UUID (nao nome)
+          if ! grep -q '"PROVISIONING_PROFILE"' $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				"PROVISIONING_PROFILE" = "'"$PP_UUID"'";' $PBXPROJ
+          fi
+
+          echo "Manual count: $(grep -c 'Manual' $PBXPROJ || true)"
+          echo "Team ID count: $(grep -c '5K9U9AF594' $PBXPROJ || true)"
+          echo "PP UUID count: $(grep -c '$PP_UUID' $PBXPROJ || true)"
 
       - name: Build Signed Archive
         run: |
           cd ios/App
-          
-          echo "Using Provisioning Profile UUID: $PP_UUID"
-          
+          echo "Building with PP_UUID=$PP_UUID"
+
           xcodebuild archive \
             -workspace App.xcworkspace \
             -scheme App \
@@ -184,15 +172,13 @@ jobs:
             -destination 'generic/platform=iOS' \
             DEVELOPMENT_TEAM=5K9U9AF594 \
             CODE_SIGN_IDENTITY="Apple Distribution"
-          
-          echo "✅ Archive criado"
+
+          echo "Archive criado"
           ls -la build/FireCheck.xcarchive/
 
       - name: Export IPA
         run: |
           cd ios/App
-
-          echo "Exporting with PP_UUID: $PP_UUID"
 
           cat > ExportOptions.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -220,14 +206,13 @@ jobs:
 
           echo "=== ExportOptions.plist ==="
           cat ExportOptions.plist
-          echo ""
 
           xcodebuild -exportArchive \
             -archivePath build/FireCheck.xcarchive \
             -exportPath build/ipa \
             -exportOptionsPlist ExportOptions.plist
 
-          echo "✅ IPA exportado"
+          echo "IPA exportado"
           ls -la build/ipa/
 
       - name: Upload Signed IPA
