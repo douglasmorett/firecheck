@@ -64,20 +64,31 @@ jobs:
           sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' $PBXPROJ
           sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' $PBXPROJ
           
-          # Definir Team ID
+          # Definir Team ID (ambos os formatos possiveis)
           sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 5K9U9AF594;/g' $PBXPROJ
           sed -i '' 's/DEVELOPMENT_TEAM = ""/DEVELOPMENT_TEAM = 5K9U9AF594/g' $PBXPROJ
+          sed -i '' 's/DevelopmentTeam = "";/DevelopmentTeam = 5K9U9AF594;/g' $PBXPROJ
+          sed -i '' 's/DevelopmentTeam = ""/DevelopmentTeam = 5K9U9AF594/g' $PBXPROJ
+          
+          # Se DEVELOPMENT_TEAM nao existe nos build settings, adicionar apos CODE_SIGN_STYLE
+          if ! grep -q "DEVELOPMENT_TEAM = 5K9U9AF594" $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				DEVELOPMENT_TEAM = 5K9U9AF594;' $PBXPROJ
+          fi
           
           # Definir Code Sign Identity e Provisioning Profile para Release
           sed -i '' 's/"CODE_SIGN_IDENTITY\[sdk=iphoneos\*\]" = ""/"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution"/g' $PBXPROJ
           
           # Adicionar PROVISIONING_PROFILE_SPECIFIER em cada build configuration
-          sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER" $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
           				PROVISIONING_PROFILE_SPECIFIER = "FireCheck App Store";' $PBXPROJ
+          fi
           
           echo "✅ Signing configurado"
-          grep -c "Manual" $PBXPROJ && echo "Manual signing: OK"
-          grep -c "5K9U9AF594" $PBXPROJ && echo "Team ID: OK"
+          echo "Manual count: $(grep -c 'Manual' $PBXPROJ || true)"
+          echo "Team ID count: $(grep -c '5K9U9AF594' $PBXPROJ || true)"
+          echo "Profile count: $(grep -c 'PROVISIONING_PROFILE_SPECIFIER' $PBXPROJ || true)"
 
       - name: Install Apple Certificate & Provisioning Profile
         env:
