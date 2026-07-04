@@ -72,12 +72,14 @@ jobs:
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
 
-          # Decodificar certificado e provisioning profile
-          printf '%s' "$IOS_CERTIFICATE_BASE64" | base64 --decode > $CERTIFICATE_PATH
-          printf '%s' "$IOS_PROVISION_PROFILE_BASE64" | base64 --decode > $PP_PATH
+          # Decodificar certificado e provisioning profile limpando CRLF/espacos
+          echo -n "$IOS_CERTIFICATE_BASE64" | tr -d '\r\n[:space:]' | base64 --decode > $CERTIFICATE_PATH
+          echo -n "$IOS_PROVISION_PROFILE_BASE64" | tr -d '\r\n[:space:]' | base64 --decode > $PP_PATH
 
           echo "P12 size: $(wc -c < $CERTIFICATE_PATH) bytes"
           echo "PP size: $(wc -c < $PP_PATH) bytes"
+          echo "P12 SHA256: $(shasum -a 256 $CERTIFICATE_PATH)"
+          echo "PP SHA256: $(shasum -a 256 $PP_PATH)"
 
           # Criar keychain temporaria
           security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
@@ -110,6 +112,10 @@ jobs:
           if m: print(m.group(1))
           ")
           fi
+
+          # Limpar variaveis de quebras de linha e espacos extras
+          PP_UUID=$(echo "$PP_UUID" | tr -d '\r\n[:space:]')
+          PP_NAME=$(echo "$PP_NAME" | tr -d '\r' | xargs)
 
           echo "PP UUID: $PP_UUID"
           echo "PP Name: $PP_NAME"
