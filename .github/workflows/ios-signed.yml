@@ -1,4 +1,4 @@
-name: Build & Sign iOS IPA (App Store / TestFlight)
+name: "Build and Sign iOS IPA (App Store / TestFlight)"
 
 # ──────────────────────────────────────────────
 #  Gera o IPA assinado para App Store / TestFlight
@@ -54,28 +54,8 @@ jobs:
           echo "=== Podfile original ==="
           cat Podfile
           
-          # Usar Python para injetar CODE_SIGNING_ALLOWED no post_install existente
-          python3 << 'PYEOF'
-          with open('Podfile', 'r') as f:
-              content = f.read()
-
-          injection = """
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
-        config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
-      end
-    end"""
-
-          content = content.replace(
-              'assertDeploymentTarget(installer)',
-              'assertDeploymentTarget(installer)' + injection
-          )
-
-          with open('Podfile', 'w') as f:
-              f.write(content)
-          print("✅ Podfile modificado com sucesso")
-          PYEOF
+          # Desabilitar code signing nos Pods
+          python3 ../../scripts/fix_podfile_signing.py Podfile
           
           echo "=== Podfile modificado ==="
           cat Podfile
