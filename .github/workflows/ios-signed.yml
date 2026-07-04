@@ -221,6 +221,14 @@ jobs:
           name: FireCheck-iOS-Signed
           path: ios/App/build/ipa/*.ipa
 
+      - name: Upload to TestFlight
+        uses: Apple-Actions/upload-testflight-build@v1
+        with:
+          app-path: ios/App/build/ipa/App.ipa
+          issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          api-key-content: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+
       - name: Cleanup Keychain
         if: ${{ always() }}
         run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
