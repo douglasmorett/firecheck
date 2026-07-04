@@ -84,20 +84,12 @@ jobs:
           security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
 
-          # Importar certificado na keychain temporaria
+          # Importar certificado
           security import $CERTIFICATE_PATH -P "$IOS_CERTIFICATE_PASSWORD" \
             -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
-          
-          # Configurar a particao de chave para nao pedir confirmacao visual
           security set-key-partition-list -S apple-tool:,apple: \
             -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-
-          # Obter a lista atual de keychains e ANEXAR a nova keychain temporaria
-          current_keychains=$(security list-keychains -d user | xargs)
-          echo "Current keychains: $current_keychains"
-          security list-keychains -d user -s $KEYCHAIN_PATH $current_keychains
-          echo "New keychains list:"
-          security list-keychains -d user
+          security list-keychain -d user -s $KEYCHAIN_PATH
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
@@ -142,11 +134,30 @@ jobs:
           PBXPROJ="App.xcodeproj/project.pbxproj"
 
           echo "=== Configurando signing com UUID: $PP_UUID ==="
-          python3 ../../scripts/fix_project_signing.py $PBXPROJ "$PP_UUID"
+
+          # Mudar Automatic para Manual
+          sed -i '' 's/ProvisioningStyle = Automatic/ProvisioningStyle = Manual/g' $PBXPROJ
+          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' $PBXPROJ
+
+          # Definir Team ID
+          sed -i '' 's/DEVELOPMENT_TEAM = "";/DEVELOPMENT_TEAM = 5K9U9AF594;/g' $PBXPROJ
+          sed -i '' 's/DevelopmentTeam = "";/DevelopmentTeam = 5K9U9AF594;/g' $PBXPROJ
+
+          # Adicionar DEVELOPMENT_TEAM se nao existe
+          if ! grep -q "DEVELOPMENT_TEAM = 5K9U9AF594" $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				DEVELOPMENT_TEAM = 5K9U9AF594;' $PBXPROJ
+          fi
+
+          # Adicionar PROVISIONING_PROFILE com UUID (nao nome)
+          if ! grep -q '"PROVISIONING_PROFILE"' $PBXPROJ; then
+            sed -i '' '/CODE_SIGN_STYLE = Manual/a\
+          				"PROVISIONING_PROFILE" = "'"$PP_UUID"'";' $PBXPROJ
+          fi
 
           echo "Manual count: $(grep -c 'Manual' $PBXPROJ || true)"
           echo "Team ID count: $(grep -c '5K9U9AF594' $PBXPROJ || true)"
-          echo "PP UUID count: $(grep -c "$PP_UUID" $PBXPROJ || true)"
+          echo "PP UUID count: $(grep -c '$PP_UUID' $PBXPROJ || true)"
 
       - name: Build Signed Archive
         run: |
@@ -159,10 +170,7 @@ jobs:
             -configuration Release \
             -archivePath build/FireCheck.xcarchive \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM=5K9U9AF594 \
-            PROVISIONING_PROFILE_SPECIFIER="FireCheck App Store" \
-            "PROVISIONING_PROFILE=$PP_UUID" \
             CODE_SIGN_IDENTITY="Apple Distribution"
 
           echo "Archive criado"
