@@ -79,22 +79,16 @@ jobs:
           echo "P12 size: $(wc -c < $CERTIFICATE_PATH) bytes"
           echo "PP size: $(wc -c < $PP_PATH) bytes"
 
-          # Criar keychain temporaria
-          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          # Desbloquear a login keychain padrao do macOS runner (senha padrao e vazia "")
+          security unlock-keychain -p "" ~/Library/Keychains/login.keychain-db
 
-          # Importar certificado
+          # Importar certificado na login keychain
           security import $CERTIFICATE_PATH -P "$IOS_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+            -A -t cert -f pkcs12 -k ~/Library/Keychains/login.keychain-db
+          
+          # Configurar a particao de chave para nao pedir confirmacao visual
           security set-key-partition-list -S apple-tool:,apple: \
-            -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
-          # Adicionar a keychain temporaria a lista de busca existente para nao perder certificados raiz do sistema
-          current_keychains=$(security list-keychains -d user | xargs)
-          echo "Current keychains: $current_keychains"
-          security list-keychains -d user -s $KEYCHAIN_PATH $current_keychains
-          echo "New keychains list:"
-          security list-keychains -d user
+            -k "" ~/Library/Keychains/login.keychain-db
 
           # Instalar provisioning profile
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
@@ -220,4 +214,4 @@ jobs:
 
       - name: Cleanup Keychain
         if: ${{ always() }}
-        run: security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true
+        run: echo "Cleanup complete"
