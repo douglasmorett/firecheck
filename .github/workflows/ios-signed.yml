@@ -17,12 +17,9 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Xcode 26
         run: |
-          echo "=== Xcode versions in /Applications ==="
-          ls -d /Applications/Xcode*
-          echo "======================================="
-          sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s /Applications/Xcode_16.1.app || sudo xcode-select -s $(ls -d /Applications/Xcode*.app | tail -1)
+          sudo xcode-select -s /Applications/Xcode_26.2.app || sudo xcode-select -s /Applications/Xcode_26.1.app || sudo xcode-select -s /Applications/Xcode_26.0.app || sudo xcode-select -s /Applications/Xcode_16.2.app || sudo xcode-select -s $(ls -d /Applications/Xcode*.app | tail -1)
           xcodebuild -version
 
       - name: Install iOS Platform
