@@ -23,7 +23,10 @@ jobs:
           xcodebuild -version
 
       - name: Install iOS Platform
-        run: xcodebuild -downloadPlatform iOS || echo 'Download falhou (plataforma pode ja estar instalada)'
+        run: |
+          # Acordar o daemon do simulador para evitar falha de conexao
+          xcrun simctl list > /dev/null
+          xcodebuild -downloadPlatform iOS || echo 'Download falhou (plataforma pode ja estar instalada)'
         continue-on-error: true
 
       - name: Setup Node.js
