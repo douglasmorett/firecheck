@@ -236,7 +236,7 @@ jobs:
           app-path: ios/App/build/ipa/App.ipa
           issuer-id: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           api-key-id: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
-          api-key-content: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          api-private-key: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
 
       - name: Cleanup Keychain
         if: ${{ always() }}
