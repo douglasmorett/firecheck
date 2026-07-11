@@ -161,7 +161,7 @@ export default function PontoPage() {
     } finally {
       setLoadingRecords(false);
     }
-  }, [user]);
+  }, [user, navigate]);
 
   useEffect(() => {
     fetchTodayRecords();

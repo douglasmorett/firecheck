@@ -117,7 +117,7 @@ export default function ChecklistExecution() {
         console.error('Erro ao buscar checklists:', err);
         setLoading(false);
       });
-  }, [id]);
+  }, [id, navigate]);
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -306,7 +306,7 @@ export default function ChecklistExecution() {
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [submitted, completedTodayInfo]);
+  }, [submitted, completedTodayInfo, navigate]);
 
   if (submitted) return (
     <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>

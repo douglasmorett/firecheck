@@ -1,14 +1,106 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=999" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>firecheck</title>
-    <script type="module" crossorigin src="/assets/index-BwHd6DJV.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BW3v6z6N.css">
+    <link rel="manifest" href="/manifest.json?v=999" />
+    <meta name="theme-color" content="#ff4d00" />
+    <meta name="description" content="FireCheck - Sistema de auditoria em tempo real com IA para varejo. Checklists inteligentes, controle de ponto e câmeras com inteligência artificial." />
+    <meta property="og:title" content="FireCheck - Auditoria com IA" />
+    <meta property="og:description" content="FireCheck - Sistema de auditoria em tempo real com IA para varejo. Checklists inteligentes, controle de ponto e câmeras com inteligência artificial." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.firecheckapp.com.br" />
+    <title>FireCheck</title>
+
+    <!-- Meta Pixel Code -->
+    <script>
+    !function(f,b,e,v,n,t,s)
+    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+    n.queue=[];t=b.createElement(e);t.async=!0;
+    t.src=v;s=b.getElementsByTagName(e)[0];
+    s.parentNode.insertBefore(t,s)}(window, document,'script',
+    'https://connect.facebook.net/en_US/fbevents.js');
+    fbq('init', '1508278337585097');
+    fbq('track', 'PageView');
+    </script>
+    <!-- End Meta Pixel Code -->
+
+    <!-- Microsoft Clarity - Gravação de Sessões e Mapa de Calor (GRÁTIS) -->
+    <script type="text/javascript">
+    (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+    })(window, document, "clarity", "script", "wlfp9pk3qp");
+    </script>
+    <!-- End Microsoft Clarity -->
+
+    <!-- Rastreamento Comportamental Customizado (FireCheck Espião) -->
+    <script>
+      (function() {
+        // Gerar ID de sessão único
+        let sessionId = localStorage.getItem('fc_session_id');
+        if (!sessionId) {
+          sessionId = 'sess_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+          localStorage.setItem('fc_session_id', sessionId);
+        }
+
+        const page = window.location.pathname;
+        const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+
+        function sendEvent(type, data) {
+          fetch(`/api/track-event`, {
+            method: 'POST',
+            keepalive: true, // Garante que envia mesmo fechando a aba
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, eventType: type, eventData: data, page, deviceType })
+          }).catch(console.error);
+        }
+
+        // Rastrear Scroll Máximo
+        let maxScroll = 0;
+        window.addEventListener('scroll', () => {
+          const scrollPct = Math.round((window.scrollY / (document.body.scrollHeight - window.innerHeight)) * 100);
+          if (scrollPct > maxScroll) maxScroll = scrollPct;
+        }, { passive: true });
+
+        // Rastrear Cliques em Botões Importantes
+        document.addEventListener('click', (e) => {
+          const target = e.target.closest('button, a');
+          if (target) {
+            const btnText = target.innerText || target.value || target.id || 'botão_sem_nome';
+            sendEvent('click', { element: target.tagName, text: btnText.substring(0, 50).trim() });
+          }
+        });
+
+        // Enviar relatório ao sair da página (Tempo + Scroll)
+        const startTime = Date.now();
+        window.addEventListener('beforeunload', () => {
+          const timeSpent = Math.round((Date.now() - startTime) / 1000); // em segundos
+          sendEvent('page_unload', { time_spent_seconds: timeSpent, max_scroll_percentage: maxScroll });
+        });
+      })();
+    </script>
+    <!-- End Rastreamento Customizado -->
+    <script type="module" crossorigin src="/assets/index-BC0HUhwS.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Bx55bE_K.css">
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Meta Pixel Code (Fallback) -->
+    <noscript><img height="1" width="1" style="display:none"
+    src="https://www.facebook.com/tr?id=1508278337585097&ev=PageView&noscript=1"
+    /></noscript>
+    <!-- End Meta Pixel Code (Fallback) -->
+    <div id="root"></div>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
   </body>
 </html>

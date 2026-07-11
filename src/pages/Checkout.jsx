@@ -7,7 +7,6 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const plan = searchParams.get('plan') || 'pro';
-  const cycle = searchParams.get('cycle') || 'monthly';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -82,7 +81,7 @@ export default function Checkout() {
       } else {
         alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');
       }
-    } catch (error) {
+    } catch {
       alert('Erro de conexão com o servidor.');
     } finally {
       setLoading(false);

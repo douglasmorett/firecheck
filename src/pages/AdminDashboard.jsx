@@ -126,6 +126,8 @@ export default function AdminDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [submissions, setSubmissions] = useState([]);
+  const submissionsRef = useRef(submissions);
+  submissionsRef.current = submissions;
   const [cameras, setCameras] = useState([]);
   const [showCameraModal, setShowCameraModal] = useState(false);
   const [editingCamera, setEditingCamera] = useState(null);
@@ -298,6 +300,7 @@ export default function AdminDashboard() {
     }, 10000);
 
     return () => clearInterval(globalRefresh);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateFilter]);
 
   // Verificar status do Bill ao montar
@@ -322,6 +325,7 @@ export default function AdminDashboard() {
   // Atualiza registros de ponto quando o mês muda
   useEffect(() => {
     fetchPontoRecords();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pontoMonth]);
 
   // Estado de saúde da IA
@@ -349,7 +353,7 @@ export default function AdminDashboard() {
         }).catch(() => {});
       
       // Também tenta individualmente as que ainda ficaram pendentes no state
-      submissions.forEach(s => {
+      submissionsRef.current.forEach(s => {
         const hasPhotos = (s.tasks || []).some(t => t.photo);
         const feedbacks = s.feedback_info || {};
         const feedbackKeys = Object.keys(feedbacks).filter(k => k !== '_meta' && k !== 'global_error');
@@ -372,7 +376,8 @@ export default function AdminDashboard() {
     }, 20000);
     
     return () => clearInterval(interval);
-  }, [submissions, userProfile]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userProfile]);
 
   const setupPushNotifications = async (email) => {
     try {

@@ -56,6 +56,9 @@ jobs:
           npx cap add ios
           npx cap sync ios
           
+          # Gerar icones e splash screens a partir da pasta assets/
+          npx @capacitor/assets generate --ios
+          
           # Verificar estrutura gerada
           echo "=== Verificando projeto iOS ==="
           ls -la ios/App/

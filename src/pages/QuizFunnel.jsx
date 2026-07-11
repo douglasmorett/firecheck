@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, ArrowRight, Loader2, Activity, Play, Gift, VolumeX } from 'lucide-react';
 
@@ -15,7 +15,7 @@ export default function QuizFunnel() {
   const [isPlaying, setIsPlaying] = useState(false);
   const videoRef = useRef(null);
 
-  const trackStep = async (currentStep, updatedAnswers = answers, forceCompleted = false, clickedCta = false) => {
+  const trackStep = useCallback(async (currentStep, updatedAnswers = answers, forceCompleted = false, clickedCta = false) => {
     const isCompleted = forceCompleted || currentStep === 100;
     try {
       await fetch(`${API_URL}/api/track-quiz`, {
@@ -23,8 +23,10 @@ export default function QuizFunnel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, step: currentStep, ...updatedAnswers, completed: isCompleted, clickedCta })
       });
-    } catch (e) {}
-  };
+    } catch {
+      // ignore error silently
+    }
+  }, [sessionId, answers]);
 
   useEffect(() => {
     trackStep(step);
@@ -35,7 +37,7 @@ export default function QuizFunnel() {
     }, 30000);
     
     return () => clearInterval(interval);
-  }, [step]);
+  }, [step, trackStep]);
   
   const questions = [
     {

@@ -1,4 +1,4 @@
-﻿        {/* Right Column: Animated Dual Phones */}
+        {/* Right Column: Animated Dual Phones */}
         <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
           <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '32px', textAlign: 'center', zIndex: 10 }}>veja como Ã© simples o nosso processo:</div>
@@ -197,13 +197,13 @@
                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f172a' }}>FireCheck IA</div>
                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>agora</div>
                      </div>
-                     <div style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#0f172a', marginBottom: '2px' }}>âš ï¸ ReprovaÃ§Ã£o CrÃ­tica</div>
+                     <div style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#0f172a', marginBottom: '2px' }}>⚠️ Reprovação Crítica</div>
                      <div style={{ fontSize: '0.75rem', color: '#475569', lineHeight: '1.3' }}>A IA reprovou o "Fechamento da Cozinha" de Eduardo. Clique para ver.</div>
                    </div>
                  </div>
               </div>
 
-              {/* Step 3: Visualizando a ReprovaÃ§Ã£o no Dashboard */}
+              {/* Step 3: Visualizando a Reprovação no Dashboard */}
               <div className="seq-anim" style={{ position: 'absolute', inset: 0, background: '#f8fafc', display: 'flex', flexDirection: 'column', animationName: 'owner-step3-view', animationFillMode: 'both', opacity: 0 }}>
                  <div style={{ padding: '40px 16px 16px', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', gap: '12px' }}>
                    <ArrowLeft size={20} />

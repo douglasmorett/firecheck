@@ -3,10 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
 import API_URL from '../api';
 
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
-});
 
 const handle401 = (res, navigate) => {
   if (res.status === 401) {
@@ -44,7 +40,7 @@ export default function EmployeeDashboard() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');

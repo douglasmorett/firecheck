@@ -17,3 +17,16 @@ ios-certificates/
 *.mobileprovision
 *.certSigningRequest
 *.key
+
+# Build logs and artifacts
+build-artifacts/
+build_error.txt
+build_log.txt
+build_output.txt
+debug_output.txt
+scratch/
+icons/
+setup_ios_certs.ps1
+scripts/monitor_build.cjs
+scripts/check_cert_match.cjs
+

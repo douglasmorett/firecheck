@@ -408,7 +408,7 @@ export default function ChecklistCreator() {
           }
         });
     }
-  }, [id]);
+  }, [id, isEditing, navigate]);
 
   const addTask = () => setTasks([...tasks, newTask()]);
   const removeTask = (tid) => setTasks(tasks.filter(t => t.id !== tid));
