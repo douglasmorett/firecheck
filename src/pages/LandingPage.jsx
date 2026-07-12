@@ -1,7 +1,48 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy, Image as ImageIcon, ArrowLeft, AlertTriangle, Activity, ShoppingCart } from 'lucide-react';
+import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy, Image as ImageIcon, ArrowLeft, AlertTriangle, Activity, ShoppingCart, Mic, Volume2, Sparkles, Check, MessageSquare } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
+
+const AI_DEMO_DATA = {
+  cozinha: {
+    tabLabel: '🍔 Cozinha / Hamburgueria',
+    userText: 'Bill, cria um checklist de fechamento para a minha cozinha. Quero que verifiquem a limpeza da chapa com foto, se o lixo foi retirado e se o gás está desligado.',
+    isAudio: true,
+    audioDuration: '0:07',
+    aiReply: 'Entendido! 🎙️ Processando áudio... Gerando checklist para fechamento de cozinha comercial com 3 tarefas críticas e fiscalização por foto na chapa.',
+    checklistTitle: 'Fechamento de Cozinha Comercial',
+    tasks: [
+      { text: 'Limpar e desengordurar a chapa principal', type: '📸 Foto Obrigatória' },
+      { text: 'Retirar todos os sacos de lixo e trocar as lixeiras', type: 'Conclusão simples' },
+      { text: 'Fechar o registro geral da central de gás', type: 'Conclusão simples' }
+    ]
+  },
+  academia: {
+    tabLabel: '💪 Recepção / Academia',
+    userText: 'Cria uma rotina de abertura para recepcionista de academia, checar som, ligar ar condicionado em 22 graus e verificar higienização das esteiras.',
+    isAudio: false,
+    aiReply: 'Excelente! 🤖 Entendido. Criando checklist de abertura de academia para a equipe de recepção com 3 etapas.',
+    checklistTitle: 'Rotina de Abertura - Recepção',
+    tasks: [
+      { text: 'Ligar o som ambiente da recepção e salão', type: 'Conclusão simples' },
+      { text: 'Ajustar os aparelhos de ar condicionado para 22°C', type: 'Conclusão simples' },
+      { text: 'Verificar e higienizar painel e apoios das esteiras', type: '📸 Foto Obrigatória' }
+    ]
+  },
+  frota: {
+    tabLabel: '🚚 Logística / Vistoria Frota',
+    userText: 'Cria um checklist rápido de saída de veículo. Tem que ver nível de combustível, calibragem dos pneus e estado da lataria com fotos.',
+    isAudio: true,
+    audioDuration: '0:06',
+    aiReply: 'Perfeito! 🎙️ Áudio recebido. Gerando checklist de vistoria de saída de veículos com auditoria visual da lataria.',
+    checklistTitle: 'Vistoria de Saída de Veículo',
+    tasks: [
+      { text: 'Registrar o nível atual de combustível', type: '📝 Texto' },
+      { text: 'Verificar a calibragem de todos os pneus', type: 'Conclusão simples' },
+      { text: 'Realizar vistoria geral da lataria contra batidas', type: '📸 Foto Obrigatória' }
+    ]
+  }
+};
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -9,6 +50,37 @@ export default function LandingPage() {
   const videoRef = useRef(null);
 
   const [sessionId] = useState(() => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15));
+
+  const [activeAiDemo, setActiveAiDemo] = useState('cozinha');
+  const [demoStep, setDemoStep] = useState(3);
+  const demoTimeoutRef = useRef(null);
+
+  const startDemoAnimation = (demoId) => {
+    if (demoTimeoutRef.current) {
+      clearTimeout(demoTimeoutRef.current);
+    }
+    setActiveAiDemo(demoId);
+    setDemoStep(1); // User typing/speaking
+    
+    demoTimeoutRef.current = setTimeout(() => {
+      setDemoStep(2); // AI analyzing
+      
+      demoTimeoutRef.current = setTimeout(() => {
+        setDemoStep(3); // Checklist revealed
+      }, 1500);
+    }, 1800);
+  };
+
+  // Run initial animation on load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      startDemoAnimation('cozinha');
+    }, 800);
+    return () => {
+      clearTimeout(timer);
+      if (demoTimeoutRef.current) clearTimeout(demoTimeoutRef.current);
+    };
+  }, []);
 
   const handleTrackAndNavigate = (buttonName, path) => {
     fetch(`${API_URL}/api/track-quiz`, {
@@ -137,7 +209,7 @@ export default function LandingPage() {
         
         <div className="hero-col-left">
           <div className="hero-badge" style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '24px', letterSpacing: '1px', textTransform: 'uppercase', boxShadow: '0 0 20px rgba(255, 77, 0, 0.2)', backgroundColor: 'rgba(255, 77, 0, 0.05)' }}>
-            ✨ O primeiro checklist do Brasil movido por IA
+            🎙️ NOVO: Crie checklists por Áudio ou Texto com nossa IA
           </div>
           
           <h1 className="hero-title" style={{ fontSize: 'min(3.5rem, 7vw)', fontWeight: '900', lineHeight: '1.1', marginBottom: '24px', letterSpacing: '-1px', color: 'var(--text-main)' }}>
@@ -145,7 +217,7 @@ export default function LandingPage() {
           </h1>
           
           <p className="hero-desc" style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
-            O FireCheck fiscaliza sua operação e te manda uma notificação no celular apenas se algo estiver errado. Chega de conferir centenas de fotos manualmente todos os dias.
+            Esqueça o trabalho de digitar checklists manuais. Fale ou digite para o <strong>Bill IA</strong> e ele cria seus checklists automaticamente em segundos. A IA também fiscaliza fotos da equipe e só te notifica se algo estiver errado.
           </p>
 
           <div className="hero-cta" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -417,9 +489,9 @@ export default function LandingPage() {
                <img src="/step1.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Crie o checklist" />
             </div>
             <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(255, 77, 0, 0.1)' }}>1</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Criação Simples</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Criação por Áudio ou Texto</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Crie o checklist para sua equipe de forma manual ou com ajuda da nossa IA.
+              Fale ou digite para nossa IA e ela estrutura o checklist ideal para sua empresa em segundos, sem trabalho manual.
             </p>
           </div>
 
@@ -460,6 +532,263 @@ export default function LandingPage() {
           </div>
 
         </div>
+      </section>
+
+      {/* SEÇÃO INTERATIVA: Criador de Checklist por IA (Voz/Texto) */}
+      <section className="section-mobile-padding" style={{ padding: '100px 5%', backgroundColor: '#0b0f19', color: '#ffffff', position: 'relative', zIndex: 12, overflow: 'hidden', borderBottom: '1px solid rgba(255, 77, 0, 0.15)' }}>
+        {/* Glow effects */}
+        <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.12) 0%, transparent 70%)', pointerEvents: 'none' }}></div>
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%)', pointerEvents: 'none' }}></div>
+
+        <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '20px', display: 'inline-flex', alignItems: 'center', gap: '8px', letterSpacing: '1px', textTransform: 'uppercase', backgroundColor: 'rgba(255, 77, 0, 0.05)', boxShadow: '0 0 20px rgba(255, 77, 0, 0.15)' }}>
+              <Sparkles size={16} /> Adeus Trabalho Manual
+            </div>
+            <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
+              Crie checklists em segundos <br/>
+              <span style={{ background: 'linear-gradient(90deg, #ff4d00, #06b6d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                conversando com nossa IA
+              </span>
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto', lineHeight: '1.6' }}>
+              Criar checklists é a parte mais chata. Com o <strong>Bill IA</strong>, basta falar ou digitar. A IA entende e monta tudo automaticamente para a sua equipe.
+            </p>
+          </div>
+
+          {/* Interactive Demo Tabs */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '40px', flexWrap: 'wrap' }}>
+            {Object.keys(AI_DEMO_DATA).map((key) => (
+              <button
+                key={key}
+                onClick={() => startDemoAnimation(key)}
+                style={{
+                  padding: '12px 24px',
+                  borderRadius: '30px',
+                  fontWeight: '700',
+                  fontSize: '0.9rem',
+                  border: '1px solid',
+                  borderColor: activeAiDemo === key ? '#ff4d00' : 'rgba(255, 255, 255, 0.1)',
+                  backgroundColor: activeAiDemo === key ? 'rgba(255, 77, 0, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                  color: activeAiDemo === key ? '#ff4d00' : '#94a3b8',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: activeAiDemo === key ? '0 0 15px rgba(255, 77, 0, 0.15)' : 'none'
+                }}
+              >
+                {AI_DEMO_DATA[key].tabLabel}
+              </button>
+            ))}
+          </div>
+
+          {/* Simulation Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '40px', alignItems: 'stretch' }}>
+            
+            {/* Left Box: Chat Simulator */}
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', position: 'relative' }}>
+              
+              {/* Chat Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px', marginBottom: '16px' }}>
+                <div style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(6,182,212,0.3)' }}>
+                  <Bot size={20} color="white" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#ffffff' }}>Bill IA</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#10b981' }}>
+                    <span style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite' }}></span>
+                    online
+                  </div>
+                </div>
+              </div>
+
+              {/* Chat Messages Log */}
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
+                
+                {/* System/Intro Message */}
+                <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '12px 16px', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '85%' }}>
+                  🤖 <strong>Bill IA:</strong> Olá! Me diga qual checklist você quer criar hoje. Você pode falar ou digitar!
+                </div>
+
+                {/* User Message (Step >= 1) */}
+                {demoStep >= 1 && (
+                  <div style={{ alignSelf: 'flex-end', backgroundColor: '#ff4d00', color: '#ffffff', borderRadius: '16px 16px 4px 16px', padding: '12px 16px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.2)', animation: 'slideUp 0.3s ease' }}>
+                    {AI_DEMO_DATA[activeAiDemo].isAudio ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Mic size={16} />
+                        <span style={{ fontWeight: '600' }}>Mensagem de Voz ({AI_DEMO_DATA[activeAiDemo].audioDuration})</span>
+                        {demoStep === 1 && (
+                          <div style={{ display: 'flex', gap: '2px', alignItems: 'center', marginLeft: '8px' }}>
+                            <span style={{ width: '3px', height: '12px', backgroundColor: '#ffffff', borderRadius: '2px', animation: 'ai-soundwave 0.8s infinite alternate' }}></span>
+                            <span style={{ width: '3px', height: '18px', backgroundColor: '#ffffff', borderRadius: '2px', animation: 'ai-soundwave 0.8s infinite alternate 0.2s' }}></span>
+                            <span style={{ width: '3px', height: '14px', backgroundColor: '#ffffff', borderRadius: '2px', animation: 'ai-soundwave 0.8s infinite alternate 0.4s' }}></span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                        <MessageSquare size={16} style={{ marginTop: '2px', flexShrink: 0 }} />
+                        <span>"{AI_DEMO_DATA[activeAiDemo].userText}"</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* User transcription text if it was audio */}
+                {demoStep >= 2 && AI_DEMO_DATA[activeAiDemo].isAudio && (
+                  <div style={{ alignSelf: 'flex-end', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px 12px', fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '85%', fontStyle: 'italic', marginTop: '-8px' }}>
+                    Transcrição: "{AI_DEMO_DATA[activeAiDemo].userText}"
+                  </div>
+                )}
+
+                {/* AI Analyzing status (Step === 2) */}
+                {demoStep === 2 && (
+                  <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#06b6d4', maxWidth: '85%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <span className="dot" style={{ width: '6px', height: '6px', backgroundColor: '#06b6d4', borderRadius: '50%', display: 'inline-block', animation: 'ai-bounce 1.4s infinite' }}></span>
+                      <span className="dot" style={{ width: '6px', height: '6px', backgroundColor: '#06b6d4', borderRadius: '50%', display: 'inline-block', animation: 'ai-bounce 1.4s infinite 0.2s' }}></span>
+                      <span className="dot" style={{ width: '6px', height: '6px', backgroundColor: '#06b6d4', borderRadius: '50%', display: 'inline-block', animation: 'ai-bounce 1.4s infinite 0.4s' }}></span>
+                    </div>
+                    Bill está ouvindo e organizando as tarefas...
+                  </div>
+                )}
+
+                {/* AI Reply (Step >= 3) */}
+                {demoStep >= 3 && (
+                  <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#cbd5e1', maxWidth: '85%', animation: 'slideUp 0.3s ease' }}>
+                    🤖 <strong>Bill IA:</strong> {AI_DEMO_DATA[activeAiDemo].aiReply}
+                  </div>
+                )}
+
+              </div>
+
+              {/* Chat Input Mockup */}
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '16px' }}>
+                <div style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px 16px', fontSize: '0.85rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Fale com o Bill IA...</span>
+                  <Mic size={16} color="#64748b" />
+                </div>
+                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: '1rem' }}>⚡</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Right Box: Dynamic Checklist Generator */}
+            <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid var(--border-color)', padding: '32px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', color: 'var(--text-main)' }}>
+              
+              {demoStep < 3 ? (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-muted)' }}>
+                  <div style={{ position: 'relative', width: '64px', height: '64px' }}>
+                    <div style={{ position: 'absolute', inset: 0, border: '4px solid #f1f5f9', borderRadius: '50%' }}></div>
+                    <div style={{ position: 'absolute', inset: 0, border: '4px solid #ff4d00', borderTopColor: 'transparent', borderRadius: '50%', animation: 'ai-spin 1s infinite linear' }}></div>
+                  </div>
+                  <div style={{ fontWeight: '600', fontSize: '0.95rem', textAlign: 'center' }}>
+                    {demoStep === 1 ? 'Aguardando envio do comando...' : 'IA organizando as tarefas e regras...'}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.5s ease' }}>
+                  {/* Checklist Header */}
+                  <div style={{ marginBottom: '24px', borderBottom: '2px dashed var(--border-color)', paddingBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', color: '#ff4d00', backgroundColor: 'rgba(255, 77, 0, 0.08)', padding: '4px 10px', borderRadius: '20px' }}>
+                        ✓ Checklist Gerado por IA
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>3 tarefas</span>
+                    </div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '12px', color: 'var(--text-main)' }}>
+                      {AI_DEMO_DATA[activeAiDemo].checklistTitle}
+                    </h3>
+                  </div>
+
+                  {/* Tasks List */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {AI_DEMO_DATA[activeAiDemo].tasks.map((task, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '16px',
+                          borderRadius: '12px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: '#f8fafc',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
+                          animation: `slideUp 0.3s ease forwards ${i * 0.15}s`,
+                          opacity: 0,
+                          transform: 'translateY(10px)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+                          <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>
+                            <Check size={14} color="#10b981" style={{ strokeWidth: '3.5px' }} />
+                          </div>
+                          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                            {task.text}
+                          </span>
+                        </div>
+                        
+                        {/* Task validation tag */}
+                        <div style={{
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: task.type === '📸 Foto Obrigatória' ? 'rgba(255, 77, 0, 0.08)' : task.type === '📝 Texto' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(241, 245, 249, 1)',
+                          color: task.type === '📸 Foto Obrigatória' ? '#ff4d00' : task.type === '📝 Texto' ? '#3b82f6' : 'var(--text-muted)',
+                          marginLeft: '12px',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {task.type}
+                        </div>
+
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Deploy Action */}
+                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                    <button
+                      className="btn"
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem', padding: '14px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(255, 77, 0, 0.3)' }}
+                      onClick={() => handleTrackAndNavigate('Enviar Checklist IA para Equipe', '/checkout')}
+                    >
+                      Começar com este Checklist <ArrowRight size={18} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+          </div>
+        </div>
+
+        {/* Global Styles helper for the simulation animations */}
+        <style>{`
+          @keyframes ai-soundwave {
+            0% { transform: scaleY(0.3); }
+            100% { transform: scaleY(1); }
+          }
+          @keyframes ai-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+          }
+          @keyframes ai-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+          @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
       </section>
 
       {/* NOVA SEÇÃO: Processo Simples */}
