@@ -1609,7 +1609,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Starter', '/checkout?plan=starter')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Starter', 'https://pay.cakto.com.br/3eph5ko_856837')}>
               Assinar Agora
             </button>
           </div>
@@ -1630,7 +1630,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Ranking de equipe</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatórios avançados</li>
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Pro', '/checkout?plan=pro')}>
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Pro', 'https://pay.cakto.com.br/3eph5ko_856837')}>
               Assinar Agora
             </button>
           </div>
@@ -1650,7 +1650,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Módulos extras</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Business', '/checkout?plan=business')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Business', 'https://pay.cakto.com.br/e7c88df')}>
               Assinar Agora
             </button>
           </div>
