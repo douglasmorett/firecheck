@@ -12,6 +12,7 @@ import QuizFunnel from './pages/QuizFunnel';
 import TermsOfUse from './pages/TermsOfUse';
 import PontoPage from './pages/PontoPage';
 import RenewPlan from './pages/RenewPlan';
+import ThankYou from './pages/ThankYou';
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/" element={Capacitor.isNativePlatform() ? <Navigate to="/login" /> : <LandingPage />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/quiz" element={<QuizFunnel />} />
+        <Route path="/obrigado" element={<ThankYou />} />
         
         {/* Tela de Login do Sistema */}
         <Route path="/login" element={<Login />} />

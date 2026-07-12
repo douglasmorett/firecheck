@@ -683,21 +683,58 @@ export default async function handler(req, res) {
             const productName = payload?.data?.product?.name || payload?.product?.name || '';
             const isCameraModule = String(productName).toLowerCase().includes('camera') || String(productName).toLowerCase().includes('câmera');
 
-            if (isCameraModule) {
-              await pool.query(`
-                 UPDATE users 
-                 SET camera_expiration = NOW() + INTERVAL '30 days'
-                 WHERE email = $1
-               `, [customerEmail]);
-              console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
+            // Verifica se o usuário já existe
+            const { rows: existingUsers } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [customerEmail]);
+
+            if (existingUsers.length === 0) {
+              if (!isCameraModule) {
+                const customerName = payload?.data?.customer?.name || payload?.customer?.name || payload?.name || 'Cliente';
+                const customerPhone = payload?.data?.customer?.phone || payload?.customer?.phone || payload?.phone || '';
+                
+                let detectedPlan = 'pro';
+                const lowerProduct = productName.toLowerCase();
+                if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
+                else if (lowerProduct.includes('business')) detectedPlan = 'business';
+                
+                const isAnnual = lowerProduct.includes('anual');
+                
+                const defaultPasswordHash = await bcrypt.hash('123456', 12);
+                
+                await pool.query(`
+                  INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + CASE WHEN $9 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END)
+                `, [
+                  customerName,
+                  customerEmail,
+                  defaultPasswordHash,
+                  'admin',
+                  'Minha Empresa',
+                  'active',
+                  customerPhone,
+                  detectedPlan,
+                  isAnnual
+                ]);
+                console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente com a senha padrão 123456.`);
+              } else {
+                console.log(`[CAKTO] Usuário ${customerEmail} comprou o módulo de câmera, mas a conta principal não existe.`);
+              }
             } else {
-              await pool.query(`
-                 UPDATE users 
-                 SET status = 'active', 
-                     expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
-                 WHERE email = $1
-               `, [customerEmail]);
-              console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+              if (isCameraModule) {
+                await pool.query(`
+                   UPDATE users 
+                   SET camera_expiration = NOW() + INTERVAL '30 days'
+                   WHERE email = $1
+                 `, [customerEmail]);
+                console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
+              } else {
+                await pool.query(`
+                   UPDATE users 
+                   SET status = 'active', 
+                       expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
+                   WHERE email = $1
+                 `, [customerEmail]);
+                console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+              }
             }
           } else if (newStatus) {
             // Se for bloqueio, bloqueia a conta principal (que indiretamente bloqueia tudo)
