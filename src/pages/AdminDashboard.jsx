@@ -1170,7 +1170,7 @@ export default function AdminDashboard() {
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Após esse período, o sistema será bloqueado. Não perca seus checklists e dados.</p>
               </div>
             </div>
-            <button className="btn" onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile.email)}&name=${encodeURIComponent(userProfile.name)}`, '_blank')} style={{ whiteSpace: 'nowrap' }}>
+            <button className="btn" onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile.email)}&name=${encodeURIComponent(userProfile.name)}`, '_blank')} style={{ whiteSpace: 'nowrap' }}>
               Assinar Plano Agora
             </button>
           </div>
@@ -1393,12 +1393,12 @@ export default function AdminDashboard() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {(!quotaInfo?.plan || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
-                <button className="btn" style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                <button className="btn" style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
                   Upgrade Pro — R$97/mês (600 checklists)
                 </button>
               )}
               {(quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
-                <button className={quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'btn' : 'btn-secondary'} style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                <button className={quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'btn' : 'btn-secondary'} style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
                   {quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'Upgrade' : ''} Business — R$197/mês (1000 checklists)
                 </button>
               )}
@@ -1516,7 +1516,7 @@ export default function AdminDashboard() {
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative' }}>
               <h3 style={{ fontSize: '1.3rem', marginBottom: '8px' }}>Mensal</h3>
               <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
                 Assinar Mensal
               </button>
             </div>

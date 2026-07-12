@@ -58,10 +58,12 @@ export default function Checkout() {
         // Transição instantânea sem timeout longo
         let checkoutLink = '';
         
-        if (plan === 'mensal' || plan === 'starter' || plan === 'pro') {
+        if (plan === 'mensal' || plan === 'starter') {
           checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'anual' || plan === 'business') {
+        } else if (plan === 'pro') {
           checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'anual' || plan === 'business') {
+          checkoutLink = `https://pay.cakto.com.br/iy4399h?email=${userEmail}&name=${userName}`;
         } else if (plan === 'ponto_mensal') {
           checkoutLink = `https://pay.cakto.com.br/kfx3fri_869702?email=${userEmail}&name=${userName}`;
         } else if (plan === 'ponto_anual') {
@@ -70,7 +72,7 @@ export default function Checkout() {
           checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
         } else if (plan.includes('completo')) {
            // Fallback for completo se não houver link específico ainda
-          checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
+          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
         }
 
         if (checkoutLink) {

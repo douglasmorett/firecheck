@@ -24,7 +24,7 @@ const PLANS = [
     color: '#7c3aed',
     highlight: true,
     features: ['Até 600 checklists por mês', 'Funcionários ilimitados', 'Painel administrativo', 'Ponto eletrônico (GPS + foto)', 'Suporte prioritário'],
-    caktoLink: 'https://pay.cakto.com.br/3eph5ko_856837',
+    caktoLink: 'https://pay.cakto.com.br/e7c88df',
   },
   {
     id: 'business',
@@ -36,7 +36,7 @@ const PLANS = [
     color: '#059669',
     highlight: false,
     features: ['Até 1.500 checklists por mês', 'Funcionários ilimitados', 'Painel administrativo', 'Ponto eletrônico (GPS + foto)', 'Módulo financeiro', 'Suporte VIP via WhatsApp'],
-    caktoLink: 'https://pay.cakto.com.br/e7c88df',
+    caktoLink: 'https://pay.cakto.com.br/iy4399h',
   },
 ];
 

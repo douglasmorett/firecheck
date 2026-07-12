@@ -924,7 +924,7 @@ export default function ChecklistCreator() {
                           }}
                           onClick={() => {
                             const profile = JSON.parse(localStorage.getItem('user') || '{}');
-                            window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
+                            window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
                           }}
                         >
                           Upgrade Pro — R$97/mês (100 criações por IA)
@@ -941,7 +941,7 @@ export default function ChecklistCreator() {
                           }}
                           onClick={() => {
                             const profile = JSON.parse(localStorage.getItem('user') || '{}');
-                            window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
+                            window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
                           }}
                         >
                           Upgrade Business — R$197/mês (250 criações por IA)
