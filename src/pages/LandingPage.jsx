@@ -221,7 +221,7 @@ export default function LandingPage() {
           </p>
 
           <div className="hero-cta" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-            <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => handleTrackAndNavigate('Começar 7 Dias Grátis', '/checkout')}>
+            <button className="btn btn-pulse" style={{ fontSize: '1.1rem', padding: '16px 32px', display: 'flex', alignItems: 'center', gap: '8px' }} onClick={() => handleTrackAndNavigate('Começar 7 Dias Grátis', '/checkout?plan=trial')}>
               Começar 7 Dias Grátis <ArrowRight size={20} />
             </button>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '16px' }}>
@@ -753,7 +753,7 @@ export default function LandingPage() {
                     <button
                       className="btn"
                       style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem', padding: '14px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(255, 77, 0, 0.3)' }}
-                      onClick={() => handleTrackAndNavigate('Enviar Checklist IA para Equipe', '/checkout')}
+                      onClick={() => handleTrackAndNavigate('Enviar Checklist IA para Equipe', '/checkout?plan=trial')}
                     >
                       Começar com este Checklist <ArrowRight size={18} />
                     </button>
@@ -1506,7 +1506,7 @@ export default function LandingPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '48px' }}>
-          <button className="btn" style={{ padding: '16px 40px', fontSize: '1.05rem' }} onClick={() => handleTrackAndNavigate('CTA Depoimentos WhatsApp', '/checkout')}>Quero Resultados como Esses →</button>
+          <button className="btn" style={{ padding: '16px 40px', fontSize: '1.05rem' }} onClick={() => handleTrackAndNavigate('CTA Depoimentos WhatsApp', '/checkout?plan=trial')}>Quero Resultados como Esses →</button>
           <p style={{ marginTop: '10px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>7 dias grátis • sem cartão de crédito</p>
         </div>
       </section>
@@ -1663,14 +1663,14 @@ export default function LandingPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
             Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
           </p>
-          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522981118514?text=Olá,%20gostaria%20de%20um%20plano%20Custom%20do%20FireCheck.')}>
+          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522998851680?text=Olá,%20gostaria%20de%20um%20plano%20Custom%20do%20FireCheck.')}>
             Falar com nossos consultores
           </button>
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
           <h3 style={{ fontSize: '1.5rem', marginBottom: '16px' }}>Ainda não tem certeza?</h3>
-          <button className="btn" style={{ padding: '16px 32px', fontSize: '1.1rem', backgroundColor: 'transparent', border: '2px solid var(--primary)', color: 'var(--primary)' }} onClick={() => handleTrackAndNavigate('Testar Grátis 7 Dias (Footer)', '/checkout')}>
+          <button className="btn" style={{ padding: '16px 32px', fontSize: '1.1rem', backgroundColor: 'transparent', border: '2px solid var(--primary)', color: 'var(--primary)' }} onClick={() => handleTrackAndNavigate('Testar Grátis 7 Dias (Footer)', '/checkout?plan=trial')}>
             Criar conta e Testar Grátis por 7 Dias
           </button>
           <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Acesso imediato. Não pedimos cartão de crédito.</p>
@@ -1687,7 +1687,7 @@ export default function LandingPage() {
 
       {/* Floating WhatsApp Button */}
       <a 
-        href="https://wa.me/5522981118514?text=Olá,%20estou%20no%20site%20do%20FireCheck%20e%20gostaria%20de%20tirar%20uma%20dúvida."
+        href="https://wa.me/5522998851680?text=Olá,%20estou%20no%20site%20do%20FireCheck%20e%20gostaria%20de%20tirar%20uma%20dúvida."
         target="_blank"
         rel="noopener noreferrer"
         style={{

@@ -6,7 +6,7 @@ import API_URL from '../api';
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const plan = searchParams.get('plan') || 'pro';
+  const plan = searchParams.get('plan') || 'trial';
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -96,8 +96,14 @@ export default function Checkout() {
           <ArrowLeft size={24} />
         </button>
         <div>
-          <h1 className="page-title" style={{ marginBottom: '4px' }}>Criar Conta Gratuita</h1>
-          <p style={{ color: 'var(--text-muted)' }}>Comece agora seus 7 dias de teste grátis. Sem cartão de crédito.</p>
+          <h1 className="page-title" style={{ marginBottom: '4px' }}>
+            {plan === 'trial' ? 'Criar Conta Gratuita' : `Assinar Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}
+          </h1>
+          <p style={{ color: 'var(--text-muted)' }}>
+            {plan === 'trial' 
+              ? 'Comece agora seus 7 dias de teste grátis. Sem cartão de crédito.' 
+              : 'Preencha os dados abaixo para criar sua conta e prosseguir para o pagamento seguro.'}
+          </p>
         </div>
       </header>
 
@@ -176,16 +182,24 @@ export default function Checkout() {
         {/* Resumo Benefícios */}
         <div style={{ alignSelf: 'start' }}>
           <div className="card" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--primary)' }}>
-            <h3 style={{ marginBottom: '20px' }}>O que está incluso no Teste?</h3>
+            <h3 style={{ marginBottom: '20px' }}>
+              {plan === 'trial' ? 'O que está incluso no Teste?' : 'Resumo da Assinatura'}
+            </h3>
             <ul style={{ padding: 0, margin: 0, listStyle: 'none', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Flame size={20} color="var(--primary)" /> <strong>Acesso total</strong> ao painel administrativo.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Zap size={20} color="var(--success)" /> Criação de <strong>Checklists com IA</strong>.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><ShieldCheck size={20} color="var(--primary)" /> Painel para seus funcionários.</li>
-              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>✅ Checklists ilimitados durante o teste</li>
+              {plan === 'trial' ? (
+                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>✅ Checklists ilimitados durante o teste</li>
+              ) : (
+                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>🚀 Ativação imediata pós-pagamento</li>
+              )}
             </ul>
             
             <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
-              🕒 Sem pegadinhas. Sem cobrança surpresa.
+              {plan === 'trial' 
+                ? '🕒 Sem pegadinhas. Sem cobrança surpresa.' 
+                : `💳 Assinatura do Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}
             </div>
           </div>
         </div>

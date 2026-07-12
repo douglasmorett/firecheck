@@ -1402,7 +1402,7 @@ export default function AdminDashboard() {
                   {quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'Upgrade' : ''} Business — R$197/mês (1000 checklists)
                 </button>
               )}
-              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}>
+              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}>
                 💬 Plano Custom (falar no WhatsApp)
               </button>
             </div>

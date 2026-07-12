@@ -954,7 +954,7 @@ export default function ChecklistCreator() {
                           border: '1px solid var(--border-color)', borderRadius: '8px',
                           cursor: 'pointer', color: 'var(--text-main)', backgroundColor: 'var(--bg-card)'
                         }}
-                        onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}
+                        onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}
                       >
                         💬 Falar no WhatsApp (Plano Custom)
                       </button>
