@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CreditCard, ShieldCheck, Flame, Zap } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
 export default function Checkout() {
@@ -76,7 +77,12 @@ export default function Checkout() {
         }
 
         if (checkoutLink) {
-           window.location.href = checkoutLink;
+          if (Capacitor.isNativePlatform()) {
+            window.open(checkoutLink, '_blank');
+            navigate('/login');
+          } else {
+            window.location.href = checkoutLink;
+          }
         } else {
            navigate('/admin');
         }

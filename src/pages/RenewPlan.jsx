@@ -1,5 +1,6 @@
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Flame, Zap, Building2, ArrowLeft, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 const PLANS = [
   {
@@ -47,7 +48,11 @@ export default function RenewPlan() {
 
   const handleChoosePlan = (plan) => {
     const url = `${plan.caktoLink}?email=${encodeURIComponent(email)}`;
-    window.location.href = url;
+    if (Capacitor.isNativePlatform()) {
+      window.open(url, '_blank');
+    } else {
+      window.location.href = url;
+    }
   };
 
   return (
