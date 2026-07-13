@@ -1176,6 +1176,40 @@ export default function AdminDashboard() {
           </div>
         )}
         
+        {/* BANNER APLICATIVO NATIVO */}
+        {userProfile?.role === 'admin' && (
+          <div style={{
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            padding: '16px 24px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Smartphone size={24} color="#fff" />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Monitore sua loja pelo celular!</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Baixe nosso aplicativo oficial para Android ou iOS (TestFlight) e receba notificações push em tempo real.</p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <a href="https://storage.googleapis.com/fire-check-storage.firebasestorage.app/downloads/firecheck.apk" download className="btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981' }}>
+                📥 Baixar Android (.APK)
+              </a>
+              <a href="https://testflight.apple.com/join/5K9U9AF5" target="_blank" rel="noopener noreferrer" className="btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#3b82f6' }}>
+                🍎 Baixar iPhone (iOS)
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%' }}>

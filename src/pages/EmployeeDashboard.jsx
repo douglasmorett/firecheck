@@ -134,6 +134,36 @@ export default function EmployeeDashboard() {
          </div>
       </div>
 
+      {/* BANNER APLICATIVO NATIVO */}
+      <div style={{
+        backgroundColor: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '16px',
+        padding: '16px 20px',
+        marginBottom: '32px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Smartphone size={20} color="var(--primary)" />
+          </div>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Use o Aplicativo Oficial</h4>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Tenha mais velocidade nas vistorias e fotos.</p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <a href="https://storage.googleapis.com/fire-check-storage.firebasestorage.app/downloads/firecheck.apk" download className="btn" style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem', textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#10b981' }}>
+            📥 Android (.APK)
+          </a>
+          <a href="https://testflight.apple.com/join/5K9U9AF5" target="_blank" rel="noopener noreferrer" className="btn" style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem', textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#3b82f6' }}>
+            🍎 iPhone (iOS)
+          </a>
+        </div>
+      </div>
+
       {hasPonto && (
         <section style={{ marginBottom: '32px' }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
