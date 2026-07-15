@@ -49,11 +49,10 @@ jobs:
 
       - name: Prepare iOS Project
         run: |
-          # Remover qualquer projeto iOS incompleto
-          rm -rf ios
-          
-          # Adicionar plataforma iOS e sincronizar
-          npx cap add ios
+          # Adicionar plataforma iOS apenas se nao existir, e sincronizar
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
           npx cap sync ios
           
           # Gerar icones e splash screens a partir da pasta assets/

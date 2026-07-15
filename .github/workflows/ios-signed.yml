@@ -48,8 +48,9 @@ jobs:
 
       - name: Prepare iOS Project
         run: |
-          rm -rf ios
-          npx cap add ios
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
           npx cap sync ios
           
           # Gerar icones e splash screens a partir da pasta assets/
