@@ -89,6 +89,8 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'capacitor://localhost',
+  'app://localhost',
+  'ionic://localhost',
   'https://localhost',
   'http://localhost'
 ];

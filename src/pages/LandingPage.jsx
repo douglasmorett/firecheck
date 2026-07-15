@@ -1674,6 +1674,15 @@ export default function LandingPage() {
             Criar conta e Testar Grátis por 7 Dias
           </button>
           <p style={{ marginTop: '12px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Acesso imediato. Não pedimos cartão de crédito.</p>
+          
+          <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '32px', flexWrap: 'wrap' }}>
+            <a href="https://storage.googleapis.com/fire-check-storage.firebasestorage.app/downloads/firecheck.apk" download style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '12px 24px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--primary)'} onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+              <Smartphone size={18} color="var(--primary)" /> Baixar para Android (.APK)
+            </a>
+            <a href="https://testflight.apple.com/join/5K9U9AF5" target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '12px 24px', borderRadius: '8px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-main)', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 'bold', transition: 'all 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3b82f6'} onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+              <Smartphone size={18} color="#3b82f6" /> Baixar para iPhone (TestFlight)
+            </a>
+          </div>
         </div>
       </section>
 
