@@ -45,6 +45,8 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Este aplicativo precisa de acesso à câmera para tirar fotos de auditoria das tarefas e selfies de registro de ponto.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
