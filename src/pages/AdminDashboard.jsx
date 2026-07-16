@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, DollarSign, MessageCircle, Bot } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import PWAInstall from '../components/PWAInstall';
 
@@ -1177,7 +1178,7 @@ export default function AdminDashboard() {
         )}
         
         {/* BANNER APLICATIVO NATIVO */}
-        {userProfile?.role === 'admin' && (
+        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && (
           <div style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',

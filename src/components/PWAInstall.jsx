@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Smartphone, X, Share, Plus, Download } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 
 export default function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -8,6 +9,11 @@ export default function PWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    // Se é app nativo Capacitor, não mostrar banner de instalação
+    if (Capacitor.isNativePlatform()) {
+      setIsInstalled(true);
+      return;
+    }
     if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       setIsInstalled(true);
     }

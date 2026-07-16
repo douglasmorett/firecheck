@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
 
@@ -134,7 +135,8 @@ export default function EmployeeDashboard() {
          </div>
       </div>
 
-      {/* BANNER APLICATIVO NATIVO */}
+      {/* BANNER APLICATIVO NATIVO — esconde se já está no app nativo */}
+      {!Capacitor.isNativePlatform() && (
       <div style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
@@ -163,6 +165,7 @@ export default function EmployeeDashboard() {
           </a>
         </div>
       </div>
+      )}
 
       {hasPonto && (
         <section style={{ marginBottom: '32px' }}>

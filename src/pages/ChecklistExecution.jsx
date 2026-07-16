@@ -589,7 +589,7 @@ export default function ChecklistExecution() {
                       <video ref={videoRef} style={{ width: '100%', maxHeight: '400px', objectFit: 'cover' }} autoPlay playsInline></video>
                       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                       <div style={{ display: 'flex', gap: '8px', padding: '16px', position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
-                        <button className="btn" style={{ flex: 2, backgroundColor: 'var(--text-main)', color: 'black' }} onClick={() => takePhoto(task.id, task.text)}>
+                        <button className="btn" style={{ flex: 2, backgroundColor: '#ffffff', color: '#18181B', fontWeight: 'bold', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }} onClick={() => takePhoto(task.id, task.text)}>
                           <Camera size={20} /> Capturar
                         </button>
                         <button className="btn-secondary" style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: 'none', color: 'var(--text-main)' }} onClick={stopCamera}>
