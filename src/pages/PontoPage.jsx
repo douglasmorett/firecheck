@@ -170,33 +170,125 @@ export default function PontoPage() {
   // ─── Câmera ───
   const startCamera = async () => {
     setCameraError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false,
-      });
-      streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-      setCameraActive(true);
-    } catch {
-      setCameraError('Não foi possível acessar a câmera. Verifique as permissões.');
-    }
-  };
 
-  const stopCamera = () => {
+    // Verifica se a API de câmera está disponível
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setCameraError('Câmera não suportada neste dispositivo. Atualize o app ou use um navegador moderno.');
+      return;
+    }
+
+    // Para qualquer stream anterior que possa estar ativo
     if (streamRef.current) {
       streamRef.current.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
     }
-    setCameraActive(false);
+
+    // Tenta com câmera frontal primeiro, depois fallback para qualquer câmera
+    const constraintsList = [
+      { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+      { video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+      { video: { facingMode: 'user' }, audio: false },
+      { video: true, audio: false },
+    ];
+
+    let stream = null;
+    let lastError = null;
+
+    for (const constraints of constraintsList) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        break;
+      } catch (err) {
+        lastError = err;
+        continue;
+      }
+    }
+
+    if (!stream) {
+      // Determina mensagem de erro específica
+      if (lastError) {
+        const errName = lastError.name || '';
+        const errMsg = lastError.message || '';
+        if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+          setCameraError('Permissão de câmera negada. Vá em Configurações do celular > Aplicativos > FireCheck > Permissões e ative a Câmera.');
+        } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+          setCameraError('Nenhuma câmera encontrada no dispositivo.');
+        } else if (errName === 'NotReadableError' || errName === 'TrackStartError') {
+          setCameraError('A câmera está sendo usada por outro aplicativo. Feche outros apps e tente novamente.');
+        } else if (errName === 'OverconstrainedError') {
+          setCameraError('Configuração de câmera não suportada pelo dispositivo.');
+        } else if (errName === 'AbortError') {
+          setCameraError('A câmera foi interrompida. Tente novamente.');
+        } else {
+          setCameraError(`Erro ao acessar câmera: ${errName || errMsg || 'erro desconhecido'}. Verifique as permissões.`);
+        }
+      } else {
+        setCameraError('Não foi possível acessar a câmera. Verifique as permissões do aplicativo.');
+      }
+      return;
+    }
+
+    streamRef.current = stream;
+
+    // Aguarda o ref do vídeo estar disponível (pode levar um frame de render)
+    setCameraActive(true);
+
+    // Usa requestAnimationFrame + retry para garantir que o videoRef está montado
+    const attachStream = (retries = 10) => {
+      if (videoRef.current) {
+        const video = videoRef.current;
+        video.srcObject = stream;
+        video.setAttribute('autoplay', '');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+        video.muted = true;
+
+        // Usa evento para garantir que o vídeo está pronto antes de dar play
+        const onReady = () => {
+          video.play().catch((playErr) => {
+            console.warn('Erro ao dar play no vídeo:', playErr);
+          });
+        };
+        video.addEventListener('loadedmetadata', onReady, { once: true });
+
+        // Fallback: se loadedmetadata não disparar em 2s, tenta play direto
+        setTimeout(() => {
+          if (video.readyState < 2) {
+            video.play().catch(() => {});
+          }
+        }, 2000);
+      } else if (retries > 0) {
+        requestAnimationFrame(() => attachStream(retries - 1));
+      } else {
+        console.error('videoRef não disponível após múltiplas tentativas');
+        setCameraError('Erro interno ao iniciar a câmera. Tente novamente.');
+        stopCamera();
+      }
+    };
+    requestAnimationFrame(() => attachStream());
   };
+
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setCameraActive(false);
+  }, []);
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
+
+    // Verifica se o vídeo tem conteúdo válido
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setCameraError('A câmera ainda está carregando. Aguarde um momento e tente novamente.');
+      return;
+    }
+
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
@@ -216,6 +308,7 @@ export default function PontoPage() {
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
       }
     };
   }, []);
