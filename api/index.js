@@ -404,6 +404,9 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone VARCHAR(50) DEFAULT 'America/Sao_Paulo'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS contador_email VARCHAR(255)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS fechamento_dia VARCHAR(50) DEFAULT 'ultimo_dia'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_entrada VARCHAR(5) DEFAULT '08:00'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_saida VARCHAR(5) DEFAULT '18:00'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_tolerancia INTEGER DEFAULT 15");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -918,7 +921,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia } = req.body;
+        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -936,16 +939,20 @@ export default async function handler(req, res) {
         const finalTz = timezone !== undefined ? timezone : user.timezone;
         const finalContador = contador_email !== undefined ? contador_email : user.contador_email;
         const finalFechamento = fechamento_dia !== undefined ? fechamento_dia : user.fechamento_dia;
+        const finalHoraEntrada = ponto_hora_entrada !== undefined ? ponto_hora_entrada : user.ponto_hora_entrada;
+        const finalHoraSaida = ponto_hora_saida !== undefined ? ponto_hora_saida : user.ponto_hora_saida;
+        const finalTolerancia = ponto_tolerancia !== undefined ? ponto_tolerancia : user.ponto_tolerancia;
 
         if (finalStatus === 'active' && user.status !== 'active') {
           await pool.query(`
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
+            ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
-            WHERE id = $9
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, id]);
+            WHERE id = $12
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8 WHERE id = $9', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11 WHERE id = $12', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -966,7 +973,7 @@ export default async function handler(req, res) {
       }
       // GET users: admin vê só da sua loja, master vê tudo
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -2083,6 +2090,49 @@ Responda APENAS com JSON válido.`;
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
           [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo]
         );
+
+        // ── Push notification para admin se funcionário registrou entrada atrasada ──
+        if (type === 'entrada' && store) {
+          try {
+            const { rows: adminRows } = await pool.query(
+              "SELECT ponto_hora_entrada, ponto_tolerancia, fcm_token, name FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              [store]
+            );
+            if (adminRows.length > 0) {
+              const adminData = adminRows[0];
+              const horaEntradaCfg = adminData.ponto_hora_entrada || '08:00';
+              const tolerancia = adminData.ponto_tolerancia || 15;
+              const adminToken = adminData.fcm_token;
+
+              // Calcular hora atual no timezone da loja
+              const agora = new Date();
+              const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+
+              // Converter hora de entrada + tolerância para minutos
+              const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
+              const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+
+              // Converter hora atual para minutos
+              const [hAtual, mAtual] = horaAtual.split(':').map(Number);
+              const atualMinutos = hAtual * 60 + mAtual;
+
+              if (atualMinutos > limiteMinutos && adminToken) {
+                await admin.messaging().send({
+                  token: adminToken,
+                  notification: {
+                    title: '⏰ Funcionário Atrasado',
+                    body: `${userName} registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`
+                  },
+                  data: { url: '/admin' },
+                  apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+                });
+              }
+            }
+          } catch (pushErr) {
+            console.error('Erro ao enviar push de atraso:', pushErr);
+          }
+        }
+
         return res.status(200).json({ success: true, record: rows[0] });
       }
       // GET — listar registros

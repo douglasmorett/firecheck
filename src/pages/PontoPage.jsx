@@ -76,15 +76,44 @@ export default function PontoPage() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState(null);
   const [apiError, setApiError] = useState(null);
+  const [pontoAllowed, setPontoAllowed] = useState(false);
 
-  // ─── Autenticação ───
+  // ─── Autenticação + verificação ponto_active ───
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
     if (!savedUser) {
       navigate('/login');
       return;
     }
-    setUser(JSON.parse(savedUser));
+    const profile = JSON.parse(savedUser);
+    setUser(profile);
+
+    // Verifica se o admin da loja tem ponto_active habilitado
+    (async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`,
+          { headers: getAuthHeaders() }
+        );
+        if (res.status === 401) {
+          handle401(res, navigate);
+          return;
+        }
+        const data = await res.json();
+        const storeUsers = Array.isArray(data) ? data : (data.users || []);
+        const adminWithPonto = storeUsers.find(
+          (u) => (u.role === 'admin' || u.role === 'master') && u.ponto_active === true
+        );
+        if (!adminWithPonto) {
+          navigate('/funcionario');
+          return;
+        }
+        setPontoAllowed(true);
+      } catch {
+        // Em caso de erro na verificação, redireciona por segurança
+        navigate('/funcionario');
+      }
+    })();
   }, [navigate]);
 
   // ─── Geolocalização ───
@@ -398,7 +427,7 @@ export default function PontoPage() {
   const canRegister = latitude && longitude && accuracy <= 200 && selfieData && !submitting;
 
   // ─── Loading ───
-  if (!user) {
+  if (!user || !pontoAllowed) {
     return (
       <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
         <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }}></div>
