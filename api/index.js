@@ -350,18 +350,41 @@ export default async function handler(req, res) {
           device_info TEXT
         )
       `);
-      // ── Garantir TODAS as colunas na tabela ponto_records (caso tabela já existia sem elas) ──
+      // ── Migrar colunas com nomes antigos da tabela ponto_records ──
+      await pool.query(`
+        DO $$ 
+        BEGIN
+          -- Se punch_type existe, dropar type duplicado e renomear punch_type -> type
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ponto_records' AND column_name = 'punch_type') THEN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ponto_records' AND column_name = 'type') THEN
+              ALTER TABLE ponto_records DROP COLUMN type;
+            END IF;
+            ALTER TABLE ponto_records RENAME COLUMN punch_type TO type;
+          END IF;
+          -- Se punch_timestamp existe, dropar timestamp duplicado e renomear
+          IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ponto_records' AND column_name = 'punch_timestamp') THEN
+            IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'ponto_records' AND column_name = 'timestamp') THEN
+              ALTER TABLE ponto_records DROP COLUMN "timestamp";
+            END IF;
+            ALTER TABLE ponto_records RENAME COLUMN punch_timestamp TO "timestamp";
+          END IF;
+        END $$;
+      `);
+      // ── Garantir TODAS as colunas na tabela ponto_records ──
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS user_id INTEGER");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS user_name VARCHAR(255)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS store VARCHAR(255)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS type VARCHAR(10)");
-      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS \"timestamp\" TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS accuracy DECIMAL(10, 2)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS selfie_url TEXT");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS address TEXT");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS device_info TEXT");
+      // ── Dropar colunas antigas que sobraram (sem dados relevantes) ──
+      await pool.query("ALTER TABLE ponto_records DROP COLUMN IF EXISTS punch_type");
+      await pool.query("ALTER TABLE ponto_records DROP COLUMN IF EXISTS punch_timestamp");
       // ── Tabela de Câmeras ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS store_cameras (
