@@ -350,6 +350,14 @@ export default async function handler(req, res) {
           device_info TEXT
         )
       `);
+      // ── Garantir colunas na tabela ponto_records (caso tabela já existia sem elas) ──
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS type VARCHAR(10)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS accuracy DECIMAL(10, 2)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS selfie_url TEXT");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS address TEXT");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS device_info TEXT");
       // ── Tabela de Câmeras ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS store_cameras (
