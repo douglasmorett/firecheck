@@ -6,6 +6,16 @@
 - [x] Remover UI completa do módulo financeiro ativo
 - [x] Remover estados, funções e imports relacionados
 - [x] Remover endpoints `/api/finance*`, `/api/scan-receipt`, `/api/scan-purchase`, `/api/chat-finance` da API
+- [x] Corrigir bug de sintaxe e restaurar rota `/api/finalize` em `api/index.js`
+- [x] Aplicar migração no banco de dados para a tabela `vehicles` em `api/index.js`
+- [x] Atualizar rotas GET e POST de `/api/vehicles` e criar rota `/api/vehicles/solicit` em `api/index.js`
+- [x] Atualizar modal de cadastro de veículos no `AdminDashboard.jsx` para incluir vínculo de funcionário, agendamento e cópia de critérios
+- [x] Adicionar controle de tarefas/critérios do veículo na modal de cadastro em `AdminDashboard.jsx`
+- [x] Adicionar botão "Solicitar Checklist" e exibir funcionário vinculado na listagem em `AdminDashboard.jsx` no ChecklistCreator (Loja, Restaurante, Consultório, Veículo, etc)
+- [x] Exibir veículos vinculados e botões de início de vistoria no `EmployeeDashboard.jsx`
+- [x] Ajustar `ChecklistExecution.jsx` para suportar checklists dinâmicos específicos de veículos
+- [/] Validar compilação do projeto com `npm run build`
+- [ ] Subir as alterações para o Git e disparar nova compilação remota do iOS no GitHub Actions (Run workflow)
 
 ## Fase 2: Melhorias nos Checklists
 - [x] Seções/agrupamento de tarefas no ChecklistCreator

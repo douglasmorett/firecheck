@@ -163,7 +163,8 @@ export default function AdminDashboard() {
   const [vehicles, setVehicles] = useState([]);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
-  const [newVehicle, setNewVehicle] = useState({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+  const [newVehicle, setNewVehicle] = useState({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
+  const [newDateInput, setNewDateInput] = useState('');
   const [isSavingVehicle, setIsSavingVehicle] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('todos');
   const [billEmail, setBillEmail] = useState('');
@@ -489,7 +490,7 @@ export default function AdminDashboard() {
       if (res.ok) {
         alert(newVehicle.id ? '✅ Veículo atualizado com sucesso!' : '✅ Veículo cadastrado com sucesso!');
         setShowVehicleModal(false);
-        setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+        setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
         fetchVehicles();
       } else {
         const err = await res.json();
@@ -526,6 +527,24 @@ export default function AdminDashboard() {
       setNewVehicle(prev => ({ ...prev, photoUrl: reader.result }));
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleSolicitVehicleChecklist = async (vehicleId) => {
+    try {
+      const res = await fetch(`${API_URL}/api/vehicles/solicit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ vehicleId })
+      });
+      if (res.ok) {
+        alert('✅ Checklist solicitado com sucesso! O funcionário vinculado verá o alerta no painel.');
+        fetchVehicles();
+      } else {
+        alert('❌ Erro ao solicitar checklist.');
+      }
+    } catch (e) {
+      alert('❌ Erro de conexão.');
+    }
   };
 
   const handleExportPDF = (submission) => {
@@ -2280,7 +2299,7 @@ export default function AdminDashboard() {
             </h3>
             <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
               setEditingVehicle(null);
-              setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+              setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
               setShowVehicleModal(true);
             }}>
               <Plus size={16} /> Cadastrar Veículo
@@ -2288,7 +2307,7 @@ export default function AdminDashboard() {
           </div>
           <div style={{ padding: '24px' }}>
             {vehicles.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                 {vehicles.map(v => (
                   <div key={v.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -2309,6 +2328,9 @@ export default function AdminDashboard() {
                         <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                           📟 KM Atual: <strong>{v.current_km ? Number(v.current_km).toLocaleString('pt-BR') : '0'} km</strong>
                         </p>
+                        <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                          👤 Motorista: <strong>{v.employee_name || 'Sem motorista vinculado'}</strong>
+                        </p>
                       </div>
                     </div>
 
@@ -2316,10 +2338,29 @@ export default function AdminDashboard() {
                       <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: v.status === 'ativo' ? 'var(--success)' : 'var(--error)' }}>
                         ● {v.status === 'ativo' ? 'Ativo na Frota' : 'Inativo / Manutenção'}
                       </span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        {v.status === 'ativo' && v.employee_id && (
+                          <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => handleSolicitVehicleChecklist(v.id)}>
+                            🚀 Solicitar
+                          </button>
+                        )}
                         <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
                           setEditingVehicle(v);
-                          setNewVehicle({ id: v.id, plate: v.plate, model: v.model, brand: v.brand, color: v.color || '', year: v.year || '', currentKm: v.current_km || '', photoUrl: v.photo_url || '', status: v.status || 'ativo' });
+                          setNewVehicle({ 
+                            id: v.id, 
+                            plate: v.plate, 
+                            model: v.model, 
+                            brand: v.brand, 
+                            color: v.color || '', 
+                            year: v.year || '', 
+                            currentKm: v.current_km || '', 
+                            photoUrl: v.photo_url || '', 
+                            status: v.status || 'ativo',
+                            employeeId: v.employee_id || '',
+                            tasks: v.tasks || [],
+                            scheduleType: v.schedule_type || 'manual',
+                            scheduleData: v.schedule_data || null
+                          });
                           setShowVehicleModal(true);
                         }}>
                           Editar
@@ -2338,7 +2379,7 @@ export default function AdminDashboard() {
                 <p>Nenhum veículo cadastrado na frota desta loja.</p>
                 <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => {
                   setEditingVehicle(null);
-                  setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+                  setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
                   setShowVehicleModal(true);
                 }}>
                   Cadastrar Primeiro Veículo
@@ -2351,68 +2392,252 @@ export default function AdminDashboard() {
 
       {showVehicleModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0 }}>{editingVehicle ? 'Editar Veículo' : 'Cadastrar Veículo'}</h3>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
+              <h3 style={{ margin: 0 }}>{editingVehicle ? '📝 Editar Veículo' : '🚗 Cadastrar Veículo'}</h3>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setShowVehicleModal(false)}>
                 <X size={24} />
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label className="input-label">Placa *</label>
-                <input type="text" className="input-field" placeholder="Ex: ABC-1234" value={newVehicle.plate} onChange={e => setNewVehicle({ ...newVehicle, plate: e.target.value.toUpperCase() })} />
-              </div>
-              <div>
-                <label className="input-label">Modelo *</label>
-                <input type="text" className="input-field" placeholder="Ex: Uno Way" value={newVehicle.model} onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })} />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label className="input-label">Marca / Fabricante</label>
-                <input type="text" className="input-field" placeholder="Ex: Fiat" value={newVehicle.brand} onChange={e => setNewVehicle({ ...newVehicle, brand: e.target.value })} />
-              </div>
-              <div>
-                <label className="input-label">Cor</label>
-                <input type="text" className="input-field" placeholder="Ex: Vermelho" value={newVehicle.color} onChange={e => setNewVehicle({ ...newVehicle, color: e.target.value })} />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-              <div>
-                <label className="input-label">Ano</label>
-                <input type="number" className="input-field" placeholder="Ex: 2018" value={newVehicle.year} onChange={e => setNewVehicle({ ...newVehicle, year: e.target.value })} />
-              </div>
-              <div>
-                <label className="input-label">Quilometragem (KM) *</label>
-                <input type="number" className="input-field" placeholder="Ex: 120500" value={newVehicle.currentKm} onChange={e => setNewVehicle({ ...newVehicle, currentKm: e.target.value })} />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label className="input-label">Foto do Veículo (Opcional)</label>
-              <input type="file" accept="image/*" className="input-field" onChange={handleVehiclePhotoChange} />
-              {newVehicle.photoUrl && (
-                <div style={{ marginTop: '10px', width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
-                  <img src={newVehicle.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '24px', padding: '24px' }}>
+              
+              {/* COLUNA ESQUERDA: Dados Básicos, Motorista e Agendamento */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <h4 style={{ margin: '0 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--primary)' }}>ℹ️ Informações Gerais</h4>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Placa *</label>
+                    <input type="text" className="input-field" placeholder="Ex: ABC-1234" value={newVehicle.plate} onChange={e => setNewVehicle({ ...newVehicle, plate: e.target.value.toUpperCase() })} />
+                  </div>
+                  <div>
+                    <label className="input-label">Modelo *</label>
+                    <input type="text" className="input-field" placeholder="Ex: Uno Way" value={newVehicle.model} onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })} />
+                  </div>
                 </div>
-              )}
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Marca / Fabricante</label>
+                    <input type="text" className="input-field" placeholder="Ex: Fiat" value={newVehicle.brand} onChange={e => setNewVehicle({ ...newVehicle, brand: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="input-label">Cor</label>
+                    <input type="text" className="input-field" placeholder="Ex: Vermelho" value={newVehicle.color} onChange={e => setNewVehicle({ ...newVehicle, color: e.target.value })} />
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Ano</label>
+                    <input type="number" className="input-field" placeholder="Ex: 2018" value={newVehicle.year} onChange={e => setNewVehicle({ ...newVehicle, year: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className="input-label">Quilometragem (KM) *</label>
+                    <input type="number" className="input-field" placeholder="Ex: 120500" value={newVehicle.currentKm} onChange={e => setNewVehicle({ ...newVehicle, currentKm: e.target.value })} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="input-label">👤 Motorista Vinculado (Equipe)</label>
+                  <select className="input-field" value={newVehicle.employeeId} onChange={e => setNewVehicle({ ...newVehicle, employeeId: e.target.value })}>
+                    <option value="">Nenhum — Apenas livre demanda</option>
+                    {team.filter(m => m.role === 'funcionario').map(m => (
+                      <option key={m.id} value={m.id}>👤 {m.name} ({m.email})</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '12px' }}>
+                  <div>
+                    <label className="input-label">Status do Veículo</label>
+                    <select className="input-field" value={newVehicle.status} onChange={e => setNewVehicle({ ...newVehicle, status: e.target.value })}>
+                      <option value="ativo">🟢 Ativo na Frota</option>
+                      <option value="manutencao">🟡 Em Manutenção / Inativo</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="input-label">Foto do Veículo</label>
+                    <input type="file" accept="image/*" className="input-field" style={{ padding: '6px' }} onChange={handleVehiclePhotoChange} />
+                  </div>
+                </div>
+
+                {newVehicle.photoUrl && (
+                  <div style={{ width: '80px', height: '80px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                    <img src={newVehicle.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+
+                {/* Agendamento de Vistorias */}
+                <h4 style={{ margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--primary)' }}>📅 Programação do Checklist</h4>
+                <div>
+                  <label className="input-label">Recorrência / Agendamento</label>
+                  <select className="input-field" value={newVehicle.scheduleType} onChange={e => {
+                    const type = e.target.value;
+                    let initialData = null;
+                    if (type === 'weekdays') initialData = [];
+                    if (type === 'specific_dates') initialData = [];
+                    setNewVehicle({ ...newVehicle, scheduleType: type, scheduleData: initialData });
+                  }}>
+                    <option value="manual">🚀 Sob Demanda (Manual/Livre)</option>
+                    <option value="daily">📅 Diário (Todos os dias)</option>
+                    <option value="weekdays">🗓️ Dias da Semana Específicos</option>
+                    <option value="specific_dates">📆 Datas Recorrentes / Agendadas</option>
+                  </select>
+                </div>
+
+                {newVehicle.scheduleType === 'weekdays' && (
+                  <div>
+                    <label className="input-label">Escolha os dias da semana:</label>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dayName, index) => {
+                        const currentDays = Array.isArray(newVehicle.scheduleData) ? newVehicle.scheduleData : [];
+                        const isChecked = currentDays.includes(index);
+                        return (
+                          <label key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', backgroundColor: isChecked ? 'rgba(255,77,0,0.1)' : 'transparent', fontSize: '0.85rem' }}>
+                            <input type="checkbox" checked={isChecked} style={{ display: 'none' }} onChange={() => {
+                              const nextDays = isChecked ? currentDays.filter(d => d !== index) : [...currentDays, index];
+                              setNewVehicle({ ...newVehicle, scheduleData: nextDays });
+                            }} />
+                            {dayName}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {newVehicle.scheduleType === 'specific_dates' && (
+                  <div>
+                    <label className="input-label">Adicionar datas específicas:</label>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      <input type="date" className="input-field" style={{ flex: 1 }} value={newDateInput} onChange={e => setNewDateInput(e.target.value)} />
+                      <button className="btn" style={{ padding: '0 16px' }} onClick={() => {
+                        if (!newDateInput) return;
+                        const currentDates = Array.isArray(newVehicle.scheduleData) ? newVehicle.scheduleData : [];
+                        if (currentDates.includes(newDateInput)) return;
+                        setNewVehicle({ ...newVehicle, scheduleData: [...currentDates, newDateInput].sort() });
+                        setNewDateInput('');
+                      }}>Adicionar</button>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', maxHeight: '100px', overflowY: 'auto' }}>
+                      {(Array.isArray(newVehicle.scheduleData) ? newVehicle.scheduleData : []).map(dt => (
+                        <span key={dt} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                          {new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR')}
+                          <button style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }} onClick={() => {
+                            setNewVehicle({ ...newVehicle, scheduleData: newVehicle.scheduleData.filter(d => d !== dt) });
+                          }}>×</button>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* COLUNA DIREITA: Critérios de Checklist */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+                  <h4 style={{ margin: 0, color: 'var(--primary)' }}>📋 Critérios de Checklist</h4>
+                  
+                  {vehicles.filter(v => v.id !== newVehicle.id && v.tasks && v.tasks.length > 0).length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <select style={{ fontSize: '0.78rem', padding: '4px', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }} onChange={e => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        const source = vehicles.find(v => v.id === parseInt(val));
+                        if (source && source.tasks) {
+                          if (window.confirm(`Deseja copiar o checklist de ${source.brand} ${source.model} (${source.plate})? Isso substituirá os critérios atuais.`)) {
+                            setNewVehicle(prev => ({ ...prev, tasks: JSON.parse(JSON.stringify(source.tasks)) }));
+                          }
+                        }
+                        e.target.value = '';
+                      }}>
+                        <option value="">Copiar Checklist de...</option>
+                        {vehicles.filter(v => v.id !== newVehicle.id && v.tasks && v.tasks.length > 0).map(v => (
+                          <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto', paddingRight: '8px' }}>
+                  {(newVehicle.tasks || []).map((t, index) => (
+                    <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>#{index + 1}</span>
+                        <input type="text" className="input-field" style={{ flex: 1, padding: '6px 10px', fontSize: '0.85rem' }} placeholder="Descreva o que verificar (ex: Nível do óleo)..." value={t.text} onChange={e => {
+                          const nTasks = (newVehicle.tasks || []).map(item => item.id === t.id ? { ...item, text: e.target.value } : item);
+                          setNewVehicle({ ...newVehicle, tasks: nTasks });
+                        }} />
+                        <button style={{ color: 'var(--error)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }} onClick={() => {
+                          setNewVehicle({ ...newVehicle, tasks: (newVehicle.tasks || []).filter(item => item.id !== t.id) });
+                        }}>🗑️</button>
+                      </div>
+                      
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginRight: '6px' }}>Tipo:</label>
+                          <select style={{ fontSize: '0.78rem', padding: '3px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }} value={t.type} onChange={e => {
+                            const nTasks = (newVehicle.tasks || []).map(item => item.id === t.id ? { ...item, type: e.target.value } : item);
+                            setNewVehicle({ ...newVehicle, tasks: nTasks });
+                          }}>
+                            <option value="boolean">Sim / Não</option>
+                            <option value="text">Resposta em Texto</option>
+                            <option value="toggle">Feito / Pendente</option>
+                            <option value="numeric">Valor Numérico</option>
+                            <option value="rating">Avaliação (1-5 Estrelas)</option>
+                          </select>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={t.requirePhoto || false} onChange={e => {
+                              const nTasks = (newVehicle.tasks || []).map(item => item.id === t.id ? { ...item, requirePhoto: e.target.checked } : item);
+                              setNewVehicle({ ...newVehicle, tasks: nTasks });
+                            }} />
+                            Foto Obrigatória
+                          </label>
+                          
+                          {t.requirePhoto && (
+                            <select style={{ fontSize: '0.78rem', padding: '2px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }} value={t.maxPhotos || 1} onChange={e => {
+                              const nTasks = (newVehicle.tasks || []).map(item => item.id === t.id ? { ...item, maxPhotos: parseInt(e.target.value) } : item);
+                              setNewVehicle({ ...newVehicle, tasks: nTasks });
+                            }}>
+                              <option value="1">1 foto</option>
+                              <option value="2">Até 2 fotos</option>
+                              <option value="3">Até 3 fotos</option>
+                              <option value="4">Até 4 fotos</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <button className="btn-secondary" style={{ padding: '8px', fontSize: '0.85rem', borderStyle: 'dashed', borderWidth: '1.5px' }} onClick={() => {
+                    const newTask = {
+                      id: 'vtask_' + Math.random().toString(36).substring(2, 9),
+                      text: '',
+                      type: 'boolean',
+                      requirePhoto: false,
+                      maxPhotos: 1
+                    };
+                    setNewVehicle({ ...newVehicle, tasks: [...(newVehicle.tasks || []), newTask] });
+                  }}>
+                    ➕ Adicionar Item ao Checklist
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label className="input-label">Status</label>
-              <select className="input-field" value={newVehicle.status} onChange={e => setNewVehicle({ ...newVehicle, status: e.target.value })}>
-                <option value="ativo">🟢 Ativo na Frota</option>
-                <option value="manutencao">🟡 Em Manutenção / Inativo</option>
-              </select>
+            <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', justifyContent: 'flex-end', backgroundColor: 'var(--bg-card)' }}>
+              <button className="btn-secondary" style={{ padding: '10px 20px' }} onClick={() => setShowVehicleModal(false)}>Cancelar</button>
+              <button className="btn" style={{ padding: '10px 30px' }} onClick={handleSaveVehicle} disabled={isSavingVehicle}>
+                {isSavingVehicle ? 'Salvando...' : 'Salvar Veículo'}
+              </button>
             </div>
-
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={handleSaveVehicle} disabled={isSavingVehicle}>
-              {isSavingVehicle ? 'Salvando...' : 'Salvar Veículo'}
-            </button>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
@@ -22,7 +22,24 @@ export default function EmployeeDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasPonto, setHasPonto] = useState(false);
   const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
+  const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const fetchMyVehicles = useCallback(async (profile) => {
+    try {
+      const res = await fetch(`${API_URL}/api/vehicles?employeeId=${profile.id}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setMyVehicles(data);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao buscar veículos vinculados:', err);
+    }
+  }, []);
 
   const fetchChecklists = useCallback(async (profile, isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -77,10 +94,12 @@ export default function EmployeeDashboard() {
     
     // Busca inicial
     fetchChecklists(profile);
+    fetchMyVehicles(profile);
 
     // Auto-refresh a cada 10 segundos (Quase Tempo Real)
     const interval = setInterval(() => {
       fetchChecklists(profile);
+    fetchMyVehicles(profile);
     }, 10000);
 
     return () => clearInterval(interval);
@@ -265,6 +284,91 @@ export default function EmployeeDashboard() {
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
               <ShieldCheck size={12} color="#3b82f6" /> GPS e Câmera obrigatórios
             </p>
+          </div>
+        </section>
+      )}
+
+      {myVehicles.length > 0 && (
+        <section style={{ marginBottom: '32px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Car size={16} color="var(--primary)" /> Meus Veículos Vinculados ({myVehicles.length})
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {myVehicles.map(vehicle => {
+              const completed = vehicle.completed_today;
+              
+              const isPending = () => {
+                if (completed) return false;
+                
+                const todayDate = new Date();
+                const dayOfWeek = todayDate.getDay();
+                const dateString = todayDate.toISOString().split('T')[0];
+                
+                if (vehicle.schedule_type === 'daily') return true;
+                if (vehicle.schedule_type === 'weekdays') {
+                  const days = Array.isArray(vehicle.schedule_data) ? vehicle.schedule_data : [];
+                  return days.includes(dayOfWeek);
+                }
+                if (vehicle.schedule_type === 'specific_dates') {
+                  const dates = Array.isArray(vehicle.schedule_data) ? vehicle.schedule_data : [];
+                  return dates.includes(dateString);
+                }
+                if (vehicle.schedule_type === 'manual') {
+                  if (vehicle.last_requested_at) {
+                    const reqDate = new Date(vehicle.last_requested_at);
+                    const diffMs = todayDate - reqDate;
+                    const diffHours = diffMs / (1000 * 60 * 60);
+                    return diffHours <= 24;
+                  }
+                }
+                return false;
+              };
+              
+              const pending = isPending();
+              
+              return (
+                <div key={vehicle.id} className="card animate-scale" style={{ padding: '16px 20px', borderLeft: completed ? '4px solid var(--success)' : (pending ? '4px solid var(--primary)' : '4px solid var(--border-color)') }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {vehicle.photo_url ? (
+                          <img src={vehicle.photo_url} alt={vehicle.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <Car size={24} color="var(--text-muted)" />
+                        )}
+                      </div>
+                      <div>
+                        <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>{vehicle.brand} {vehicle.model}</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span className="badge" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                            {vehicle.plate}
+                          </span>
+                          {completed ? (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 'bold' }}>
+                              ✓ Concluído hoje por {vehicle.completed_by || 'você'}
+                            </span>
+                          ) : pending ? (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 'bold' }}>
+                              ⚠️ Vistoria Pendente
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              Em dia
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {!completed && (
+                      <button className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate(`/execucao/veiculo/${vehicle.id}`)}>
+                        Iniciar Vistoria <ArrowRight size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </section>
       )}

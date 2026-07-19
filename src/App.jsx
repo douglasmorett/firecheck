@@ -42,6 +42,7 @@ function App() {
         <Route path="/funcionario" element={<EmployeeDashboard />} />
         <Route path="/ponto" element={<PontoPage />} />
         <Route path="/execucao/:id" element={<ChecklistExecution />} />
+        <Route path="/execucao/veiculo/:vehicleId" element={<ChecklistExecution />} />
 
         {/* Rota 404 — redireciona para a página inicial */}
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -452,9 +452,19 @@ export default async function handler(req, res) {
           current_km DECIMAL(10, 2),
           photo_url TEXT,
           status VARCHAR(50) DEFAULT 'ativo',
+          employee_id INTEGER,
+          tasks TEXT,
+          schedule_type VARCHAR(50) DEFAULT 'manual',
+          schedule_data TEXT,
+          last_requested_at TIMESTAMP,
           created_at TIMESTAMP DEFAULT NOW()
         )
       `);
+      await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS employee_id INTEGER");
+      await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tasks TEXT");
+      await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(50) DEFAULT 'manual'");
+      await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS schedule_data TEXT");
+      await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_requested_at TIMESTAMP");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'geral'");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_signature BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS asset_link_type VARCHAR(100)");
@@ -708,6 +718,18 @@ export default async function handler(req, res) {
       }).filter(Boolean));
     }
 
+    if (url.includes('/api/vehicles/solicit')) {
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (method === 'POST') {
+        const { vehicleId } = req.body;
+        if (!vehicleId) return res.status(400).json({ error: 'vehicleId obrigatório.' });
+        await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1', [vehicleId]);
+        return res.status(200).json({ success: true });
+      }
+      return res.status(405).json({ error: 'Método não permitido.' });
+    }
+
     if (url.includes('/api/vehicles')) {
       const authUser = authenticateToken(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
@@ -729,20 +751,25 @@ export default async function handler(req, res) {
       }
 
       if (method === 'POST') {
-        const { id, plate, model, brand, color, year, currentKm, photoUrl, status } = req.body;
+        const { id, plate, model, brand, color, year, currentKm, photoUrl, status, employeeId, tasks, scheduleType, scheduleData } = req.body;
         const store = authUser.role === 'master' ? req.body.store : authUser.store;
         if (!store) return res.status(400).json({ error: 'Loja obrigatória.' });
 
+        const empId = employeeId ? parseInt(employeeId) : null;
+        const tsk = tasks ? (typeof tasks === 'string' ? tasks : JSON.stringify(tasks)) : null;
+        const schedType = scheduleType || 'manual';
+        const schedData = scheduleData ? (typeof scheduleData === 'string' ? scheduleData : JSON.stringify(scheduleData)) : null;
+
         if (id) {
           const { rows } = await pool.query(
-            'UPDATE vehicles SET plate = $1, model = $2, brand = $3, color = $4, year = $5, current_km = $6, photo_url = $7, status = $8 WHERE id = $9 AND LOWER(store) = LOWER($10) RETURNING *',
-            [plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo', id, store]
+            'UPDATE vehicles SET plate = $1, model = $2, brand = $3, color = $4, year = $5, current_km = $6, photo_url = $7, status = $8, employee_id = $9, tasks = $10, schedule_type = $11, schedule_data = $12 WHERE id = $13 AND LOWER(store) = LOWER($14) RETURNING *',
+            [plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo', empId, tsk, schedType, schedData, id, store]
           );
           return res.status(200).json(rows[0]);
         } else {
           const { rows } = await pool.query(
-            'INSERT INTO vehicles (store, plate, model, brand, color, year, current_km, photo_url, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
-            [store, plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo']
+            'INSERT INTO vehicles (store, plate, model, brand, color, year, current_km, photo_url, status, employee_id, tasks, schedule_type, schedule_data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
+            [store, plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo', empId, tsk, schedType, schedData]
           );
           return res.status(200).json(rows[0]);
         }
@@ -753,15 +780,46 @@ export default async function handler(req, res) {
         return res.status(200).json([]);
       }
       
-      let queryStr = 'SELECT * FROM vehicles';
-      let queryParams = [];
+      const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
+      let queryStr = `
+        SELECT v.*, u.name as employee_name,
+               (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1 LIMIT 1) as completed_by,
+               EXISTS(SELECT 1 FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1) as completed_today
+        FROM vehicles v 
+        LEFT JOIN users u ON v.employee_id = u.id
+      `;
+      let queryParams = [todayStart];
+      let paramCount = 1;
+
       if (store) {
-        queryStr += ' WHERE LOWER(store) = LOWER($1)';
+        paramCount++;
+        queryStr += ` WHERE LOWER(v.store) = LOWER($${paramCount})`;
         queryParams.push(store);
       }
-      queryStr += ' ORDER BY id DESC';
+
+      const employeeIdFilter = searchParams.get('employeeId');
+      if (employeeIdFilter) {
+        paramCount++;
+        if (store) {
+          queryStr += ` AND v.employee_id = $${paramCount}`;
+        } else {
+          queryStr += ` WHERE v.employee_id = $${paramCount}`;
+        }
+        queryParams.push(parseInt(employeeIdFilter));
+      }
+
+      queryStr += ' ORDER BY v.id DESC';
       const { rows } = await pool.query(queryStr, queryParams);
-      return res.status(200).json(rows);
+      
+      const formattedRows = rows.map(r => ({
+        ...r,
+        tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []),
+        schedule_data: typeof r.schedule_data === 'string' ? JSON.parse(r.schedule_data) : (r.schedule_data || null),
+        completed_today: r.completed_today || false,
+        completed_by: r.completed_by || null
+      }));
+
+      return res.status(200).json(formattedRows);
     }
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
@@ -1160,8 +1218,32 @@ export default async function handler(req, res) {
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
 
         const { rows } = await pool.query(
-          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info,        return res.status(200).json({ success: true, id: rows[0].id });�────────────────────────────
-        // ── PUSH NOTIFICATION ──────────────────────────────
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id, vehicle_id, signature) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+          [
+            employeeName,
+            store,
+            JSON.stringify(updatedTasks),
+            JSON.stringify(feedbackInfo || {}),
+            finalSelfie || null,
+            checklistId ? parseInt(checklistId) : null,
+            vehicleId ? parseInt(vehicleId) : null,
+            finalSignature || null
+          ]
+        );
+
+        // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
+        try {
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
+        } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
+
+        // ── INCREMENTAR COTA ──────────────────────────────────
+        if (storeAdmins && storeAdmins.length > 0) {
+          await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [storeAdmins[0].id]);
+        }
+
+        // ── PUSH NOTIFICATION ─────────────────────────────────
         try {
           const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
           const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');

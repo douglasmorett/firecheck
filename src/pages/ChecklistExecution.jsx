@@ -19,7 +19,7 @@ const handle401 = (res, navigate) => {
 
 export default function ChecklistExecution() {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id, vehicleId } = useParams();
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('Carregando...');
   
@@ -70,6 +70,65 @@ export default function ChecklistExecution() {
   useEffect(() => {
     setTasks([]);
     const profile = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    if (vehicleId) {
+      // Carregar vistorias específicas de veículo
+      fetch(`${API_URL}/api/vehicles?employeeId=${profile.id}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      })
+      .then(res => { handle401(res, navigate); return res.json(); })
+      .then(vData => {
+        if (Array.isArray(vData)) {
+          const vehicle = vData.find(v => String(v.id) === String(vehicleId));
+          if (vehicle) {
+            setTitle(`Vistoria - ${vehicle.brand} ${vehicle.model} (${vehicle.plate})`);
+            setCategory('veiculo');
+            setRequireSignature(true); // Exigir assinatura por padrão nas vistorias de veículos
+            setRequireSelfie(false);
+            
+            if (vehicle.completed_today) {
+              setCompletedTodayInfo(vehicle.completed_by);
+              setSubmitted(true);
+            }
+            
+            const myTasks = vehicle.tasks || [];
+            setTasks(myTasks.map((t, idx) => ({
+              ...t,
+              id: t.id || `vtask-${idx}`,
+              done: null,
+              photo: null,
+              photos: [],
+              forceOverride: false
+            })));
+            
+            // Buscar os detalhes da submissão se já estiver concluído
+            if (vehicle.completed_today) {
+              fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`, {
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+              })
+              .then(res => res.json())
+              .then(subs => {
+                const today = new Date().toISOString().split('T')[0];
+                const mySub = subs.find(s => s.vehicle_id === vehicle.id && s.created_at.startsWith(today));
+                if (mySub) {
+                  setTasks(mySub.tasks);
+                  setAIFeedback(mySub.feedback_info || {});
+                  setSelfie(mySub.selfie);
+                  setSignature(mySub.signature);
+                }
+              });
+            }
+          }
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar veículo:', err);
+        setLoading(false);
+      });
+      return;
+    }
+
     const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
 
     fetch(`${API_URL}/api/checklists${storeParam}`, {
@@ -339,7 +398,7 @@ export default function ChecklistExecution() {
       feedbackInfo: aiFeedback, 
       selfie,
       checklistId: currentChecklistId,
-      vehicleId: selectedVehicleId ? parseInt(selectedVehicleId) : null,
+      vehicleId: vehicleId ? parseInt(vehicleId) : (selectedVehicleId ? parseInt(selectedVehicleId) : null),
       signature
     };
 
@@ -490,7 +549,7 @@ export default function ChecklistExecution() {
         <h1 className="page-title" style={{ marginBottom: '4px', fontSize: '1.5rem' }}>{title}</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Responsável: {EMPLOYEE.name}</p>
         
-        {category === 'veiculo' && !completedTodayInfo && (
+        {category === 'veiculo' && !completedTodayInfo && !vehicleId && (
           <div className="card" style={{ padding: '16px', marginBottom: '20px', border: '1px solid var(--primary)' }}>
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontWeight: 'bold' }}>
               🚗 Veículo Inspecionado
