@@ -54,6 +54,8 @@ const newTask = () => ({
   notifyDelay: true,
   options: ['', ''],
   assignee: '', // Novo campo para funcionário específico (e-mail)
+  section: '',
+  maxPhotos: 1,
 });
 
 // Dados simulados (futuramente virão do backend/banco de dados)
@@ -88,6 +90,9 @@ export default function ChecklistCreator() {
   const [isSaving, setIsSaving] = useState(false);
   const [team, setTeam] = useState([]);
   const [weekdays, setWeekdays] = useState([]);
+  const [category, setCategory] = useState('geral');
+  const [requireSignature, setRequireSignature] = useState(false);
+  const [assetLinkType, setAssetLinkType] = useState('');
 
   // States for AI Generator (Chat-style)
   const [showAIModal, setShowAIModal] = useState(false);
@@ -403,7 +408,10 @@ export default function ChecklistCreator() {
             setRecurrence(cl.recurrence);
             setScheduledDate(cl.scheduled_date || cl.scheduledDate || '');
             setRequireSelfie(cl.require_selfie || false);
-            setTasks(cl.tasks);
+            setCategory(cl.category || 'geral');
+            setRequireSignature(cl.require_signature || false);
+            setAssetLinkType(cl.asset_link_type || '');
+            setTasks(cl.tasks || []);
             setWeekdays(cl.weekdays || []);
           }
         });
@@ -459,7 +467,8 @@ export default function ChecklistCreator() {
         headers: getAuthHeaders(),
         body: JSON.stringify({
           id: id || null,
-          title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null
+          title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null,
+          category, requireSignature, assetLinkType
         })
       });
 
@@ -624,6 +633,33 @@ export default function ChecklistCreator() {
               O colaborador terá que tirar uma foto do próprio rosto antes de concluir o checklist.
             </span>
           </div>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label className="input-label">Categoria do Checklist</label>
+            <select className="input-field" value={category} onChange={e => setCategory(e.target.value)}>
+              <option value="geral">📦 Geral / Operação</option>
+              <option value="loja">🏪 Loja (Limpeza, Abertura...)</option>
+              <option value="restaurante">🍽️ Cozinha / Alimentos</option>
+              <option value="consultorio">🏥 Clínicas e Consultórios</option>
+              <option value="veiculo">🚗 Frota e Veículos</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              🖋️ Exigir Assinatura Digital
+            </label>
+            <label className="custom-checkbox" style={{ padding: '4px 0', marginBottom: 0 }}>
+              <input type="checkbox" checked={requireSignature} onChange={e => setRequireSignature(e.target.checked)} />
+              <span className="checkmark"></span>
+              <span style={{ color: requireSignature ? 'var(--primary)' : 'var(--text-muted)', fontSize: '0.9rem' }}>
+                {requireSignature ? 'Sim, obrigatória' : 'Não exigir'}
+              </span>
+            </label>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block', lineHeight: '1.4' }}>
+              O colaborador precisará assinar digitalmente com o dedo na tela do celular para concluir o checklist.
+            </span>
+          </div>
         </div>
 
         {/* Painel Direito */}
@@ -656,9 +692,20 @@ export default function ChecklistCreator() {
                   </button>
                 </div>
 
-                <input type="text" className="input-field" style={{ marginBottom: '12px' }}
-                  placeholder="Descreva o que deve ser feito"
-                  value={task.text} onChange={e => updateTask(task.id, 'text', e.target.value)} />
+                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                   <div>
+                     <label className="input-label">Descrição da Tarefa</label>
+                     <input type="text" className="input-field"
+                       placeholder="Descreva o que deve ser feito"
+                       value={task.text} onChange={e => updateTask(task.id, 'text', e.target.value)} />
+                   </div>
+                   <div>
+                     <label className="input-label">Seção / Agrupador</label>
+                     <input type="text" className="input-field"
+                       placeholder="Ex: Motor, Pneus, Cozinha..."
+                       value={task.section || ''} onChange={e => updateTask(task.id, 'section', e.target.value)} />
+                   </div>
+                 </div>
 
                 <div style={{ marginBottom: '12px' }}>
                   <label className="input-label">Tipo de Resposta</label>
@@ -718,29 +765,42 @@ export default function ChecklistCreator() {
                   </div>
                 )}
 
-                <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: '1', minWidth: '180px' }}>
-                    <label className="input-label">Fiscalização por Foto (IA)</label>
-                    <label className="custom-checkbox" style={{ padding: '10px 0' }}>
-                      <input type="checkbox" checked={task.requirePhoto}
-                        onChange={e => updateTask(task.id, 'requirePhoto', e.target.checked)} />
-                      <span className="checkmark"></span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '8px',
-                        color: task.requirePhoto ? 'var(--primary)' : 'var(--text-muted)' }}>
-                        <Camera size={18} /> Exigir Foto Real
-                        {task.requirePhoto && <ShieldCheck size={18} color="var(--primary)" />}
-                      </span>
-                    </label>
-                  </div>
+                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                   <div style={{ flex: '1', minWidth: '180px' }}>
+                     <label className="input-label">Fiscalização por Foto (IA)</label>
+                     <label className="custom-checkbox" style={{ padding: '10px 0' }}>
+                       <input type="checkbox" checked={task.requirePhoto}
+                         onChange={e => updateTask(task.id, 'requirePhoto', e.target.checked)} />
+                       <span className="checkmark"></span>
+                       <span style={{ display: 'flex', alignItems: 'center', gap: '8px',
+                         color: task.requirePhoto ? 'var(--primary)' : 'var(--text-muted)' }}>
+                         <Camera size={18} /> Exigir Foto Real
+                         {task.requirePhoto && <ShieldCheck size={18} color="var(--primary)" />}
+                       </span>
+                     </label>
+                   </div>
 
-                  <div style={{ flex: '1', minWidth: '150px' }}>
-                    <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <Clock size={14} /> Hora Limite (Opcional)
-                    </label>
-                    <input type="time" className="input-field" value={task.timeLimit || ''}
-                      onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
-                  </div>
-                </div>
+                   {task.requirePhoto && (
+                     <div style={{ flex: '1', minWidth: '130px' }}>
+                       <label className="input-label">Máx. de Fotos</label>
+                       <select className="input-field" value={task.maxPhotos || 1}
+                         onChange={e => updateTask(task.id, 'maxPhotos', parseInt(e.target.value))}>
+                         <option value={1}>1 foto</option>
+                         <option value={2}>2 fotos</option>
+                         <option value={3}>3 fotos</option>
+                         <option value={4}>4 fotos</option>
+                       </select>
+                     </div>
+                   )}
+ 
+                   <div style={{ flex: '1', minWidth: '150px' }}>
+                     <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                       <Clock size={14} /> Hora Limite (Opcional)
+                     </label>
+                     <input type="time" className="input-field" value={task.timeLimit || ''}
+                       onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
+                   </div>
+                 </div>
 
                 {/* Atribuição de Funcionário Específico */}
                 <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>

@@ -216,6 +216,38 @@ async function processAuditForSubmission(pool, submissionId) {
     await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
   }
 
+  // Enviar Notificação Push em caso de irregularidades (warnings/reprovações)
+  if (hasErrors) {
+    try {
+      const { rows: subRows } = await pool.query('SELECT store, employee_name FROM checklist_submissions WHERE id = $1', [submissionId]);
+      if (subRows.length > 0) {
+        const { store, employee_name: employeeName } = subRows[0];
+        const { rows: admins } = await pool.query(
+          "SELECT fcm_token FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master') AND fcm_token IS NOT NULL",
+          [store]
+        );
+        for (const adminUser of admins) {
+          try {
+            await admin.messaging().send({
+              token: adminUser.fcm_token,
+              notification: {
+                title: '⚠️ Irregularidade no Checklist',
+                body: `Reprovação detectada na ${store} por ${employeeName}. Verifique o painel.`
+              },
+              data: { url: '/admin' },
+              apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+            });
+            console.log(`[Push Auditoria] Alerta enviado para o token do admin: ${adminUser.fcm_token.substring(0, 15)}...`);
+          } catch (pushErr) {
+            console.error('[Push Auditoria] Erro no envio push do admin:', pushErr.message);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Push Auditoria] Erro ao buscar dados para notificação:', err.message);
+    }
+  }
+
   return { success: true, processed: processedCount, hasErrors, errors, retryCount };
 }
 
@@ -407,6 +439,27 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_entrada VARCHAR(5) DEFAULT '08:00'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_saida VARCHAR(5) DEFAULT '18:00'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_tolerancia INTEGER DEFAULT 15");
+      // ── Tabela de Veículos e melhorias de checklists ──
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS vehicles (
+          id SERIAL PRIMARY KEY,
+          store VARCHAR(255),
+          plate VARCHAR(50),
+          model VARCHAR(255),
+          brand VARCHAR(255),
+          color VARCHAR(50),
+          year INTEGER,
+          current_km DECIMAL(10, 2),
+          photo_url TEXT,
+          status VARCHAR(50) DEFAULT 'ativo',
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'geral'");
+      await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_signature BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS asset_link_type VARCHAR(100)");
+      await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS vehicle_id INTEGER");
+      await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS signature TEXT");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -586,51 +639,19 @@ export default async function handler(req, res) {
       }
 
       if (method === 'POST') {
-        const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays } = req.body;
+        const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays, category, requireSignature, assetLinkType } = req.body;
         if (id) {
-          try {
-            const { rows } = await pool.query(
-              'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7 WHERE id = $8 RETURNING *',
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, id]
-            );
-            return res.status(200).json(rows[0]);
-          } catch (dbErr) {
-            try {
-              const { rows } = await pool.query(
-                'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5 WHERE id = $6 RETURNING *',
-                [title, store, JSON.stringify(tasks), recurrence, scheduledDate, id]
-              );
-              return res.status(200).json(rows[0]);
-            } catch (err2) {
-              const { rows } = await pool.query(
-                'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4 WHERE id = $5 RETURNING *',
-                [title, store, JSON.stringify(tasks), recurrence, id]
-              );
-              return res.status(200).json(rows[0]);
-            }
-          }
+          const { rows } = await pool.query(
+            'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7, category = $8, require_signature = $9, asset_link_type = $10 WHERE id = $11 RETURNING *',
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id]
+          );
+          return res.status(200).json(rows[0]);
         } else {
-          try {
-            const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null]
-            );
-            return res.status(200).json(rows[0]);
-          } catch (dbErr) {
-            try {
-              const { rows } = await pool.query(
-                'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-                [title, store, JSON.stringify(tasks), recurrence, scheduledDate]
-              );
-              return res.status(200).json(rows[0]);
-            } catch (err2) {
-              const { rows } = await pool.query(
-                'INSERT INTO checklists (title, store, tasks, recurrence) VALUES ($1, $2, $3, $4) RETURNING *',
-                [title, store, JSON.stringify(tasks), recurrence]
-              );
-              return res.status(200).json(rows[0]);
-            }
-          }
+          const { rows } = await pool.query(
+            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays, category, require_signature, asset_link_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null]
+          );
+          return res.status(200).json(rows[0]);
         }
       }
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
@@ -685,6 +706,62 @@ export default async function handler(req, res) {
         const wk = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
         return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), weekdays: wk, completedToday: isCompleted, completedBy };
       }).filter(Boolean));
+    }
+
+    if (url.includes('/api/vehicles')) {
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      
+      const match = url.match(/\/api\/vehicles\/([^\/?]+)/);
+      if (match) {
+        const vehicleId = match[1];
+        if (method === 'DELETE') {
+          if (authUser.role !== 'master') {
+            const { rows: target } = await pool.query('SELECT store FROM vehicles WHERE id = $1', [vehicleId]);
+            if (target.length > 0 && String(target[0].store).toLowerCase() !== String(authUser.store).toLowerCase()) {
+              return res.status(403).json({ error: 'Você só pode remover veículos da sua própria loja.' });
+            }
+          }
+          await pool.query('DELETE FROM vehicles WHERE id = $1', [vehicleId]);
+          return res.status(200).json({ success: true });
+        }
+        return res.status(405).json({ error: 'Método não permitido.' });
+      }
+
+      if (method === 'POST') {
+        const { id, plate, model, brand, color, year, currentKm, photoUrl, status } = req.body;
+        const store = authUser.role === 'master' ? req.body.store : authUser.store;
+        if (!store) return res.status(400).json({ error: 'Loja obrigatória.' });
+
+        if (id) {
+          const { rows } = await pool.query(
+            'UPDATE vehicles SET plate = $1, model = $2, brand = $3, color = $4, year = $5, current_km = $6, photo_url = $7, status = $8 WHERE id = $9 AND LOWER(store) = LOWER($10) RETURNING *',
+            [plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo', id, store]
+          );
+          return res.status(200).json(rows[0]);
+        } else {
+          const { rows } = await pool.query(
+            'INSERT INTO vehicles (store, plate, model, brand, color, year, current_km, photo_url, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *',
+            [store, plate, model, brand, color, year ? parseInt(year) : null, currentKm ? parseFloat(currentKm) : null, photoUrl || null, status || 'ativo']
+          );
+          return res.status(200).json(rows[0]);
+        }
+      }
+
+      const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+      if (!store && authUser.role !== 'master') {
+        return res.status(200).json([]);
+      }
+      
+      let queryStr = 'SELECT * FROM vehicles';
+      let queryParams = [];
+      if (store) {
+        queryStr += ' WHERE LOWER(store) = LOWER($1)';
+        queryParams.push(store);
+      }
+      queryStr += ' ORDER BY id DESC';
+      const { rows } = await pool.query(queryStr, queryParams);
+      return res.status(200).json(rows);
     }
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
@@ -1016,7 +1093,7 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
-        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId } = req.body;
+        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature } = req.body;
 
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
@@ -1047,8 +1124,17 @@ export default async function handler(req, res) {
         // ─────────────────────────────────────────────────────────
 
         // --- INTEGRAÇÃO FIREBASE STORAGE ---
-        // Faz o upload das fotos das tasks
+        // Faz o upload das fotos das tasks (suportando múltiplas fotos no array task.photos)
         const updatedTasks = await Promise.all(tasks.map(async (task) => {
+          if (task.photos && Array.isArray(task.photos)) {
+            const uploadedPhotos = await Promise.all(task.photos.map(async (p) => {
+              if (p && p.startsWith('data:image')) {
+                return await uploadImage(p, `tasks/${store}`);
+              }
+              return p;
+            }));
+            return { ...task, photos: uploadedPhotos };
+          }
           if (task.photo && task.photo.startsWith('data:image')) {
             const firebaseUrl = await uploadImage(task.photo, `tasks/${store}`);
             return { ...task, photo: firebaseUrl };
@@ -1061,6 +1147,12 @@ export default async function handler(req, res) {
         if (selfie && selfie.startsWith('data:image')) {
           finalSelfie = await uploadImage(selfie, `selfies/${store}`);
         }
+
+        // Faz o upload da assinatura digital
+        let finalSignature = signature;
+        if (signature && signature.startsWith('data:image')) {
+          finalSignature = await uploadImage(signature, `signatures/${store}`);
+        }
         // ------------------------------------
 
         const today = new Date().toISOString().split('T')[0];
@@ -1068,24 +1160,7 @@ export default async function handler(req, res) {
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
 
         const { rows } = await pool.query(
-          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info, selfie, checklist_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-          [employeeName, store, JSON.stringify(updatedTasks), JSON.stringify(feedbackInfo || {}), finalSelfie, checklistId]
-        );
-
-        // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
-        // Remove submissões muito antigas para não lotar o banco
-        try {
-          const ninetyDaysAgo = new Date();
-          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-          await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
-        } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
-        // ----------------------------------------------
-
-        // ── INCREMENTAR COTA ──────────────────────────────────
-        if (storeAdmins && storeAdmins.length > 0) {
-          await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [storeAdmins[0].id]);
-        }
-        // ─────────────────────────────────────────────────────────
+          'INSERT INTO checklist_submissions (employee_name, store, tasks, feedback_info,        return res.status(200).json({ success: true, id: rows[0].id });�────────────────────────────
         // ── PUSH NOTIFICATION ──────────────────────────────
         try {
           const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
@@ -1162,7 +1237,16 @@ export default async function handler(req, res) {
       const authUser = authenticateToken(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
-      const { rows } = await pool.query('SELECT * FROM checklist_submissions' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC LIMIT 50', store ? [store] : []);
+      
+      let queryStr = 'SELECT cs.*, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id';
+      let queryParams = [];
+      if (store) {
+        queryStr += ' WHERE LOWER(cs.store) = LOWER($1)';
+        queryParams.push(store);
+      }
+      queryStr += ' ORDER BY cs.created_at DESC LIMIT 50';
+
+      const { rows } = await pool.query(queryStr, queryParams);
       return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
     }
 

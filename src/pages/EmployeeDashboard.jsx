@@ -22,6 +22,7 @@ export default function EmployeeDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasPonto, setHasPonto] = useState(false);
   const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   const fetchChecklists = useCallback(async (profile, isManual = false) => {
     if (isManual) setIsRefreshing(true);
@@ -85,6 +86,66 @@ export default function EmployeeDashboard() {
     return () => clearInterval(interval);
   }, [navigate, fetchChecklists]);
 
+  // Lógica de monitoramento de conectividade e sincronização automática
+  useEffect(() => {
+    const updateOnlineStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+
+    const syncOfflineQueue = async () => {
+      if (!navigator.onLine) return;
+      const queue = JSON.parse(localStorage.getItem('firecheck_offline_queue') || '[]');
+      if (queue.length === 0) return;
+      
+      console.log(`[Offline Sync] Sincronizando ${queue.length} checklists pendentes...`);
+      const newQueue = [];
+      
+      for (const item of queue) {
+        try {
+          const res = await fetch(`${API_URL}/api/finalize`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+            },
+            body: JSON.stringify(item)
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.id) {
+              fetch(`${API_URL}/api/process-audit-background`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+                },
+                body: JSON.stringify({ submissionId: data.id })
+              }).catch(() => {});
+            }
+          } else {
+            newQueue.push(item);
+          }
+        } catch (err) {
+          newQueue.push(item);
+        }
+      }
+      
+      localStorage.setItem('firecheck_offline_queue', JSON.stringify(newQueue));
+      if (newQueue.length < queue.length && userProfile) {
+        fetchChecklists(userProfile);
+      }
+    };
+
+    window.addEventListener('online', syncOfflineQueue);
+    syncOfflineQueue(); // Executa ao conectar
+
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus);
+      window.removeEventListener('offline', updateOnlineStatus);
+      window.removeEventListener('online', syncOfflineQueue);
+    };
+  }, [userProfile, fetchChecklists]);
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('firecheck_token');
@@ -104,6 +165,15 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="page-container" style={{ maxWidth: '600px' }}>
+      {!isOnline && (
+        <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '12px 16px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
+          <span>📡</span>
+          <div>
+            <strong>Você está offline.</strong>
+            <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', opacity: 0.9 }}>Os checklists preenchidos serão salvos localmente e enviados automaticamente quando houver conexão.</p>
+          </div>
+        </div>
+      )}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
            <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '8px' }}>
@@ -215,7 +285,9 @@ export default function EmployeeDashboard() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>{checklist.title}</h3>
+                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>
+                    {checklist.category === 'veiculo' ? '🚗 ' : ''}{checklist.title}
+                  </h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
                     {checklist.tasks.length} tarefas • {checklist.recurrence || 'Diário'}
                   </p>
@@ -247,7 +319,9 @@ export default function EmployeeDashboard() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0', textDecoration: 'line-through' }}>{checklist.title}</h3>
+                    <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0', textDecoration: 'line-through' }}>
+                      {checklist.category === 'veiculo' ? '🚗 ' : ''}{checklist.title}
+                    </h3>
                     <p style={{ fontSize: '0.8rem', color: 'var(--success)', margin: 0, fontWeight: 'bold' }}>
                       ✓ Concluído por {checklist.completedBy || 'você'}
                     </p>

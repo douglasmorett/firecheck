@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -158,6 +158,14 @@ export default function AdminDashboard() {
   // -- Bill Integration --
   const [billLinked, setBillLinked] = useState(false);
   const [billUser, setBillUser] = useState(null);
+  
+  // -- Veículos --
+  const [vehicles, setVehicles] = useState([]);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState(null);
+  const [newVehicle, setNewVehicle] = useState({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+  const [isSavingVehicle, setIsSavingVehicle] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('todos');
   const [billEmail, setBillEmail] = useState('');
   const [billPassword, setBillPassword] = useState('');
   const [billLoading, setBillLoading] = useState(false);
@@ -251,6 +259,7 @@ export default function AdminDashboard() {
     fetchCameras();
     fetchQuota();
     fetchPontoRecords();
+    fetchVehicles();
 
      const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
@@ -275,6 +284,7 @@ export default function AdminDashboard() {
     const globalRefresh = setInterval(() => {
       fetchData();
       fetchQuota();
+      fetchVehicles();
       checkVisitors();
     }, 10000);
 
@@ -441,6 +451,285 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (Array.isArray(data)) setPontoRecords(data);
     } catch (err) { console.error('Erro ponto:', err); }
+  const fetchVehicles = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      const res = await fetch(`${API_URL}/api/vehicles?store=${encodeURIComponent(user.store || '')}`, {
+        headers: getAuthHeaders()
+      });
+      handle401(res);
+      const data = await res.json();
+      if (Array.isArray(data)) setVehicles(data);
+    } catch (e) {
+      console.error('Erro ao buscar veículos:', e);
+    }
+  };
+
+  const handleSaveVehicle = async () => {
+    if (!newVehicle.plate || !newVehicle.model) {
+      alert('⚠️ Placa e Modelo são obrigatórios!');
+      return;
+    }
+    setIsSavingVehicle(true);
+    try {
+      const savedUser = localStorage.getItem('user');
+      const user = JSON.parse(savedUser || '{}');
+      const res = await fetch(`${API_URL}/api/vehicles`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          ...newVehicle,
+          store: user.store
+        })
+      });
+      if (res.ok) {
+        alert(newVehicle.id ? '✅ Veículo atualizado com sucesso!' : '✅ Veículo cadastrado com sucesso!');
+        setShowVehicleModal(false);
+        setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+        fetchVehicles();
+      } else {
+        const err = await res.json();
+        alert(`❌ Erro: ${err.error || 'Erro desconhecido'}`);
+      }
+    } catch (e) {
+      alert('❌ Erro de conexão com o servidor.');
+    } finally {
+      setIsSavingVehicle(false);
+    }
+  };
+
+  const handleDeleteVehicle = async (vehicleId) => {
+    if (!window.confirm('⚠️ Tem certeza que deseja remover este veículo?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/vehicles/${vehicleId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        alert('✅ Veículo removido com sucesso!');
+        fetchVehicles();
+      }
+    } catch (e) {
+      alert('❌ Erro ao remover veículo.');
+    }
+  };
+
+  const handleVehiclePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewVehicle(prev => ({ ...prev, photoUrl: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleExportPDF = (submission) => {
+    const cl = checklists?.find(c => c.id === submission.checklist_id);
+    const completedTasks = submission.tasks?.filter(t => t.done)?.length || 0;
+    const totalTasks = submission.tasks?.length || 1;
+    const pct = Math.round((completedTasks / totalTasks) * 100);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('⚠️ Por favor, permita pop-ups para gerar o relatório em PDF.');
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Relatório de Auditoria - FireCheck</title>
+        <meta charset="utf-8">
+        <style>
+          body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #1f2937;
+            padding: 40px;
+            background-color: #ffffff;
+            margin: 0;
+          }
+          .header {
+            border-bottom: 2px solid #ef4444;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ef4444;
+          }
+          .meta-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+          }
+          .meta-item {
+            font-size: 14px;
+          }
+          .meta-item strong {
+            color: #374151;
+          }
+          .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 6px;
+            color: #111827;
+          }
+          .task-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+          }
+          .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .status-badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+          }
+          .status-sim { background-color: #d1fae5; color: #065f46; }
+          .status-nao { background-color: #fee2e2; color: #991b1b; }
+          .evidence-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 20px;
+            margin-top: 10px;
+          }
+          .evidence-img {
+            max-width: 150px;
+            max-height: 150px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+          }
+          .ai-feedback {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 10px;
+            border-radius: 0 6px 6px 0;
+            font-size: 13px;
+          }
+          .ai-feedback.success {
+            background-color: #ecfdf5;
+            border-left-color: #10b981;
+          }
+          .signature-box {
+            margin-top: 40px;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 20px;
+            text-align: center;
+            page-break-inside: avoid;
+          }
+          .signature-img {
+            max-height: 80px;
+            border-bottom: 1px solid #9ca3af;
+            margin-bottom: 8px;
+          }
+          .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 11px;
+            color: #9ca3af;
+            border-top: 1px solid #f3f4f6;
+            padding-top: 15px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">🔥 FireCheck Pro</div>
+          <div style="font-size: 14px; color: #6b7280;">Relatório de Auditoria Digital</div>
+        </div>
+
+        <div class="meta-info">
+          <div class="meta-item"><strong>Checklist:</strong> ${cl?.title || 'N/A'}</div>
+          <div class="meta-item"><strong>Unidade/Loja:</strong> ${submission.store}</div>
+          <div class="meta-item"><strong>Responsável:</strong> ${submission.employee_name}</div>
+          <div class="meta-item"><strong>Data/Hora de Envio:</strong> ${new Date(submission.created_at).toLocaleString('pt-BR')} (Horário de Brasília)</div>
+          <div class="meta-item"><strong>Resultado/Conclusão:</strong> ${pct}% concluído (${completedTasks}/${totalTasks} tarefas)</div>
+          ${submission.vehicle_id ? `<div class="meta-item"><strong>Veículo Inspecionado:</strong> Sim (ID: ${submission.vehicle_id})</div>` : ''}
+        </div>
+
+        <div class="section-title">Respostas e Auditoria</div>
+        ${submission.tasks.map((task, idx) => {
+          const feedback = submission.feedback_info?.[task.id];
+          const hasPhoto = task.photos && task.photos.length > 0 || task.photo;
+          const photos = task.photos || (task.photo ? [task.photo] : []);
+          return `
+            <div class="task-card">
+              <div class="task-header">
+                <div>${idx + 1}. ${task.text}</div>
+                <span class="status-badge ${task.done ? 'status-sim' : 'status-nao'}">
+                  ${task.done ? 'Sim' : 'Não'}
+                </span>
+              </div>
+              ${hasPhoto || feedback ? `
+                <div class="evidence-grid">
+                  ${hasPhoto ? `
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                      ${photos.map(p => `<img class="evidence-img" src="${p}" />`).join('')}
+                    </div>
+                  ` : ''}
+                  ${feedback ? `
+                    <div class="ai-feedback ${feedback.status === 'success' ? 'success' : ''}">
+                      <strong>${feedback.status === 'success' ? '✅ Aprovado pela IA' : '⚠️ Alerta da IA'}:</strong>
+                      <p style="margin: 4px 0 0 0;">${feedback.message}</p>
+                    </div>
+                  ` : ''}
+                </div>
+              ` : ''}
+            </div>
+          `;
+        }).join('')}
+
+        ${submission.signature ? `
+          <div class="signature-box">
+            <img class="signature-img" src="${submission.signature}" alt="Assinatura" /><br />
+            <strong>Assinatura Digital do Funcionário</strong><br />
+            <span style="font-size: 11px; color: #6b7280;">Documento assinado digitalmente no dispositivo celular por ${submission.employee_name}.</span>
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          FireCheck v1.0 • Relatório gerado digitalmente em ${new Date().toLocaleString('pt-BR')}<br />
+          Auditoria inteligente provida por Google Gemini AI. Todos os direitos reservados.
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          }
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const fetchData = async () => {
@@ -965,6 +1254,7 @@ export default function AdminDashboard() {
             (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
             { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
             { key: 'checklists',  label: 'Checklists', icon: <ClipboardList size={18}/> },
+            { key: 'vehicles',    label: 'Frota e Veículos', icon: <Car size={18}/> },
             { key: 'bill',        label: 'Conectar com Bill', icon: <Bot size={18}/> },
             { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
           ].filter(Boolean)).map(t => {
@@ -1512,65 +1802,119 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-
-
       {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
       {tab === 'auditoria' && (
         <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <Activity size={20} color="var(--primary)" /> Auditoria em Tempo Real
             </h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Últimas 24h</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Filtrar Categoria:</label>
+              <select 
+                value={categoryFilter} 
+                onChange={e => setCategoryFilter(e.target.value)}
+                style={{
+                  backgroundColor: 'var(--bg-color)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              >
+                <option value="todos">Todos os Segmentos</option>
+                <option value="geral">Geral / Padrão</option>
+                <option value="loja">Loja / Varejo</option>
+                <option value="restaurante">Restaurante / Alimentação</option>
+                <option value="consultorio">Consultório / Clínicas</option>
+                <option value="veiculo">Frota / Veicular</option>
+              </select>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Últimas 24h</span>
+            </div>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {submissions.length > 0 ? submissions.map(s => {
-              const completedTasks = s.tasks?.filter(t => t.done)?.length || 0;
-              const totalTasks = s.tasks?.length || 1;
-              const pct = Math.round((completedTasks / totalTasks) * 100);
-              
-              const feedbacks = Object.values(s.feedback_info || {});
-              const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
-              const hasPhotos = (s.tasks || []).some(t => t.photo);
-              const globalError = s.feedback_info?.global_error;
-              
-              let status = 'pendente';
-              if (globalError) status = 'falha';
-              else if (hasPhotos) {
-                if (feedbacks.length === 0) status = 'pendente';
-                else if (hasWarnings) status = 'reprovado';
-                else status = 'aprovado';
-              } else {
-                status = 'ignorado';
-              }
+            {(() => {
+              const filteredSubmissions = submissions.filter(s => {
+                if (categoryFilter === 'todos') return true;
+                const cl = checklists?.find(c => c.id === s.checklist_id);
+                return cl && cl.category === categoryFilter;
+              });
 
-              return (
-                <div key={s.id} 
-                  onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
-                  onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                  onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                >
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
-                    {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ fontSize: '1rem', marginBottom: '2px' }}>
-                        {checklists?.find(c => c.id === s.checklist_id)?.title || 'Checklist Concluído'}
-                      </h4>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
-                      <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
+              return filteredSubmissions.length > 0 ? filteredSubmissions.map(s => {
+                const completedTasks = s.tasks?.filter(t => t.done)?.length || 0;
+                const totalTasks = s.tasks?.length || 1;
+                const pct = Math.round((completedTasks / totalTasks) * 100);
+                
+                const feedbacks = Object.values(s.feedback_info || {});
+                const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
+                const hasPhotos = (s.tasks || []).some(t => t.photo);
+                const globalError = s.feedback_info?.global_error;
+                
+                let status = 'pendente';
+                if (globalError) status = 'falha';
+                else if (hasPhotos) {
+                  if (feedbacks.length === 0) status = 'pendente';
+                  else if (hasWarnings) status = 'reprovado';
+                  else status = 'aprovado';
+                } else {
+                  status = 'ignorado';
+                }
+
+                return (
+                  <div key={s.id} 
+                    onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
+                    onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                    onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
+                      {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ fontSize: '1rem', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {checklists?.find(c => c.id === s.checklist_id)?.title || 'Checklist Concluído'}
+                          {checklists?.find(c => c.id === s.checklist_id)?.category === 'veiculo' && (
+                            <span style={{ fontSize: '0.7rem', padding: '2px 6px', backgroundColor: 'rgba(255, 69, 0, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }}>
+                              🚗 Veicular
+                            </span>
+                          )}
+                        </h4>
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
+                        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
+                        </div>
                       </div>
                     </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        <StatusBadge status={status} />
+                        {(status === 'pendente' || status === 'falha') && (
+                          <button 
+                            onClick={(e) => handleReprocessAudit(e, s.id)}
+                            style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
+                          >
+                            Tentar Novamente
+                          </button>
+                        )}
+                      </div>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
+                        <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                        {new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                      <StatusBadge status={status} />
-                      {(status === 'pendente' || status === 'falha') && (
-                        <button 
-                          onClick={(e) => handleReprocessAudit(e, s.id)}
-                          style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
+                );
+              }) : (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <p>Nenhuma auditoria realizada no período para esta categoria.</p>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}ng: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
                         >
                           Tentar Novamente
                         </button>
@@ -1941,6 +2285,152 @@ export default function AdminDashboard() {
                 <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => navigate('/admin/creator')}>Criar meu primeiro checklist</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: Frota e Veículos ────────────────────────────────────────── */}
+      {tab === 'vehicles' && (
+        <div className="card" style={{ padding: '0' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Car size={20} color="var(--primary)" /> Gerenciamento de Frota e Veículos
+            </h3>
+            <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
+              setEditingVehicle(null);
+              setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+              setShowVehicleModal(true);
+            }}>
+              <Plus size={16} /> Cadastrar Veículo
+            </button>
+          </div>
+          <div style={{ padding: '24px' }}>
+            {vehicles.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+                {vehicles.map(v => (
+                  <div key={v.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <div style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgba(255, 69, 0, 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {v.photo_url ? (
+                          <img src={v.photo_url} alt={v.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        ) : (
+                          <Car size={36} color="var(--text-muted)" />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                          {v.brand} {v.model}
+                        </h4>
+                        <span className="badge" style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                          {v.plate}
+                        </span>
+                        <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                          📟 KM Atual: <strong>{v.current_km ? Number(v.current_km).toLocaleString('pt-BR') : '0'} km</strong>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: v.status === 'ativo' ? 'var(--success)' : 'var(--error)' }}>
+                        ● {v.status === 'ativo' ? 'Ativo na Frota' : 'Inativo / Manutenção'}
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
+                          setEditingVehicle(v);
+                          setNewVehicle({ id: v.id, plate: v.plate, model: v.model, brand: v.brand, color: v.color || '', year: v.year || '', currentKm: v.current_km || '', photoUrl: v.photo_url || '', status: v.status || 'ativo' });
+                          setShowVehicleModal(true);
+                        }}>
+                          Editar
+                        </button>
+                        <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteVehicle(v.id)}>
+                          Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                <Car size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
+                <p>Nenhum veículo cadastrado na frota desta loja.</p>
+                <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => {
+                  setEditingVehicle(null);
+                  setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo' });
+                  setShowVehicleModal(true);
+                }}>
+                  Cadastrar Primeiro Veículo
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showVehicleModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '500px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0 }}>{editingVehicle ? 'Editar Veículo' : 'Cadastrar Veículo'}</h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setShowVehicleModal(false)}>
+                <X size={24} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label className="input-label">Placa *</label>
+                <input type="text" className="input-field" placeholder="Ex: ABC-1234" value={newVehicle.plate} onChange={e => setNewVehicle({ ...newVehicle, plate: e.target.value.toUpperCase() })} />
+              </div>
+              <div>
+                <label className="input-label">Modelo *</label>
+                <input type="text" className="input-field" placeholder="Ex: Uno Way" value={newVehicle.model} onChange={e => setNewVehicle({ ...newVehicle, model: e.target.value })} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label className="input-label">Marca / Fabricante</label>
+                <input type="text" className="input-field" placeholder="Ex: Fiat" value={newVehicle.brand} onChange={e => setNewVehicle({ ...newVehicle, brand: e.target.value })} />
+              </div>
+              <div>
+                <label className="input-label">Cor</label>
+                <input type="text" className="input-field" placeholder="Ex: Vermelho" value={newVehicle.color} onChange={e => setNewVehicle({ ...newVehicle, color: e.target.value })} />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+              <div>
+                <label className="input-label">Ano</label>
+                <input type="number" className="input-field" placeholder="Ex: 2018" value={newVehicle.year} onChange={e => setNewVehicle({ ...newVehicle, year: e.target.value })} />
+              </div>
+              <div>
+                <label className="input-label">Quilometragem (KM) *</label>
+                <input type="number" className="input-field" placeholder="Ex: 120500" value={newVehicle.currentKm} onChange={e => setNewVehicle({ ...newVehicle, currentKm: e.target.value })} />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label className="input-label">Foto do Veículo (Opcional)</label>
+              <input type="file" accept="image/*" className="input-field" onChange={handleVehiclePhotoChange} />
+              {newVehicle.photoUrl && (
+                <div style={{ marginTop: '10px', width: '100px', height: '100px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <img src={newVehicle.photoUrl} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label className="input-label">Status</label>
+              <select className="input-field" value={newVehicle.status} onChange={e => setNewVehicle({ ...newVehicle, status: e.target.value })}>
+                <option value="ativo">🟢 Ativo na Frota</option>
+                <option value="manutencao">🟡 Em Manutenção / Inativo</option>
+              </select>
+            </div>
+
+            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={handleSaveVehicle} disabled={isSavingVehicle}>
+              {isSavingVehicle ? 'Salvando...' : 'Salvar Veículo'}
+            </button>
           </div>
         </div>
       )}
@@ -2586,16 +3076,26 @@ export default function AdminDashboard() {
                   );
                 })}
               </div>
+              
+              {selectedSubmission.signature && (
+                <div style={{ marginTop: '24px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 'bold' }}>🖋️ Assinatura do Funcionário:</p>
+                  <img src={selectedSubmission.signature} alt="Assinatura" style={{ maxHeight: '100px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                </div>
+              )}
             </div>
             <div style={{ padding: '24px 32px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '12px', flexWrap: 'wrap', backgroundColor: 'var(--bg-card)', zIndex: 10, borderRadius: '0 0 12px 12px' }}>
+               <button className="btn-secondary" style={{ flex: 1, padding: '16px', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => handleExportPDF(selectedSubmission)}>
+                 <FileDown size={20} /> Exportar PDF
+               </button>
                {!selectedSubmission.resolved && (
-                 <button className="btn" style={{ flex: 1, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
+                 <button className="btn" style={{ flex: 2, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
                     Finalizar Ocorrência (Ciente)
                  </button>
                )}
                {selectedSubmission.resolved && (
-                 <div style={{ flex: 1, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold' }}>
-                    ✓ Ocorrência Finalizada e Resolvida por {selectedSubmission.resolved_by || userProfile?.name}
+                 <div style={{ flex: 2, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    ✓ Ocorrência Resolvida
                  </div>
                )}
             </div>

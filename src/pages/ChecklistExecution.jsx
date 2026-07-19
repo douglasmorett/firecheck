@@ -38,6 +38,15 @@ export default function ChecklistExecution() {
   const [userProfile, setUserProfile] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
 
+  // Estados novos: Assinatura e Veículos
+  const [category, setCategory] = useState('geral');
+  const [requireSignature, setRequireSignature] = useState(false);
+  const [signature, setSignature] = useState(null);
+  const [vehicles, setVehicles] = useState([]);
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+  const sigCanvasRef = useRef(null);
+
   // Carregar usuário logado
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -76,6 +85,19 @@ export default function ChecklistExecution() {
             setCurrentChecklistId(cl.id);
             setTitle(cl.title);
             setRequireSelfie(cl.require_selfie || false);
+            setCategory(cl.category || 'geral');
+            setRequireSignature(cl.require_signature || false);
+            
+            if (cl.category === 'veiculo') {
+              fetch(`${API_URL}/api/vehicles?store=${encodeURIComponent(profile.store)}`, {
+                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+              })
+              .then(res => res.json())
+              .then(vData => {
+                if (Array.isArray(vData)) setVehicles(vData.filter(v => v.status === 'ativo'));
+              })
+              .catch(() => {});
+            }
             
             if (cl.completedToday) {
               setCompletedTodayInfo(cl.completedBy);
@@ -90,6 +112,7 @@ export default function ChecklistExecution() {
               id: t.id || `task-${idx}`, 
               done: null, 
               photo: null, 
+              photos: [],
               forceOverride: false 
             })));
 
@@ -155,7 +178,14 @@ export default function ChecklistExecution() {
     canvas.height = height;
     canvas.getContext('2d').drawImage(video, 0, 0, width, height);
     const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, photo: photoUrl, forceOverride: false } : t));
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
+        currentPhotos.push(photoUrl);
+        return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
+      }
+      return t;
+    }));
     stopCamera();
     
     // A auditoria em tempo real foi removida daqui para não bloquear o funcionário.
@@ -231,25 +261,93 @@ export default function ChecklistExecution() {
     }
   };
 
+  // ─── Funções de Desenho / Assinatura Canvas ───────────────────
+  const startDrawing = (e) => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000000';
+    
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    const x = clientX - rect.left;
+    const y = clientY - rect.top;
+    
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    e.preventDefault();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSignature(null);
+  };
+
+  const saveSignature = () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL('image/png');
+    setSignature(dataUrl);
+    alert('🖋️ Assinatura capturada com sucesso!');
+  };
+
   const handleFinish = async () => {
-    const pendingPhoto = tasks.filter(t => t.requirePhoto && !t.photo);
+    const pendingPhoto = tasks.filter(t => t.requirePhoto && (!t.photo && (!t.photos || t.photos.length === 0)));
     if (pendingPhoto.length > 0) {
       alert('Envie a foto de todas as tarefas obrigatórias antes de finalizar.'); return;
+    }
+    if (category === 'veiculo' && !selectedVehicleId) {
+      alert('Selecione o veículo inspecionado antes de finalizar.'); return;
+    }
+    if (requireSignature && !signature) {
+      alert('Por favor, assine digitalmente e confirme antes de finalizar.'); return;
     }
     if (requireSelfie && !selfie) {
       startSelfieCamera(); return;
     }
+    
+    const payload = { 
+      employeeName: EMPLOYEE.name, 
+      store: EMPLOYEE.store, 
+      tasks, 
+      feedbackInfo: aiFeedback, 
+      selfie,
+      checklistId: currentChecklistId,
+      vehicleId: selectedVehicleId ? parseInt(selectedVehicleId) : null,
+      signature
+    };
+
     try {
       const res = await fetch(`${API_URL}/api/finalize`, {
-        method: 'POST', headers: getAuthHeaders(),
-        body: JSON.stringify({ 
-          employeeName: EMPLOYEE.name, 
-          store: EMPLOYEE.store, 
-          tasks, 
-          feedbackInfo: aiFeedback, 
-          selfie,
-          checklistId: currentChecklistId
-        })
+        method: 'POST', 
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         const data = await res.json();
@@ -289,7 +387,18 @@ export default function ChecklistExecution() {
           alert(errData.message || errData.error || 'Erro ao enviar.');
         }
       }
-    } catch { alert('Erro ao conectar com o servidor.'); }
+    } catch (e) { 
+      // MODO OFFLINE
+      const offlineQueue = JSON.parse(localStorage.getItem('firecheck_offline_queue') || '[]');
+      offlineQueue.push({
+        ...payload,
+        offline: true,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('firecheck_offline_queue', JSON.stringify(offlineQueue));
+      setSubmitted(true);
+      alert('📡 Checklist salvo localmente! Você está sem internet. Os dados serão enviados automaticamente assim que você se reconectar.');
+    }
   };
 
   const completedCount = tasks.filter(t => {
@@ -380,6 +489,26 @@ export default function ChecklistExecution() {
       <header style={{ textAlign: 'center', marginBottom: '24px' }}>
         <h1 className="page-title" style={{ marginBottom: '4px', fontSize: '1.5rem' }}>{title}</h1>
         <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>Responsável: {EMPLOYEE.name}</p>
+        
+        {category === 'veiculo' && !completedTodayInfo && (
+          <div className="card" style={{ padding: '16px', marginBottom: '20px', border: '1px solid var(--primary)' }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontWeight: 'bold' }}>
+              🚗 Veículo Inspecionado
+            </label>
+            <select 
+              className="input-field" 
+              value={selectedVehicleId} 
+              onChange={e => setSelectedVehicleId(e.target.value)}
+              style={{ marginTop: '8px' }}
+            >
+              <option value="">-- Selecione o Veículo (Placa) --</option>
+              {vehicles.map(v => (
+                <option key={v.id} value={v.id}>{v.model} ({v.plate})</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div style={{ backgroundColor: '#1A1C23', borderRadius: '100px', height: '8px', overflow: 'hidden' }}>
           <div style={{ width: `${progress}%`, height: '100%', backgroundColor: progress === 100 ? 'var(--success)' : 'var(--primary)', transition: 'width 0.4s ease' }} />
         </div>
@@ -389,9 +518,24 @@ export default function ChecklistExecution() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {tasks.map((task, index) => {
           const isDone = task.done !== null && task.done !== false && task.done !== '';
+          const prevTask = index > 0 ? tasks[index - 1] : null;
+          const showSectionHeader = task.section && (!prevTask || prevTask.section !== task.section);
+          
           return (
-            <div key={task.id} className="card" style={{ padding: '20px', borderLeft: isDone ? '4px solid var(--success)' : '4px solid var(--border-color)' }}>
-              <h3 style={{ fontSize: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div key={task.id}>
+              {showSectionHeader && (
+                <div style={{ margin: '24px 0 12px 0', padding: '10px 14px', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '1rem' }}>📁</span>
+                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold' }}>
+                    Seção: {task.section}
+                  </h4>
+                </div>
+              )}
+              <div className="card" style={{ padding: '20px', borderLeft: isDone ? '4px solid var(--success)' : '4px solid var(--border-color)', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>{index + 1}. {task.text}</span>
+                  {isDone && <CheckCircle size={20} color="var(--success)" />}
+                </h3>e: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{index + 1}. {task.text}</span>
                 {isDone && <CheckCircle size={20} color="var(--success)" />}
               </h3>
@@ -568,29 +712,47 @@ export default function ChecklistExecution() {
 
               {task.requirePhoto && (
                 <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', marginBottom: '12px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-                    <AlertTriangle size={16} /> Obrigatório: Foto ao vivo
-                  </div>
-                  {task.photo ? (
-                    <div style={{ position: 'relative' }}>
-                      <img src={task.photo} alt="Foto" style={{ width: '100%', borderRadius: '8px', maxHeight: '300px', objectFit: 'cover' }} />
-                      <button style={{ position: 'absolute', top: 10, right: 10, padding: '8px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'var(--text-main)' }}
-                        onClick={() => setTasks(prev => prev.map(t => t.id === task.id ? { ...t, photo: null } : t))}>
-                        <X size={16} />
-                      </button>
-                      <div style={{ marginTop: '12px', padding: '10px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid var(--success)' }}>
-                         <p style={{ fontSize: '0.9rem', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                           <CheckCircle size={16} /> Foto Capturada com Sucesso
-                         </p>
-                      </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                      <AlertTriangle size={16} /> Obrigatório: Foto ao vivo ({Array.isArray(task.photos) ? task.photos.length : (task.photo ? 1 : 0)}/{task.maxPhotos || 1})
                     </div>
-                  ) : activeCameraTaskId === task.id ? (
+                  </div>
+
+                  {/* Grid de Fotos Existentes */}
+                  {((task.photos && task.photos.length > 0) || task.photo) && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                      {(task.photos || (task.photo ? [task.photo] : [])).map((pic, pIdx) => (
+                        <div key={pIdx} style={{ position: 'relative', aspectRatio: '1/1', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                          <img src={pic} alt={`Foto ${pIdx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          {!completedTodayInfo && (
+                            <button
+                              style={{ position: 'absolute', top: 5, right: 5, padding: '4px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => {
+                                setTasks(prev => prev.map(t => {
+                                  if (t.id === task.id) {
+                                    const nextPhotos = (t.photos || []).filter((_, i) => i !== pIdx);
+                                    return { ...t, photos: nextPhotos, photo: nextPhotos[nextPhotos.length - 1] || null };
+                                  }
+                                  return t;
+                                }));
+                              }}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Câmera Ativa */}
+                  {activeCameraTaskId === task.id ? (
                     <div style={{ width: '100%', backgroundColor: '#000', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
                       <video ref={videoRef} style={{ width: '100%', maxHeight: '400px', objectFit: 'cover' }} autoPlay playsInline></video>
                       <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
                       <div style={{ display: 'flex', gap: '8px', padding: '16px', position: 'absolute', bottom: 0, left: 0, right: 0, background: 'linear-gradient(transparent, rgba(0,0,0,0.8))' }}>
                         <button className="btn" style={{ flex: 2, backgroundColor: '#ffffff', color: '#18181B', fontWeight: 'bold', boxShadow: '0 2px 10px rgba(0,0,0,0.3)' }} onClick={() => takePhoto(task.id, task.text)}>
-                          <Camera size={20} /> Capturar
+                          <Camera size={20} /> Capturar Foto {(task.photos || []).length + 1}
                         </button>
                         <button className="btn-secondary" style={{ flex: 1, backgroundColor: 'var(--bg-card)', border: 'none', color: 'var(--text-main)' }} onClick={stopCamera}>
                           Cancelar
@@ -598,17 +760,18 @@ export default function ChecklistExecution() {
                       </div>
                     </div>
                   ) : (
-                    <button 
-                      className="btn btn-pulse animate-fade" 
-                      style={{ width: '100%', backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '16px', fontSize: '1.05rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease' }} 
-                      onClick={(e) => {
-                         e.currentTarget.style.backgroundColor = 'var(--primary)';
-                         e.currentTarget.style.color = 'white';
-                         startCamera(task.id);
-                      }}
-                    >
-                      <Camera size={22} /> Tirar Foto do Serviço Executado
-                    </button>
+                    // Botão para Tirar Foto (só se não atingiu o limite de maxPhotos)
+                    (!task.photos || task.photos.length < (task.maxPhotos || 1)) && !completedTodayInfo && (
+                      <button 
+                        className="btn btn-pulse animate-fade" 
+                        style={{ width: '100%', backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '16px', fontSize: '1.05rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease' }} 
+                        onClick={(e) => {
+                           startCamera(task.id);
+                        }}
+                      >
+                        <Camera size={22} /> Tirar Foto {(task.photos || []).length + 1} de {task.maxPhotos || 1}
+                      </button>
+                    )
                   )}
                 </div>
               )}
@@ -636,6 +799,40 @@ export default function ChecklistExecution() {
               <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { stopCamera(); setShowSelfieModal(false); }}>Cancelar</button>
               <button className="btn" style={{ flex: 2 }} onClick={takeSelfie}>Capturar e Finalizar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {requireSignature && !completedTodayInfo && (
+        <div className="card" style={{ padding: '20px', marginTop: '24px', border: '1px solid var(--border-color)' }}>
+          <h3 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+            🖋️ Assinatura Digital Obrigatória
+          </h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Assine no quadro abaixo usando o seu dedo ou caneta:
+          </p>
+          <div style={{ position: 'relative', border: '1px solid var(--border-color)', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#FFFFFF', height: '150px' }}>
+            <canvas
+              ref={sigCanvasRef}
+              width="500"
+              height="150"
+              style={{ width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none' }}
+              onMouseDown={startDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
+              onTouchStart={startDrawing}
+              onTouchMove={draw}
+              onTouchEnd={stopDrawing}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
+            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={clearSignature}>
+              Limpar
+            </button>
+            <button className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: signature ? 'var(--success)' : 'var(--primary)', color: 'white', border: 'none' }} onClick={saveSignature}>
+              {signature ? '✓ Assinatura Confirmada' : 'Confirmar Assinatura'}
+            </button>
           </div>
         </div>
       )}
