@@ -2109,12 +2109,42 @@ Responda APENAS com JSON válido.`;
     // ── Registrar FCM Token para Push ─────────────────────────────
     if (url.includes('/api/register-token')) {
       if (method === 'POST') {
-        const { userId, token } = req.body;
-        if (userId && token) {
-          await pool.query('UPDATE users SET fcm_token = $1 WHERE id = $2', [token, userId]);
+        const { userId, token, email, fcmToken } = req.body;
+        const finalToken = token || fcmToken;
+        const finalUserId = userId;
+        const finalEmail = email;
+        if (finalToken && (finalUserId || finalEmail)) {
+          if (finalUserId) {
+            await pool.query('UPDATE users SET fcm_token = $1 WHERE id = $2', [finalToken, finalUserId]);
+          } else {
+            await pool.query('UPDATE users SET fcm_token = $1 WHERE LOWER(email) = LOWER($2)', [finalToken, finalEmail]);
+          }
           return res.status(200).json({ success: true });
         }
-        return res.status(400).json({ error: 'userId e token obrigatórios' });
+        return res.status(400).json({ error: 'userId/email e token obrigatórios' });
+      }
+    }
+
+    // ── Endpoint de Teste de Push Notification ─────────────────────
+    if (url.includes('/api/test-push') && method === 'POST') {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: 'email obrigatório' });
+      const { rows } = await pool.query("SELECT id, name, fcm_token FROM users WHERE LOWER(email) = LOWER($1)", [email]);
+      if (rows.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
+      if (!rows[0].fcm_token) return res.status(400).json({ error: 'Usuário sem token FCM registrado. Abra o app nativo e aceite as notificações.' });
+      try {
+        await admin.messaging().send({
+          token: rows[0].fcm_token,
+          notification: {
+            title: '🔥 FireCheck - Teste',
+            body: `Olá ${rows[0].name}! Esta é uma notificação de teste.`
+          },
+          data: { url: '/admin' },
+          apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+        });
+        return res.status(200).json({ success: true, message: `Notificação enviada para ${rows[0].name}` });
+      } catch (pushErr) {
+        return res.status(500).json({ error: 'Erro ao enviar push', details: pushErr.message });
       }
     }
 
