@@ -451,6 +451,8 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (Array.isArray(data)) setPontoRecords(data);
     } catch (err) { console.error('Erro ponto:', err); }
+  };
+
   const fetchVehicles = async () => {
     try {
       const savedUser = localStorage.getItem('user');
@@ -1912,26 +1914,6 @@ export default function AdminDashboard() {
                 </div>
               );
             })()}
-          </div>
-        </div>
-      )}ng: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          Tentar Novamente
-                        </button>
-                      )}
-                    </div>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
-                      <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                      {new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
-                </div>
-              );
-            }) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                <p>Nenhuma auditoria realizada no período.</p>
-              </div>
-            )}
           </div>
         </div>
       )}

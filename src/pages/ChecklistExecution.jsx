@@ -535,10 +535,7 @@ export default function ChecklistExecution() {
                 <h3 style={{ fontSize: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>{index + 1}. {task.text}</span>
                   {isDone && <CheckCircle size={20} color="var(--success)" />}
-                </h3>e: '1rem', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{index + 1}. {task.text}</span>
-                {isDone && <CheckCircle size={20} color="var(--success)" />}
-              </h3>
+                </h3>
 
               {task.type === 'boolean' && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
@@ -776,8 +773,9 @@ export default function ChecklistExecution() {
                 </div>
               )}
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
       </div>
 
       {showSelfieModal && (
