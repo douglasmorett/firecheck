@@ -350,8 +350,12 @@ export default async function handler(req, res) {
           device_info TEXT
         )
       `);
-      // ── Garantir colunas na tabela ponto_records (caso tabela já existia sem elas) ──
+      // ── Garantir TODAS as colunas na tabela ponto_records (caso tabela já existia sem elas) ──
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS user_id INTEGER");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS user_name VARCHAR(255)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS store VARCHAR(255)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS type VARCHAR(10)");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS timestamp TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8)");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS accuracy DECIMAL(10, 2)");
