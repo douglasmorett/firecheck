@@ -170,6 +170,9 @@ export default function AdminDashboard() {
   const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
   const [contadorEmail, setContadorEmail] = useState('');
   const [fechamentoDia, setFechamentoDia] = useState('ultimo_dia');
+  const [pontoHoraEntrada, setPontoHoraEntrada] = useState('08:00');
+  const [pontoHoraSaida, setPontoHoraSaida] = useState('18:00');
+  const [pontoTolerancia, setPontoTolerancia] = useState(15);
   
   const [financeExportPeriod, setFinanceExportPeriod] = useState('mes_atual');
   const [financeCustomDates, setFinanceCustomDates] = useState({ start: '', end: '' });
@@ -259,6 +262,9 @@ export default function AdminDashboard() {
     if (user.timezone) setPontoTimezone(user.timezone);
     if (user.contador_email) setContadorEmail(user.contador_email);
     if (user.fechamento_dia) setFechamentoDia(user.fechamento_dia);
+    if (user.ponto_hora_entrada) setPontoHoraEntrada(user.ponto_hora_entrada);
+    if (user.ponto_hora_saida) setPontoHoraSaida(user.ponto_hora_saida);
+    if (user.ponto_tolerancia !== undefined && user.ponto_tolerancia !== null) setPontoTolerancia(user.ponto_tolerancia);
     
     // Proteção extra: se for funcionário, não deixa ver o admin
     if (user.role === 'employee') {
@@ -805,7 +811,10 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           timezone: pontoTimezone,
           contador_email: contadorEmail,
-          fechamento_dia: fechamentoDia
+          fechamento_dia: fechamentoDia,
+          ponto_hora_entrada: pontoHoraEntrada,
+          ponto_hora_saida: pontoHoraSaida,
+          ponto_tolerancia: pontoTolerancia
         })
       });
       if (res.ok) {
@@ -813,7 +822,10 @@ export default function AdminDashboard() {
           ...userProfile,
           timezone: pontoTimezone,
           contador_email: contadorEmail,
-          fechamento_dia: fechamentoDia
+          fechamento_dia: fechamentoDia,
+          ponto_hora_entrada: pontoHoraEntrada,
+          ponto_hora_saida: pontoHoraSaida,
+          ponto_tolerancia: pontoTolerancia
         };
         localStorage.setItem('user', JSON.stringify(updatedMe));
         setUserProfile(updatedMe);
@@ -1603,6 +1615,45 @@ export default function AdminDashboard() {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
              
+             {/* Horários e Tolerância do Ponto */}
+             <div className="card" style={{ padding: '24px' }}>
+                <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6' }}>
+                   ⏰ Horários e Tolerância
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                   Defina o horário de trabalho e a tolerância de atraso. Se o funcionário registrar entrada após o horário + tolerância, você receberá uma notificação.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                         <label className="input-label">Entrada</label>
+                         <input type="time" className="input-field" value={pontoHoraEntrada} onChange={e => setPontoHoraEntrada(e.target.value)} />
+                      </div>
+                      <div>
+                         <label className="input-label">Saída</label>
+                         <input type="time" className="input-field" value={pontoHoraSaida} onChange={e => setPontoHoraSaida(e.target.value)} />
+                      </div>
+                   </div>
+                   <div>
+                      <label className="input-label">Tolerância de Atraso</label>
+                      <select className="input-field" value={pontoTolerancia} onChange={e => setPontoTolerancia(Number(e.target.value))}>
+                         <option value={0}>Sem tolerância</option>
+                         <option value={5}>5 minutos</option>
+                         <option value={10}>10 minutos</option>
+                         <option value={15}>15 minutos</option>
+                         <option value={20}>20 minutos</option>
+                         <option value={30}>30 minutos</option>
+                         <option value={60}>1 hora</option>
+                      </select>
+                   </div>
+                   <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                      <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                         📲 Se o funcionário bater ponto após <strong>{pontoHoraEntrada}</strong> + <strong>{pontoTolerancia}min</strong>, você receberá uma notificação push no celular.
+                      </p>
+                   </div>
+                </div>
+             </div>
+
              {/* Automação Contábil + Timezone */}
              <div className="card" style={{ padding: '24px' }}>
                 <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
