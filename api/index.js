@@ -2025,8 +2025,14 @@ Responda APENAS com JSON válido.`;
         // Validar GPS
         if (!latitude || !longitude) return res.status(400).json({ error: 'Geolocalização obrigatória. Ative o GPS.' });
         if (accuracy && accuracy > 200) return res.status(400).json({ error: `Precisão do GPS muito baixa (${Math.round(accuracy)}m). Vá para um local aberto.` });
-        // Verificar duplicata
-        const today = new Date().toISOString().split('T')[0];
+        // Buscar timezone da loja para cálculos de data consistentes
+        let tz = 'America/Sao_Paulo';
+        if (store) {
+          const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
+          if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+        }
+        // Verificar duplicata (usa timezone da loja para consistência)
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
         const { rows: existing } = await pool.query(
           "SELECT * FROM ponto_records WHERE user_id = $1 AND type = $2 AND timestamp::date = $3",
           [userId, type, today]
