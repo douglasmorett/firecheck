@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, DollarSign, MessageCircle, Bot } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
     const user = userStr ? JSON.parse(userStr) : null;
     const isMaster = user && (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com' || user.email?.toLowerCase() === 'contatohakim@gmail.com');
     if (isMaster) {
-      return ['financeiro', 'equipe'].includes(saved) ? saved : 'financeiro';
+      return ['equipe'].includes(saved) ? saved : 'equipe';
     }
     const isCameraAllowed = user?.email?.toLowerCase() === 'dugaburguer@gmail.com';
     const allowedTabs = isCameraAllowed 
@@ -174,30 +174,7 @@ export default function AdminDashboard() {
   const [pontoHoraSaida, setPontoHoraSaida] = useState('18:00');
   const [pontoTolerancia, setPontoTolerancia] = useState(15);
   
-  const [financeExportPeriod, setFinanceExportPeriod] = useState('mes_atual');
-  const [financeCustomDates, setFinanceCustomDates] = useState({ start: '', end: '' });
-  
-  // -- Módulo Financeiro IA --
-  const [financeItems, setFinanceItems] = useState(() => {
-    const saved = localStorage.getItem('firecheck_finance_items');
-    if (saved) return JSON.parse(saved);
-    return [
-      { id: 1, type: 'pendente', provider: 'Comercial de Bebidas Silva', value: 850.00, dueDate: new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0] },
-      { id: 2, type: 'hoje', provider: 'Energisa S/A', value: 1250.45, dueDate: new Date().toISOString().split('T')[0] }
-    ];
-  });
 
-  useEffect(() => {
-    localStorage.setItem('firecheck_finance_items', JSON.stringify(financeItems));
-  }, [financeItems]);
-  
-  const [newFinanceItem, setNewFinanceItem] = useState({ provider: '', value: '', dueDate: '', receivedDate: '', barcode: '' });
-  const [isFinanceChatOpen, setIsFinanceChatOpen] = useState(false);
-  const [financeChatMessages, setFinanceChatMessages] = useState([
-    { role: 'ai', content: 'Olá! Sou sua assistente financeira. Me envie a foto de um boleto ou faça uma pergunta sobre suas contas.' }
-  ]);
-  const [financeChatInput, setFinanceChatInput] = useState('');
-  const [isProcessingReceipt, setIsProcessingReceipt] = useState(false);
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
 
   // -- Registrar Compras Módulo Dinâmico --
@@ -234,12 +211,7 @@ export default function AdminDashboard() {
   };
 
 
-  const [financialStats, setFinancialStats] = useState({
-    vendasMes: 0,
-    receitaReal: 0,
-    totalArrecadado: 0,
-    clientesAtivos: 0
-  });
+
 
   const [plans, setPlans] = useState([
     { id: 'start_mensal', name: 'Start Mensal' },
@@ -484,10 +456,7 @@ export default function AdminDashboard() {
       }
 
       if (currentUser?.role === 'master') {
-        const [userRes, finRes] = await Promise.all([
-          fetch(`${API_URL}/api/users${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }),
-          fetch(`${API_URL}/api/financials${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }) // Endpoint fictício para Cacto
-        ]);
+        const userRes = await fetch(`${API_URL}/api/users${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } });
         
         const userData = await userRes.json();
         const teamArray = Array.isArray(userData) ? userData : [];
@@ -507,21 +476,6 @@ export default function AdminDashboard() {
           });
           return nextSet;
         });
-        
-        // Mock de dados financeiros (Integração Cacto) se o fetch falhar
-        try {
-          const finData = await finRes.json();
-          if (finData && typeof finData === 'object') {
-             setFinancialStats(prev => ({ ...prev, ...finData }));
-          }
-        } catch {
-          setFinancialStats({
-            vendasMes: 12500.50,
-            receitaReal: 11850.25,
-            totalArrecadado: 45200.00,
-            clientesAtivos: Array.isArray(userData) ? userData.filter(u => u.role === 'admin').length : 0
-          });
-        }
       } else {
         const [clRes, userRes, statsRes] = await Promise.all([
           fetch(`${API_URL}/api/checklists${query}`, { headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') } }),
@@ -748,71 +702,7 @@ export default function AdminDashboard() {
 
   // Abas iniciais agora são geridas pelo estado com localStorage no topo do arquivo.
 
-  const handleAddFinanceItem = () => {
-    if (!newFinanceItem.provider || !newFinanceItem.value || !newFinanceItem.dueDate) {
-      addToast('Preencha fornecedor, valor e vencimento.', 'error');
-      return;
-    }
-    const today = new Date().toISOString().split('T')[0];
-    const type = newFinanceItem.dueDate < today ? 'pendente' : (newFinanceItem.dueDate === today ? 'hoje' : 'futura');
-    
-    setFinanceItems([...financeItems, { ...newFinanceItem, id: Date.now(), type }]);
-    setNewFinanceItem({ provider: '', value: '', dueDate: '', receivedDate: '', barcode: '' });
-    addToast('Conta registrada com sucesso!', 'success');
-  };
 
-  const handleMarkAsPaid = (id) => {
-    setFinanceItems(prev => prev.map(item => item.id === id ? { ...item, type: 'paga' } : item));
-    addToast('Conta marcada como paga e arquivada!', 'success');
-  };
-
-  const triggerReceiptUpload = () => {
-    document.getElementById('receipt-ocr-input')?.click();
-  };
-
-  const handleReceiptOCRUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setIsProcessingReceipt(true);
-    addToast('Lendo informações da nota com IA...', 'info');
-
-    try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = reader.result;
-        try {
-          const res = await fetch(`${API_URL}/api/scan-receipt`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify({ photoBase64: base64 })
-          });
-          if (res.ok) {
-            const data = await res.json();
-            setNewFinanceItem({
-              provider: data.provider || '',
-              value: data.value !== undefined ? String(data.value) : '',
-              dueDate: data.dueDate || new Date().toISOString().split('T')[0],
-              receivedDate: data.receivedDate || new Date().toISOString().split('T')[0],
-              barcode: data.barcode || ''
-            });
-            addToast('Leitura concluída com sucesso!', 'success');
-          } else {
-            addToast('Não foi possível ler a nota. Preencha manualmente.', 'error');
-          }
-        } catch (err) {
-          console.error(err);
-          addToast('Erro ao conectar ao servidor de IA.', 'error');
-        } finally {
-          setIsProcessingReceipt(false);
-        }
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error(err);
-      setIsProcessingReceipt(false);
-      addToast('Erro ao ler arquivo da imagem.', 'error');
-    }
-  };
 
   const handleSavePontoConfig = async () => {
     if (!userProfile) return;
@@ -851,21 +741,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleExportFinanceCSV = () => {
-    let csv = 'Fornecedor,Valor,Data Recebimento,Data Vencimento,Codigo de Barras,Status\n';
-    financeItems.forEach(item => {
-      const typeLabel = item.type === 'paga' ? 'Paga' : (item.type === 'pendente' ? 'Pendente' : (item.type === 'hoje' ? 'Vence Hoje' : 'Futura'));
-      csv += `"${item.provider}","${Number(item.value).toFixed(2)}","${item.receivedDate || ''}","${item.dueDate || ''}","${item.barcode || ''}","${typeLabel}"\n`;
-    });
-    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `financeiro_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    addToast('Planilha baixada com sucesso!', 'success');
-  };
+
 
   const handlePurchaseOCRUpload = async (e) => {
     const file = e.target.files[0];
@@ -975,29 +851,7 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSendFinanceChat = async () => {
-    if (!financeChatInput.trim()) return;
-    const newMsg = { role: 'user', content: financeChatInput };
-    setFinanceChatMessages(prev => [...prev, newMsg]);
-    setFinanceChatInput('');
-    
-    try {
-      const res = await fetch(`${API_URL}/api/chat-finance`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({ message: financeChatInput, financeItems })
-      });
-      const data = await res.json();
-      if (data.reply) {
-        setFinanceChatMessages(prev => [...prev, { role: 'ai', content: data.reply }]);
-      } else {
-        setFinanceChatMessages(prev => [...prev, { role: 'ai', content: 'Desculpe, não consegui processar sua mensagem.' }]);
-      }
-    } catch (e) {
-      console.error(e);
-      setFinanceChatMessages(prev => [...prev, { role: 'ai', content: 'Erro de conexão com a IA financeira.' }]);
-    }
-  };
+
 
   const isTrialExpired = () => {
     if (!userProfile) return false;
@@ -1101,13 +955,12 @@ export default function AdminDashboard() {
         {/* MENU ITENS */}
         <div style={{ padding: '16px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {(isMaster ? [
-            { key: 'financeiro',  label: 'Financeiro', icon: <TrendingUp size={18}/> },
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
             { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
             { key: 'ponto',       label: 'Controle de Ponto IA', icon: <UserCheck size={18}/> },
-            { key: 'finance',     label: 'Financeiro IA', icon: <DollarSign size={18}/> },
+
             { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
             (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
             { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
@@ -1299,62 +1152,14 @@ export default function AdminDashboard() {
         </header>
 
       {/* Cards de KPIs (Visível apenas nos Dashboards Iniciais) */}
-      {(tab === 'auditoria' || tab === 'financeiro') && (
+      {tab === 'auditoria' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
           
           {isMaster ? (
           <>
-            <div className="card" style={{ borderTop: '3px solid #10b981', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Vendas do Mês</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>📈 +12% vs mês anterior</span>
-                </div>
-                <TrendingUp color="#10b981" size={28} />
-              </div>
-            </div>
-
-            <div className="card" style={{ borderTop: '3px solid #3b82f6', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Receita Real (Cacto)</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {(financialStats?.receitaReal || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>💰 Líquido após taxas</span>
-                </div>
-                <Activity color="#3b82f6" size={28} />
-              </div>
-            </div>
-
-            <div className="card" style={{ borderTop: '3px solid #f59e0b', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Total Arrecadado</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>
-                    {(financialStats?.totalArrecadado || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>📅 Período selecionado</span>
-                </div>
-                <Flame color="#f59e0b" size={28} />
-              </div>
-            </div>
-
-            <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Clientes Ativos</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{financialStats?.clientesAtivos || 0}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 Assinaturas vigentes</span>
-                </div>
-                <Users color="var(--primary)" size={28} />
-              </div>
-            </div>
+            {/* Master não tem KPIs de dashboard, acessa Gestão de Clientes */}
           </>
-        ) : (
+         ) : (
           <>
             <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -1470,33 +1275,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tab: Financeiro (Master Only) ─────────────────────────────────── */}
-      {isMaster && tab === 'financeiro' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <TrendingUp size={20} color="var(--success)" /> Detalhamento de Vendas — Cacto
-            </h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Dados atualizados em tempo real</span>
-          </div>
-          <div style={{ padding: '24px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
-               <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Vendas Brutas</p>
-                  <h4 style={{ fontSize: '1.5rem', margin: 0 }}>{(financialStats?.vendasMes || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
-               </div>
-               <div style={{ backgroundColor: 'var(--bg-color)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>Taxas de Transação</p>
-                  <h4 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--error)' }}>- {((financialStats?.vendasMes || 0) - (financialStats?.receitaReal || 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</h4>
-               </div>
-            </div>
-            
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Gráfico de evolução financeira em desenvolvimento...
-            </p>
-          </div>
-        </div>
-      )}
+
 
       {/* ── Tabs Em Construção (Novas Funcionalidades) ──────────────────── */}
       {['agendamentos', 'planos_acao', 'exportacoes', 'suporte'].includes(tab) && (
@@ -1511,18 +1290,16 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tab: Paywall Módulos (Ponto / Financeiro) ──────────────────── */}
-      {((tab === 'ponto' && !userProfile?.ponto_active && userProfile?.email !== 'dugaburguer@gmail.com') || 
-        (tab === 'finance' && !userProfile?.finance_active && userProfile?.email !== 'dugaburguer@gmail.com')) && (
+      {/* ── Tab: Paywall Módulo Ponto ──────────────────── */}
+      {(tab === 'ponto' && !userProfile?.ponto_active && userProfile?.email !== 'dugaburguer@gmail.com') && (
         <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ backgroundColor: tab === 'ponto' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
-            {tab === 'ponto' ? <UserCheck size={48} color="#3b82f6" /> : <DollarSign size={48} color="#10b981" />}
+          <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
+            <UserCheck size={48} color="#3b82f6" />
           </div>
           <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>
-            {tab === 'ponto' ? 'Módulo: Controle de Ponto com IA' : 'Módulo: Gestão Financeira com IA'}
+            Módulo: Controle de Ponto com IA
           </h2>
-          {tab === 'ponto' ? (
-            <div style={{ textAlign: 'left', marginBottom: '32px', maxWidth: '500px', width: '100%' }}>
+          <div style={{ textAlign: 'left', marginBottom: '32px', maxWidth: '500px', width: '100%' }}>
               <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '20px', textAlign: 'center' }}>
                 Reconhecimento facial, geolocalização e relatórios automáticos. Diga adeus às fraudes de ponto na sua empresa.
               </p>
@@ -1545,31 +1322,6 @@ export default function AdminDashboard() {
                 </li>
               </ul>
             </div>
-          ) : (
-            <div style={{ textAlign: 'left', marginBottom: '32px', maxWidth: '500px', width: '100%' }}>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '20px', textAlign: 'center' }}>
-                Tire foto de todas as notas que você comprar, e deixe a IA controlar tudo para você. Chega de planilhas manuais.
-              </p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Leitura Automática:</strong> Escaneamento de notas fiscais e boletos pela câmera.</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Chat com a IA:</strong> Pergunte "Quanto gastei de combustível esse mês?" e ela te dá o relatório detalhado.</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Controle Preditivo:</strong> Visão clara das Contas a Pagar (Atrasadas, Vencendo Hoje e Futuras).</span>
-                </li>
-                <li style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <CheckCircle size={20} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}><strong>Categorização Inteligente:</strong> A IA separa sozinha o que é insumo, marketing, folha, etc.</span>
-                </li>
-              </ul>
-            </div>
-          )}
 
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative' }}>
@@ -1593,7 +1345,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tabs: Módulos Ativos (Ponto / Financeiro) ──────────────────── */}
+      {/* ── Tabs: Módulo Ponto (Ativo) ──────────────────── */}
       {/* ── Tabs: Módulo Ponto (Ativo) ──────────────────── */}
       {(tab === 'ponto' && (userProfile?.ponto_active || userProfile?.email === 'dugaburguer@gmail.com')) && (
         <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1761,187 +1513,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tabs: Módulo Financeiro IA (Ativo) ──────────────────── */}
-      {(tab === 'finance' && (userProfile?.finance_active || userProfile?.email === 'dugaburguer@gmail.com')) && (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          <div style={{ padding: '0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-             <div>
-               <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
-                 <DollarSign color="var(--primary)" size={32} />
-                 Módulo Financeiro
-               </h2>
-               <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gestão de Contas a Pagar e Inadimplência.</p>
-             </div>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <select className="input-field" style={{ padding: '8px 12px', minWidth: '150px', borderRadius: '8px' }} value={financeExportPeriod} onChange={e => setFinanceExportPeriod(e.target.value)}>
-                   <option value="mes_atual">Mês Atual</option>
-                   <option value="mes_anterior">Mês Anterior</option>
-                   <option value="personalizado">Datas Personalizadas</option>
-                </select>
-                {financeExportPeriod === 'personalizado' && (
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={financeCustomDates.start} onChange={e => setFinanceCustomDates({...financeCustomDates, start: e.target.value})} />
-                    <span style={{ color: 'var(--text-muted)' }}>até</span>
-                    <input type="date" className="input-field" style={{ padding: '8px 12px', borderRadius: '8px' }} value={financeCustomDates.end} onChange={e => setFinanceCustomDates({...financeCustomDates, end: e.target.value})} />
-                  </div>
-                )}
-                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px' }} onClick={handleExportFinanceCSV}>
-                   <FileDown size={18} /> Exportar Planilha
-                </button>
-                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', borderColor: '#F59E0B', color: '#F59E0B' }} onClick={() => setIsPurchasesOpen(true)}>
-                   <Plus size={18} color="#F59E0B" /> Registrar Compras
-                </button>
-                <button className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '8px', borderColor: 'var(--primary)', color: 'var(--primary)' }} onClick={() => setIsFinanceChatOpen(true)}>
-                   <MessageCircle size={18} color="var(--primary)" /> Falar com a IA
-                </button>
-             </div>
-          </div>
-
-          <div className="card" style={{ padding: '24px' }}>
-             <h3 style={{ marginBottom: '20px', fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-               Registrar Nova Conta a Pagar
-             </h3>
-             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
-                <div>
-                   <label className="input-label">Nome do Fornecedor</label>
-                   <input type="text" className="input-field" placeholder="Ex. Gráfica Nova Era" value={newFinanceItem.provider} onChange={e => setNewFinanceItem({...newFinanceItem, provider: e.target.value})} />
-                </div>
-                <div>
-                   <label className="input-label">Valor (R$)</label>
-                   <input type="number" step="0.01" className="input-field" placeholder="0.00" value={newFinanceItem.value} onChange={e => setNewFinanceItem({...newFinanceItem, value: e.target.value})} />
-                </div>
-                <div>
-                   <label className="input-label">Data de Recebimento</label>
-                   <input type="date" className="input-field" value={newFinanceItem.receivedDate} onChange={e => setNewFinanceItem({...newFinanceItem, receivedDate: e.target.value})} />
-                </div>
-                <div>
-                   <label className="input-label">Data de Vencimento</label>
-                   <input type="date" className="input-field" value={newFinanceItem.dueDate} onChange={e => setNewFinanceItem({...newFinanceItem, dueDate: e.target.value})} />
-                </div>
-             </div>
-             <div>
-                <label className="input-label">Código de Barras (Opcional)</label>
-                <input type="file" id="receipt-ocr-input" accept="image/*" capture="environment" style={{ display: 'none' }} onChange={handleReceiptOCRUpload} />
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                   <input type="text" className="input-field" placeholder="Linha digitável do boleto" style={{ flex: 1, minWidth: '200px' }} value={newFinanceItem.barcode} onChange={e => setNewFinanceItem({...newFinanceItem, barcode: e.target.value})} />
-                   <button className="btn-secondary" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', borderRadius: '8px' }} onClick={triggerReceiptUpload}>
-                      <Camera size={18} /> Scannear código
-                   </button>
-                   <button className="btn" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'fit-content', backgroundColor: '#FFA000', borderRadius: '8px', border: 'none', color: 'white', fontWeight: 'bold' }} onClick={triggerReceiptUpload} disabled={isProcessingReceipt}>
-                      {isProcessingReceipt ? <div className="loader" style={{width: 16, height: 16, borderTopColor: '#fff'}} /> : <Bot size={18} />} Ler Nota IA
-                   </button>
-                </div>
-             </div>
-             <div style={{ marginTop: '24px' }}>
-               <button className="btn" style={{ padding: '12px 24px', borderRadius: '8px' }} onClick={handleAddFinanceItem}>Registrar Conta</button>
-             </div>
-          </div>
-
-          {/* Categorias */}
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--error)' }}>
-             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--error)' }}>
-               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--error)' }}></span>
-               Pendentes / Atrasadas ({financeItems.filter(i => i.type === 'pendente').length})
-             </h3>
-             {financeItems.filter(i => i.type === 'pendente').length === 0 ? (
-               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta pendente.</p>
-             ) : (
-               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                 {financeItems.filter(i => i.type === 'pendente').map(item => (
-                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
-                     <div style={{ flex: 1, minWidth: '150px' }}>
-                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
-                       <div style={{ fontSize: '0.8rem', color: 'var(--error)' }}>Venceu em: {item.dueDate}</div>
-                     </div>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
-                       <button className="btn-secondary" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', borderColor: 'var(--success)', color: 'var(--success)' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid #F59E0B' }}>
-             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B' }}>
-               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#F59E0B' }}></span>
-               A Pagar Hoje ({financeItems.filter(i => i.type === 'hoje').length})
-             </h3>
-             {financeItems.filter(i => i.type === 'hoje').length === 0 ? (
-               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta para hoje.</p>
-             ) : (
-               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                 {financeItems.filter(i => i.type === 'hoje').map(item => (
-                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
-                     <div style={{ flex: 1, minWidth: '150px' }}>
-                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
-                       <div style={{ fontSize: '0.8rem', color: '#F59E0B' }}>Vence hoje</div>
-                     </div>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
-                       <button className="btn" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', backgroundColor: '#F59E0B', color: 'white', border: 'none' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--success)' }}>
-             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--success)' }}>
-               <span style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: 'var(--success)' }}></span>
-               Contas Futuras ({financeItems.filter(i => i.type === 'futura').length})
-             </h3>
-             {financeItems.filter(i => i.type === 'futura').length === 0 ? (
-               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta futura registrada.</p>
-             ) : (
-               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                 {financeItems.filter(i => i.type === 'futura').map(item => (
-                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px' }}>
-                     <div style={{ flex: 1, minWidth: '150px' }}>
-                       <div style={{ fontWeight: 'bold' }}>{item.provider}</div>
-                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vence em: {item.dueDate}</div>
-                     </div>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                       <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
-                       <button className="btn-secondary" style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem' }} onClick={() => handleMarkAsPaid(item.id)}>Pago</button>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-
-          <div className="card" style={{ padding: '24px', borderLeft: '4px solid var(--primary)' }}>
-             <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
-               <CheckCircle size={20} color="var(--primary)" />
-               Contas Pagas ({financeItems.filter(i => i.type === 'paga').length})
-             </h3>
-             {financeItems.filter(i => i.type === 'paga').length === 0 ? (
-               <p style={{ marginTop: '16px', color: 'var(--text-main)', fontSize: '0.9rem', fontWeight: '500' }}>Nenhuma conta paga.</p>
-             ) : (
-               <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                 {financeItems.filter(i => i.type === 'paga').map(item => (
-                   <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', border: '1px solid var(--border-color)', opacity: 0.7 }}>
-                     <div>
-                       <div style={{ fontWeight: 'bold', textDecoration: 'line-through' }}>{item.provider}</div>
-                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Pago com sucesso</div>
-                     </div>
-                     <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>R$ {Number(item.value).toFixed(2)}</div>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
-
-
-
-        </div>
-      )}
 
       {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
       {tab === 'auditoria' && (
@@ -2483,7 +2054,7 @@ export default function AdminDashboard() {
                 </p>
                 <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
                   <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6' }}>
-                    Sua conta FireCheck está integrada com o Bill. Os dados de checklists, financeiro e ranking são sincronizados automaticamente.
+                    Sua conta FireCheck está integrada com o Bill. Os dados de checklists e ranking são sincronizados automaticamente.
                   </p>
                 </div>
                 <button
@@ -2524,7 +2095,7 @@ export default function AdminDashboard() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {[
                     { icon: <ClipboardList size={18} color="#06b6d4" />, text: 'Checklists sincronizados' },
-                    { icon: <DollarSign size={18} color="#06b6d4" />, text: 'Financeiro integrado' },
+                    { icon: <Activity size={18} color="#06b6d4" />, text: 'Dashboard integrado' },
                     { icon: <Trophy size={18} color="#06b6d4" />, text: 'Ranking unificado' },
                     { icon: <UserCheck size={18} color="#06b6d4" />, text: 'Controle de ponto' },
                   ].map((item, i) => (
@@ -2932,11 +2503,7 @@ export default function AdminDashboard() {
                       <input type="checkbox" checked={newUser.ponto_active || false} onChange={e => setNewUser({...newUser, ponto_active: e.target.checked})} />
                       Controle de Ponto
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                      <input type="checkbox" checked={newUser.finance_active || false} onChange={e => setNewUser({...newUser, finance_active: e.target.checked})} />
-                      Financeiro IA
-                    </label>
-                  </div>
+                   </div>
                 </div>
               )}
 
@@ -3072,10 +2639,6 @@ export default function AdminDashboard() {
                   <input type="checkbox" checked={editingPlan.ponto_active || false} onChange={e => setEditingPlan({...editingPlan, ponto_active: e.target.checked})} />
                   Controle de Ponto
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  <input type="checkbox" checked={editingPlan.finance_active || false} onChange={e => setEditingPlan({...editingPlan, finance_active: e.target.checked})} />
-                  Financeiro IA
-                </label>
               </div>
             </div>
 
@@ -3084,7 +2647,7 @@ export default function AdminDashboard() {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: getAuthHeaders(),
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, finance_active: editingPlan.finance_active, checklist_limit: editingPlan.checklist_limit })
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, checklist_limit: editingPlan.checklist_limit })
                 });
                 setEditingPlan(null);
                 fetchData();
@@ -3098,34 +2661,7 @@ export default function AdminDashboard() {
         Políticas FireCheck: Fotos e registros de checklists são armazenados por 90 dias para otimização de performance e segurança.
       </div>
 
-      {isFinanceChatOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '500px', height: '80vh', maxHeight: '600px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: 0, overflow: 'hidden', border: '1px solid var(--primary)' }}>
-            <div style={{ backgroundColor: 'var(--primary)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <Bot size={24} color="white" />
-                <h3 style={{ margin: 0, color: 'white' }}>Assistente Financeira IA</h3>
-              </div>
-              <button style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }} onClick={() => setIsFinanceChatOpen(false)}><X size={24} /></button>
-            </div>
-            
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-color)' }}>
-              {financeChatMessages.map((msg, idx) => (
-                <div key={idx} style={{ alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.role === 'user' ? 'var(--primary)' : 'var(--bg-card)', color: msg.role === 'user' ? 'white' : 'var(--text-main)', padding: '12px 16px', borderRadius: '12px', borderBottomRightRadius: msg.role === 'user' ? '4px' : '12px', borderBottomLeftRadius: msg.role === 'ai' ? '4px' : '12px', maxWidth: '85%', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: msg.role === 'ai' ? '1px solid var(--border-color)' : 'none' }}>
-                  {msg.content}
-                </div>
-              ))}
-            </div>
 
-            <div style={{ padding: '16px', backgroundColor: 'var(--bg-card)', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px' }}>
-              <input type="text" className="input-field" placeholder="Pergunte sobre notas, prazos ou lucros..." value={financeChatInput} onChange={e => setFinanceChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendFinanceChat()} style={{ flex: 1, borderRadius: '8px' }} />
-              <button className="btn" style={{ padding: '12px 16px', borderRadius: '8px' }} onClick={handleSendFinanceChat}>
-                <MessageCircle size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {isPurchasesOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
