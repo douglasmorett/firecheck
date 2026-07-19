@@ -388,32 +388,44 @@ export default function AdminDashboard() {
 
   const setupPushNotifications = async (email) => {
     try {
-      // Tenta primeiro o método nativo (Capacitor)
-      if (window.Capacitor?.isNativePlatform()) {
-        const perm = await PushNotifications.requestPermissions();
-        if (perm.receive === 'granted') {
-          await PushNotifications.register();
-          PushNotifications.addListener('registration', async (token) => {
+      // Verifica se está rodando como app nativo (Capacitor)
+      if (Capacitor.isNativePlatform()) {
+        console.log('[Push] App nativo detectado, solicitando permissão...');
+        // Adiciona listener ANTES de register para não perder o evento
+        PushNotifications.addListener('registration', async (token) => {
+          console.log('[Push] Token recebido:', token.value?.substring(0, 30) + '...');
+          try {
             await fetch(`${API_URL}/api/register-token`, {
               method: 'POST',
               headers: getAuthHeaders(),
               body: JSON.stringify({ email, fcmToken: token.value })
             });
-          });
+            console.log('[Push] Token registrado no servidor!');
+          } catch (err) {
+            console.error('[Push] Erro ao salvar token:', err);
+          }
+        });
+        PushNotifications.addListener('registrationError', (error) => {
+          console.error('[Push] Erro no registro:', error);
+        });
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('[Push] Notificação recebida:', notification);
+        });
+        const perm = await PushNotifications.requestPermissions();
+        console.log('[Push] Permissão:', perm.receive);
+        if (perm.receive === 'granted') {
+          await PushNotifications.register();
+          console.log('[Push] Register chamado com sucesso');
         }
       } else {
-        // Método para PWA / Web Push (iPhone e Android no navegador)
+        // Método para PWA / Web Push
         if ('Notification' in window) {
           const permission = await Notification.requestPermission();
-          if (permission === 'granted') {
-            console.log('Permissão de notificação concedida no navegador');
-            // Aqui futuramente integraremos o service worker para web push
-            // Por enquanto, registramos que o usuário aceitou
-          }
+          console.log('[Push] Permissão web:', permission);
         }
       }
     } catch (e) { 
-      console.warn('Push não suportado ou negado:', e); 
+      console.warn('[Push] Erro no setup:', e); 
     }
   };
 
