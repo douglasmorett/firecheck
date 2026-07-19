@@ -28,4 +28,4 @@
 
 ## Deploy
 - [x] Commit e push final
-- [ ] Disparar build TestFlight
+- [x] Disparar build TestFlight
