@@ -46,9 +46,20 @@ export default function Checkout() {
         
         // Dispara os eventos do Meta Pixel para o Facebook
         if (window.fbq) {
+          // Correspondência Avançada (Advanced Matching) com os dados inseridos
+          window.fbq('init', '1508278337585097', {
+            em: formData.email.toLowerCase().trim(),
+            ph: formData.phone.replace(/\D/g, ''),
+            fn: formData.name.trim().toLowerCase()
+          });
+
           window.fbq('track', 'Lead');
-          window.fbq('track', 'StartTrial'); // EVENTO ADICIONADO AQUI
-          if (plan === 'mensal' || plan === 'anual' || plan === 'starter' || plan === 'pro' || plan === 'business') {
+
+          // Dispara StartTrial exclusivamente para cadastro de teste gratuito
+          if (plan === 'trial' || !plan) {
+            window.fbq('track', 'StartTrial');
+          } else {
+            // Dispara InitiateCheckout para qualquer outro plano que seja pago
             window.fbq('track', 'InitiateCheckout');
           }
         }
@@ -56,7 +67,6 @@ export default function Checkout() {
         const userEmail = encodeURIComponent(formData.email);
         const userName = encodeURIComponent(formData.name);
         
-        // Transição instantânea sem timeout longo
         let checkoutLink = '';
         
         if (plan === 'mensal' || plan === 'starter') {
@@ -72,7 +82,6 @@ export default function Checkout() {
         } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
           checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
         } else if (plan.includes('completo')) {
-           // Fallback for completo se não houver link específico ainda
           checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
         }
 
@@ -81,10 +90,16 @@ export default function Checkout() {
             window.open(checkoutLink, '_blank');
             navigate('/login');
           } else {
-            window.location.href = checkoutLink;
+            // Delay de 350ms para evitar que a requisição de rastreamento do Pixel seja abortada na redireção
+            setTimeout(() => {
+              window.location.href = checkoutLink;
+            }, 350);
           }
         } else {
-           navigate('/admin');
+          // Delay de 350ms para evitar o aborto caso vá para a rota protegida
+          setTimeout(() => {
+            navigate('/admin');
+          }, 350);
         }
       } else {
         alert(data.error || 'Erro ao criar conta. Verifique os dados e tente novamente.');

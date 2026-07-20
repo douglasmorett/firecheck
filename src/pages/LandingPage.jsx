@@ -432,6 +432,473 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SEÇÃO COMPONENT SHOWCASE INTERATIVO (LAPTOP + CELULAR + CHIPS FLUTUANTES) */}
+      <section className="section-mobile-padding" style={{ padding: '100px 0', backgroundColor: '#090d16', position: 'relative', overflow: 'hidden', borderBottom: '1px solid #1e293b' }}>
+        {/* Glows de fundo */}
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.08) 0%, transparent 60%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }}></div>
+        <div style={{ position: 'absolute', bottom: '0', right: '10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }}></div>
+
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 5%', position: 'relative', zIndex: 10 }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
+              VISÃO GERAL DO SISTEMA
+            </span>
+            <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', color: '#ffffff', marginBottom: '16px', lineHeight: '1.1' }}>
+              Toda a sua operação <br/>conectada <span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>em tempo real</span>
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.15rem', maxWidth: '650px', margin: '0 auto' }}>
+              Seu painel administrativo no computador integrado ao aplicativo de checklists e ponto eletrônico da equipe.
+            </p>
+          </div>
+
+          <style>{`
+            .showcase-container {
+              position: relative;
+              width: 100%;
+              max-width: 1000px;
+              margin: 0 auto;
+              height: 520px;
+              display: flex;
+              justify-content: center;
+              align-items: flex-end;
+            }
+            .laptop-mockup {
+              width: 70%;
+              position: relative;
+              z-index: 2;
+              transform: translateX(-5%);
+              transition: transform 0.4s ease, box-shadow 0.4s ease;
+            }
+            .laptop-mockup:hover {
+              transform: translateX(-5%) translateY(-5px);
+            }
+            .phone-mockup-overlap {
+              width: 22%;
+              position: absolute;
+              right: 12%;
+              bottom: -5%;
+              z-index: 5;
+              transform: translateY(0);
+              transition: transform 0.4s ease, box-shadow 0.4s ease;
+            }
+            .phone-mockup-overlap:hover {
+              transform: translateY(-8px);
+            }
+            
+            /* Floating Pills */
+            .float-chip {
+              position: absolute;
+              z-index: 15;
+              padding: 10px 18px;
+              background: rgba(15, 23, 42, 0.75);
+              backdrop-filter: blur(12px);
+              border: 1px solid rgba(255, 255, 255, 0.08);
+              border-radius: 100px;
+              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              cursor: pointer;
+              transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            .float-chip:hover {
+              transform: scale(1.08) !important;
+              border-color: #ff4d00;
+              box-shadow: 0 20px 40px rgba(255, 77, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+            }
+            
+            .float-a { left: 2%; top: 20%; animation: float-anim-1 6s ease-in-out infinite; }
+            .float-b { left: 4%; bottom: 25%; animation: float-anim-2 5s ease-in-out infinite; }
+            .float-c { left: 25%; top: 8%; animation: float-anim-3 7s ease-in-out infinite; }
+            .float-d { right: 2%; top: 18%; animation: float-anim-2 5.5s ease-in-out infinite; }
+            .float-e { right: 4%; bottom: 30%; animation: float-anim-1 6.5s ease-in-out infinite; }
+            .float-f { right: 35%; top: 6%; animation: float-anim-3 5.8s ease-in-out infinite; }
+
+            @keyframes float-anim-1 {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-12px); }
+            }
+            @keyframes float-anim-2 {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(12px); }
+            }
+            @keyframes float-anim-3 {
+              0%, 100% { transform: translateX(0) translateY(0); }
+              50% { transform: translateX(8px) translateY(-8px); }
+            }
+
+            @media (max-width: 900px) {
+              .showcase-container {
+                height: 380px;
+              }
+              .float-chip {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+              }
+              .float-chip svg {
+                width: 14px;
+                height: 14px;
+              }
+            }
+            @media (max-width: 600px) {
+              .showcase-container {
+                height: 280px;
+              }
+              .float-chip {
+                display: none;
+              }
+              .laptop-mockup {
+                width: 90%;
+                transform: translateX(0);
+              }
+              .laptop-mockup:hover {
+                transform: none;
+              }
+              .phone-mockup-overlap {
+                width: 32%;
+                right: 2%;
+              }
+            }
+          `}</style>
+
+          <div className="showcase-container">
+            {/* Chips Flutuantes */}
+            <div className="float-chip float-a">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}><AlertTriangle size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Onde agir primeiro</span>
+            </div>
+            <div className="float-chip float-b">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}><ShieldCheck size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Quem fez, quem não fez</span>
+            </div>
+            <div className="float-chip float-c">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}><CheckCircle size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Tarefa concluída</span>
+            </div>
+            
+            <div className="float-chip float-d">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}><Volume2 size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Alertas em tempo real</span>
+            </div>
+            <div className="float-chip float-e">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}><Sparkles size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>IA confere a foto</span>
+            </div>
+            <div className="float-chip float-f">
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}><Activity size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>85% Concluído</span>
+            </div>
+
+            {/* Laptop Mockup */}
+            <div className="laptop-mockup">
+              <div style={{ backgroundColor: '#1e293b', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.05)', borderBottom: 'none' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }}></span>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
+                <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '8px' }}>admin.firecheckapp.com/dashboard</span>
+              </div>
+              <div style={{ background: '#0f172a', aspectRatio: '1.6', overflow: 'hidden', display: 'flex', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
+                <div style={{ width: '20%', borderRight: '1px solid rgba(255, 255, 255, 0.05)', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#090d16' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                    <span style={{ display: 'flex', padding: '4px', borderRadius: '4px', backgroundColor: '#ff4d00', color: 'white' }}><Flame size={12} /></span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>FireCheck</span>
+                  </div>
+                  <div style={{ height: '8px', width: '80%', backgroundColor: '#ff4d00', borderRadius: '2px', opacity: 0.8 }}></div>
+                  <div style={{ height: '8px', width: '60%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
+                  <div style={{ height: '8px', width: '70%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
+                  <div style={{ height: '8px', width: '50%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
+                </div>
+                <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ height: '14px', width: '120px', backgroundColor: 'white', borderRadius: '3px', marginBottom: '6px' }}></div>
+                      <div style={{ height: '8px', width: '200px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
+                    </div>
+                    <div style={{ height: '24px', width: '80px', backgroundColor: '#ff4d00', borderRadius: '6px' }}></div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                      <div style={{ height: '6px', width: '40px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>94%</span>
+                        <span style={{ fontSize: '0.6rem', color: '#22c55e' }}>+4.2%</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                      <div style={{ height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#ff4d00' }}>18/20</span>
+                      </div>
+                    </div>
+                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
+                      <div style={{ height: '6px', width: '45px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>0 Alertas</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1, backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', padding: '12px', overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', marginBottom: '8px' }}>
+                      <div style={{ flex: 2, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
+                      <div style={{ flex: 1.5, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
+                      <div style={{ flex: 1.5, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
+                      <div style={{ flex: 1, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ height: '8px', width: '85px', backgroundColor: 'white', borderRadius: '2px' }}></div>
+                          <div style={{ height: '4px', width: '40px', backgroundColor: '#94a3b8', borderRadius: '1px' }}></div>
+                        </div>
+                        <div style={{ flex: 1.5, height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
+                        <div style={{ flex: 1.5, display: 'inline-flex', padding: '3px 8px', borderRadius: '20px', backgroundColor: 'rgba(34, 197, 94, 0.15)', height: '14px', width: '40px' }}></div>
+                        <div style={{ flex: 1, height: '6px', width: '30px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ height: '8px', width: '100px', backgroundColor: 'white', borderRadius: '2px' }}></div>
+                          <div style={{ height: '4px', width: '50px', backgroundColor: '#94a3b8', borderRadius: '1px' }}></div>
+                        </div>
+                        <div style={{ flex: 1.5, height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
+                        <div style={{ flex: 1.5, display: 'inline-flex', padding: '3px 8px', borderRadius: '20px', backgroundColor: 'rgba(234, 179, 8, 0.15)', height: '14px', width: '45px' }}></div>
+                        <div style={{ flex: 1, height: '6px', width: '30px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style={{ backgroundColor: '#94a3b8', height: '10px', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '4px', backgroundColor: '#475569', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }}></div>
+              </div>
+            </div>
+
+            {/* Mobile Mockup */}
+            <div className="phone-mockup-overlap">
+              <div style={{ background: '#000000', border: '8px solid #1e293b', borderRadius: '32px', aspectRatio: '0.485', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.7)', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '50px', height: '10px', backgroundColor: '#1e293b', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', zIndex: 100 }}></div>
+                <div style={{ flex: 1, background: '#0f172a', padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '0.55rem', fontWeight: 'bold', color: 'white' }}>09:41</span>
+                    <div style={{ display: 'flex', gap: '3px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: 'white' }}></span>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: 'white' }}></span>
+                    </div>
+                  </div>
+                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
+                    <div style={{ height: '10px', width: '60px', backgroundColor: 'white', borderRadius: '2px', marginBottom: '4px' }}></div>
+                    <div style={{ height: '6px', width: '90px', backgroundColor: '#94a3b8', borderRadius: '1.5px' }}></div>
+                  </div>
+                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #10b981', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ height: '8px', width: '70px', backgroundColor: 'white', borderRadius: '2px' }}></div>
+                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(16, 185, 129, 0.15)', height: '10px', width: '25px' }}></div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: '100%', height: '100%', backgroundColor: '#10b981' }}></div>
+                      </div>
+                      <span style={{ fontSize: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>100%</span>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #ff4d00', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ height: '8px', width: '80px', backgroundColor: 'white', borderRadius: '2px' }}></div>
+                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(255, 77, 0, 0.15)', height: '10px', width: '25px' }}></div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: '60%', height: '100%', backgroundColor: '#ff4d00' }}></div>
+                      </div>
+                      <span style={{ fontSize: '0.5rem', color: '#ff4d00', fontWeight: 'bold' }}>60%</span>
+                    </div>
+                  </div>
+                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #64748b', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ height: '8px', width: '65px', backgroundColor: 'white', borderRadius: '2px' }}></div>
+                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.1)', height: '10px', width: '20px' }}></div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ width: '0%', height: '100%' }}></div>
+                      </div>
+                      <span style={{ fontSize: '0.5rem', color: '#94a3b8', fontWeight: 'bold' }}>0%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SEÇÃO COMPARATIVA: ANTES VS DEPOIS (A VIRADA) */}
+      <section className="section-mobile-padding" id="a-virada" style={{ padding: '100px 5%', backgroundColor: '#0b0f19', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
+              A VIRADA
+            </span>
+            <h2 style={{ fontSize: 'min(2.8rem, 6vw)', fontWeight: '900', color: '#ffffff', marginBottom: '16px', lineHeight: '1.2' }}>
+              Você não pode estar em três lugares <br/>ao mesmo tempo. <span style={{ color: '#00f2fe' }}>O padrão, pode.</span>
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+              Cada hora que passa entre o erro operacional e a descoberta tem um custo. Veja a diferença quando você começa a gerenciar com o FireCheck.
+            </p>
+          </div>
+
+          <style>{`
+            .comparison-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 24px;
+            }
+            .comp-col-title {
+              font-size: 0.95rem;
+              font-weight: 800;
+              letter-spacing: 1px;
+              text-transform: uppercase;
+              margin-bottom: 20px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .comp-card {
+              border-radius: 16px;
+              padding: 20px 24px;
+              display: flex;
+              gap: 16px;
+              align-items: flex-start;
+              min-height: 100px;
+            }
+            .card-without {
+              background: rgba(24, 24, 27, 0.6);
+              border: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .card-with {
+              background: rgba(3, 105, 161, 0.1);
+              border: 1px solid rgba(2, 132, 199, 0.3);
+              box-shadow: 0 10px 30px rgba(2, 132, 199, 0.05);
+            }
+            .comp-card-icon {
+              display: flex;
+              padding: 8px;
+              border-radius: 50%;
+              flex-shrink: 0;
+            }
+            .icon-without {
+              background: rgba(239, 68, 68, 0.1);
+              color: #ef4444;
+            }
+            .icon-with {
+              background: rgba(16, 185, 129, 0.15);
+              color: #10b981;
+            }
+            .comp-card-text {
+              font-size: 0.95rem;
+              line-height: 1.5;
+              color: #cbd5e1;
+            }
+            .card-with .comp-card-text {
+              color: #f1f5f9;
+              font-weight: 500;
+            }
+            
+            @media (max-width: 768px) {
+              .comparison-grid {
+                grid-template-columns: 1fr;
+                gap: 40px;
+              }
+              .comp-col {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+              }
+              .comp-col-title {
+                margin-bottom: 8px;
+              }
+              .comp-card {
+                padding: 16px;
+                min-height: auto;
+              }
+              .comp-card-text {
+                font-size: 0.85rem;
+              }
+            }
+          `}</style>
+
+          <div className="comparison-grid">
+            <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="comp-col-title" style={{ color: '#94a3b8' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span> Sem o FireCheck
+              </div>
+              
+              <div className="comp-card card-without">
+                <div className="comp-card-icon icon-without"><X size={16} /></div>
+                <div className="comp-card-text">Você tem três unidades físicas e não sabe qual delas realmente abriu no horário correto hoje.</div>
+              </div>
+
+              <div className="comp-card card-without">
+                <div className="comp-card-icon icon-without"><X size={16} /></div>
+                <div className="comp-card-text">Um erro grave aconteceu na cozinha às 7h. Você só fica sabendo no fechamento às 18h, quando não há mais o que reverter.</div>
+              </div>
+
+              <div className="comp-card card-without">
+                <div className="comp-card-icon icon-without"><X size={16} /></div>
+                <div className="comp-card-text">Você monta processos no papel, delega para a equipe e reza para que eles sigam as regras. Sem nenhuma prova de execução.</div>
+              </div>
+
+              <div className="comp-card card-without">
+                <div className="comp-card-icon icon-without"><X size={16} /></div>
+                <div className="comp-card-text">Cada gerente de unidade tem uma versão diferente do que é um "padrão bom". Sua marca perde consistência.</div>
+              </div>
+
+              <div className="comp-card card-without">
+                <div className="comp-card-icon icon-without"><X size={16} /></div>
+                <div className="comp-card-text">Quando você se afasta para viajar ou descansar, a operação segue pura e simplesmente na base da fé.</div>
+              </div>
+            </div>
+
+            <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="comp-col-title" style={{ color: '#00f2fe' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></span> Com o FireCheck
+              </div>
+
+              <div className="comp-card card-with">
+                <div className="comp-card-icon icon-with"><Check size={16} /></div>
+                <div className="comp-card-text">Você abre o painel geral no seu celular e vê o status em tempo real de cada unidade, turno a turno, antes do seu primeiro café.</div>
+              </div>
+
+              <div className="comp-card card-with">
+                <div className="comp-card-icon icon-with"><Check size={16} /></div>
+                <div className="comp-card-text">Alertas de itens críticos (gás aberto, câmara quente) caem no seu WhatsApp no exato segundo em que o desvio ocorre.</div>
+              </div>
+
+              <div className="comp-card card-with">
+                <div className="comp-card-icon icon-with"><Check size={16} /></div>
+                <div className="comp-card-text">Evidências inquestionáveis. As tarefas exigem foto em tempo real tirada na hora e localização via GPS. Se não registrar, não conta.</div>
+              </div>
+
+              <div className="comp-card card-with">
+                <div className="comp-card-icon icon-with"><Check size={16} /></div>
+                <div className="comp-card-text">Scoreboard automático por filial, setor e operador. Você compara o desempenho das unidades com dados concretos.</div>
+              </div>
+
+              <div className="comp-card card-with">
+                <div className="comp-card-icon icon-with"><Check size={16} /></div>
+                <div className="comp-card-text">Dashboard no bolso. Sua equipe executa as tarefas seguindo o padrão pré-definido por IA, mesmo sem a sua presença física.</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ textAlign: 'center', marginTop: '48px' }}>
+            <button className="btn" style={{ padding: '16px 40px', fontSize: '1.1rem', boxShadow: '0 4px 25px rgba(255,77,0,0.4)' }} onClick={() => handleTrackAndNavigate('A Virada - Começar Teste Grátis', '/checkout?plan=trial')}>
+              Quero Testar Grátis por 7 Dias <ArrowRight size={20} style={{ marginLeft: '8px' }} />
+            </button>
+            <p style={{ color: '#64748b', fontSize: '0.85rem', marginTop: '16px' }}>Sua operação no piloto automático.</p>
+          </div>
+        </div>
+      </section>
+
       {/* Templates de Checklist */}
       <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
         <div style={{ textAlign: 'center', marginBottom: '64px' }}>

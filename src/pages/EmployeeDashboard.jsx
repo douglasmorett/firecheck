@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
@@ -381,22 +381,65 @@ export default function EmployeeDashboard() {
           {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => (
             <div 
               key={checklist.id} 
-              className="card" 
-              style={{ padding: '20px', cursor: 'pointer', borderLeft: '4px solid var(--primary)', transition: 'transform 0.2s ease' }}
+              className="card animate-scale" 
+              style={{ 
+                padding: '16px 20px', 
+                cursor: 'pointer', 
+                borderLeft: '4px solid #f97316', 
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '16px',
+                transition: 'all 0.2s ease',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
               onClick={() => navigate(`/execucao/${checklist.id}`)}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateX(4px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateX(0)'}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>
-                    {checklist.category === 'veiculo' ? '🚗 ' : ''}{checklist.title}
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                    {checklist.tasks.length} tarefas • {checklist.recurrence || 'Diário'}
-                  </p>
+              {/* Left Indicator - Recurrence/Time */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>HOJE</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                  {checklist.recurrence === 'weekdays' ? 'Semanal' : (checklist.recurrence === 'unico' ? 'Único' : 'Diário')}
+                </span>
+              </div>
+
+              {/* Middle Info */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
+                  {checklist.title}
+                </h3>
+                
+                {/* Progress Bar (0% for pending) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ width: '0%', height: '100%', backgroundColor: '#f97316' }}></div>
+                  </div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>0%</span>
                 </div>
-                <ArrowRight size={20} color="var(--primary)" />
+
+                {/* Badges */}
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <Folder size={12} />
+                    {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional'))}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <MapPin size={12} />
+                    {checklist.store || userProfile?.store || 'Matriz'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Right Action */}
+              <div>
+                <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', border: 'none', color: 'white', borderRadius: '20px' }}>
+                  <Play size={12} fill="white" /> Iniciar
+                </button>
               </div>
             </div>
           )) : (
@@ -418,19 +461,69 @@ export default function EmployeeDashboard() {
               <div 
                 key={checklist.id} 
                 className="card" 
-                style={{ padding: '20px', opacity: 0.7, borderLeft: '4px solid var(--success)', cursor: 'pointer' }}
-                onClick={() => navigate(`/execucao/${checklist.id}`)}
+                style={{ 
+                  padding: '16px 20px', 
+                  borderLeft: '4px solid #10b981', 
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  opacity: 0.9,
+                  position: 'relative'
+                }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0', textDecoration: 'line-through' }}>
-                      {checklist.category === 'veiculo' ? '🚗 ' : ''}{checklist.title}
-                    </h3>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--success)', margin: 0, fontWeight: 'bold' }}>
-                      ✓ Concluído por {checklist.completedBy || 'você'}
-                    </p>
+                {/* Left Indicator - Recurrence/Time */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>FIM</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    {checklist.recurrence === 'weekdays' ? 'Semanal' : (checklist.recurrence === 'unico' ? 'Único' : 'Diário')}
+                  </span>
+                </div>
+
+                {/* Middle Info */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#94a3b8', textDecoration: 'line-through' }}>
+                    {checklist.title}
+                  </h3>
+                  
+                  {/* Progress Bar (100% for completed) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: '100%', height: '100%', backgroundColor: '#10b981' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#10b981' }}>100%</span>
                   </div>
-                  <ClipboardList size={20} color="var(--text-muted)" />
+
+                  {/* Badges */}
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <Folder size={12} />
+                      {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional'))}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <MapPin size={12} />
+                      {checklist.store || userProfile?.store || 'Matriz'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Action */}
+                <div>
+                  <span style={{ 
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                    color: '#10b981', 
+                    padding: '6px 14px', 
+                    borderRadius: '20px', 
+                    fontSize: '0.75rem', 
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <CheckCircle size={12} /> Finalizado
+                  </span>
                 </div>
               </div>
             ))}

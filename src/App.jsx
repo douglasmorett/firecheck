@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
@@ -14,9 +15,22 @@ import PontoPage from './pages/PontoPage';
 import RenewPlan from './pages/RenewPlan';
 import ThankYou from './pages/ThankYou';
 
+function RouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (window.fbq) {
+      window.fbq('track', 'PageView');
+    }
+  }, [location]);
+
+  return null;
+}
+
 function App() {
   return (
     <Router>
+      <RouteTracker />
       <Routes>
         {/* Site Institucional de Vendas */}
         <Route path="/privacy" element={<PrivacyPolicy />} />
