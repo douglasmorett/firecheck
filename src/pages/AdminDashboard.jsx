@@ -189,6 +189,9 @@ export default function AdminDashboard() {
   const [pontoCustomDates, setPontoCustomDates] = useState({ start: '', end: '' });
   const [pontoRecords, setPontoRecords] = useState([]);
   const [pontoMonth, setPontoMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [pontoFilterEmployee, setPontoFilterEmployee] = useState('todos');
+  const [showPontoPanel, setShowPontoPanel] = useState(false);
+  const [pontoPhotoPreview, setPontoPhotoPreview] = useState(null);
   const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
   const [contadorEmail, setContadorEmail] = useState('');
   const [fechamentoDia, setFechamentoDia] = useState('ultimo_dia');
@@ -2152,59 +2155,96 @@ export default function AdminDashboard() {
                 </div>
              </div>
 
-             {/* Espelho de Ponto (Dados Reais) */}
-             <div className="card" style={{ padding: '24px', flex: 2, overflowX: 'auto' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                   <h3 style={{ fontSize: '1.2rem', margin: 0 }}>
-                     Registros — {pontoMonth}
-                   </h3>
-                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pontoRecords.length} registro(s)</span>
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '500px' }}>
-                   <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Colaborador</th>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Data / Horário</th>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Tipo</th>
-                         <th style={{ padding: '12px', fontSize: '0.85rem' }}>Local</th>
-                      </tr>
-                   </thead>
-                   <tbody>
-                      {pontoRecords.length === 0 ? (
-                        <tr>
-                           <td colSpan="4" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                              Nenhum registro de ponto encontrado para {pontoMonth}.
-                           </td>
-                        </tr>
-                      ) : (
-                        pontoRecords.map((rec, idx) => {
-                          const dt = new Date(rec.timestamp);
-                          const dataStr = dt.toLocaleDateString('pt-BR', { timeZone: pontoTimezone });
-                          const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: pontoTimezone });
-                          const isEntrada = rec.type === 'entrada';
-                          return (
-                            <tr key={rec.id || idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                               <td style={{ padding: '12px', fontWeight: 'bold', fontSize: '0.9rem' }}>{rec.user_name || '—'}</td>
-                               <td style={{ padding: '12px', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                                 <div>{dataStr}</div>
-                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{horaStr}</div>
-                               </td>
-                               <td style={{ padding: '12px' }}>
-                                 <span style={{ backgroundColor: isEntrada ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isEntrada ? 'var(--success)' : 'var(--error)', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                   {rec.type || '—'}
-                                 </span>
-                               </td>
-                               <td style={{ padding: '12px', fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={rec.address || ''}>
-                                  {rec.address ? `📍 ${rec.address}` : '—'}
-                               </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                   </tbody>
-                </table>
+             {/* Botão Verificar Registros */}
+             <div className="card" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--primary)', backgroundColor: 'rgba(255, 77, 0, 0.03)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPontoPanel(true)}>
+                <UserCheck size={36} color="var(--primary)" style={{ marginBottom: '8px' }}/>
+                <h3 style={{ margin: '0 0 4px 0', color: 'var(--primary)' }}>Verificar Registros de Ponto</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>{pontoRecords.length} registro(s) em {pontoMonth} — Clique para ver selfies, filtrar por funcionário e exportar</p>
              </div>
           </div>
+
+          {/* ── Painel de Verificação de Ponto ── */}
+          {showPontoPanel && (
+            <div className="card" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <UserCheck size={22} color="var(--primary)"/> Verificação de Registros de Ponto
+                </h3>
+                <button onClick={() => setShowPontoPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20}/></button>
+              </div>
+
+              {/* Filtros */}
+              <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-main)', padding: '12px 16px', borderRadius: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Users size={16} color="var(--text-muted)"/>
+                  <select className="input-field" style={{ padding: '8px 12px', borderRadius: '8px', minWidth: '180px' }} value={pontoFilterEmployee} onChange={e => setPontoFilterEmployee(e.target.value)}>
+                    <option value="todos">Todos os funcionários</option>
+                    {[...new Set(pontoRecords.map(r => r.user_name).filter(Boolean))].sort().map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  {(pontoFilterEmployee === 'todos' ? pontoRecords : pontoRecords.filter(r => r.user_name === pontoFilterEmployee)).length} registro(s)
+                </span>
+                <button className="btn" style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onClick={() => window.open(`${API_URL}/api/ponto/export?store=${encodeURIComponent(userProfile?.store)}&month=${pontoMonth}`, '_blank')}>
+                  <FileDown size={16}/> Exportar Folha
+                </button>
+              </div>
+
+              {/* Grid de registros com selfies */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '600px', overflowY: 'auto' }}>
+                {(() => {
+                  const filtered = pontoFilterEmployee === 'todos' ? pontoRecords : pontoRecords.filter(r => r.user_name === pontoFilterEmployee);
+                  if (filtered.length === 0) return (
+                    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Nenhum registro encontrado.</div>
+                  );
+                  return filtered.map((rec, idx) => {
+                    const dt = new Date(rec.timestamp);
+                    const dataStr = dt.toLocaleDateString('pt-BR', { timeZone: pontoTimezone });
+                    const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: pontoTimezone });
+                    const isEntrada = rec.type === 'entrada';
+                    return (
+                      <div key={rec.id || idx} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 16px', borderRadius: '10px', backgroundColor: idx % 2 === 0 ? 'var(--bg-main)' : 'var(--bg-card)', border: '1px solid var(--border-color)', transition: 'all 0.2s' }}>
+                        {/* Selfie */}
+                        <div style={{ width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0, border: `3px solid ${isEntrada ? '#22c55e' : '#ef4444'}`, cursor: rec.selfie_url ? 'pointer' : 'default', backgroundColor: '#f1f5f9' }}
+                          onClick={() => rec.selfie_url && setPontoPhotoPreview(rec.selfie_url)}>
+                          {rec.selfie_url ? (
+                            <img src={rec.selfie_url} alt="Selfie" style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
+                          ) : (
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}><Camera size={20}/></div>
+                          )}
+                        </div>
+                        {/* Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{rec.user_name || '—'}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                            <span>📅 {dataStr}</span>
+                            <span>🕐 {horaStr}</span>
+                            {rec.address && <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {rec.address}</span>}
+                          </div>
+                        </div>
+                        {/* Badge tipo */}
+                        <span style={{ backgroundColor: isEntrada ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isEntrada ? '#22c55e' : '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', flexShrink: 0 }}>
+                          {rec.type || '—'}
+                        </span>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* Preview de foto */}
+          {pontoPhotoPreview && (
+            <div className="modal-overlay animate-fade" onClick={() => setPontoPhotoPreview(null)} style={{ zIndex: 10000 }}>
+              <div style={{ maxWidth: '500px', maxHeight: '80vh', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
+                <img src={pontoPhotoPreview} alt="Selfie do Ponto" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
