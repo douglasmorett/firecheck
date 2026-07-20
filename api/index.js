@@ -477,6 +477,22 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS asset_link_type VARCHAR(100)");
       await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS vehicle_id INTEGER");
       await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS signature TEXT");
+      // ── Tabela de Conversas WhatsApp (Chatbot) ──
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS wa_conversations (
+          id SERIAL PRIMARY KEY,
+          phone VARCHAR(50) NOT NULL,
+          user_id INTEGER,
+          store VARCHAR(255),
+          role VARCHAR(20),
+          messages JSONB DEFAULT '[]',
+          last_intent VARCHAR(100),
+          context JSONB DEFAULT '{}',
+          updated_at TIMESTAMP DEFAULT NOW(),
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      await pool.query("CREATE INDEX IF NOT EXISTS idx_wa_conv_phone ON wa_conversations(phone)");
       migrationsRun = true;
     } catch (e) { console.error('Migration error:', e); }
   }
@@ -2577,6 +2593,351 @@ Responda APENAS com JSON válido.`;
       } catch (pushErr) {
         return res.status(500).json({ error: 'Erro ao enviar push', details: pushErr.message });
       }
+    }
+
+    // ── WHATSAPP CHATBOT — BILL VIA WHATSAPP ─────────────────────
+    if (url.includes('/api/webhooks/whatsapp')) {
+      if (method === 'POST') {
+        try {
+          const body = req.body;
+          // Evolution API envia diferentes eventos — só processar mensagens recebidas
+          const event = body.event;
+          if (event !== 'messages.upsert') return res.status(200).json({ ignored: true });
+
+          const msgData = body.data;
+          if (!msgData || !msgData.key || !msgData.message) return res.status(200).json({ ignored: true });
+
+          // Ignorar mensagens próprias e de grupos
+          if (msgData.key.fromMe) return res.status(200).json({ ignored: 'own_message' });
+          if (msgData.key.remoteJid.includes('@g.us')) return res.status(200).json({ ignored: 'group' });
+
+          // Extrair telefone e texto
+          const remoteJid = msgData.key.remoteJid;
+          const phoneRaw = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
+          const incomingText = msgData.message.conversation
+            || msgData.message.extendedTextMessage?.text
+            || msgData.message.imageMessage?.caption
+            || '';
+
+          if (!incomingText.trim()) return res.status(200).json({ ignored: 'no_text' });
+
+          // Rate limiting simples — máx 20 msgs/minuto por telefone
+          const rateLimitKey = `wa_rate_${phoneRaw}`;
+          if (!global._waRateLimit) global._waRateLimit = {};
+          const now = Date.now();
+          const userRate = global._waRateLimit[rateLimitKey] || { count: 0, resetAt: now + 60000 };
+          if (now > userRate.resetAt) { userRate.count = 0; userRate.resetAt = now + 60000; }
+          userRate.count++;
+          global._waRateLimit[rateLimitKey] = userRate;
+          if (userRate.count > 20) return res.status(200).json({ ignored: 'rate_limited' });
+
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          // Função auxiliar para enviar resposta via WhatsApp
+          const sendWAReply = async (text) => {
+            if (!evoUrl || !evoKey) return;
+            await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify({ number: phoneRaw, text })
+            }).catch(e => console.error('[WA Bot] Erro ao responder:', e.message));
+          };
+
+          // ── 1. IDENTIFICAR USUÁRIO ──
+          // Buscar por whatsapp_phone, phone, ou telefone sem 55
+          const phoneVariants = [phoneRaw, phoneRaw.replace(/^55/, ''), '+' + phoneRaw];
+          let foundUser = null;
+          for (const pv of phoneVariants) {
+            const { rows } = await pool.query(
+              "SELECT * FROM users WHERE REPLACE(REPLACE(REPLACE(whatsapp_phone, ' ', ''), '-', ''), '+', '') = $1 OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = $1 LIMIT 1",
+              [pv.replace(/\D/g, '')]
+            );
+            if (rows.length > 0) { foundUser = rows[0]; break; }
+          }
+
+          // Se não encontrou usuário
+          if (!foundUser) {
+            await sendWAReply(
+              `Olá! 👋 Eu sou o *Bill*, assistente inteligente do *FireCheck*.\n\n` +
+              `Não encontrei seu número cadastrado no sistema.\n\n` +
+              `Para usar o assistente:\n` +
+              `1️⃣ Peça ao admin da sua loja para cadastrar seu número\n` +
+              `2️⃣ Ou acesse *firecheckapp.com.br* para criar sua conta\n\n` +
+              `Se já tem conta, configure seu WhatsApp no painel em *Configurações > WhatsApp* 📱`
+            );
+            return res.status(200).json({ handled: true, reason: 'user_not_found' });
+          }
+
+          // ── 2. CARREGAR/CRIAR SESSÃO DE CONVERSA ──
+          let { rows: convRows } = await pool.query(
+            'SELECT * FROM wa_conversations WHERE phone = $1', [phoneRaw]
+          );
+          let conversation;
+          if (convRows.length === 0) {
+            const { rows: newConv } = await pool.query(
+              'INSERT INTO wa_conversations (phone, user_id, store, role, messages) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+              [phoneRaw, foundUser.id, foundUser.store, foundUser.role, JSON.stringify([])]
+            );
+            conversation = newConv[0];
+            // Mensagem de boas-vindas na primeira interação
+            const welcomeMsg = foundUser.role === 'funcionario' || foundUser.role === 'employee'
+              ? `Olá, *${foundUser.name}*! 👋 Eu sou o *Bill*, seu assistente do FireCheck.\n\n` +
+                `Você pode me perguntar:\n` +
+                `📋 "Tem checklist pendente?"\n` +
+                `⏰ "Meu ponto de hoje"\n` +
+                `❓ Qualquer dúvida sobre a operação\n\n` +
+                `Como posso te ajudar?`
+              : `Olá, *${foundUser.name}*! 👋 Eu sou o *Bill*, seu assistente do FireCheck.\n\n` +
+                `Posso te ajudar com:\n` +
+                `📋 Criar checklists — _"cria um checklist de abertura"_\n` +
+                `📊 Consultar dados — _"como tá a loja hoje?"_\n` +
+                `👥 Gerenciar equipe — _"lista meus funcionários"_\n` +
+                `⏰ Ponto — _"quem bateu ponto hoje?"_\n` +
+                `⚙️ Configurações — _"muda entrada pra 09:00"_\n\n` +
+                `Me fala o que precisa! 🔥`;
+            await sendWAReply(welcomeMsg);
+            return res.status(200).json({ handled: true, reason: 'welcome_sent' });
+          } else {
+            conversation = convRows[0];
+          }
+
+          // ── 3. BUSCAR DADOS DA LOJA PARA CONTEXTO ──
+          const userStore = foundUser.store;
+          let storeContext = '';
+
+          try {
+            // Stats do dia
+            const todayDate = new Date().toISOString().split('T')[0];
+            const { rows: todaySubs } = await pool.query(
+              "SELECT COUNT(*) as total, COUNT(CASE WHEN feedback_info::text LIKE '%warning%' OR feedback_info::text LIKE '%error%' THEN 1 END) as alerts FROM checklist_submissions WHERE store = $1 AND created_at >= $2",
+              [userStore, todayDate + ' 00:00:00']
+            );
+            const { rows: allChecklists } = await pool.query(
+              'SELECT id, title, recurrence, weekdays, scheduled_date, category FROM checklists WHERE LOWER(store) = LOWER($1)', [userStore]
+            );
+            const { rows: todayPonto } = await pool.query(
+              "SELECT user_name, type, timestamp FROM ponto_records WHERE store = $1 AND timestamp::date = $2 ORDER BY timestamp ASC",
+              [userStore, todayDate]
+            );
+            const { rows: employees } = await pool.query(
+              "SELECT id, name, email, role, phone FROM users WHERE store = $1 AND role = 'funcionario'", [userStore]
+            );
+            const { rows: adminData } = await pool.query(
+              "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, checklist_limit, checklists_used, plan, timezone FROM users WHERE id = $1",
+              [foundUser.role === 'funcionario' ? (await pool.query("SELECT id FROM users WHERE store = $1 AND (role='admin' OR role='master') LIMIT 1", [userStore])).rows[0]?.id : foundUser.id]
+            );
+
+            storeContext = `
+DADOS DA LOJA "${userStore}" — HOJE (${todayDate}):
+- Checklists concluídos hoje: ${todaySubs[0]?.total || 0} (${todaySubs[0]?.alerts || 0} com alertas)
+- Total de templates de checklist: ${allChecklists.length}
+- Checklists cadastrados: ${allChecklists.map(c => `"${c.title}" (${c.recurrence || 'único'})`).join(', ') || 'nenhum'}
+- Registros de ponto hoje: ${todayPonto.length > 0 ? todayPonto.map(p => `${p.user_name}: ${p.type} às ${new Date(p.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}`).join('; ') : 'nenhum registro'}
+- Funcionários: ${employees.length > 0 ? employees.map(e => `${e.name} (${e.email})`).join(', ') : 'nenhum cadastrado'}
+- Configuração de ponto: Entrada ${adminData[0]?.ponto_hora_entrada || '08:00'}, Saída ${adminData[0]?.ponto_hora_saida || '18:00'}, Tolerância ${adminData[0]?.ponto_tolerancia || 15}min
+- Plano: ${adminData[0]?.plan || 'starter'}, Checklists usados: ${adminData[0]?.checklists_used || 0}/${adminData[0]?.checklist_limit || 300}
+`;
+          } catch (ctxErr) {
+            console.error('[WA Bot] Erro ao buscar contexto:', ctxErr.message);
+            storeContext = 'Dados da loja indisponíveis no momento.';
+          }
+
+          // ── 4. MONTAR HISTÓRICO DA CONVERSA ──
+          let msgHistory = [];
+          try { msgHistory = typeof conversation.messages === 'string' ? JSON.parse(conversation.messages) : (conversation.messages || []); } catch(e) { msgHistory = []; }
+
+          // Manter últimas 10 mensagens
+          if (msgHistory.length > 10) msgHistory = msgHistory.slice(-10);
+
+          // Adicionar mensagem do usuário
+          msgHistory.push({ role: 'user', content: incomingText, ts: new Date().toISOString() });
+
+          const conversationText = msgHistory.map(m =>
+            m.role === 'user' ? `USUÁRIO: ${m.content}` : `BILL: ${m.content}`
+          ).join('\n');
+
+          // ── 5. PROCESSAR COM GEMINI ──
+          const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+          if (!apiKey) {
+            await sendWAReply('⚠️ Sistema de IA temporariamente indisponível. Tente novamente em alguns minutos.');
+            return res.status(200).json({ error: 'no_api_key' });
+          }
+
+          const isAdmin = foundUser.role === 'admin' || foundUser.role === 'master';
+          const userRoleDesc = isAdmin ? 'ADMINISTRADOR/DONO da loja' : 'FUNCIONÁRIO da loja';
+
+          const systemPrompt = `Você é o BILL, assistente inteligente do FireCheck via WhatsApp. Seja conciso, use emojis e formatação WhatsApp (*negrito*, _itálico_).
+
+USUÁRIO: ${foundUser.name} (${foundUser.email}) — ${userRoleDesc}
+LOJA: ${userStore}
+${storeContext}
+
+HISTÓRICO DA CONVERSA:
+${conversationText}
+
+═══════════════════════════════════════════
+ SUAS CAPACIDADES
+═══════════════════════════════════════════
+
+Você pode executar AÇÕES retornando JSON com o campo "action". As ações disponíveis são:
+
+${isAdmin ? `
+AÇÕES DE ADMIN:
+1. CRIAR CHECKLIST: {"action": "create_checklist", "title": "Nome", "tasks": [{"text": "tarefa", "type": "boolean"}], "recurrence": "daily|weekdays|weekly|monthly|unique", "weekdays": ["seg","ter",...], "category": "geral"}
+   - Tipos de task: boolean (sim/não), check (checkbox), rating (1-5 estrelas), numeric (número), multiple (múltipla escolha com options), text (texto livre), itemlist (lista de itens com options)
+   - Para multiple/itemlist, inclua o campo "options": ["opção1", "opção2", ...]
+   - Máximo 15 tarefas, mínimo 3
+   - Se o usuário pedir para criar, CONVERSE com ele para entender o que precisa antes de gerar. Faça 1-2 perguntas curtas.
+   
+2. CRIAR FUNCIONÁRIO: {"action": "create_employee", "name": "Nome", "email": "email@x.com", "password": "senha123"}
+
+3. ALTERAR CONFIGURAÇÃO DE PONTO: {"action": "update_config", "field": "ponto_hora_entrada|ponto_hora_saida|ponto_tolerancia", "value": "09:00"}
+
+4. CONSULTAR DADOS: {"action": "query", "type": "stats|checklists|ponto|employees|submissions|quota"}
+` : `
+AÇÕES DE FUNCIONÁRIO:
+1. CONSULTAR DADOS: {"action": "query", "type": "my_checklists|my_ponto|pending"}
+`}
+
+═══════════════════════════════════════════
+ FORMATO DE RESPOSTA (JSON OBRIGATÓRIO)
+═══════════════════════════════════════════
+SEMPRE responda em JSON puro com este formato:
+{
+  "reply": "Texto para enviar ao usuário no WhatsApp (use *negrito*, _itálico_, emojis)",
+  "action": null ou objeto com a ação a executar,
+  "intent": "saudacao|consulta|criar_checklist|criar_funcionario|configuracao|ajuda|conversa"
+}
+
+═══════════════════════════════════════════
+ REGRAS DE OURO
+═══════════════════════════════════════════
+1. NUNCA invente dados. Use APENAS os dados fornecidos no contexto acima.
+2. Seja CONCISO — mensagens WhatsApp devem ser curtas e objetivas.
+3. Para CRIAR CHECKLIST: sempre converse primeiro (1-2 perguntas), depois gere.
+4. Para CONSULTAS: use os dados do contexto e formate bonito com emojis.
+5. Se o usuário pedir algo que você não pode fazer, explique educadamente.
+6. ${isAdmin ? 'NUNCA delete dados. Apenas criação e alteração.' : 'NUNCA execute ações de admin. Apenas consultas.'}
+7. Se a mensagem for uma saudação simples (oi, olá, bom dia), responda de forma simpática e pergunte como pode ajudar.
+8. Formatação WhatsApp: *negrito*, _itálico_, ~tachado~, \`código\`
+9. Use quebras de linha (\\n) para organizar a resposta.
+10. Quando criar um checklist com sucesso via ação, comemore! O usuário vai adorar.`;
+
+          try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({
+              model: "gemini-2.5-flash",
+              generationConfig: { responseMimeType: "application/json" }
+            });
+
+            const result = await model.generateContent(systemPrompt);
+            const responseText = result.response.text();
+            let parsed;
+            try {
+              parsed = JSON.parse(responseText);
+            } catch (parseErr) {
+              // Tentar extrair JSON de resposta malformada
+              const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+              if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+              else throw new Error('Resposta da IA não é JSON válido');
+            }
+
+            let finalReply = parsed.reply || 'Desculpe, não consegui processar sua mensagem. Tente novamente.';
+
+            // ── 6. EXECUTAR AÇÃO (se houver) ──
+            if (parsed.action && typeof parsed.action === 'object') {
+              try {
+                if (parsed.action.action === 'create_checklist' || parsed.action.type === 'create_checklist') {
+                  const act = parsed.action;
+                  const clTitle = act.title;
+                  const clTasks = act.tasks || [];
+                  const clRecurrence = act.recurrence || 'daily';
+                  const clWeekdays = act.weekdays || null;
+                  const clCategory = act.category || 'geral';
+
+                  if (clTitle && clTasks.length > 0) {
+                    const { rows: newCl } = await pool.query(
+                      'INSERT INTO checklists (title, store, tasks, recurrence, weekdays, category) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+                      [clTitle, userStore, JSON.stringify(clTasks), clRecurrence, clWeekdays ? JSON.stringify(clWeekdays) : null, clCategory]
+                    );
+                    finalReply += `\n\n✅ Checklist *"${clTitle}"* criado com ${clTasks.length} tarefas! Já está disponível para a equipe.`;
+                  }
+                }
+
+                else if (parsed.action.action === 'create_employee' || parsed.action.type === 'create_employee') {
+                  if (!isAdmin) {
+                    finalReply = '⚠️ Apenas administradores podem cadastrar funcionários.';
+                  } else {
+                    const act = parsed.action;
+                    const empName = act.name;
+                    const empEmail = act.email;
+                    const empPass = act.password || 'fire' + Math.random().toString(36).slice(-4);
+                    const bcrypt = await import('bcryptjs');
+                    const hashedPass = await bcrypt.hash(empPass, 10);
+                    
+                    // Verificar se email já existe
+                    const { rows: existing } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [empEmail]);
+                    if (existing.length > 0) {
+                      finalReply = `⚠️ Já existe um usuário com o email *${empEmail}*.`;
+                    } else {
+                      await pool.query(
+                        "INSERT INTO users (name, email, password, role, store, status) VALUES ($1, $2, $3, 'funcionario', $4, 'active')",
+                        [empName, empEmail, hashedPass, userStore]
+                      );
+                      finalReply = `✅ Funcionário *${empName}* cadastrado!\n📧 Email: ${empEmail}\n🔑 Senha: ${empPass}\n\nEle já pode acessar o app.`;
+                    }
+                  }
+                }
+
+                else if (parsed.action.action === 'update_config' || parsed.action.type === 'update_config') {
+                  if (!isAdmin) {
+                    finalReply = '⚠️ Apenas administradores podem alterar configurações.';
+                  } else {
+                    const act = parsed.action;
+                    const field = act.field;
+                    const value = act.value;
+                    const allowedFields = ['ponto_hora_entrada', 'ponto_hora_saida', 'ponto_tolerancia'];
+                    if (allowedFields.includes(field)) {
+                      await pool.query(`UPDATE users SET ${field} = $1 WHERE id = $2`, [value, foundUser.id]);
+                      const fieldNames = { ponto_hora_entrada: 'Horário de entrada', ponto_hora_saida: 'Horário de saída', ponto_tolerancia: 'Tolerância' };
+                      finalReply = `✅ *${fieldNames[field]}* atualizado para *${value}${field === 'ponto_tolerancia' ? ' minutos' : ''}*.`;
+                    }
+                  }
+                }
+
+                // Ações de consulta não precisam de execução extra — dados já estão no contexto do Gemini
+              } catch (actionErr) {
+                console.error('[WA Bot] Erro ao executar ação:', actionErr.message);
+                finalReply += '\n\n⚠️ Houve um problema ao executar a ação. Tente novamente.';
+              }
+            }
+
+            // ── 7. SALVAR HISTÓRICO E RESPONDER ──
+            msgHistory.push({ role: 'bill', content: finalReply, ts: new Date().toISOString() });
+            if (msgHistory.length > 20) msgHistory = msgHistory.slice(-20);
+
+            await pool.query(
+              'UPDATE wa_conversations SET messages = $1, last_intent = $2, updated_at = NOW() WHERE phone = $3',
+              [JSON.stringify(msgHistory), parsed.intent || 'conversa', phoneRaw]
+            );
+
+            await sendWAReply(finalReply);
+            return res.status(200).json({ handled: true, intent: parsed.intent });
+
+          } catch (aiErr) {
+            console.error('[WA Bot] Erro Gemini:', aiErr.message);
+            await sendWAReply('⚠️ Estou com um probleminha técnico agora. Tente novamente em alguns segundos! 🔧');
+            return res.status(200).json({ error: aiErr.message });
+          }
+
+        } catch (webhookErr) {
+          console.error('[WA Bot] Erro geral webhook:', webhookErr.message);
+          return res.status(200).json({ error: webhookErr.message });
+        }
+      }
+      return res.status(200).json({ status: 'webhook_ready' });
     }
 
     return res.status(200).json({ status: 'online' });
