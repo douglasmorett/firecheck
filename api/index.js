@@ -2635,10 +2635,53 @@ Responda APENAS com JSON válido.`;
           // Extrair telefone e texto
           const remoteJid = msgData.key.remoteJid;
           const phoneRaw = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-          const incomingText = msgData.message.conversation
+          
+          let incomingText = msgData.message.conversation
             || msgData.message.extendedTextMessage?.text
             || msgData.message.imageMessage?.caption
             || '';
+          
+          let isAudioMessage = false;
+
+          // ── Suporte a ÁUDIO (voice notes / áudio) ──
+          if (!incomingText.trim() && (msgData.message.audioMessage || msgData.message.pttMessage)) {
+            isAudioMessage = true;
+            try {
+              const evoUrlAudio = process.env.EVOLUTION_API_URL;
+              const evoKeyAudio = process.env.EVOLUTION_API_KEY;
+              const evoInstAudio = process.env.EVOLUTION_INSTANCE || 'firecheck';
+              const msgId = msgData.key.id;
+              
+              // Baixar áudio base64 via Evolution API
+              const audioResp = await fetch(`${evoUrlAudio}/chat/getBase64FromMediaMessage/${evoInstAudio}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evoKeyAudio },
+                body: JSON.stringify({ message: msgData, convertToMp4: false })
+              });
+              
+              if (audioResp.ok) {
+                const audioData = await audioResp.json();
+                const audioBase64 = audioData.base64;
+                const mimeType = audioData.mimetype || msgData.message.audioMessage?.mimetype || 'audio/ogg';
+                
+                if (audioBase64) {
+                  // Transcrever com Gemini
+                  const transcribeKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+                  if (transcribeKey) {
+                    const tGenAI = new GoogleGenerativeAI(transcribeKey);
+                    const tModel = tGenAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                    const tResult = await tModel.generateContent([
+                      { inlineData: { mimeType, data: audioBase64 } },
+                      'Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito, sem formatação.'
+                    ]);
+                    incomingText = tResult.response.text().trim();
+                  }
+                }
+              }
+            } catch (audioErr) {
+              console.error('[WA Bot] Erro ao processar áudio:', audioErr.message);
+            }
+          }
 
           if (!incomingText.trim()) return res.status(200).json({ ignored: 'no_text' });
 
