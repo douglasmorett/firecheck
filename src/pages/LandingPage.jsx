@@ -432,6 +432,108 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Templates de Checklist (Piloto Automático) - Mapeado como Segunda Seção */}
+      <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid #e2e8f0' }}>
+        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
+          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2', color: '#0f172a' }}>
+            O seu negócio rodando <br/><span style={{ color: 'var(--primary)' }}>no piloto automático</span>
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto' }}>
+            Veja como é simples transformar a gestão da sua empresa em 4 passos rápidos.
+          </p>
+        </div>
+
+        <style>{`
+          .four-steps-grid {
+             display: grid;
+             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+             gap: 24px;
+             max-width: 1200px;
+             margin: 0 auto;
+             position: relative;
+          }
+          @media (max-width: 768px) {
+             .four-steps-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 12px !important;
+             }
+             .four-steps-grid > div {
+                padding: 12px !important;
+                border-radius: 16px !important;
+             }
+             .four-steps-grid > div > div:first-child {
+                height: 80px !important;
+                margin-bottom: 12px !important;
+                border-radius: 8px !important;
+             }
+             .four-steps-grid > div > div:nth-child(2) {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 0.9rem !important;
+                margin-bottom: 8px !important;
+             }
+             .four-steps-grid > div > h3 {
+                font-size: 0.85rem !important;
+                margin-bottom: 6px !important;
+             }
+             .four-steps-grid > div > p {
+                font-size: 0.75rem !important;
+             }
+          }
+        `}</style>
+        <div className="four-steps-grid">
+          
+          {/* Step 1 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step1.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Crie o checklist" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(255, 77, 0, 0.1)' }}>1</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px', color: '#0f172a' }}>Criação por Áudio ou Texto</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Fale ou digite para nossa IA e ela estrutura o checklist ideal para sua empresa em segundos, sem trabalho manual.
+            </p>
+          </div>
+
+          {/* Step 2 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step2.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Funcionários executam" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(6, 182, 212, 0.1)' }}>2</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px', color: '#0f172a' }}>Execução Inediata</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Seus funcionários recebem no aplicativo e já podem começar a executar a tarefa instantaneamente respondendo se foi feito e tirando foto.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step3.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Notificação de falha" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(239, 68, 68, 0.1)' }}>3</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px', color: '#0f172a' }}>Alertas Inteligentes</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Caso alguma tarefa não seja executada na hora programada ou do jeito que você pediu, nossa IA envia uma notificação push para seu celular para que você só precise agir se realmente algum comando não for cumprido.
+            </p>
+          </div>
+
+          {/* Step 4 */}
+          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
+               <img src="/step4.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Férias e relaxamento" />
+            </div>
+            <div style={{ width: '48px', height: '48px', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.1)' }}>4</div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px', color: '#0f172a' }}>Empresa Auto-Gerenciável</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
+              Relaxe e programe suas férias, agora você tem uma empresa auto gerenciável!
+            </p>
+          </div>
+
+        </div>
+      </section>
+
       {/* SEÇÃO COMPONENT SHOWCASE INTERATIVO (LAPTOP + CELULAR + CHIPS FLUTUANTES) - TEMA CLARO */}
       <section className="section-mobile-padding" style={{ padding: '100px 0', backgroundColor: '#f8fafc', position: 'relative', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
         {/* Glows de fundo suaves */}
@@ -596,18 +698,186 @@ export default function LandingPage() {
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '8px' }}>admin.firecheckapp.com/dashboard</span>
               </div>
-              <div style={{ background: '#f8fafc', aspectRatio: '1.6', overflow: 'hidden', display: 'flex', border: '1px solid #cbd5e1', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
-                <img src="/dashboard_mock.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="FireCheck Admin Dashboard" />
+              <div style={{ background: '#F4F4F5', aspectRatio: '1.6', overflow: 'hidden', display: 'flex', border: '1px solid #cbd5e1', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.1)', width: '100%', fontSize: '0.65rem', fontFamily: 'Inter, system-ui, sans-serif', color: '#18181b', userSelect: 'none' }}>
+                
+                {/* SIDEBAR MOCK */}
+                <div style={{ width: '25%', backgroundColor: '#ffffff', borderRight: '1px solid #e4e4e7', display: 'flex', flexDirection: 'column', padding: '10px 6px', boxSizing: 'border-box' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '14px', paddingLeft: '4px' }}>
+                    <div style={{ backgroundColor: '#ff4d00', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Flame size={12} color="white" />
+                    </div>
+                    <span style={{ fontWeight: 'bold', fontSize: '0.75rem', color: '#0f172a' }}>FireCheck</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', backgroundColor: 'rgba(255, 77, 0, 0.08)', color: '#ff4d00', fontWeight: 'bold' }}>
+                      <ClipboardList size={11} /> Auditorias
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', color: '#64748b' }}>
+                      <Trophy size={11} /> Ranking
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', color: '#64748b' }}>
+                      <ClipboardList size={11} /> Checklists
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 8px', borderRadius: '6px', color: '#64748b' }}>
+                      <Users size={11} /> Equipe
+                    </div>
+                  </div>
+                </div>
+
+                {/* CONTENT AREA MOCK */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '12px 14px', boxSizing: 'border-box', overflow: 'hidden' }}>
+                  {/* Top Bar */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '0.8rem', color: '#0f172a' }}>Painel Geral</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #ff4d00', color: '#ff4d00', padding: '3px 8px', borderRadius: '6px', fontWeight: '700', fontSize: '0.55rem', backgroundColor: 'rgba(255,77,0,0.02)' }}>
+                      <Flame size={9} /> Duga Burguer
+                    </div>
+                  </div>
+
+                  {/* Stats Row */}
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                    <div style={{ flex: 1, backgroundColor: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '8px', padding: '8px', boxSizing: 'border-box' }}>
+                      <div style={{ color: '#64748b', fontSize: '0.5rem', fontWeight: '600', marginBottom: '2px' }}>CONFORMIDADE</div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: 'bold', color: '#10b981' }}>94%</span>
+                        <span style={{ fontSize: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>+4.2%</span>
+                      </div>
+                      <div style={{ height: '4px', backgroundColor: '#e4e4e7', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: '94%', height: '100%', backgroundColor: '#10b981' }}></div>
+                      </div>
+                    </div>
+                    
+                    <div style={{ flex: 1, backgroundColor: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '8px', padding: '8px', boxSizing: 'border-box' }}>
+                      <div style={{ color: '#64748b', fontSize: '0.5rem', fontWeight: '600', marginBottom: '2px' }}>CHECKLISTS HOJE</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ff4d00', marginBottom: '4px' }}>18/20</div>
+                      <div style={{ height: '4px', backgroundColor: '#e4e4e7', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: '90%', height: '100%', backgroundColor: '#ff4d00' }}></div>
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1, backgroundColor: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '8px', padding: '8px', boxSizing: 'border-box' }}>
+                      <div style={{ color: '#64748b', fontSize: '0.5rem', fontWeight: '600', marginBottom: '2px' }}>ALERTAS DE IA</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#ef4444', marginBottom: '4px' }}>1 Pendente</div>
+                      <div style={{ height: '4px', backgroundColor: '#e4e4e7', borderRadius: '100px', overflow: 'hidden' }}>
+                        <div style={{ width: '50%', height: '100%', backgroundColor: '#ef4444' }}></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Auditorias Table Card */}
+                  <div style={{ flex: 1, backgroundColor: '#ffffff', border: '1px solid #e4e4e7', borderRadius: '8px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #e4e4e7', padding: '6px 10px', display: 'flex', fontWeight: 'bold', color: '#475569', fontSize: '0.5rem' }}>
+                      <div style={{ flex: 2 }}>Checklist / Funcionário</div>
+                      <div style={{ flex: 2 }}>Status da IA</div>
+                      <div style={{ flex: 1, textAlign: 'right' }}>Horário</div>
+                    </div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+                      {/* Row 1 */}
+                      <div style={{ borderBottom: '1px solid #f1f5f9', padding: '8px 10px', display: 'flex', alignItems: 'center', fontSize: '0.55rem' }}>
+                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>Auditoria de Fechamento</span>
+                          <span style={{ fontSize: '0.48rem', color: '#64748b' }}>Eduardo Silva</span>
+                        </div>
+                        <div style={{ flex: 2 }}>
+                          <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '10px', fontSize: '0.48rem', fontWeight: 'bold' }}>✅ Aprovado pela IA</span>
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'right', color: '#64748b' }}>14:31</div>
+                      </div>
+                      {/* Row 2 */}
+                      <div style={{ borderBottom: '1px solid #f1f5f9', padding: '8px 10px', display: 'flex', alignItems: 'center', fontSize: '0.55rem' }}>
+                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: '700', color: '#0f172a' }}>Limpeza da Chapa</span>
+                          <span style={{ fontSize: '0.48rem', color: '#64748b' }}>Funcionario Demo</span>
+                        </div>
+                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '2px 8px', borderRadius: '10px', fontSize: '0.48rem', fontWeight: 'bold', width: 'fit-content' }}>❌ Reprovado pela IA</span>
+                          <span style={{ fontSize: '0.45rem', color: '#ef4444', fontWeight: '500' }}>Resíduo de carvão</span>
+                        </div>
+                        <div style={{ flex: 1, textAlign: 'right', color: '#64748b' }}>14:20</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div style={{ backgroundColor: '#cbd5e1', height: '10px', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '4px', backgroundColor: '#94a3b8', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }}></div>
               </div>
             </div>
 
+            {/* Mobile Mockup */}
             <div className="phone-mockup-overlap">
-              <div style={{ background: '#000000', border: '8px solid #1e293b', borderRadius: '32px', aspectRatio: '0.485', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', position: 'relative' }}>
+              <div style={{ background: '#000000', border: '8px solid #1e293b', borderRadius: '32px', aspectRatio: '0.485', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', position: 'relative', width: '100%' }}>
                 <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '50px', height: '10px', backgroundColor: '#1e293b', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', zIndex: 100 }}></div>
-                <img src="/app_mock.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="FireCheck Mobile App" />
+                
+                {/* Employee App View */}
+                <div style={{ flex: 1, background: '#F4F4F5', display: 'flex', flexDirection: 'column', fontFamily: 'Inter, system-ui, sans-serif', fontSize: '0.65rem', color: '#18181b', boxSizing: 'border-box' }}>
+                  {/* Status Bar */}
+                  <div style={{ padding: '6px 12px 4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.55rem', fontWeight: 'bold', color: '#64748b' }}>
+                    <span>09:41</span>
+                    <div style={{ display: 'flex', gap: '3px', alignItems: 'center' }}>
+                      <Smartphone size={8} /> 4G
+                    </div>
+                  </div>
+
+                  {/* App Header (Orange banner) */}
+                  <div style={{ backgroundColor: '#ff4d00', color: 'white', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyItems: 'center', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ backgroundColor: 'white', padding: '2px', borderRadius: '3px' }}>
+                        <Flame size={10} color="#ff4d00" />
+                      </div>
+                      <span style={{ fontWeight: 'bold', fontSize: '0.7rem' }}>FireCheck</span>
+                    </div>
+                    <div style={{ fontSize: '0.5rem', opacity: 0.9 }}>Duga Burguer • Eduardo Silva</div>
+                  </div>
+
+                  {/* Checklist List Container */}
+                  <div style={{ flex: 1, padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto' }}>
+                    <div style={{ color: '#64748b', fontWeight: 'bold', fontSize: '0.55rem' }}>MEUS CHECKLISTS DE HOJE</div>
+                    
+                    {/* Checklist Card 1 */}
+                    <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #10b981', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Auditoria de Fechamento</div>
+                        <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Concluído</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: '100%', height: '100%', backgroundColor: '#10b981' }}></div>
+                        </div>
+                        <span style={{ fontSize: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>100%</span>
+                      </div>
+                    </div>
+
+                    {/* Checklist Card 2 */}
+                    <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #ff4d00', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Limpeza da Chapa</div>
+                        <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', color: '#ff4d00', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Aguardando</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: '60%', height: '100%', backgroundColor: '#ff4d00' }}></div>
+                        </div>
+                        <span style={{ fontSize: '0.5rem', color: '#ff4d00', fontWeight: 'bold' }}>60%</span>
+                      </div>
+                    </div>
+
+                    {/* Checklist Card 3 */}
+                    <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #94a3b8', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7', opacity: 0.75 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Ponto Eletrônico</div>
+                        <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Pendente</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: '0%', height: '100%' }}></div>
+                        </div>
+                        <span style={{ fontSize: '0.5rem', color: '#64748b', fontWeight: 'bold' }}>0%</span>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -786,107 +1056,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Templates de Checklist */}
-      <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)' }}>
-        <div style={{ textAlign: 'center', marginBottom: '64px' }}>
-          <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '800', marginBottom: '16px', lineHeight: '1.2' }}>
-            O seu negócio rodando <br/><span style={{ color: 'var(--primary)' }}>no piloto automático</span>
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '700px', margin: '0 auto' }}>
-            Veja como é simples transformar a gestão da sua empresa em 4 passos rápidos.
-          </p>
-        </div>
-
-        <style>{`
-          .four-steps-grid {
-             display: grid;
-             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-             gap: 24px;
-             max-width: 1200px;
-             margin: 0 auto;
-             position: relative;
-          }
-          @media (max-width: 768px) {
-             .four-steps-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 12px !important;
-             }
-             .four-steps-grid > div {
-                padding: 12px !important;
-                border-radius: 16px !important;
-             }
-             .four-steps-grid > div > div:first-child {
-                height: 80px !important;
-                margin-bottom: 12px !important;
-                border-radius: 8px !important;
-             }
-             .four-steps-grid > div > div:nth-child(2) {
-                width: 32px !important;
-                height: 32px !important;
-                font-size: 0.9rem !important;
-                margin-bottom: 8px !important;
-             }
-             .four-steps-grid > div > h3 {
-                font-size: 0.85rem !important;
-                margin-bottom: 6px !important;
-             }
-             .four-steps-grid > div > p {
-                font-size: 0.75rem !important;
-             }
-          }
-        `}</style>
-        <div className="four-steps-grid">
-          
-          {/* Step 1 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step1.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Crie o checklist" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: 'var(--primary)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(255, 77, 0, 0.1)' }}>1</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Criação por Áudio ou Texto</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Fale ou digite para nossa IA e ela estrutura o checklist ideal para sua empresa em segundos, sem trabalho manual.
-            </p>
-          </div>
-
-          {/* Step 2 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step2.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Funcionários executam" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#06b6d4', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(6, 182, 212, 0.1)' }}>2</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Execução Imediata</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Seus funcionários recebem no aplicativo e já podem começar a executar a tarefa instantaneamente respondendo se foi feito e tirando foto.
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step3.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Notificação de falha" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(239, 68, 68, 0.1)' }}>3</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Alertas Inteligentes</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Caso alguma tarefa não seja executada na hora programada ou do jeito que você pediu, nossa IA envia uma notificação push para seu celular para que você só precise agir se realmente algum comando não for cumprido.
-            </p>
-          </div>
-
-          {/* Step 4 */}
-          <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', zIndex: 1, boxShadow: '0 10px 30px rgba(0,0,0,0.03)', textAlign: 'center', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ width: '100%', height: '160px', borderRadius: '16px', overflow: 'hidden', marginBottom: '20px', backgroundColor: '#f8fafc' }}>
-               <img src="/step4.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Férias e relaxamento" />
-            </div>
-            <div style={{ width: '48px', height: '48px', backgroundColor: '#10b981', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '1.2rem', margin: '0 auto 16px', boxShadow: '0 0 0 6px rgba(16, 185, 129, 0.1)' }}>4</div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', marginBottom: '12px' }}>Empresa Auto-Gerenciável</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', flex: 1 }}>
-              Relaxe e programe suas férias, agora você tem uma empresa auto gerenciável!
-            </p>
-          </div>
-
-        </div>
-      </section>
 
       {/* SEÇÃO INTERATIVA: Criador de Checklist por IA (Voz/Texto) */}
       <section className="section-mobile-padding" style={{ padding: '100px 5%', backgroundColor: '#0b0f19', color: '#ffffff', position: 'relative', zIndex: 12, overflow: 'hidden', borderBottom: '1px solid rgba(255, 77, 0, 0.15)' }}>
