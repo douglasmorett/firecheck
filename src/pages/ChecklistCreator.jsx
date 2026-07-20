@@ -510,12 +510,11 @@ export default function ChecklistCreator() {
             onClick={() => {
               setShowAIModal(true);
               setTimeout(() => {
-                const el = document.getElementById('ai-prompt-input');
-                if (el) {
-                  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  el.focus();
-                }
-              }, 100);
+                const modal = document.querySelector('.modal-overlay');
+                if (modal) modal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const textarea = document.getElementById('ai-chat-textarea');
+                if (textarea) textarea.focus();
+              }, 150);
             }}
           >
             <Sparkles size={20} /> Gerar com Inteligência Artificial
@@ -1070,6 +1069,7 @@ export default function ChecklistCreator() {
             {!isRecording && (
               <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '8px', alignItems: 'flex-end', flexShrink: 0, background: 'var(--bg-card)' }}>
                 <textarea
+                  id="ai-chat-textarea"
                   className="input-field"
                   style={{ flex: 1, resize: 'none', minHeight: '44px', maxHeight: '120px', padding: '12px 14px', fontSize: '0.9rem', lineHeight: '1.4', borderRadius: '12px' }}
                   placeholder={isTranscribing ? 'Transcrevendo seu áudio...' : 'Descreva o checklist ou grave um áudio...'}
