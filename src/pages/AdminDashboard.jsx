@@ -188,6 +188,7 @@ export default function AdminDashboard() {
   const [waChecklistReprovado, setWaChecklistReprovado] = useState(true);
   const [waChecklistAtrasado, setWaChecklistAtrasado] = useState(true);
   const [waPontoDiario, setWaPontoDiario] = useState(true);
+  const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
   
 
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
@@ -258,6 +259,7 @@ export default function AdminDashboard() {
     if (user.wa_checklist_reprovado !== undefined) setWaChecklistReprovado(user.wa_checklist_reprovado);
     if (user.wa_checklist_atrasado !== undefined) setWaChecklistAtrasado(user.wa_checklist_atrasado);
     if (user.wa_ponto_diario !== undefined) setWaPontoDiario(user.wa_ponto_diario);
+    if (user.wa_checklist_aprovado !== undefined) setWaChecklistAprovado(user.wa_checklist_aprovado);
     
     // Proteção extra: se for funcionário, não deixa ver o admin
     if (user.role === 'employee') {
@@ -1075,7 +1077,8 @@ export default function AdminDashboard() {
           wa_ponto_atraso: waPontoAtraso,
           wa_checklist_reprovado: waChecklistReprovado,
           wa_checklist_atrasado: waChecklistAtrasado,
-          wa_ponto_diario: waPontoDiario
+          wa_ponto_diario: waPontoDiario,
+          wa_checklist_aprovado: waChecklistAprovado
         })
       });
       if (res.ok) {
@@ -1086,7 +1089,8 @@ export default function AdminDashboard() {
           wa_ponto_atraso: waPontoAtraso,
           wa_checklist_reprovado: waChecklistReprovado,
           wa_checklist_atrasado: waChecklistAtrasado,
-          wa_ponto_diario: waPontoDiario
+          wa_ponto_diario: waPontoDiario,
+          wa_checklist_aprovado: waChecklistAprovado
         };
         localStorage.setItem('user', JSON.stringify(updatedMe));
         setUserProfile(updatedMe);
@@ -1733,6 +1737,20 @@ export default function AdminDashboard() {
                        <label htmlFor="opt-checklist-reprovado" style={{ cursor: 'pointer' }}>
                           <strong style={{ display: 'block', fontSize: '0.95rem' }}>⚠️ Checklist com Irregularidades (Reprovado)</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Notificar imediatamente quando um colaborador finalizar um checklist que contenha alertas de falha ou irregularidades.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={waChecklistAprovado} 
+                          onChange={e => setWaChecklistAprovado(e.target.checked)} 
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-checklist-aprovado"
+                       />
+                       <label htmlFor="opt-checklist-aprovado" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>✅ Checklist Concluído com Sucesso</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber notificação quando um colaborador finalizar um checklist sem nenhuma irregularidade detectada.</span>
                        </label>
                     </div>
 

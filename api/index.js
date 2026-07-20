@@ -445,6 +445,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_reprovado BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_atrasado BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_aprovado BOOLEAN DEFAULT TRUE");
       // ── Tabela de Veículos e melhorias de checklists ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS vehicles (
@@ -1062,7 +1063,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario } = req.body;
+        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1090,19 +1091,57 @@ export default async function handler(req, res) {
         const finalWaChecklistReprovado = wa_checklist_reprovado !== undefined ? wa_checklist_reprovado : user.wa_checklist_reprovado;
         const finalWaChecklistAtrasado = wa_checklist_atrasado !== undefined ? wa_checklist_atrasado : user.wa_checklist_atrasado;
         const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
+        const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
 
         if (finalStatus === 'active' && user.status !== 'active') {
           await pool.query(`
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
-            wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18,
+            wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
-            WHERE id = $19
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, id]);
+            WHERE id = $20
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18 WHERE id = $19', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id]);
         }
+        // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
+        const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
+        const isWhatsappNowOn = finalWhatsappActive && finalWhatsappPhone;
+        const phoneChanged = finalWhatsappPhone && finalWhatsappPhone !== user.whatsapp_phone;
+
+        if (isWhatsappNowOn && (wasWhatsappOff || phoneChanged)) {
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          if (evoUrl && evoKey) {
+            const cleanPhone = finalWhatsappPhone.replace(/\D/g, '');
+            const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+            const storeName = user.store || 'sua loja';
+            const confirmMsg =
+              `✅ *Notificações do FireCheck ativadas com sucesso!*\n\n` +
+              `Olá, ${user.name?.split(' ')[0] || 'tudo bem'}! 👋\n\n` +
+              `A partir de agora, você receberá os alertas da loja *${storeName}* diretamente neste número pelo WhatsApp:\n\n` +
+              `🔔 Atrasos de colaboradores no ponto\n` +
+              `📋 Checklists com irregularidades\n` +
+              `⏰ Checklists pendentes/atrasados\n` +
+              `📊 Fechamento diário de ponto\n\n` +
+              `💡 *Salve este contato* para não perder nenhuma notificação importante!\n\n` +
+              `— Equipe FireCheck 🔥`;
+
+            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify({ number: fullPhone, text: confirmMsg })
+            }).then(r => r.json()).then(d => {
+              console.log(`[WhatsApp] Confirmação enviada para ${fullPhone}:`, d?.key?.id || 'ok');
+            }).catch(e => {
+              console.error(`[WhatsApp] Falha ao enviar confirmação para ${fullPhone}:`, e.message);
+            });
+          }
+        }
+
         return res.status(200).json({ success: true });
       }
     } else if (url.includes('/api/users')) {
@@ -1122,7 +1161,7 @@ export default async function handler(req, res) {
       }
       // GET users: admin vê só da sua loja, master vê tudo
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -1292,7 +1331,7 @@ export default async function handler(req, res) {
             if (storeAdmins && storeAdmins.length > 0) {
               const adminUser = storeAdmins[0];
               const { rows: adminDetails } = await pool.query(
-                "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado FROM users WHERE id = $1",
+                "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado, wa_checklist_aprovado FROM users WHERE id = $1",
                 [adminUser.id]
               );
               if (adminDetails.length > 0) {
@@ -1300,6 +1339,25 @@ export default async function handler(req, res) {
                 const isWhatsappActive = adm.whatsapp_active !== false;
                 const targetPhone = adm.whatsapp_phone || adm.phone;
 
+                // Notificação de checklist APROVADO (sem irregularidades)
+                if (isWhatsappActive && targetPhone && !hasWarnings && adm.wa_checklist_aprovado !== false) {
+                  const cleanPhone = targetPhone.replace(/\D/g, '');
+                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                  const successMsg = `✅ *FireCheck - Checklist Concluído com Sucesso*\n\n` +
+                    `Colaborador: *${employeeName}*\n` +
+                    `Loja: *${store}*\n` +
+                    `Status: *✅ Tudo em Conformidade*\n\n` +
+                    `Nenhuma irregularidade encontrada. Operação segura! 🚀`;
+
+                  fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                    body: JSON.stringify({ number: fullPhone, text: successMsg })
+                  }).catch(e => console.error('[WhatsApp Admin Aprovado] Erro ao enviar:', e.message));
+                }
+
+                // Notificação de checklist REPROVADO (com irregularidades)
                 if (isWhatsappActive && targetPhone && hasWarnings && adm.wa_checklist_reprovado !== false) {
                   const cleanPhone = targetPhone.replace(/\D/g, '');
                   const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
