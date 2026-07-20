@@ -494,6 +494,27 @@ export default async function handler(req, res) {
       `);
       await pool.query("CREATE INDEX IF NOT EXISTS idx_wa_conv_phone ON wa_conversations(phone)");
       migrationsRun = true;
+
+      // ── Auto-configurar Webhook da Evolution API (chatbot) ──
+      try {
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+        if (evoUrl && evoKey) {
+          await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+            body: JSON.stringify({
+              url: 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
+              webhook_by_events: true,
+              webhook_base64: false,
+              events: ['MESSAGES_UPSERT']
+            })
+          });
+          console.log('[Evolution] Webhook configurado com sucesso para /api/webhooks/whatsapp');
+        }
+      } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
+
     } catch (e) { console.error('Migration error:', e); }
   }
 
