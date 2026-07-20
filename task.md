@@ -14,10 +14,10 @@
     - [x] Importar dependências de push em `src/pages/EmployeeDashboard.jsx`
     - [x] Implementar `setupPushNotifications` em `src/pages/EmployeeDashboard.jsx`
     - [x] Chamar `setupPushNotifications` no `useEffect` de carregamento de perfil em `src/pages/EmployeeDashboard.jsx`
-- [/] Liberar sistema de ponto durante o período de Trial no frontend
-    - [ ] Liberar tab `'ponto'` no `src/pages/AdminDashboard.jsx` caso o status do usuário seja `'trial'`
+- [x] Liberar sistema de ponto durante o período de Trial no frontend
+    - [x] Liberar tab `'ponto'` no `src/pages/AdminDashboard.jsx` caso o status do usuário seja `'trial'`
     - [x] Liberar checagem de ponto no `src/pages/EmployeeDashboard.jsx` se o status do administrador da loja for `'trial'`
-    - [ ] Liberar validação do ponto na tela dedicada `src/pages/PontoPage.jsx` se o status do admin da loja for `'trial'`
+    - [x] Liberar validação do ponto na tela dedicada `src/pages/PontoPage.jsx` se o status do admin da loja for `'trial'`
 - [x] Subir as alterações para o Git e disparar nova compilação remota do iOS no GitHub Actions (Run workflow)
 
 ## Fase 2: Melhorias nos Checklists

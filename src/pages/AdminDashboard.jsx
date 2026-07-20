@@ -1989,7 +1989,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Tab: Paywall Módulo Ponto ──────────────────── */}
-      {(tab === 'ponto' && !userProfile?.ponto_active && userProfile?.email !== 'dugaburguer@gmail.com') && (
+      {(tab === 'ponto' && !userProfile?.ponto_active && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
         <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
             <UserCheck size={48} color="#3b82f6" />
@@ -2045,7 +2045,7 @@ export default function AdminDashboard() {
 
       {/* ── Tabs: Módulo Ponto (Ativo) ──────────────────── */}
       {/* ── Tabs: Módulo Ponto (Ativo) ──────────────────── */}
-      {(tab === 'ponto' && (userProfile?.ponto_active || userProfile?.email === 'dugaburguer@gmail.com')) && (
+      {(tab === 'ponto' && (userProfile?.ponto_active || userProfile?.status === 'trial' || userProfile?.email === 'dugaburguer@gmail.com')) && (
         <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           <div style={{ padding: '0 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
