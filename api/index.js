@@ -2128,6 +2128,108 @@ Responda APENAS com JSON válido.`;
       }
     }
 
+    // ── Geração de Lista de Compras com IA ──────────────────────
+    if (url.includes('/api/generate-shopping-ai')) {
+      if (method === 'POST') {
+        const { description, conversation = [], audio, mimeType } = req.body;
+        const authUser = authenticateToken(req);
+        if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
+
+        const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
+
+        try {
+          const genAI = new GoogleGenerativeAI(apiKey);
+          const model = genAI.getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
+          });
+
+          let userText = description || '';
+
+          // Se veio áudio, transcrever primeiro
+          if (audio && !userText) {
+            const tModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+            const tResult = await tModel.generateContent([
+              { inlineData: { mimeType: mimeType || 'audio/webm', data: audio } },
+              'Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito.'
+            ]);
+            userText = tResult.response.text().trim();
+          }
+
+          if (!userText) return res.status(400).json({ error: 'Nenhum texto ou áudio enviado' });
+
+          const conversationContext = conversation.length > 0
+            ? '\n\nHistórico da conversa:\n' + conversation.map(m => `${m.role === 'user' ? 'Usuário' : 'Bill'}: ${m.content}`).join('\n')
+            : '';
+
+          const aiPrompt = `Você é o Bill, um assistente expert em gestão de compras e estoque para negócios. Você ajuda donos de negócios a criar LISTAS DE COMPRAS com controle de estoque.
+
+A empresa do usuário: "${authUser.store || 'não informada'}"
+
+Última mensagem do usuário:
+"${userText}"
+${conversationContext}
+
+═══════════════════════════════════════════
+ REGRA #1 — CONTEXTO: LISTA DE COMPRAS
+═══════════════════════════════════════════
+Você está ajudando a criar uma LISTA DE COMPRAS com:
+- Nome dos produtos/itens
+- Unidade de medida (un, kg, L, cx, pct, dz)
+- Estoque mínimo (quantidade mínima que deve ter no estoque)
+
+═══════════════════════════════════════════
+ REGRA #2 — FLUXO CONVERSACIONAL
+═══════════════════════════════════════════
+1. Se é a primeira mensagem ou o usuário está descrevendo o que precisa:
+   - Confirme que entendeu em 1 frase curta
+   - Faça 1-2 perguntas rápidas (ex: "Quais itens principais?", "Tem algum item com estoque mínimo definido?")
+   - Retorne: {"needsMoreInfo": true, "message": "...", "questions": ["..."]}
+
+2. Se o usuário já respondeu e você tem info suficiente:
+   - GERE a lista de compras completa
+   - Retorne: {"needsMoreInfo": false, "title": "nome da lista", "items": [...]}
+
+═══════════════════════════════════════════
+ REGRA #3 — GERAÇÃO DA LISTA
+═══════════════════════════════════════════
+Quando gerar (needsMoreInfo = false):
+- Use os termos EXATOS do usuário
+- Cada item: {"name": "Nome do Produto", "unit": "un|kg|L|cx|pct|dz", "minStock": 5, "category": "categoria"}
+- Categorias possíveis: "limpeza", "alimentos", "bebidas", "embalagens", "descartáveis", "escritório", "higiene", "manutenção", "geral"
+- Defina estoque mínimo com bom senso (baseado no tipo de negócio)
+- Agrupe logicamente os itens
+
+FORMATO DE RESPOSTA (JSON puro):
+
+Se precisar mais info:
+{"needsMoreInfo": true, "message": "mensagem amigável", "questions": ["pergunta1"]}
+
+Se pronto para gerar:
+{"needsMoreInfo": false, "title": "título da lista", "recurrence": "daily|weekly|monthly", "items": [{"name": "Produto", "unit": "un", "minStock": 5, "category": "geral"}]}
+
+Responda APENAS com JSON válido.`;
+
+          const result = await model.generateContent(aiPrompt);
+          const text = result.response.text().trim();
+
+          const jsonMatch = text.match(/\{[\s\S]*\}/);
+          const rawJson = jsonMatch ? jsonMatch[0] : text;
+          const cleanJson = cleanJsonString(rawJson);
+          const parsed = JSON.parse(cleanJson);
+
+          // Se veio áudio, retorna a transcrição junto
+          if (audio) parsed._transcription = userText;
+
+          return res.status(200).json(parsed);
+        } catch (error) {
+          console.error('Erro ao gerar lista de compras com IA:', error);
+          return res.status(500).json({ error: 'Falha na geração com IA' });
+        }
+      }
+    }
+
     // ── Geração de Checklist com IA via Áudio Direto ────────────
     if (url.includes('/api/generate-checklist-ai-audio')) {
       if (method === 'POST') {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -173,6 +173,13 @@ export default function AdminDashboard() {
   const [editingShopping, setEditingShopping] = useState(null);
   const [newShopping, setNewShopping] = useState({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
   const [isSavingShopping, setIsSavingShopping] = useState(false);
+  const [shoppingAIMode, setShoppingAIMode] = useState(false);
+  const [shoppingAIConv, setShoppingAIConv] = useState([]);
+  const [shoppingAIInput, setShoppingAIInput] = useState('');
+  const [shoppingAIGenerating, setShoppingAIGenerating] = useState(false);
+  const [shoppingAIRecording, setShoppingAIRecording] = useState(false);
+  const shoppingRecorderRef = useRef(null);
+  const shoppingAIChatRef = useRef(null);
   const [billEmail, setBillEmail] = useState('');
   const [billPassword, setBillPassword] = useState('');
   const [billLoading, setBillLoading] = useState(false);
@@ -562,6 +569,112 @@ export default function AdminDashboard() {
       });
       setShowShoppingModal(true);
     } catch(e) { console.error('Erro ao carregar itens:', e); }
+  };
+
+  const handleShoppingAISend = async (text, conv = shoppingAIConv) => {
+    if (!text?.trim()) return;
+    const newConv = [...conv, { role: 'user', content: text }];
+    setShoppingAIConv(newConv);
+    setShoppingAIInput('');
+    setShoppingAIGenerating(true);
+    setTimeout(() => shoppingAIChatRef.current?.scrollTo({ top: shoppingAIChatRef.current.scrollHeight, behavior: 'smooth' }), 100);
+
+    try {
+      const res = await fetch(`${API_URL}/api/generate-shopping-ai`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description: text, conversation: newConv })
+      });
+      const data = await res.json();
+
+      if (data.needsMoreInfo) {
+        let msg = data.message || 'Preciso de mais detalhes:';
+        if (data.questions?.length > 0) msg += '\n\n' + data.questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
+        setShoppingAIConv(prev => [...prev, { role: 'bill', content: msg }]);
+      } else if (data.title && data.items?.length > 0) {
+        setShoppingAIConv(prev => [...prev, { role: 'bill', content: `✅ Lista "${data.title}" gerada com ${data.items.length} itens! Aplicando no formulário...` }]);
+        setTimeout(() => {
+          setNewShopping(p => ({
+            ...p,
+            title: data.title,
+            recurrence: data.recurrence || p.recurrence,
+            items: data.items.map(i => ({ name: i.name, unit: i.unit || 'un', minStock: i.minStock || 0, category: i.category || 'geral' }))
+          }));
+          setShoppingAIMode(false);
+        }, 1500);
+      }
+    } catch (e) {
+      setShoppingAIConv(prev => [...prev, { role: 'bill', content: `❌ Erro: ${e.message}` }]);
+    }
+    setShoppingAIGenerating(false);
+    setTimeout(() => shoppingAIChatRef.current?.scrollTo({ top: shoppingAIChatRef.current.scrollHeight, behavior: 'smooth' }), 200);
+  };
+
+  const handleShoppingAIRecord = async () => {
+    if (shoppingAIRecording) {
+      // Parar gravação
+      shoppingRecorderRef.current?.stop();
+      setShoppingAIRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64 = reader.result.split(',')[1];
+          setShoppingAIGenerating(true);
+          const conv = [...shoppingAIConv, { role: 'user', content: '🎤 Enviando áudio...' }];
+          setShoppingAIConv(conv);
+          try {
+            const res = await fetch(`${API_URL}/api/generate-shopping-ai`, {
+              method: 'POST',
+              headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audio: base64, mimeType: 'audio/webm', conversation: shoppingAIConv })
+            });
+            const data = await res.json();
+            const transcription = data._transcription || '';
+            // Atualizar a mensagem do user com a transcrição
+            setShoppingAIConv(prev => {
+              const updated = [...prev];
+              const lastUserIdx = updated.findLastIndex(m => m.role === 'user');
+              if (lastUserIdx >= 0) updated[lastUserIdx] = { role: 'user', content: `🎤 "${transcription}"` };
+              return updated;
+            });
+
+            if (data.needsMoreInfo) {
+              let msg = data.message || '';
+              if (data.questions?.length > 0) msg += '\n\n' + data.questions.map((q, i) => `${i + 1}. ${q}`).join('\n');
+              setShoppingAIConv(prev => [...prev, { role: 'bill', content: msg }]);
+            } else if (data.title && data.items?.length > 0) {
+              setShoppingAIConv(prev => [...prev, { role: 'bill', content: `✅ Lista "${data.title}" gerada com ${data.items.length} itens! Aplicando...` }]);
+              setTimeout(() => {
+                setNewShopping(p => ({
+                  ...p, title: data.title, recurrence: data.recurrence || p.recurrence,
+                  items: data.items.map(i => ({ name: i.name, unit: i.unit || 'un', minStock: i.minStock || 0, category: i.category || 'geral' }))
+                }));
+                setShoppingAIMode(false);
+              }, 1500);
+            }
+          } catch (e) {
+            setShoppingAIConv(prev => [...prev, { role: 'bill', content: `❌ Erro: ${e.message}` }]);
+          }
+          setShoppingAIGenerating(false);
+          setTimeout(() => shoppingAIChatRef.current?.scrollTo({ top: shoppingAIChatRef.current.scrollHeight, behavior: 'smooth' }), 200);
+        };
+        reader.readAsDataURL(blob);
+      };
+      recorder.start();
+      shoppingRecorderRef.current = recorder;
+      setShoppingAIRecording(true);
+    } catch (e) {
+      alert('⚠️ Não foi possível acessar o microfone.');
+    }
   };
 
   const handleSaveVehicle = async () => {
@@ -3066,82 +3179,153 @@ export default function AdminDashboard() {
           {/* Modal de criação/edição */}
           {showShoppingModal && (
             <div className="modal-overlay animate-fade">
-              <div className="modal-content" style={{ maxWidth: '700px', width: '94%', maxHeight: '90vh', overflow: 'auto', padding: '24px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div className="modal-content" style={{ maxWidth: '750px', width: '94%', maxHeight: '90vh', overflow: 'auto', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <h3 style={{ margin: 0 }}>{editingShopping ? 'Editar Lista de Compras' : 'Nova Lista de Compras'}</h3>
-                  <button onClick={() => { setShowShoppingModal(false); setEditingShopping(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
+                  <button onClick={() => { setShowShoppingModal(false); setEditingShopping(null); setShoppingAIMode(false); setShoppingAIConv([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
                 </div>
 
-                {/* Nome da lista */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label className="input-label">Nome da Lista</label>
-                  <input type="text" className="input-field" placeholder="Ex: Compras Semanais da Cozinha" value={newShopping.title} onChange={e => setNewShopping(p => ({ ...p, title: e.target.value }))}/>
-                </div>
-
-                {/* Recorrência */}
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '150px' }}>
-                    <label className="input-label">Recorrência</label>
-                    <select className="input-field" value={newShopping.recurrence} onChange={e => setNewShopping(p => ({ ...p, recurrence: e.target.value }))}>
-                      <option value="daily">Diária</option>
-                      <option value="weekly">Semanal</option>
-                      <option value="monthly">Mensal</option>
-                    </select>
+                {/* Toggle Manual / IA */}
+                {!editingShopping && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', backgroundColor: 'var(--bg-main)', borderRadius: '10px', padding: '4px' }}>
+                    <button onClick={() => setShoppingAIMode(false)}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s',
+                        backgroundColor: !shoppingAIMode ? 'var(--primary)' : 'transparent',
+                        color: !shoppingAIMode ? 'white' : 'var(--text-muted)' }}>
+                      <ClipboardList size={16}/> Manual
+                    </button>
+                    <button onClick={() => { setShoppingAIMode(true); if (shoppingAIConv.length === 0) setShoppingAIConv([{ role: 'bill', content: 'Olá! 🛒 Sou o Bill e vou te ajudar a criar sua lista de compras.\n\nMe diga o que você precisa! Por exemplo:\n• "Cria uma lista de compras semanal para hamburgueria"\n• "Preciso controlar estoque de limpeza"\n\nVocê pode digitar ou enviar um áudio! 🎤' }]); }}
+                      style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s',
+                        background: shoppingAIMode ? 'linear-gradient(135deg, #06b6d4, #0891b2)' : 'transparent',
+                        color: shoppingAIMode ? 'white' : 'var(--text-muted)' }}>
+                      <Sparkles size={16}/> Cadastrar com IA
+                    </button>
                   </div>
-                  <div style={{ flex: 1, minWidth: '150px' }}>
-                    <label className="input-label">Atribuir a</label>
-                    <select className="input-field" value={newShopping.assignedTo} onChange={e => setNewShopping(p => ({ ...p, assignedTo: e.target.value }))}>
-                      <option value="todos">Qualquer funcionário</option>
-                      {team.filter(m => m.role === 'funcionario').map(m => (
-                        <option key={m.id} value={m.name}>{m.name}</option>
+                )}
+
+                {/* ── MODO IA: Chat com Bill ── */}
+                {shoppingAIMode && !editingShopping ? (
+                  <div>
+                    {/* Chat container */}
+                    <div ref={shoppingAIChatRef} style={{ height: '340px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '16px', backgroundColor: 'var(--bg-main)', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {shoppingAIConv.map((msg, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                          <div style={{
+                            maxWidth: '80%', padding: '10px 14px', borderRadius: msg.role === 'user' ? '12px 2px 12px 12px' : '2px 12px 12px 12px',
+                            backgroundColor: msg.role === 'user' ? 'var(--primary)' : 'var(--bg-card)',
+                            color: msg.role === 'user' ? 'white' : 'var(--text-main)',
+                            fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-wrap',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                          }}>
+                            {msg.role === 'bill' && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4' }}><Bot size={14}/> Bill IA</div>}
+                            {msg.content}
+                          </div>
+                        </div>
                       ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Itens */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>Itens de Compra</label>
-                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', padding: '8px 12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
-                    <div style={{ flex: 3 }}>Produto</div>
-                    <div style={{ flex: 1 }}>Unidade</div>
-                    <div style={{ flex: 1 }}>Estoque Min.</div>
-                    <div style={{ width: '32px' }}></div>
-                  </div>
-                  {newShopping.items.map((item, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-                      <input type="text" className="input-field" placeholder="Nome do produto" style={{ flex: 3 }} value={item.name}
-                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], name: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
-                      <select className="input-field" style={{ flex: 1 }} value={item.unit}
-                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], unit: e.target.value }; setNewShopping(p => ({ ...p, items })); }}>
-                        <option value="un">un</option>
-                        <option value="kg">kg</option>
-                        <option value="L">L</option>
-                        <option value="cx">cx</option>
-                        <option value="pct">pct</option>
-                        <option value="dz">dz</option>
-                      </select>
-                      <input type="number" className="input-field" placeholder="0" style={{ flex: 1 }} value={item.minStock}
-                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], minStock: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
-                      <button onClick={() => { const items = newShopping.items.filter((_, i) => i !== idx); setNewShopping(p => ({ ...p, items: items.length ? items : [{ name: '', unit: 'un', minStock: '', category: 'geral' }] })); }}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', width: '32px', flexShrink: 0 }}><Trash2 size={16}/></button>
+                      {shoppingAIGenerating && (
+                        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                          <div style={{ padding: '10px 14px', borderRadius: '2px 12px 12px 12px', backgroundColor: 'var(--bg-card)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#06b6d4' }}>
+                            <Bot size={14}/> <span style={{ animation: 'pulse 1s infinite' }}>Pensando...</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                  <button onClick={() => setNewShopping(p => ({ ...p, items: [...p.items, { name: '', unit: 'un', minStock: '', category: 'geral' }] }))}
-                    style={{ background: 'none', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '10px', width: '100%', cursor: 'pointer', color: 'var(--primary)', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <Plus size={16}/> Adicionar Item
-                  </button>
-                </div>
 
-                {/* Botões */}
-                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
-                  <button className="btn-secondary" onClick={() => { setShowShoppingModal(false); setEditingShopping(null); }}
-                    style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', cursor: 'pointer' }}>Cancelar</button>
-                  <button className="btn" onClick={handleSaveShopping} disabled={isSavingShopping}
-                    style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
-                    {isSavingShopping ? 'Salvando...' : (editingShopping ? 'Atualizar' : 'Criar Lista')}
-                  </button>
-                </div>
+                    {/* Input de mensagem + áudio */}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button onClick={handleShoppingAIRecord} disabled={shoppingAIGenerating}
+                        style={{ width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
+                          backgroundColor: shoppingAIRecording ? '#ef4444' : '#06b6d4', color: 'white',
+                          animation: shoppingAIRecording ? 'pulse 1s infinite' : 'none' }}>
+                        <Mic size={20}/>
+                      </button>
+                      <input type="text" className="input-field" placeholder={shoppingAIRecording ? '🎤 Gravando... Clique para parar' : 'Digite ou envie um áudio...'}
+                        value={shoppingAIInput} onChange={e => setShoppingAIInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleShoppingAISend(shoppingAIInput); } }}
+                        disabled={shoppingAIGenerating || shoppingAIRecording}
+                        style={{ flex: 1 }}/>
+                      <button onClick={() => handleShoppingAISend(shoppingAIInput)} disabled={!shoppingAIInput.trim() || shoppingAIGenerating}
+                        style={{ width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          backgroundColor: shoppingAIInput.trim() ? 'var(--primary)' : 'var(--border-color)', color: 'white', transition: 'all 0.2s' }}>
+                        <Send size={18}/>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* ── MODO MANUAL: Formulário ── */
+                  <>
+                    {/* Nome da lista */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="input-label">Nome da Lista</label>
+                      <input type="text" className="input-field" placeholder="Ex: Compras Semanais da Cozinha" value={newShopping.title} onChange={e => setNewShopping(p => ({ ...p, title: e.target.value }))}/>
+                    </div>
+
+                    {/* Recorrência */}
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <label className="input-label">Recorrência</label>
+                        <select className="input-field" value={newShopping.recurrence} onChange={e => setNewShopping(p => ({ ...p, recurrence: e.target.value }))}>
+                          <option value="daily">Diária</option>
+                          <option value="weekly">Semanal</option>
+                          <option value="monthly">Mensal</option>
+                        </select>
+                      </div>
+                      <div style={{ flex: 1, minWidth: '150px' }}>
+                        <label className="input-label">Atribuir a</label>
+                        <select className="input-field" value={newShopping.assignedTo} onChange={e => setNewShopping(p => ({ ...p, assignedTo: e.target.value }))}>
+                          <option value="todos">Qualquer funcionário</option>
+                          {team.filter(m => m.role === 'funcionario').map(m => (
+                            <option key={m.id} value={m.name}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Itens */}
+                    <div style={{ marginBottom: '16px' }}>
+                      <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>Itens de Compra</label>
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', padding: '8px 12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                        <div style={{ flex: 3 }}>Produto</div>
+                        <div style={{ flex: 1 }}>Unidade</div>
+                        <div style={{ flex: 1 }}>Estoque Min.</div>
+                        <div style={{ width: '32px' }}></div>
+                      </div>
+                      {newShopping.items.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                          <input type="text" className="input-field" placeholder="Nome do produto" style={{ flex: 3 }} value={item.name}
+                            onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], name: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
+                          <select className="input-field" style={{ flex: 1 }} value={item.unit}
+                            onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], unit: e.target.value }; setNewShopping(p => ({ ...p, items })); }}>
+                            <option value="un">un</option>
+                            <option value="kg">kg</option>
+                            <option value="L">L</option>
+                            <option value="cx">cx</option>
+                            <option value="pct">pct</option>
+                            <option value="dz">dz</option>
+                          </select>
+                          <input type="number" className="input-field" placeholder="0" style={{ flex: 1 }} value={item.minStock}
+                            onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], minStock: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
+                          <button onClick={() => { const items = newShopping.items.filter((_, i) => i !== idx); setNewShopping(p => ({ ...p, items: items.length ? items : [{ name: '', unit: 'un', minStock: '', category: 'geral' }] })); }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', width: '32px', flexShrink: 0 }}><Trash2 size={16}/></button>
+                        </div>
+                      ))}
+                      <button onClick={() => setNewShopping(p => ({ ...p, items: [...p.items, { name: '', unit: 'un', minStock: '', category: 'geral' }] }))}
+                        style={{ background: 'none', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '10px', width: '100%', cursor: 'pointer', color: 'var(--primary)', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                        <Plus size={16}/> Adicionar Item
+                      </button>
+                    </div>
+
+                    {/* Botões */}
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                      <button className="btn-secondary" onClick={() => { setShowShoppingModal(false); setEditingShopping(null); }}
+                        style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', cursor: 'pointer' }}>Cancelar</button>
+                      <button className="btn" onClick={handleSaveShopping} disabled={isSavingShopping}
+                        style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
+                        {isSavingShopping ? 'Salvando...' : (editingShopping ? 'Atualizar' : 'Criar Lista')}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
