@@ -493,6 +493,45 @@ export default async function handler(req, res) {
         )
       `);
       await pool.query("CREATE INDEX IF NOT EXISTS idx_wa_conv_phone ON wa_conversations(phone)");
+      // ── Tabela de Listas de Compras (Módulo de Compras) ──
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS shopping_lists (
+          id SERIAL PRIMARY KEY,
+          store VARCHAR(255) NOT NULL,
+          title VARCHAR(255) NOT NULL,
+          recurrence VARCHAR(50) DEFAULT 'weekly',
+          weekdays TEXT,
+          scheduled_date TEXT,
+          assigned_to TEXT,
+          category VARCHAR(100) DEFAULT 'compras',
+          active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS shopping_items (
+          id SERIAL PRIMARY KEY,
+          shopping_list_id INTEGER REFERENCES shopping_lists(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          unit VARCHAR(50) DEFAULT 'un',
+          min_stock DECIMAL(10,2) DEFAULT 0,
+          current_stock DECIMAL(10,2),
+          category VARCHAR(100) DEFAULT 'geral',
+          sort_order INTEGER DEFAULT 0
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS shopping_submissions (
+          id SERIAL PRIMARY KEY,
+          shopping_list_id INTEGER REFERENCES shopping_lists(id),
+          store VARCHAR(255),
+          employee_name VARCHAR(255),
+          items JSONB,
+          below_minimum JSONB,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+        )
+      `);
       migrationsRun = true;
 
       // ── Auto-configurar Webhook da Evolution API (chatbot) ──
@@ -864,6 +903,176 @@ export default async function handler(req, res) {
       }));
 
       return res.status(200).json(formattedRows);
+    }
+
+    // ── MÓDULO DE COMPRAS / ESTOQUE ──────────────────────────────
+    if (url.includes('/api/shopping')) {
+      const authUser = authenticateToken(req);
+      
+      // ── Submissão (preenchimento pelo funcionário) ──
+      if (url.includes('/api/shopping/submit') && method === 'POST') {
+        const { shoppingListId, items, employeeName, notes } = req.body;
+        const store = authUser?.store || req.body.store;
+        
+        // Calcular itens abaixo do mínimo
+        const belowMinimum = (items || []).filter(item => 
+          item.currentStock !== null && item.currentStock !== undefined && 
+          item.minStock !== null && item.minStock !== undefined &&
+          parseFloat(item.currentStock) < parseFloat(item.minStock)
+        );
+
+        // Salvar submissão
+        const { rows } = await pool.query(
+          'INSERT INTO shopping_submissions (shopping_list_id, store, employee_name, items, below_minimum, notes) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+          [shoppingListId, store, employeeName, JSON.stringify(items), JSON.stringify(belowMinimum), notes || null]
+        );
+
+        // Atualizar estoque atual nos itens
+        for (const item of (items || [])) {
+          if (item.id && item.currentStock !== null && item.currentStock !== undefined) {
+            await pool.query('UPDATE shopping_items SET current_stock = $1 WHERE id = $2', [parseFloat(item.currentStock), item.id]);
+          }
+        }
+
+        // ── Enviar WhatsApp para o dono se há itens abaixo do mínimo ──
+        if (belowMinimum.length > 0) {
+          try {
+            const { rows: admins } = await pool.query(
+              "SELECT * FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master') AND whatsapp_active = TRUE",
+              [store]
+            );
+
+            for (const admin of admins) {
+              const phone = admin.whatsapp_phone || admin.phone;
+              if (!phone) continue;
+              const cleanPhone = phone.replace(/\D/g, '');
+              const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+              const { rows: listInfo } = await pool.query('SELECT title FROM shopping_lists WHERE id = $1', [shoppingListId]);
+              const listTitle = listInfo[0]?.title || 'Lista de Compras';
+
+              let alertMsg = `🛒 *FireCheck - Alerta de Estoque Baixo*\n\n`;
+              alertMsg += `📋 *${listTitle}*\n`;
+              alertMsg += `👤 Preenchido por: *${employeeName}*\n`;
+              alertMsg += `📅 Data: *${new Date().toLocaleDateString('pt-BR')}*\n\n`;
+              alertMsg += `⚠️ *${belowMinimum.length} item(ns) abaixo do estoque mínimo:*\n\n`;
+              
+              belowMinimum.forEach((item, i) => {
+                alertMsg += `${i + 1}. *${item.name}*\n`;
+                alertMsg += `   📦 Estoque atual: *${item.currentStock} ${item.unit || 'un'}*\n`;
+                alertMsg += `   🔻 Mínimo: *${item.minStock} ${item.unit || 'un'}*\n`;
+                alertMsg += `   ❗ Faltam: *${(parseFloat(item.minStock) - parseFloat(item.currentStock)).toFixed(1)} ${item.unit || 'un'}*\n\n`;
+              });
+
+              alertMsg += `\n🛒 *Providencie a compra desses itens!*`;
+
+              const evoUrl = process.env.EVOLUTION_API_URL;
+              const evoKey = process.env.EVOLUTION_API_KEY;
+              const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+              if (evoUrl && evoKey) {
+                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                  body: JSON.stringify({ number: fullPhone, text: alertMsg })
+                }).catch(e => console.error('[Shopping] Erro WhatsApp:', e.message));
+              }
+            }
+          } catch (waErr) { console.error('[Shopping] Erro ao notificar:', waErr.message); }
+        }
+
+        return res.status(200).json({ success: true, submission: rows[0], belowMinimum });
+      }
+
+      // ── Histórico de submissões ──
+      if (url.includes('/api/shopping/submissions') && method === 'GET') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+        const listId = searchParams.get('listId');
+        let q = 'SELECT ss.*, sl.title as list_title FROM shopping_submissions ss LEFT JOIN shopping_lists sl ON ss.shopping_list_id = sl.id WHERE ss.store = $1';
+        const params = [store];
+        if (listId) { q += ' AND ss.shopping_list_id = $2'; params.push(listId); }
+        q += ' ORDER BY ss.created_at DESC LIMIT 50';
+        const { rows } = await pool.query(q, params);
+        return res.status(200).json(rows);
+      }
+
+      // ── CRUD Itens de uma lista ──
+      if (url.includes('/api/shopping/items') && method === 'GET') {
+        const listId = searchParams.get('listId');
+        if (!listId) return res.status(400).json({ error: 'listId obrigatório.' });
+        const { rows } = await pool.query('SELECT * FROM shopping_items WHERE shopping_list_id = $1 ORDER BY sort_order ASC, id ASC', [listId]);
+        return res.status(200).json(rows);
+      }
+
+      // ── Delete lista ──
+      const deleteMatch = url.match(/\/api\/shopping\/(\d+)$/);
+      if (deleteMatch && method === 'DELETE') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        await pool.query('DELETE FROM shopping_lists WHERE id = $1', [deleteMatch[1]]);
+        return res.status(200).json({ success: true });
+      }
+
+      // ── POST: criar/editar lista com itens ──
+      if (method === 'POST') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        const { id, title, recurrence, weekdays, scheduledDate, assignedTo, items, category } = req.body;
+        const store = authUser.role === 'master' ? req.body.store : authUser.store;
+        if (!store) return res.status(400).json({ error: 'Loja obrigatória.' });
+
+        const assignedStr = assignedTo ? (typeof assignedTo === 'string' ? assignedTo : JSON.stringify(assignedTo)) : null;
+        const weekdaysStr = weekdays ? (typeof weekdays === 'string' ? weekdays : JSON.stringify(weekdays)) : null;
+
+        let listId;
+        if (id) {
+          await pool.query(
+            'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
+            [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
+          );
+          listId = id;
+          // Remover itens antigos e inserir novos
+          await pool.query('DELETE FROM shopping_items WHERE shopping_list_id = $1', [listId]);
+        } else {
+          const { rows: newList } = await pool.query(
+            'INSERT INTO shopping_lists (store, title, recurrence, weekdays, scheduled_date, assigned_to, category) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+            [store, title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras']
+          );
+          listId = newList[0].id;
+        }
+
+        // Inserir itens
+        if (items && items.length > 0) {
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            await pool.query(
+              'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+              [listId, item.name, item.unit || 'un', item.minStock || 0, item.currentStock || null, item.category || 'geral', i]
+            );
+          }
+        }
+
+        const { rows: result } = await pool.query('SELECT * FROM shopping_lists WHERE id = $1', [listId]);
+        const { rows: resultItems } = await pool.query('SELECT * FROM shopping_items WHERE shopping_list_id = $1 ORDER BY sort_order', [listId]);
+        return res.status(200).json({ ...result[0], items: resultItems });
+      }
+
+      // ── GET: listar listas de compras ──
+      if (method === 'GET') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+        const { rows } = await pool.query(
+          'SELECT sl.*, (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id) as item_count, (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id AND si.current_stock IS NOT NULL AND si.current_stock < si.min_stock) as below_min_count FROM shopping_lists sl WHERE LOWER(sl.store) = LOWER($1) AND sl.active = TRUE ORDER BY sl.id DESC',
+          [store]
+        );
+        
+        // Parsear assigned_to e weekdays
+        const formatted = rows.map(r => ({
+          ...r,
+          assigned_to: typeof r.assigned_to === 'string' ? (() => { try { return JSON.parse(r.assigned_to); } catch(e) { return r.assigned_to; }})() : r.assigned_to,
+          weekdays: typeof r.weekdays === 'string' ? (() => { try { return JSON.parse(r.weekdays); } catch(e) { return r.weekdays; }})() : r.weekdays
+        }));
+        
+        return res.status(200).json(formatted);
+      }
     }
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
