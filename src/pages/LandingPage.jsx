@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy, Image as ImageIcon, ArrowLeft, AlertTriangle, Activity, ShoppingCart, Mic, Volume2, Sparkles, Check, MessageSquare, ClipboardList, Users } from 'lucide-react';
+import { ArrowRight, CheckCircle, Smartphone, ShieldCheck, Flame, Bot, X, Video, PlayCircle, Trophy, Image as ImageIcon, ArrowLeft, AlertTriangle, Activity, ShoppingCart, Mic, Volume2, Sparkles, Check, MessageSquare, ClipboardList, Users, Bell } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -185,25 +185,65 @@ export default function LandingPage() {
             .hero-section {
               display: flex;
               flex-direction: column;
-              padding: 24px 5% 24px 5% !important;
-              gap: 8px !important;
+              padding: 60px 20px 32px 20px !important; /* Aumenta padding superior para dar espaço ao navbar sticky */
+              gap: 20px !important;
             }
             .hero-col-left, .hero-col-right {
               display: contents;
             }
-            .hero-badge { order: 1; align-self: center; margin-bottom: 0px !important; font-size: 0.6rem !important; padding: 4px 10px !important; white-space: nowrap; }
-            .hero-title { order: 2; text-align: center; font-size: 1.15rem !important; margin-bottom: 4px !important; line-height: 1.1 !important; }
-            .mobile-video-title { display: none !important; }
-            .hero-video-wrapper { order: 3; display: flex; justify-content: center; width: 100%; margin-top: 4px; }
-            .video-phone-mockup {
-               transform: scale(0.55);
-               transform-origin: top center;
-               margin-bottom: -261px;
+            .hero-badge { 
+              order: 1; 
+              align-self: center; 
+              margin-bottom: 12px !important; 
+              font-size: 0.75rem !important; 
+              padding: 6px 14px !important; 
+              white-space: normal !important; 
+              text-align: center;
             }
-            .hero-desc { order: 4; text-align: center; font-size: 0.75rem !important; margin-bottom: 8px !important; line-height: 1.2 !important; }
-            .hero-cta { order: 5; display: flex; flex-direction: column; align-items: center; width: 100%; gap: 6px !important; }
-            .hero-cta button { width: 100%; justify-content: center; padding: 12px 24px !important; font-size: 0.95rem !important; }
-            .hero-cta p { text-align: center; width: 100%; margin-top: 0 !important; font-size: 0.7rem !important; }
+            .hero-title { 
+              order: 2; 
+              text-align: center; 
+              font-size: 1.9rem !important; /* Aumenta tamanho do título para ficar imponente e proporcional */
+              margin-bottom: 16px !important; 
+              line-height: 1.25 !important; /* Aumenta line-height para não cortar acentos no topo */
+              letter-spacing: -0.5px !important;
+              width: 100%;
+            }
+            .mobile-video-title { display: none !important; }
+            .hero-desc { 
+              order: 3; /* Move a descrição para logo abaixo do título */
+              text-align: center; 
+              font-size: 0.95rem !important; 
+              margin-bottom: 24px !important; 
+              line-height: 1.5 !important; 
+              width: 100%;
+            }
+            .hero-cta { 
+              order: 4; /* Move os botões para baixo da descrição */
+              display: flex; 
+              flex-direction: column; 
+              align-items: center; 
+              width: 100%; 
+              gap: 12px !important; 
+            }
+            .hero-cta button { width: 100%; justify-content: center; padding: 14px 28px !important; font-size: 1rem !important; }
+            .hero-cta p { text-align: center; width: 100%; margin-top: 4px !important; font-size: 0.78rem !important; }
+            
+            .hero-video-wrapper { 
+              order: 5; /* Move o mockup de celular para o final, abaixo do CTA */
+              display: flex; 
+              justify-content: center; 
+              width: 100%; 
+              margin-top: 24px; 
+            }
+            .video-phone-mockup {
+               width: 250px !important; /* Tamanho proporcional para celular sem precisar usar scale */
+               height: 520px !important;
+               border: 8px solid #18181b !important;
+               border-radius: 28px !important;
+               transform: none !important; /* Desativa scale instável */
+               margin-bottom: 0px !important;
+            }
           }
         `}</style>
         
@@ -217,7 +257,7 @@ export default function LandingPage() {
           </h1>
           
           <p className="hero-desc" style={{ fontSize: '1.25rem', color: 'var(--text-muted)', marginBottom: '32px', lineHeight: '1.6', maxWidth: '600px' }}>
-            Esqueça o trabalho de digitar checklists manuais. Fale ou digite para o <strong>Bill IA</strong> e ele cria seus checklists automaticamente em segundos. A IA também fiscaliza fotos da equipe e só te notifica se algo estiver errado.
+            Esqueça o trabalho de digitar checklists manuais. Fale ou digite para o <strong>Bill IA</strong> e ele cria seus checklists automaticamente em segundos. A IA fiscaliza tudo e só avisa você no celular ou WhatsApp se algo der errado.
           </p>
 
           <div className="hero-cta" style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
@@ -427,6 +467,75 @@ export default function LandingPage() {
             <div className="logo-card">
               <svg width="32" height="32" viewBox="0 0 32 32" fill="none"><circle cx="16" cy="16" r="16" fill="#F0F4FF"/><path d="M8 18l2-4h12l2 4" stroke="#3730A3" strokeWidth="1.5" strokeLinecap="round"/><rect x="7" y="18" width="18" height="4" rx="2" fill="#4338CA"/><circle cx="11" cy="22" r="1.5" fill="#1E1B4B"/><circle cx="21" cy="22" r="1.5" fill="#1E1B4B"/><path d="M10 14l1-3h10l1 3" fill="#6366F1"/></svg>
               <div><div className="logo-name">AutoPrime</div><div className="logo-sector">Concessionárias & Auto</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Seção de Notificações WhatsApp / Celular (Super Destaque) ── */}
+      <section style={{ backgroundColor: '#ffffff', padding: '80px 20px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: '40px' }}>
+          <div style={{ flex: '1 1 400px', minWidth: '280px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(37, 211, 102, 0.1)', color: '#25D366', padding: '6px 16px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '16px' }}>
+               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#25D366', display: 'inline-block' }}></span>
+               Notificações Inclusas e Ilimitadas
+            </div>
+            <h2 style={{ fontSize: 'min(2.2rem, 7vw)', fontWeight: '800', lineHeight: '1.2', color: '#0f172a', marginBottom: '20px' }}>
+               Receba as notificações da sua loja diretamente no seu <span style={{ color: '#25D366' }}>WhatsApp</span> e no celular.
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '24px' }}>
+               Não perca nenhum detalhe da sua operação. O FireCheck envia alertas instantâneos de checklists atrasados, vistorias reprovadas e comprovantes de ponto em tempo real.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                 <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '8px', borderRadius: '8px', color: 'var(--primary)', flexShrink: 0 }}>
+                   <Bell size={20} />
+                 </div>
+                 <div>
+                   <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 'bold', color: '#0f172a' }}>Alertas no App (Push)</h4>
+                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Notificações nativas na tela do seu celular para ações imediatas.</p>
+                 </div>
+               </div>
+               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                 <div style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', padding: '8px', borderRadius: '8px', color: '#25D366', flexShrink: 0 }}>
+                   <Smartphone size={20} />
+                 </div>
+                 <div>
+                   <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 'bold', color: '#0f172a' }}>Mensagens no WhatsApp</h4>
+                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Alertas de checklists com irregularidades e comprovantes de ponto direto no chat.</p>
+                 </div>
+               </div>
+            </div>
+          </div>
+          
+          {/* Card Visual de WhatsApp simulando chat */}
+          <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <div className="card" style={{ width: '100%', maxWidth: '340px', padding: '20px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.06)', borderRadius: '18px', backgroundColor: '#efeae2', position: 'relative', overflow: 'hidden' }}>
+              {/* Header do chat */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#075e54', color: 'white', padding: '12px 16px', margin: '-20px -20px 16px -20px' }}>
+                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#128c7e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>FC</div>
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>FireCheck Notificações</div>
+                  <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>Online</div>
+                </div>
+              </div>
+              
+              {/* Balões de conversa */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '8px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.15)', whiteSpace: 'pre-wrap' }}>
+⏰ *Comprovante de Ponto*
+
+Colaborador: *Thiago Laurentino*
+Tipo: *Entrada às 08:02* ✅
+                </div>
+                
+                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '8px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.15)', whiteSpace: 'pre-wrap' }}>
+⚠️ *Alerta de Checklist*
+
+Checklist: *Fechamento de Cozinha*
+Status: *Irregularidade na limpeza da chapa* ❌
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1864,7 +1973,7 @@ export default function LandingPage() {
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 5 funcionários</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com IA</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Notificações Push</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas no WhatsApp e Push</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
             </ul>
             <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Starter', 'https://pay.cakto.com.br/3eph5ko_856837')}>

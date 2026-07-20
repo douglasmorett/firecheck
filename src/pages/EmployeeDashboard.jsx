@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play } from 'lucide-react';
+import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
@@ -13,6 +14,50 @@ const handle401 = (res, navigate) => {
   }
   return res;
 };
+
+const setupPushNotifications = async (email) => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      console.log('[Push] App nativo detectado, solicitando permissão...');
+      PushNotifications.addListener('registration', async (token) => {
+        console.log('[Push] Token recebido:', token.value?.substring(0, 30) + '...');
+        try {
+          await fetch(`${API_URL}/api/register-token`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+            },
+            body: JSON.stringify({ email, fcmToken: token.value })
+          });
+          console.log('[Push] Token registrado no servidor!');
+        } catch (err) {
+          console.error('[Push] Erro ao salvar token:', err);
+        }
+      });
+      PushNotifications.addListener('registrationError', (error) => {
+        console.error('[Push] Erro no registro:', error);
+      });
+      PushNotifications.addListener('pushNotificationReceived', (notification) => {
+        console.log('[Push] Notificação recebida:', notification);
+      });
+      const perm = await PushNotifications.requestPermissions();
+      console.log('[Push] Permissão:', perm.receive);
+      if (perm.receive === 'granted') {
+        await PushNotifications.register();
+        console.log('[Push] Register chamado com sucesso');
+      }
+    } else {
+      if ('Notification' in window) {
+        const permission = await Notification.requestPermission();
+        console.log('[Push] Permissão web:', permission);
+      }
+    }
+  } catch (e) {
+    console.warn('[Push] Erro no setup:', e);
+  }
+};
+
 
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
@@ -70,6 +115,9 @@ export default function EmployeeDashboard() {
     const profile = JSON.parse(savedUser);
     setUserProfile(profile);
     
+    // Configura Push Notifications para o Funcionário
+    setupPushNotifications(profile.email);
+    
     // Busca se a loja tem o módulo de ponto ativado
     if (profile.store) {
       fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`, {
@@ -78,7 +126,7 @@ export default function EmployeeDashboard() {
         .then(r => { handle401(r, navigate); return r.json(); })
         .then(users => {
           const admin = users.find(u => u.role === 'admin' || u.role === 'master');
-          if (admin && admin.ponto_active) {
+          if (admin && (admin.ponto_active || admin.status === 'trial')) {
              setHasPonto(true);
              // Busca dados reais do ponto de hoje
              fetch(`${API_URL}/api/ponto/today?userId=${profile.id}&store=${encodeURIComponent(profile.store)}`, {

@@ -182,6 +182,12 @@ export default function AdminDashboard() {
   const [pontoHoraEntrada, setPontoHoraEntrada] = useState('08:00');
   const [pontoHoraSaida, setPontoHoraSaida] = useState('18:00');
   const [pontoTolerancia, setPontoTolerancia] = useState(15);
+  const [whatsappActive, setWhatsappActive] = useState(true);
+  const [whatsappPhone, setWhatsappPhone] = useState('');
+  const [waPontoAtraso, setWaPontoAtraso] = useState(true);
+  const [waChecklistReprovado, setWaChecklistReprovado] = useState(true);
+  const [waChecklistAtrasado, setWaChecklistAtrasado] = useState(true);
+  const [waPontoDiario, setWaPontoDiario] = useState(true);
   
 
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
@@ -246,6 +252,12 @@ export default function AdminDashboard() {
     if (user.ponto_hora_entrada) setPontoHoraEntrada(user.ponto_hora_entrada);
     if (user.ponto_hora_saida) setPontoHoraSaida(user.ponto_hora_saida);
     if (user.ponto_tolerancia !== undefined && user.ponto_tolerancia !== null) setPontoTolerancia(user.ponto_tolerancia);
+    if (user.whatsapp_active !== undefined) setWhatsappActive(user.whatsapp_active);
+    if (user.whatsapp_phone) setWhatsappPhone(user.whatsapp_phone);
+    if (user.wa_ponto_atraso !== undefined) setWaPontoAtraso(user.wa_ponto_atraso);
+    if (user.wa_checklist_reprovado !== undefined) setWaChecklistReprovado(user.wa_checklist_reprovado);
+    if (user.wa_checklist_atrasado !== undefined) setWaChecklistAtrasado(user.wa_checklist_atrasado);
+    if (user.wa_ponto_diario !== undefined) setWaPontoDiario(user.wa_ponto_diario);
     
     // Proteção extra: se for funcionário, não deixa ver o admin
     if (user.role === 'employee') {
@@ -1051,6 +1063,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveWhatsappConfig = async () => {
+    if (!userProfile) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/${userProfile.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          whatsapp_active: whatsappActive,
+          whatsapp_phone: whatsappPhone,
+          wa_ponto_atraso: waPontoAtraso,
+          wa_checklist_reprovado: waChecklistReprovado,
+          wa_checklist_atrasado: waChecklistAtrasado,
+          wa_ponto_diario: waPontoDiario
+        })
+      });
+      if (res.ok) {
+        const updatedMe = {
+          ...userProfile,
+          whatsapp_active: whatsappActive,
+          whatsapp_phone: whatsappPhone,
+          wa_ponto_atraso: waPontoAtraso,
+          wa_checklist_reprovado: waChecklistReprovado,
+          wa_checklist_atrasado: waChecklistAtrasado,
+          wa_ponto_diario: waPontoDiario
+        };
+        localStorage.setItem('user', JSON.stringify(updatedMe));
+        setUserProfile(updatedMe);
+        addToast('Configurações de Notificações salvas com sucesso!', 'success');
+      } else {
+        addToast('Erro ao salvar configurações de Notificações.', 'error');
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Erro de conexão ao salvar configurações.', 'error');
+    }
+  };
+
 
 
   const handlePurchaseOCRUpload = async (e) => {
@@ -1270,6 +1319,7 @@ export default function AdminDashboard() {
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
             { key: 'ponto',       label: 'Controle de Ponto IA', icon: <UserCheck size={18}/> },
+            { key: 'notificacoes', label: 'Notificações', icon: <Bell size={18}/> },
 
             { key: 'ranking',     label: 'Ranking', icon: <Trophy size={18}/> },
             (userProfile?.email?.toLowerCase() === 'dugaburguer@gmail.com' ? { key: 'cameras', label: 'Câmeras IA', icon: <Video size={18}/> } : null),
@@ -1598,6 +1648,128 @@ export default function AdminDashboard() {
           <p style={{ color: 'var(--text-muted)', maxWidth: '500px', fontSize: '1.1rem', lineHeight: '1.6' }}>
             Esta funcionalidade avançada está sendo lapidada por nossos engenheiros e será liberada automaticamente na sua conta em breve.
           </p>
+        </div>
+      )}
+
+      {/* ── Tab: Notificações ─────────────────────────────────── */}
+      {tab === 'notificacoes' && (
+        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          <div style={{ padding: '0 8px' }}>
+             <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
+               <Bell color="var(--primary)" size={32} />
+               Notificações do Sistema
+             </h2>
+             <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gerencie de forma personalizada todos os alertas enviados no WhatsApp e Push.</p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+              {/* Configurações Gerais do WhatsApp */}
+              <div className="card" style={{ padding: '24px', flex: 1, minWidth: '320px' }}>
+                 <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
+                    📲 Conexão do WhatsApp
+                 </h3>
+                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                    Defina o número de telefone que receberá os alertas do sistema.
+                 </p>
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={whatsappActive} 
+                          onChange={e => setWhatsappActive(e.target.checked)} 
+                          style={{ accentColor: '#25D366', width: '18px', height: '18px', cursor: 'pointer' }}
+                       />
+                       Habilitar Disparos no WhatsApp
+                    </label>
+                    <div>
+                       <label className="input-label">Telefone de Contato (WhatsApp)</label>
+                       <input 
+                          type="text" 
+                          className="input-field" 
+                          placeholder="Ex: 21999999999" 
+                          value={whatsappPhone} 
+                          onChange={e => setWhatsappPhone(e.target.value)} 
+                       />
+                       <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
+                          Preencha com o DDD (ex: 21999999999). Se deixado em branco, o sistema usará o telefone do seu perfil.
+                       </small>
+                    </div>
+                 </div>
+              </div>
+
+              {/* Interruptores de Notificações */}
+              <div className="card" style={{ padding: '24px', flex: 1.5, minWidth: '350px' }}>
+                 <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ⚙️ Alertas de Notificação Personalizados
+                 </h3>
+                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
+                    Marque as opções abaixo para receber alertas em tempo real das operações selecionadas.
+                 </p>
+                 
+                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={waPontoAtraso} 
+                          onChange={e => setWaPontoAtraso(e.target.checked)} 
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-ponto-atraso"
+                       />
+                       <label htmlFor="opt-ponto-atraso" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>⏰ Atrasos de Colaborador (Ponto)</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber notificações quando um funcionário registrar entrada ou saída após o horário de tolerância configurado.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={waChecklistReprovado} 
+                          onChange={e => setWaChecklistReprovado(e.target.checked)} 
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-checklist-reprovado"
+                       />
+                       <label htmlFor="opt-checklist-reprovado" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>⚠️ Checklist com Irregularidades (Reprovado)</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Notificar imediatamente quando um colaborador finalizar um checklist que contenha alertas de falha ou irregularidades.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={waChecklistAtrasado} 
+                          onChange={e => setWaChecklistAtrasado(e.target.checked)} 
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-checklist-atrasado"
+                       />
+                       <label htmlFor="opt-checklist-atrasado" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📅 Checklist Pendente/Atrasado</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Alertar caso o horário de checklist programado da loja seja ultrapassado e ninguém tenha preenchido o checklist correspondente.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                       <input 
+                          type="checkbox" 
+                          checked={waPontoDiario} 
+                          onChange={e => setWaPontoDiario(e.target.checked)} 
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-ponto-diario"
+                       />
+                       <label htmlFor="opt-ponto-diario" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📊 Fechamento Diário de Ponto</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber no final de cada dia de expediente um resumo de fechamento contendo a folha de ponto consolidada da loja.</span>
+                       </label>
+                    </div>
+                 </div>
+
+                 <button className="btn" style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '1rem' }} onClick={handleSaveWhatsappConfig}>
+                    Salvar Configurações de Notificações
+                 </button>
+              </div>
+          </div>
         </div>
       )}
 
@@ -3140,6 +3312,10 @@ export default function AdminDashboard() {
                 <label className="input-label">Senha Inicial</label>
                 <input type="text" className="input-field" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} placeholder="Defina a senha" />
               </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label className="input-label">Telefone / WhatsApp</label>
+                <input type="text" className="input-field" value={newUser.phone || ''} onChange={e => setNewUser({...newUser, phone: e.target.value})} placeholder="Ex: 21999999999" />
+              </div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                 <div>
@@ -3325,6 +3501,16 @@ export default function AdminDashboard() {
               </select>
             </div>
 
+            <div style={{ marginBottom: '16px' }}>
+              <label className="input-label">Telefone / WhatsApp</label>
+              <input 
+                type="text" 
+                className="input-field" 
+                value={editingPlan.phone || ''} 
+                onChange={e => setEditingPlan({...editingPlan, phone: e.target.value})} 
+                placeholder="Ex: 21999999999"
+              />
+            </div>
             <div style={{ marginBottom: '24px' }}>
               <label className="input-label">Plano de Checklist</label>
               <select className="input-field" value={editingPlan.plan || 'starter'} onChange={e => {
@@ -3354,7 +3540,7 @@ export default function AdminDashboard() {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: getAuthHeaders(),
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, checklist_limit: editingPlan.checklist_limit })
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, checklist_limit: editingPlan.checklist_limit, phone: editingPlan.phone })
                 });
                 setEditingPlan(null);
                 fetchData();

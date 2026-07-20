@@ -102,7 +102,7 @@ export default function PontoPage() {
         const data = await res.json();
         const storeUsers = Array.isArray(data) ? data : (data.users || []);
         const adminWithPonto = storeUsers.find(
-          (u) => (u.role === 'admin' || u.role === 'master') && u.ponto_active === true
+          (u) => (u.role === 'admin' || u.role === 'master') && (u.ponto_active === true || u.status === 'trial')
         );
         if (!adminWithPonto) {
           navigate('/funcionario');

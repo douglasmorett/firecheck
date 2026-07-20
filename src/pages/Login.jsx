@@ -15,12 +15,28 @@ export default function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem('firecheck_token');
+    const userStr = localStorage.getItem('user');
+    if (token && userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role === 'funcionario') {
+          navigate('/funcionario');
+        } else {
+          navigate('/admin');
+        }
+        return;
+      } catch (e) {
+        console.error("Erro ao ler user do localStorage:", e);
+      }
+    }
+
     const savedEmail = localStorage.getItem('firecheck_email');
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
     }
-  }, []);
+  }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();

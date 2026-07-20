@@ -439,6 +439,12 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_entrada VARCHAR(5) DEFAULT '08:00'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_hora_saida VARCHAR(5) DEFAULT '18:00'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_tolerancia INTEGER DEFAULT 15");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_active BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(50)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_atraso BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_reprovado BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_atrasado BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE");
       // ── Tabela de Veículos e melhorias de checklists ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS vehicles (
@@ -1056,7 +1062,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia } = req.body;
+        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1077,17 +1083,25 @@ export default async function handler(req, res) {
         const finalHoraEntrada = ponto_hora_entrada !== undefined ? ponto_hora_entrada : user.ponto_hora_entrada;
         const finalHoraSaida = ponto_hora_saida !== undefined ? ponto_hora_saida : user.ponto_hora_saida;
         const finalTolerancia = ponto_tolerancia !== undefined ? ponto_tolerancia : user.ponto_tolerancia;
+        const finalPhone = phone !== undefined ? phone : user.phone;
+        const finalWhatsappActive = whatsapp_active !== undefined ? whatsapp_active : user.whatsapp_active;
+        const finalWhatsappPhone = whatsapp_phone !== undefined ? whatsapp_phone : user.whatsapp_phone;
+        const finalWaPontoAtraso = wa_ponto_atraso !== undefined ? wa_ponto_atraso : user.wa_ponto_atraso;
+        const finalWaChecklistReprovado = wa_checklist_reprovado !== undefined ? wa_checklist_reprovado : user.wa_checklist_reprovado;
+        const finalWaChecklistAtrasado = wa_checklist_atrasado !== undefined ? wa_checklist_atrasado : user.wa_checklist_atrasado;
+        const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
 
         if (finalStatus === 'active' && user.status !== 'active') {
           await pool.query(`
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
-            ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11,
+            ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
+            wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
-            WHERE id = $12
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, id]);
+            WHERE id = $19
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, id]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11 WHERE id = $12', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18 WHERE id = $19', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, id]);
         }
         return res.status(200).json({ success: true });
       }
@@ -1100,15 +1114,15 @@ export default async function handler(req, res) {
         if (authUser.role !== 'admin' && authUser.role !== 'master') {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
-        const { name, email, password, role, store, plan } = req.body;
+        const { name, email, password, role, store, plan, phone } = req.body;
         // Hash da senha do novo funcionário
         const hashedPassword = await bcrypt.hash(password, 12);
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, store', [name, email, hashedPassword, role, store, plan]);
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, phone', [name, email, hashedPassword, role, store, plan, phone || null]);
         return res.status(200).json(rows[0]);
       }
       // GET users: admin vê só da sua loja, master vê tudo
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario FROM users' + (store ? ' WHERE store = $1' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -1264,7 +1278,177 @@ export default async function handler(req, res) {
         } catch (pushErr) { console.error('Erro push notification:', pushErr); }
         // ─────────────────────────────────────────────────────────
 
+        // ── NOTIFICAÇÃO VIA WHATSAPP (DONO E FUNCIONÁRIO) ───────
+        try {
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          if (evoUrl && evoKey) {
+            const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
+            const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
+
+             // 1. Notificação para o Dono (Admin/Master)
+            if (storeAdmins && storeAdmins.length > 0) {
+              const adminUser = storeAdmins[0];
+              const { rows: adminDetails } = await pool.query(
+                "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado FROM users WHERE id = $1",
+                [adminUser.id]
+              );
+              if (adminDetails.length > 0) {
+                const adm = adminDetails[0];
+                const isWhatsappActive = adm.whatsapp_active !== false;
+                const targetPhone = adm.whatsapp_phone || adm.phone;
+
+                if (isWhatsappActive && targetPhone && hasWarnings && adm.wa_checklist_reprovado !== false) {
+                  const cleanPhone = targetPhone.replace(/\D/g, '');
+                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                  const textMsg = `⚠️ *FireCheck - Checklist com Irregularidades*\n\n` +
+                    `Colaborador: *${employeeName}*\n` +
+                    `Loja: *${store}*\n` +
+                    `Status: *⚠️ Irregularidades Detectadas*\n\n` +
+                    `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
+
+                  fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                    body: JSON.stringify({ number: fullPhone, text: textMsg })
+                  }).catch(e => console.error('[WhatsApp Admin] Erro ao enviar:', e.message));
+                }
+              }
+            }
+
+            // 2. Notificação para o Funcionário que finalizou
+            const { rows: employeeDetails } = await pool.query(
+              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE store = $1 AND name = $2 AND role = 'funcionario' LIMIT 1",
+              [store, employeeName]
+            );
+            if (employeeDetails.length > 0) {
+              const emp = employeeDetails[0];
+              const isWhatsappActive = emp.whatsapp_active !== false;
+              const targetPhone = emp.whatsapp_phone || emp.phone;
+
+              if (isWhatsappActive && targetPhone) {
+                const cleanPhone = targetPhone.replace(/\D/g, '');
+                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                const textMsg = `✅ *FireCheck - Checklist Enviado*\n\n` +
+                  `Olá, *${employeeName}*! Seu checklist da loja *${store}* foi finalizado e enviado com sucesso.\n\n` +
+                  `Obrigado por manter nossa operação segura! 🚀`;
+
+                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                  body: JSON.stringify({ number: fullPhone, text: textMsg })
+                }).catch(e => console.error('[WhatsApp Funcionario] Erro ao enviar:', e.message));
+              }
+            }
+          }
+        } catch (waErr) {
+          console.error('Erro geral ao processar notificações do WhatsApp:', waErr);
+        }
+        // ─────────────────────────────────────────────────────────
+
         return res.status(200).json({ success: true, id: rows[0].id });
+      }
+    }
+
+    // ── Cron de Checklists Atrasados ─────────────────────────────────
+    if (url.includes('/api/cron/checklists-delayed')) {
+      try {
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+        if (!evoUrl || !evoKey) {
+          return res.status(500).json({ error: 'Evolution API não configurada.' });
+        }
+
+        // 1. Obter dia da semana atual em português (seg, ter...)
+        const diasSemanaMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+        const agora = new Date();
+        const diaSemanaAtual = diasSemanaMap[agora.getDay()];
+        const dataHoje = agora.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }); // YYYY-MM-DD
+        const horaMinutosAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+        const [hAtual, mAtual] = horaMinutosAtual.split(':').map(Number);
+        const minutosAtual = hAtual * 60 + mAtual;
+
+        // 2. Buscar todos os checklists que possuem horário programado (scheduled_date)
+        const { rows: checklists } = await pool.query(
+          "SELECT id, title, store, recurrence, scheduled_date, weekdays FROM checklists WHERE scheduled_date IS NOT NULL AND scheduled_date != ''"
+        );
+
+        let alertasEnviados = 0;
+
+        for (const cl of checklists) {
+          // Validar recorrência/dias da semana
+          let deveRodarHoje = false;
+          if (!cl.weekdays || cl.weekdays.length === 0 || cl.recurrence === 'diaria') {
+            deveRodarHoje = true;
+          } else {
+            try {
+              const wd = typeof cl.weekdays === 'string' ? JSON.parse(cl.weekdays) : cl.weekdays;
+              if (Array.isArray(wd) && wd.includes(diaSemanaAtual)) {
+                deveRodarHoje = true;
+              }
+            } catch (e) { deveRodarHoje = true; }
+          }
+
+          if (!deveRodarHoje) continue;
+
+          // Validar horário programado (ex: "18:00")
+          const [hProg, mProg] = cl.scheduled_date.split(':').map(Number);
+          if (isNaN(hProg) || isNaN(mProg)) continue;
+          const minutosProg = hProg * 60 + mProg;
+
+          // Se a hora atual já passou do horário programado, E está dentro da janela de 1 hora (60 minutos)
+          if (minutosAtual >= minutosProg && minutosAtual <= minutosProg + 60) {
+            // Verificar se já houve submissão para esse checklist hoje
+            const { rows: submissoes } = await pool.query(
+              "SELECT id FROM checklist_submissions WHERE checklist_id = $1 AND created_at::date = $2 LIMIT 1",
+              [cl.id, dataHoje]
+            );
+
+            if (submissoes.length === 0) {
+              // Checklist atrasado! Buscar dados do Dono
+              const { rows: adminRows } = await pool.query(
+                "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_atrasado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+                [cl.store]
+              );
+
+              if (adminRows.length > 0) {
+                const adminData = adminRows[0];
+                const isWaChecklistAtrasadoActive = adminData.wa_checklist_atrasado !== false;
+                const isWhatsappActive = adminData.whatsapp_active !== false;
+                const targetPhone = adminData.whatsapp_phone || adminData.phone;
+
+                if (isWaChecklistAtrasadoActive && isWhatsappActive && targetPhone) {
+                  const cleanPhone = targetPhone.replace(/\D/g, '');
+                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                  const textMsg = `⏰ *FireCheck - Alerta de Checklist Atrasado*\n\n` +
+                    `Atenção! O checklist programado *"${cl.title}"* da loja *${cl.store}* ainda não foi preenchido hoje.\n\n` +
+                    `Horário programado: *${cl.scheduled_date}*\n` +
+                    `Horário limite de tolerância ultrapassado. ⚠️`;
+
+                  fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                    body: JSON.stringify({ number: fullPhone, text: textMsg })
+                  }).catch(e => console.error(`[Cron WhatsApp Atraso] Erro:`, e.message));
+
+                  alertasEnviados++;
+                }
+              }
+            }
+          }
+        }
+
+        return res.status(200).json({ success: true, alerts_sent: alertasEnviados });
+      } catch (err) {
+        console.error('Erro na rota de Cron de checklists:', err);
+        return res.status(500).json({ error: err.message });
       }
     }
 
@@ -2108,45 +2292,141 @@ Responda APENAS com JSON válido.`;
           [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo]
         );
 
-        // ── Push notification para admin se funcionário registrou entrada atrasada ──
-        if (type === 'entrada' && store) {
+        // ── Enviar Comprovante de Ponto via WhatsApp para o Funcionário ──
+        try {
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          if (evoUrl && evoKey) {
+            const { rows: empDetails } = await pool.query(
+              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE id = $1",
+              [userId]
+            );
+            if (empDetails.length > 0) {
+              const emp = empDetails[0];
+              const isWhatsappActive = emp.whatsapp_active !== false;
+              const targetPhone = emp.whatsapp_phone || emp.phone;
+
+              if (isWhatsappActive && targetPhone) {
+                const cleanPhone = targetPhone.replace(/\D/g, '');
+                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                const agora = new Date();
+                const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+                const dataAtual = agora.toLocaleDateString('pt-BR', { timeZone: tz });
+
+                const textMsg = `⏰ *FireCheck - Comprovante de Ponto*\n\n` +
+                  `Colaborador: *${userName}*\n` +
+                  `Loja: *${store}*\n` +
+                  `Tipo: *${type === 'entrada' ? '📥 Entrada' : '📤 Saída'}*\n` +
+                  `Data: *${dataAtual}*\n` +
+                  `Hora: *${horaAtual}*\n\n` +
+                  `Seu ponto foi registrado com sucesso! ✅`;
+
+                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                  body: JSON.stringify({ number: fullPhone, text: textMsg })
+                }).catch(e => console.error('[WhatsApp Ponto Funcionario] Erro ao enviar:', e.message));
+              }
+            }
+          }
+        } catch (pontoWaErr) {
+          console.error('Erro ao enviar comprovante de ponto via WhatsApp:', pontoWaErr);
+        }
+
+        // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
+        if (store) {
           try {
             const { rows: adminRows } = await pool.query(
-              "SELECT ponto_hora_entrada, ponto_tolerancia, fcm_token, name FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, fcm_token, name, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
               [store]
             );
             if (adminRows.length > 0) {
               const adminData = adminRows[0];
-              const horaEntradaCfg = adminData.ponto_hora_entrada || '08:00';
-              const tolerancia = adminData.ponto_tolerancia || 15;
-              const adminToken = adminData.fcm_token;
+              const isWaPontoAtrasoActive = adminData.wa_ponto_atraso !== false;
 
-              // Calcular hora atual no timezone da loja
-              const agora = new Date();
-              const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+              if (isWaPontoAtrasoActive) {
+                const tolerancia = adminData.ponto_tolerancia || 15;
+                const adminToken = adminData.fcm_token;
 
-              // Converter hora de entrada + tolerância para minutos
-              const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
-              const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+                // Calcular hora atual no timezone da loja
+                const agora = new Date();
+                const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+                const [hAtual, mAtual] = horaAtual.split(':').map(Number);
+                const atualMinutos = hAtual * 60 + mAtual;
 
-              // Converter hora atual para minutos
-              const [hAtual, mAtual] = horaAtual.split(':').map(Number);
-              const atualMinutos = hAtual * 60 + mAtual;
+                let isAtrasado = false;
+                let detalheMsg = '';
 
-              if (atualMinutos > limiteMinutos && adminToken) {
-                await admin.messaging().send({
-                  token: adminToken,
-                  notification: {
-                    title: '⏰ Funcionário Atrasado',
-                    body: `${userName} registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`
-                  },
-                  data: { url: '/admin' },
-                  apns: { payload: { aps: { sound: 'default', badge: 1 } } }
-                });
+                if (type === 'entrada') {
+                  const horaEntradaCfg = adminData.ponto_hora_entrada || '08:00';
+                  const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
+                  const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+
+                  if (atualMinutos > limiteMinutos) {
+                    isAtrasado = true;
+                    detalheMsg = `registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`;
+                  }
+                } else if (type === 'saida') {
+                  const horaSaidaCfg = adminData.ponto_hora_saida || '18:00';
+                  const [hCfg, mCfg] = horaSaidaCfg.split(':').map(Number);
+                  const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+
+                  if (atualMinutos > limiteMinutos) {
+                    isAtrasado = true;
+                    detalheMsg = `registrou saída às ${horaAtual} (tolerância: ${horaSaidaCfg} + ${tolerancia}min)`;
+                  }
+                }
+
+                if (isAtrasado) {
+                  // 1. Enviar Push
+                  if (adminToken) {
+                    await admin.messaging().send({
+                      token: adminToken,
+                      notification: {
+                        title: '⏰ Ponto Fora do Horário',
+                        body: `${userName} ${detalheMsg}`
+                      },
+                      data: { url: '/admin' },
+                      apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+                    }).catch(e => console.error('[Push Ponto Atraso] Erro:', e.message));
+                  }
+
+                  // 2. Enviar WhatsApp
+                  try {
+                    const evoUrl = process.env.EVOLUTION_API_URL;
+                    const evoKey = process.env.EVOLUTION_API_KEY;
+                    const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+                    
+                    const isWhatsappActive = adminData.whatsapp_active !== false;
+                    const targetPhone = adminData.whatsapp_phone || adminData.phone;
+                    
+                    if (evoUrl && evoKey && isWhatsappActive && targetPhone) {
+                      const cleanPhone = targetPhone.replace(/\D/g, '');
+                      const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                      
+                      const textMsg = `⏰ *FireCheck - Alerta de Ponto Fora do Horário*\n\n` +
+                        `O colaborador *${userName}* registrou o ponto com atraso na loja *${store}*.\n\n` +
+                        `Tipo de Registro: *${type === 'entrada' ? '📥 Entrada' : '📤 Saída'}*\n` +
+                        `Horário Registrado: *${horaAtual}*\n` +
+                        `Detalhe: *${detalheMsg}* ⚠️`;
+                        
+                      fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                        body: JSON.stringify({ number: fullPhone, text: textMsg })
+                      }).catch(e => console.error('[WhatsApp Atraso Admin] Erro ao enviar:', e.message));
+                    }
+                  } catch (waAtrasoErr) {
+                    console.error('Erro ao enviar WhatsApp de atraso para o admin:', waAtrasoErr);
+                  }
+                }
               }
             }
           } catch (pushErr) {
-            console.error('Erro ao enviar push de atraso:', pushErr);
+            console.error('Erro ao processar push/wa de atraso de ponto:', pushErr);
           }
         }
 

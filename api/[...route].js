@@ -28,6 +28,12 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
       await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS plan TEXT');
       await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS fcm_token TEXT');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_active BOOLEAN DEFAULT TRUE');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(50)');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_atraso BOOLEAN DEFAULT TRUE');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_reprovado BOOLEAN DEFAULT TRUE');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_atrasado BOOLEAN DEFAULT TRUE');
+      await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE');
       await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
       
       await pool.query(`
@@ -407,10 +413,78 @@ export default async function handler(req, res) {
                   }
                 });
              }
-           } catch (e) { console.error('Erro ao processar notificação push:', e); }
+            } catch (e) { console.error('Erro ao processar notificação push:', e); }
+         }
+
+        // ── NOTIFICAÇÃO VIA WHATSAPP (DONO E FUNCIONÁRIO) ───────
+        try {
+          const evoUrl = process.env.EVOLUTION_API_URL;
+          const evoKey = process.env.EVOLUTION_API_KEY;
+          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+          if (evoUrl && evoKey) {
+            const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
+            const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
+
+            // 1. Notificação para o Dono (Admin/Master)
+            const { rows: storeAdmins } = await pool.query(
+              "SELECT id, phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              [store]
+            );
+            if (storeAdmins.length > 0) {
+              const adm = storeAdmins[0];
+              const isWhatsappActive = adm.whatsapp_active !== false;
+              const targetPhone = adm.whatsapp_phone || adm.phone;
+
+              if (isWhatsappActive && targetPhone && hasWarnings && adm.wa_checklist_reprovado !== false) {
+                const cleanPhone = targetPhone.replace(/\D/g, '');
+                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                const textMsg = `⚠️ *FireCheck - Checklist com Irregularidades*\n\n` +
+                  `Colaborador: *${employeeName}*\n` +
+                  `Loja: *${store}*\n` +
+                  `Status: *⚠️ Irregularidades Detectadas*\n\n` +
+                  `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
+
+                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                  body: JSON.stringify({ number: fullPhone, text: textMsg })
+                }).catch(e => console.error('[WhatsApp Admin Route] Erro:', e.message));
+              }
+            }
+
+            // 2. Notificação para o Funcionário
+            const { rows: employeeDetails } = await pool.query(
+              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE store = $1 AND name = $2 AND role = 'funcionario' LIMIT 1",
+              [store, employeeName]
+            );
+            if (employeeDetails.length > 0) {
+              const emp = employeeDetails[0];
+              const isWhatsappActive = emp.whatsapp_active !== false;
+              const targetPhone = emp.whatsapp_phone || emp.phone;
+
+              if (isWhatsappActive && targetPhone) {
+                const cleanPhone = targetPhone.replace(/\D/g, '');
+                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                const textMsg = `✅ *FireCheck - Checklist Enviado*\n\n` +
+                  `Olá, *${employeeName}*! Seu checklist da loja *${store}* foi finalizado e enviado com sucesso.\n\n` +
+                  `Obrigado por manter nossa operação segura! 🚀`;
+
+                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                  body: JSON.stringify({ number: fullPhone, text: textMsg })
+                }).catch(e => console.error('[WhatsApp Funcionario Route] Erro:', e.message));
+              }
+            }
+          }
+        } catch (waErr) {
+          console.error('Erro geral ao processar notificações do WhatsApp na rota curinga:', waErr);
         }
 
-        return res.status(200).json({ success: true, id: rows[0].id });
+         return res.status(200).json({ success: true, id: rows[0].id });
       }
     }
 
