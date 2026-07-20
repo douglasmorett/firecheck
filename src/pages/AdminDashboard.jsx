@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -167,6 +167,12 @@ export default function AdminDashboard() {
   const [newDateInput, setNewDateInput] = useState('');
   const [isSavingVehicle, setIsSavingVehicle] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('todos');
+  // -- Compras / Estoque --
+  const [shoppingLists, setShoppingLists] = useState([]);
+  const [showShoppingModal, setShowShoppingModal] = useState(false);
+  const [editingShopping, setEditingShopping] = useState(null);
+  const [newShopping, setNewShopping] = useState({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
+  const [isSavingShopping, setIsSavingShopping] = useState(false);
   const [billEmail, setBillEmail] = useState('');
   const [billPassword, setBillPassword] = useState('');
   const [billLoading, setBillLoading] = useState(false);
@@ -275,6 +281,7 @@ export default function AdminDashboard() {
     fetchQuota();
     fetchPontoRecords();
     fetchVehicles();
+    fetchShoppingLists();
 
      const checkVisitors = () => {
        if (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com') {
@@ -482,6 +489,79 @@ export default function AdminDashboard() {
     } catch (e) {
       console.error('Erro ao buscar veículos:', e);
     }
+  };
+
+  // -- Compras / Estoque --
+  const fetchShoppingLists = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      const res = await fetch(`${API_URL}/api/shopping?store=${encodeURIComponent(user.store || '')}`, {
+        headers: getAuthHeaders()
+      });
+      handle401(res);
+      const data = await res.json();
+      if (Array.isArray(data)) setShoppingLists(data);
+    } catch (e) { console.error('Erro ao buscar listas de compras:', e); }
+  };
+
+  const handleSaveShopping = async () => {
+    if (!newShopping.title || newShopping.items.filter(i => i.name.trim()).length === 0) {
+      alert('⚠️ Nome e pelo menos 1 item são obrigatórios!');
+      return;
+    }
+    setIsSavingShopping(true);
+    try {
+      const savedUser = localStorage.getItem('user');
+      const user = JSON.parse(savedUser);
+      const payload = {
+        ...(editingShopping ? { id: editingShopping.id } : {}),
+        title: newShopping.title,
+        recurrence: newShopping.recurrence,
+        weekdays: newShopping.weekdays,
+        assignedTo: newShopping.assignedTo,
+        items: newShopping.items.filter(i => i.name.trim()).map(i => ({
+          name: i.name, unit: i.unit || 'un', minStock: parseFloat(i.minStock) || 0, category: i.category || 'geral'
+        })),
+        store: user.store
+      };
+      await fetch(`${API_URL}/api/shopping`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      setShowShoppingModal(false);
+      setEditingShopping(null);
+      setNewShopping({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
+      fetchShoppingLists();
+    } catch (e) { console.error('Erro ao salvar lista:', e); }
+    setIsSavingShopping(false);
+  };
+
+  const handleDeleteShopping = async (id) => {
+    if (!confirm('Tem certeza que deseja excluir esta lista de compras?')) return;
+    try {
+      await fetch(`${API_URL}/api/shopping/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      fetchShoppingLists();
+    } catch (e) { console.error('Erro ao deletar lista:', e); }
+  };
+
+  const handleEditShopping = async (list) => {
+    // Buscar itens da lista
+    try {
+      const res = await fetch(`${API_URL}/api/shopping/items?listId=${list.id}`, { headers: getAuthHeaders() });
+      const items = await res.json();
+      setEditingShopping(list);
+      setNewShopping({
+        title: list.title,
+        recurrence: list.recurrence || 'weekly',
+        weekdays: list.weekdays || [],
+        assignedTo: list.assigned_to || 'todos',
+        items: items.length > 0 ? items.map(i => ({ name: i.name, unit: i.unit, minStock: i.min_stock, category: i.category })) : [{ name: '', unit: 'un', minStock: '', category: 'geral' }]
+      });
+      setShowShoppingModal(true);
+    } catch(e) { console.error('Erro ao carregar itens:', e); }
   };
 
   const handleSaveVehicle = async () => {
@@ -1330,6 +1410,7 @@ export default function AdminDashboard() {
             { key: 'alertas',     label: 'Alertas IA', icon: <ShieldAlert size={18}/> },
             { key: 'checklists',  label: 'Checklists', icon: <ClipboardList size={18}/> },
             { key: 'vehicles',    label: 'Frota e Veículos', icon: <Car size={18}/> },
+            { key: 'compras',     label: 'Compras e Estoque', icon: <ShoppingCart size={18}/> },
             { key: 'bill',        label: 'Conectar com Bill', icon: <Bot size={18}/> },
             { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
           ].filter(Boolean)).map(t => {
@@ -2917,6 +2998,153 @@ export default function AdminDashboard() {
               </div>
             )})}
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: Compras e Estoque ──────────────────────────────────── */}
+      {tab === 'compras' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <ShoppingCart size={24} /> Listas de Compras
+            </h2>
+            {!isFuncionario && (
+              <button className="btn" onClick={() => { setEditingShopping(null); setNewShopping({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] }); setShowShoppingModal(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>
+                <Plus size={18}/> Nova Lista de Compras
+              </button>
+            )}
+          </div>
+
+          {/* Cards de listas de compras */}
+          {shoppingLists.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+              {shoppingLists.map(list => (
+                <div key={list.id} className="card" style={{ padding: '20px', position: 'relative', borderLeft: parseInt(list.below_min_count) > 0 ? '4px solid #ef4444' : '4px solid #22c55e' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>{list.title}</h3>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <CalendarClock size={14}/> {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : list.recurrence === 'monthly' ? 'Mensal' : list.recurrence}
+                      </span>
+                    </div>
+                    {!isFuncionario && (
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button onClick={() => handleEditShopping(list)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}><Edit2 size={16}/></button>
+                        <button onClick={() => handleDeleteShopping(list.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
+                      <Package size={16} color="var(--text-muted)"/>
+                      <span><strong>{list.item_count}</strong> itens</span>
+                    </div>
+                    {parseInt(list.below_min_count) > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#ef4444', fontWeight: '600' }}>
+                        <AlertCircle size={16}/>
+                        <span>{list.below_min_count} abaixo do mínimo</span>
+                      </div>
+                    )}
+                  </div>
+                  {list.assigned_to && list.assigned_to !== 'todos' && (
+                    <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                      👤 Atribuído: {typeof list.assigned_to === 'object' ? list.assigned_to.join(', ') : list.assigned_to}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
+              <ShoppingCart size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }}/>
+              <h3>Nenhuma lista de compras cadastrada</h3>
+              <p style={{ color: 'var(--text-muted)' }}>Crie sua primeira lista de compras para controlar o estoque da sua loja.</p>
+            </div>
+          )}
+
+          {/* Modal de criação/edição */}
+          {showShoppingModal && (
+            <div className="modal-overlay animate-fade">
+              <div className="modal-content" style={{ maxWidth: '700px', width: '94%', maxHeight: '90vh', overflow: 'auto', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0 }}>{editingShopping ? 'Editar Lista de Compras' : 'Nova Lista de Compras'}</h3>
+                  <button onClick={() => { setShowShoppingModal(false); setEditingShopping(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
+                </div>
+
+                {/* Nome da lista */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="input-label">Nome da Lista</label>
+                  <input type="text" className="input-field" placeholder="Ex: Compras Semanais da Cozinha" value={newShopping.title} onChange={e => setNewShopping(p => ({ ...p, title: e.target.value }))}/>
+                </div>
+
+                {/* Recorrência */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: '150px' }}>
+                    <label className="input-label">Recorrência</label>
+                    <select className="input-field" value={newShopping.recurrence} onChange={e => setNewShopping(p => ({ ...p, recurrence: e.target.value }))}>
+                      <option value="daily">Diária</option>
+                      <option value="weekly">Semanal</option>
+                      <option value="monthly">Mensal</option>
+                    </select>
+                  </div>
+                  <div style={{ flex: 1, minWidth: '150px' }}>
+                    <label className="input-label">Atribuir a</label>
+                    <select className="input-field" value={newShopping.assignedTo} onChange={e => setNewShopping(p => ({ ...p, assignedTo: e.target.value }))}>
+                      <option value="todos">Qualquer funcionário</option>
+                      {team.filter(m => m.role === 'funcionario').map(m => (
+                        <option key={m.id} value={m.name}>{m.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Itens */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label className="input-label" style={{ marginBottom: '8px', display: 'block' }}>Itens de Compra</label>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', padding: '8px 12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>
+                    <div style={{ flex: 3 }}>Produto</div>
+                    <div style={{ flex: 1 }}>Unidade</div>
+                    <div style={{ flex: 1 }}>Estoque Min.</div>
+                    <div style={{ width: '32px' }}></div>
+                  </div>
+                  {newShopping.items.map((item, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                      <input type="text" className="input-field" placeholder="Nome do produto" style={{ flex: 3 }} value={item.name}
+                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], name: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
+                      <select className="input-field" style={{ flex: 1 }} value={item.unit}
+                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], unit: e.target.value }; setNewShopping(p => ({ ...p, items })); }}>
+                        <option value="un">un</option>
+                        <option value="kg">kg</option>
+                        <option value="L">L</option>
+                        <option value="cx">cx</option>
+                        <option value="pct">pct</option>
+                        <option value="dz">dz</option>
+                      </select>
+                      <input type="number" className="input-field" placeholder="0" style={{ flex: 1 }} value={item.minStock}
+                        onChange={e => { const items = [...newShopping.items]; items[idx] = { ...items[idx], minStock: e.target.value }; setNewShopping(p => ({ ...p, items })); }}/>
+                      <button onClick={() => { const items = newShopping.items.filter((_, i) => i !== idx); setNewShopping(p => ({ ...p, items: items.length ? items : [{ name: '', unit: 'un', minStock: '', category: 'geral' }] })); }}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', width: '32px', flexShrink: 0 }}><Trash2 size={16}/></button>
+                    </div>
+                  ))}
+                  <button onClick={() => setNewShopping(p => ({ ...p, items: [...p.items, { name: '', unit: 'un', minStock: '', category: 'geral' }] }))}
+                    style={{ background: 'none', border: '1px dashed var(--border-color)', borderRadius: '8px', padding: '10px', width: '100%', cursor: 'pointer', color: 'var(--primary)', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                    <Plus size={16}/> Adicionar Item
+                  </button>
+                </div>
+
+                {/* Botões */}
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '20px' }}>
+                  <button className="btn-secondary" onClick={() => { setShowShoppingModal(false); setEditingShopping(null); }}
+                    style={{ padding: '10px 20px', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', cursor: 'pointer' }}>Cancelar</button>
+                  <button className="btn" onClick={handleSaveShopping} disabled={isSavingShopping}
+                    style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', cursor: 'pointer', fontWeight: '600' }}>
+                    {isSavingShopping ? 'Salvando...' : (editingShopping ? 'Atualizar' : 'Criar Lista')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
