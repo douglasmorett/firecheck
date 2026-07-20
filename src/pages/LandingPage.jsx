@@ -432,21 +432,21 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* SEÇÃO COMPONENT SHOWCASE INTERATIVO (LAPTOP + CELULAR + CHIPS FLUTUANTES) */}
-      <section className="section-mobile-padding" style={{ padding: '100px 0', backgroundColor: '#090d16', position: 'relative', overflow: 'hidden', borderBottom: '1px solid #1e293b' }}>
-        {/* Glows de fundo */}
-        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.08) 0%, transparent 60%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }}></div>
-        <div style={{ position: 'absolute', bottom: '0', right: '10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.05) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }}></div>
+      {/* SEÇÃO COMPONENT SHOWCASE INTERATIVO (LAPTOP + CELULAR + CHIPS FLUTUANTES) - TEMA CLARO */}
+      <section className="section-mobile-padding" style={{ padding: '100px 0', backgroundColor: '#f8fafc', position: 'relative', overflow: 'hidden', borderBottom: '1px solid #e2e8f0' }}>
+        {/* Glows de fundo suaves */}
+        <div style={{ position: 'absolute', top: '10%', left: '50%', transform: 'translateX(-50%)', width: '80%', height: '80%', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.04) 0%, transparent 60%)', filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0 }}></div>
+        <div style={{ position: 'absolute', bottom: '0', right: '10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.03) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }}></div>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 5%', position: 'relative', zIndex: 10 }}>
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
               VISÃO GERAL DO SISTEMA
             </span>
-            <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', color: '#ffffff', marginBottom: '16px', lineHeight: '1.1' }}>
+            <h2 style={{ fontSize: 'min(3rem, 6vw)', fontWeight: '900', color: '#0f172a', marginBottom: '16px', lineHeight: '1.1' }}>
               Toda a sua operação <br/>conectada <span style={{ background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>em tempo real</span>
             </h2>
-            <p style={{ color: '#94a3b8', fontSize: '1.15rem', maxWidth: '650px', margin: '0 auto' }}>
+            <p style={{ color: '#475569', fontSize: '1.15rem', maxWidth: '650px', margin: '0 auto' }}>
               Seu painel administrativo no computador integrado ao aplicativo de checklists e ponto eletrônico da equipe.
             </p>
           </div>
@@ -485,16 +485,15 @@ export default function LandingPage() {
               transform: translateY(-8px);
             }
             
-            /* Floating Pills */
+            /* Floating Pills - Light Theme */
             .float-chip {
               position: absolute;
               z-index: 15;
               padding: 10px 18px;
-              background: rgba(15, 23, 42, 0.75);
-              backdrop-filter: blur(12px);
-              border: 1px solid rgba(255, 255, 255, 0.08);
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
               border-radius: 100px;
-              box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255,255,255,1);
               display: flex;
               align-items: center;
               gap: 10px;
@@ -504,7 +503,7 @@ export default function LandingPage() {
             .float-chip:hover {
               transform: scale(1.08) !important;
               border-color: #ff4d00;
-              box-shadow: 0 20px 40px rgba(255, 77, 0, 0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+              box-shadow: 0 15px 30px rgba(255, 77, 0, 0.12);
             }
             
             .float-a { left: 2%; top: 20%; animation: float-anim-1 6s ease-in-out infinite; }
@@ -564,184 +563,68 @@ export default function LandingPage() {
           <div className="showcase-container">
             {/* Chips Flutuantes */}
             <div className="float-chip float-a">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444' }}><AlertTriangle size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Onde agir primeiro</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}><AlertTriangle size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>Onde agir primeiro</span>
             </div>
             <div className="float-chip float-b">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' }}><ShieldCheck size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Quem fez, quem não fez</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}><ShieldCheck size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>Quem fez, quem não fez</span>
             </div>
             <div className="float-chip float-c">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}><CheckCircle size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Tarefa concluída</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}><CheckCircle size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>Tarefa concluída</span>
             </div>
             
             <div className="float-chip float-d">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}><Volume2 size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>Alertas em tempo real</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}><Volume2 size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>Alertas em tempo real</span>
             </div>
             <div className="float-chip float-e">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}><Sparkles size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>IA confere a foto</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}><Sparkles size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>IA confere a foto</span>
             </div>
             <div className="float-chip float-f">
-              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.15)', color: '#ec4899' }}><Activity size={16} /></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#f8fafc' }}>85% Concluído</span>
+              <span style={{ display: 'flex', padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(236, 72, 153, 0.1)', color: '#ec4899' }}><Activity size={16} /></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1e293b' }}>85% Concluído</span>
             </div>
 
             {/* Laptop Mockup */}
             <div className="laptop-mockup">
-              <div style={{ backgroundColor: '#1e293b', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid rgba(255,255,255,0.05)', borderBottom: 'none' }}>
+              <div style={{ backgroundColor: '#e2e8f0', borderTopLeftRadius: '16px', borderTopRightRadius: '16px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #cbd5e1', borderBottom: 'none' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }}></span>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }}></span>
                 <span style={{ fontSize: '0.7rem', color: '#64748b', marginLeft: '8px' }}>admin.firecheckapp.com/dashboard</span>
               </div>
-              <div style={{ background: '#0f172a', aspectRatio: '1.6', overflow: 'hidden', display: 'flex', border: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
-                <div style={{ width: '20%', borderRight: '1px solid rgba(255, 255, 255, 0.05)', padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: '8px', backgroundColor: '#090d16' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
-                    <span style={{ display: 'flex', padding: '4px', borderRadius: '4px', backgroundColor: '#ff4d00', color: 'white' }}><Flame size={12} /></span>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>FireCheck</span>
-                  </div>
-                  <div style={{ height: '8px', width: '80%', backgroundColor: '#ff4d00', borderRadius: '2px', opacity: 0.8 }}></div>
-                  <div style={{ height: '8px', width: '60%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
-                  <div style={{ height: '8px', width: '70%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
-                  <div style={{ height: '8px', width: '50%', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px' }}></div>
-                </div>
-                <div style={{ flex: 1, padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ height: '14px', width: '120px', backgroundColor: 'white', borderRadius: '3px', marginBottom: '6px' }}></div>
-                      <div style={{ height: '8px', width: '200px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
-                    </div>
-                    <div style={{ height: '24px', width: '80px', backgroundColor: '#ff4d00', borderRadius: '6px' }}></div>
-                  </div>
-                  <div style={{ display: 'flex', gap: '12px' }}>
-                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                      <div style={{ height: '6px', width: '40px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white' }}>94%</span>
-                        <span style={{ fontSize: '0.6rem', color: '#22c55e' }}>+4.2%</span>
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                      <div style={{ height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#ff4d00' }}>18/20</span>
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, backgroundColor: '#1e293b', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '10px' }}>
-                      <div style={{ height: '6px', width: '45px', backgroundColor: 'rgba(255,255,255,0.4)', borderRadius: '2px', marginBottom: '8px' }}></div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#10b981' }}>0 Alertas</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ flex: 1, backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', padding: '12px', overflow: 'hidden' }}>
-                    <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '6px', marginBottom: '8px' }}>
-                      <div style={{ flex: 2, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
-                      <div style={{ flex: 1.5, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
-                      <div style={{ flex: 1.5, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
-                      <div style={{ flex: 1, height: '8px', backgroundColor: 'rgba(255,255,255,0.3)', borderRadius: '2px' }}></div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ height: '8px', width: '85px', backgroundColor: 'white', borderRadius: '2px' }}></div>
-                          <div style={{ height: '4px', width: '40px', backgroundColor: '#94a3b8', borderRadius: '1px' }}></div>
-                        </div>
-                        <div style={{ flex: 1.5, height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
-                        <div style={{ flex: 1.5, display: 'inline-flex', padding: '3px 8px', borderRadius: '20px', backgroundColor: 'rgba(34, 197, 94, 0.15)', height: '14px', width: '40px' }}></div>
-                        <div style={{ flex: 1, height: '6px', width: '30px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ height: '8px', width: '100px', backgroundColor: 'white', borderRadius: '2px' }}></div>
-                          <div style={{ height: '4px', width: '50px', backgroundColor: '#94a3b8', borderRadius: '1px' }}></div>
-                        </div>
-                        <div style={{ flex: 1.5, height: '6px', width: '50px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
-                        <div style={{ flex: 1.5, display: 'inline-flex', padding: '3px 8px', borderRadius: '20px', backgroundColor: 'rgba(234, 179, 8, 0.15)', height: '14px', width: '45px' }}></div>
-                        <div style={{ flex: 1, height: '6px', width: '30px', backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: '2px' }}></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div style={{ background: '#f8fafc', aspectRatio: '1.6', overflow: 'hidden', display: 'flex', border: '1px solid #cbd5e1', position: 'relative', boxShadow: '0 20px 40px rgba(0,0,0,0.1)' }}>
+                <img src="/dashboard_mock.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="FireCheck Admin Dashboard" />
               </div>
-              <div style={{ backgroundColor: '#94a3b8', height: '10px', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
-                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '4px', backgroundColor: '#475569', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }}></div>
+              <div style={{ backgroundColor: '#cbd5e1', height: '10px', borderBottomLeftRadius: '10px', borderBottomRightRadius: '10px', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '60px', height: '4px', backgroundColor: '#94a3b8', borderBottomLeftRadius: '4px', borderBottomRightRadius: '4px' }}></div>
               </div>
             </div>
 
-            {/* Mobile Mockup */}
             <div className="phone-mockup-overlap">
-              <div style={{ background: '#000000', border: '8px solid #1e293b', borderRadius: '32px', aspectRatio: '0.485', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.7)', position: 'relative' }}>
+              <div style={{ background: '#000000', border: '8px solid #1e293b', borderRadius: '32px', aspectRatio: '0.485', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', position: 'relative' }}>
                 <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '50px', height: '10px', backgroundColor: '#1e293b', borderBottomLeftRadius: '6px', borderBottomRightRadius: '6px', zIndex: 100 }}></div>
-                <div style={{ flex: 1, background: '#0f172a', padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.55rem', fontWeight: 'bold', color: 'white' }}>09:41</span>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: 'white' }}></span>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '1px', backgroundColor: 'white' }}></span>
-                    </div>
-                  </div>
-                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '8px' }}>
-                    <div style={{ height: '10px', width: '60px', backgroundColor: 'white', borderRadius: '2px', marginBottom: '4px' }}></div>
-                    <div style={{ height: '6px', width: '90px', backgroundColor: '#94a3b8', borderRadius: '1.5px' }}></div>
-                  </div>
-                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #10b981', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ height: '8px', width: '70px', backgroundColor: 'white', borderRadius: '2px' }}></div>
-                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(16, 185, 129, 0.15)', height: '10px', width: '25px' }}></div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: '100%', height: '100%', backgroundColor: '#10b981' }}></div>
-                      </div>
-                      <span style={{ fontSize: '0.5rem', color: '#10b981', fontWeight: 'bold' }}>100%</span>
-                    </div>
-                  </div>
-                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #ff4d00', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ height: '8px', width: '80px', backgroundColor: 'white', borderRadius: '2px' }}></div>
-                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(255, 77, 0, 0.15)', height: '10px', width: '25px' }}></div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: '60%', height: '100%', backgroundColor: '#ff4d00' }}></div>
-                      </div>
-                      <span style={{ fontSize: '0.5rem', color: '#ff4d00', fontWeight: 'bold' }}>60%</span>
-                    </div>
-                  </div>
-                  <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', borderLeft: '4px solid #64748b', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ height: '8px', width: '65px', backgroundColor: 'white', borderRadius: '2px' }}></div>
-                      <div style={{ display: 'flex', padding: '2px 6px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.1)', height: '10px', width: '20px' }}></div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ flex: 1, height: '4px', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '2px', overflow: 'hidden' }}>
-                        <div style={{ width: '0%', height: '100%' }}></div>
-                      </div>
-                      <span style={{ fontSize: '0.5rem', color: '#94a3b8', fontWeight: 'bold' }}>0%</span>
-                    </div>
-                  </div>
-                </div>
+                <img src="/app_mock.png" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="FireCheck Mobile App" />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SEÇÃO COMPARATIVA: ANTES VS DEPOIS (A VIRADA) */}
-      <section className="section-mobile-padding" id="a-virada" style={{ padding: '100px 5%', backgroundColor: '#0b0f19', borderBottom: '1px solid #1e293b' }}>
+      {/* SEÇÃO COMPARATIVA: ANTES VS DEPOIS (A VIRADA) - TEMA CLARO */}
+      <section className="section-mobile-padding" id="a-virada" style={{ padding: '100px 5%', backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#3b82f6', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
               A VIRADA
             </span>
-            <h2 style={{ fontSize: 'min(2.8rem, 6vw)', fontWeight: '900', color: '#ffffff', marginBottom: '16px', lineHeight: '1.2' }}>
-              Você não pode estar em três lugares <br/>ao mesmo tempo. <span style={{ color: '#00f2fe' }}>O padrão, pode.</span>
+            <h2 style={{ fontSize: 'min(2.8rem, 6vw)', fontWeight: '900', color: '#0f172a', marginBottom: '16px', lineHeight: '1.2' }}>
+              Você não pode estar em três lugares <br/>ao mesmo tempo. <span style={{ color: '#ff4d00' }}>O padrão, pode.</span>
             </h2>
-            <p style={{ color: '#94a3b8', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
+            <p style={{ color: '#475569', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
               Cada hora que passa entre o erro operacional e a descoberta tem um custo. Veja a diferença quando você começa a gerenciar com o FireCheck.
             </p>
           </div>
@@ -771,13 +654,14 @@ export default function LandingPage() {
               min-height: 100px;
             }
             .card-without {
-              background: rgba(24, 24, 27, 0.6);
-              border: 1px solid rgba(255, 255, 255, 0.05);
+              background: #fef2f2;
+              border: 1px solid #fee2e2;
+              box-shadow: 0 4px 6px rgba(239, 68, 68, 0.02);
             }
             .card-with {
-              background: rgba(3, 105, 161, 0.1);
-              border: 1px solid rgba(2, 132, 199, 0.3);
-              box-shadow: 0 10px 30px rgba(2, 132, 199, 0.05);
+              background: #f0fdf4;
+              border: 1px solid #bbf7d0;
+              box-shadow: 0 10px 25px rgba(34, 197, 94, 0.04);
             }
             .comp-card-icon {
               display: flex;
@@ -786,20 +670,23 @@ export default function LandingPage() {
               flex-shrink: 0;
             }
             .icon-without {
-              background: rgba(239, 68, 68, 0.1);
+              background: #fee2e2;
               color: #ef4444;
             }
             .icon-with {
-              background: rgba(16, 185, 129, 0.15);
-              color: #10b981;
+              background: #dcfce7;
+              color: #16a34a;
             }
             .comp-card-text {
               font-size: 0.95rem;
               line-height: 1.5;
-              color: #cbd5e1;
+              color: #475569;
+            }
+            .card-without .comp-card-text {
+              color: #7f1d1d;
             }
             .card-with .comp-card-text {
-              color: #f1f5f9;
+              color: #14532d;
               font-weight: 500;
             }
             
@@ -828,7 +715,7 @@ export default function LandingPage() {
 
           <div className="comparison-grid">
             <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="comp-col-title" style={{ color: '#94a3b8' }}>
+              <div className="comp-col-title" style={{ color: '#ef4444' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span> Sem o FireCheck
               </div>
               
@@ -859,8 +746,8 @@ export default function LandingPage() {
             </div>
 
             <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="comp-col-title" style={{ color: '#00f2fe' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981' }}></span> Com o FireCheck
+              <div className="comp-col-title" style={{ color: '#16a34a' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#16a34a' }}></span> Com o FireCheck
               </div>
 
               <div className="comp-card card-with">
