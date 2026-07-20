@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -195,6 +195,11 @@ export default function AdminDashboard() {
   const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
   const [contadorEmail, setContadorEmail] = useState('');
   const [fechamentoDia, setFechamentoDia] = useState('ultimo_dia');
+  const [fechamentoSelection, setFechamentoSelection] = useState('ultimo_dia');
+  const [customFechamentoDay, setCustomFechamentoDay] = useState('15');
+  const [companyName, setCompanyName] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [ownerPhone, setOwnerPhone] = useState('');
   const [pontoHoraEntrada, setPontoHoraEntrada] = useState('08:00');
   const [pontoHoraSaida, setPontoHoraSaida] = useState('18:00');
   const [pontoTolerancia, setPontoTolerancia] = useState(15);
@@ -265,7 +270,22 @@ export default function AdminDashboard() {
     setUserProfile(user);
     if (user.timezone) setPontoTimezone(user.timezone);
     if (user.contador_email) setContadorEmail(user.contador_email);
-    if (user.fechamento_dia) setFechamentoDia(user.fechamento_dia);
+    
+    const fd = user.fechamento_dia || 'ultimo_dia';
+    if (['ultimo_dia', 'dia_1', 'dia_5', 'dia_10'].includes(fd)) {
+      setFechamentoDia(fd);
+      setFechamentoSelection(fd);
+    } else {
+      setFechamentoSelection('personalizado');
+      const dayNum = fd.replace('dia_', '');
+      setCustomFechamentoDay(dayNum);
+      setFechamentoDia(fd);
+    }
+
+    if (user.store) setCompanyName(user.store);
+    if (user.name) setOwnerName(user.name);
+    if (user.phone) setOwnerPhone(user.phone);
+
     if (user.ponto_hora_entrada) setPontoHoraEntrada(user.ponto_hora_entrada);
     if (user.ponto_hora_saida) setPontoHoraSaida(user.ponto_hora_saida);
     if (user.ponto_tolerancia !== undefined && user.ponto_tolerancia !== null) setPontoTolerancia(user.ponto_tolerancia);
@@ -1210,9 +1230,37 @@ export default function AdminDashboard() {
 
   const isFuncionario = userProfile?.role === 'funcionario';
   
-  // Para compatibilidade com a UI antiga onde se usava isGestor para o Master
-  const isGestor = isMaster; 
-
+  const handleSaveCompanyProfile = async () => {
+    if (!userProfile) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/${userProfile.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: ownerName,
+          store: companyName,
+          phone: ownerPhone
+        })
+      });
+      if (res.ok) {
+        const updatedMe = {
+          ...userProfile,
+          name: ownerName,
+          store: companyName,
+          phone: ownerPhone
+        };
+        setUserProfile(updatedMe);
+        localStorage.setItem('user', JSON.stringify(updatedMe));
+        alert('Perfil da empresa atualizado com sucesso!');
+        window.location.reload();
+      } else {
+        const data = await res.json();
+        alert('Erro ao atualizar perfil: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e) {
+      alert('Erro de conexão ao salvar perfil.');
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -1529,6 +1577,7 @@ export default function AdminDashboard() {
             { key: 'compras',     label: 'Compras e Estoque', icon: <ShoppingCart size={18}/> },
             { key: 'bill',        label: 'Conectar com Bill', icon: <Bot size={18}/> },
             { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
+            { key: 'perfil',      label: 'Perfil da Empresa', icon: <Settings size={18}/> },
           ].filter(Boolean)).map(t => {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
             const isActive = tab === t.key;
@@ -2021,22 +2070,55 @@ export default function AdminDashboard() {
               </ul>
             </div>
 
-          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative' }}>
-              <h3 style={{ fontSize: '1.3rem', marginBottom: '8px' }}>Mensal</h3>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                Assinar Mensal
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '24px' }}>
+            <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Ponto Starter</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Ideal para equipes pequenas em crescimento.</p>
+                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
+                  • Até <strong>5 colaboradores</strong><br/>
+                  • Reconhecimento facial<br/>
+                  • Trava de GPS integrada
+                </div>
+              </div>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Starter
               </button>
             </div>
 
-            <div className="card" style={{ width: '280px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>MAIS VANTAJOSO</div>
-              <h3 style={{ fontSize: '1.3rem', marginBottom: '8px', color: 'var(--primary)' }}>Anual</h3>
-              <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$79,90<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-              <div style={{ marginBottom: '16px', color: 'var(--success)', fontSize: '0.8rem', fontWeight: 'bold' }}>Faturado R$958,80 anualmente</div>
+            <div className="card" style={{ width: '280px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>MAIS POPULAR</div>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px', color: 'var(--primary)' }}>Ponto Pro</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Perfeito para médias empresas estruturadas.</p>
+                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
+                  • Até <strong>15 colaboradores</strong><br/>
+                  • Reconhecimento facial<br/>
+                  • Trava de GPS integrada<br/>
+                  • Automação de folhas
+                </div>
+              </div>
               <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                Assinar Anual
+                Assinar Pro
+              </button>
+            </div>
+
+            <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Ponto Business</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Completo para grandes equipes de varejo.</p>
+                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
+                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
+                  • Até <strong>50 colaboradores</strong><br/>
+                  • Reconhecimento facial<br/>
+                  • Trava de GPS integrada<br/>
+                  • Suporte prioritário
+                </div>
+              </div>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Business
               </button>
             </div>
           </div>
@@ -3154,6 +3236,69 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* ── Tab: Perfil da Empresa ──────────────────────────────────── */}
+      {tab === 'perfil' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="card" style={{ padding: '24px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', marginBottom: '8px' }}>
+              <Settings size={20} /> Perfil da Empresa / Conta
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
+              Atualize as informações gerais da sua empresa e do administrador responsável.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
+              {/* Coluna Esquerda: Dados do Perfil */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label className="input-label">Nome da Empresa / Loja</label>
+                  <input type="text" className="input-field" value={companyName} onChange={e => setCompanyName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="input-label">Nome do Gestor / Dono</label>
+                  <input type="text" className="input-field" value={ownerName} onChange={e => setOwnerName(e.target.value)} />
+                </div>
+                <div>
+                  <label className="input-label">Telefone de Contato</label>
+                  <input type="text" className="input-field" value={ownerPhone} onChange={e => setOwnerPhone(e.target.value)} />
+                </div>
+                <button className="btn" style={{ padding: '12px', marginTop: '8px' }} onClick={handleSaveCompanyProfile}>
+                  Salvar Perfil
+                </button>
+              </div>
+
+              {/* Coluna Direita: Informações do Plano Atual e Upgrades */}
+              <div style={{ backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-color)' }}>Plano Atual</h4>
+                  <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                    {userProfile?.plan || 'starter'} ({(userProfile?.status === 'trial') ? 'Trial / Teste' : 'Ativo'})
+                  </p>
+                </div>
+                <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                  <p style={{ margin: '4px 0' }}>• Limite de Checklists: <strong>{userProfile?.checklist_limit >= 999999 ? 'Ilimitado' : (userProfile?.checklist_limit || 300)}</strong>/mês</p>
+                  <p style={{ margin: '4px 0' }}>• Limite de Ponto: <strong>{userProfile?.ponto_limit >= 999999 ? 'Ilimitado' : (userProfile?.ponto_limit || 5)}</strong> colaboradores</p>
+                  <p style={{ margin: '4px 0' }}>• Módulo Financeiro: <strong>{userProfile?.finance_active ? 'Ativo' : 'Inativo'}</strong></p>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Deseja fazer um Upgrade de Plano?</h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <button className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                      Upgrade para Plano Pro (R$97/mês)
+                    </button>
+                    <button className="btn" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
+                      Upgrade para Plano Business (R$197/mês)
+                    </button>
+                  </div>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    ⚠️ Lembre-se de cancelar o plano anterior na Cakto após o upgrade para evitar cobranças duplicadas.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Tab: Compras e Estoque ──────────────────────────────────── */}
       {tab === 'compras' && (
         <div>
@@ -3996,13 +4141,17 @@ export default function AdminDashboard() {
                 <option value="anual">Anual (Legado)</option>
               </select>
 
-              <label className="input-label" style={{ marginTop: '16px' }}>Módulos Extras Ativos</label>
-              <div style={{ display: 'flex', gap: '20px', marginTop: '8px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                  <input type="checkbox" checked={editingPlan.ponto_active || false} onChange={e => setEditingPlan({...editingPlan, ponto_active: e.target.checked})} />
-                  Controle de Ponto
-                </label>
-              </div>
+              <label className="input-label" style={{ marginTop: '16px' }}>Plano de Ponto</label>
+              <select className="input-field" value={editingPlan.ponto_limit !== undefined ? editingPlan.ponto_limit : (editingPlan.ponto_active ? 15 : 0)} onChange={e => {
+                const limit = parseInt(e.target.value);
+                setEditingPlan({...editingPlan, ponto_limit: limit, ponto_active: limit > 0 });
+              }}>
+                <option value="0">Desativado</option>
+                <option value="5">Ponto Starter (Até 5 colaboradores — R$67)</option>
+                <option value="15">Ponto Pro (Até 15 colaboradores — R$97)</option>
+                <option value="50">Ponto Business (Até 50 colaboradores — R$197)</option>
+                <option value="999999">Ponto Enterprise (Ilimitado)</option>
+              </select>
             </div>
 
             <button className="btn" style={{ width: '100%' }} onClick={async () => {
@@ -4010,7 +4159,7 @@ export default function AdminDashboard() {
                 await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: getAuthHeaders(),
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, checklist_limit: editingPlan.checklist_limit, phone: editingPlan.phone })
+                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, ponto_limit: editingPlan.ponto_limit, checklist_limit: editingPlan.checklist_limit, phone: editingPlan.phone })
                 });
                 setEditingPlan(null);
                 fetchData();

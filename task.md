@@ -42,3 +42,14 @@
 ## Deploy
 - [x] Commit e push final
 - [x] Disparar build TestFlight
+
+## Fase 4: Gestão de Cota, Alertas de Upgrade, Aba Perfil e Planos de Ponto
+- [x] Zerar checklists_used e redefinir alerta ao sair de trial
+- [x] WhatsApp de alerta de upgrade ao atingir 90% da cota de checklists
+- [x] Aba "Perfil da Empresa" no painel administrativo
+- [x] Consistência na alteração do nome da loja em todas as tabelas
+- [x] Prevenção de cobrança dupla no webhook do Cakto com alertas
+- [x] 3 planos do Ponto baseados no limite de colaboradores (Starter, Pro, Business)
+- [x] Proteção e validação do limite de colaboradores ao cadastrar equipe
+- [x] Data de fechamento de ponto com dia do mês personalizado
+- [x] Atualização de favicons, logotipos e ícone do app Apple/iOS

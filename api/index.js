@@ -124,7 +124,7 @@ async function checkAndResetQuota(pool, userId, quotaResetDate) {
   if (quotaResetDate && new Date(quotaResetDate) < new Date()) {
     const nextReset = new Date();
     nextReset.setDate(nextReset.getDate() + 30);
-    await pool.query('UPDATE users SET checklists_used = 0, ai_creations_used = 0, quota_reset_date = $1 WHERE id = $2', [nextReset, userId]);
+    await pool.query('UPDATE users SET checklists_used = 0, ai_creations_used = 0, upgrade_alert_sent = FALSE, quota_reset_date = $1 WHERE id = $2', [nextReset, userId]);
     return true;
   }
   return false;
@@ -291,6 +291,12 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS quota_reset_date TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_creations_used INTEGER DEFAULT 0");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrade_alert_sent BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_limit INTEGER DEFAULT 5");
+      // Migrar limites de ponto para planos existentes
+      await pool.query("UPDATE users SET ponto_limit = 15 WHERE plan IN ('pro', 'pro_mensal', 'mensal') AND (ponto_limit IS NULL OR ponto_limit = 5)");
+      await pool.query("UPDATE users SET ponto_limit = 50 WHERE plan IN ('business', 'business_mensal', 'anual') AND (ponto_limit IS NULL OR ponto_limit = 5)");
+      await pool.query("UPDATE users SET ponto_limit = 999999 WHERE plan = 'enterprise' OR role = 'master'");
       // Migrar planos existentes para os limites corretos
       await pool.query("UPDATE users SET checklist_limit = 600 WHERE plan IN ('mensal', 'pro', 'pro_mensal') AND checklist_limit = 300");
       await pool.query("UPDATE users SET checklist_limit = 1500 WHERE plan IN ('anual', 'business', 'business_mensal') AND checklist_limit = 300");
@@ -1156,13 +1162,104 @@ export default async function handler(req, res) {
                  `, [customerEmail]);
                 console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
               } else {
-                await pool.query(`
-                   UPDATE users 
-                   SET status = 'active', 
-                       expiration_date = NOW() + CASE WHEN plan = 'anual' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END 
-                   WHERE email = $1
-                 `, [customerEmail]);
-                console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para ACTIVE e renovado!`);
+                let detectedPlan = 'pro';
+                const lowerProduct = productName.toLowerCase();
+                if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
+                else if (lowerProduct.includes('business')) detectedPlan = 'business';
+                else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
+                else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
+                else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
+
+                const limitMap = {
+                  starter: 300,
+                  pro: 600,
+                  business: 1500,
+                  ponto_starter: 300,
+                  ponto_pro: 600,
+                  ponto_business: 1500
+                };
+                const newChecklistLimit = limitMap[detectedPlan] || 300;
+
+                let newPontoLimit = 5;
+                if (detectedPlan === 'ponto_starter') newPontoLimit = 5;
+                else if (detectedPlan === 'ponto_pro' || detectedPlan === 'pro') newPontoLimit = 15;
+                else if (detectedPlan === 'ponto_business' || detectedPlan === 'business') newPontoLimit = 50;
+
+                const isPontoPlan = detectedPlan.startsWith('ponto_');
+                const pontoActiveUpdate = isPontoPlan ? ', ponto_active = TRUE' : '';
+
+                const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active FROM users WHERE email = $1', [customerEmail]);
+                if (existingDetails.length > 0) {
+                  const oldUser = existingDetails[0];
+                  const oldPlan = oldUser.plan;
+                  const oldStatus = oldUser.status;
+
+                  const isPlanChanged = oldPlan !== detectedPlan;
+                  const isTrialTransition = oldStatus === 'trial';
+                  const checklistsResetQuery = isTrialTransition ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
+
+                  await pool.query(`
+                     UPDATE users 
+                     SET status = 'active', 
+                         plan = $2,
+                         checklist_limit = $3,
+                         ponto_limit = $4,
+                         expiration_date = NOW() + CASE WHEN $2 = 'anual' OR $2 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                         ${pontoActiveUpdate}
+                         ${checklistsResetQuery}
+                     WHERE email = $1
+                  `, [customerEmail, detectedPlan, isPontoPlan ? oldUser.checklist_limit : newChecklistLimit, newPontoLimit]);
+
+                  console.log(`[CAKTO] Usuário ${customerEmail} atualizado para ACTIVE com plano ${detectedPlan}!`);
+
+                  if (isPlanChanged && oldStatus === 'active') {
+                    const evoUrl = process.env.EVOLUTION_API_URL;
+                    const evoKey = process.env.EVOLUTION_API_KEY;
+                    const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+                    if (evoUrl && evoKey) {
+                      const { rows: masters } = await pool.query("SELECT phone, whatsapp_phone FROM users WHERE role = 'master' LIMIT 1");
+                      if (masters.length > 0) {
+                        const masterPhone = masters[0].whatsapp_phone || masters[0].phone;
+                        if (masterPhone) {
+                          const cleanMasterPhone = masterPhone.replace(/\D/g, '');
+                          const fullMasterPhone = cleanMasterPhone.startsWith('55') ? cleanMasterPhone : '55' + cleanMasterPhone;
+
+                          const masterMsg = 
+                            `🔄 *UPGRADE DE PLANO DETECTADO* 🔄\n\n` +
+                            `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, acabou de alterar o plano dele:\n` +
+                            `➖ Plano Anterior: *${oldPlan}*\n` +
+                            `➕ Novo Plano: *${detectedPlan}*\n\n` +
+                            `⚠️ *Atenção:* Por favor, verifique no painel da Cakto e cancele a assinatura anterior dele para evitar cobranças duplicadas!`;
+
+                          fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                            body: JSON.stringify({ number: fullMasterPhone, text: masterMsg })
+                          }).catch(e => console.error('[Webhook Cakto - Alert Master] Erro:', e.message));
+                        }
+                      }
+
+                      const clientPhone = oldUser.whatsapp_phone || oldUser.phone;
+                      if (clientPhone) {
+                        const cleanClientPhone = clientPhone.replace(/\D/g, '');
+                        const fullClientPhone = cleanClientPhone.startsWith('55') ? cleanClientPhone : '55' + cleanClientPhone;
+
+                        const clientMsg = 
+                          `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
+                          `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
+                          `Confirmamos a alteração do seu plano para o plano *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
+                          `⚠️ *Importante:* Se você tinha uma assinatura ativa do plano anterior, lembre-se de cancelá-la no seu painel da Cakto ou entrar em contato com o suporte para garantir que não ocorra nenhuma cobrança dupla.`;
+
+                        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                          body: JSON.stringify({ number: fullClientPhone, text: clientMsg })
+                        }).catch(e => console.error('[Webhook Cakto - Alert Cliente] Erro:', e.message));
+                      }
+                    }
+                  }
+                }
               }
             }
           } else if (newStatus) {
@@ -1309,7 +1406,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { plan, status, ponto_active, finance_active, checklist_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado } = req.body;
+        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1319,11 +1416,26 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
         }
 
+        // Renomear loja em todas as tabelas se necessário
+        if (storeName !== undefined && storeName !== user.store) {
+          const oldStore = user.store;
+          await pool.query('UPDATE users SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE checklists SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE checklist_submissions SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE store_cameras SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE ponto_records SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE shopping_lists SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          await pool.query('UPDATE shopping_submissions SET store = $1 WHERE store = $2', [storeName, oldStore]);
+        }
+
+        const finalName = name !== undefined ? name : user.name;
+        const finalStore = storeName !== undefined ? storeName : user.store;
         const finalPlan = plan !== undefined ? plan : user.plan;
         const finalStatus = status !== undefined ? status : user.status;
         const finalPonto = ponto_active !== undefined ? ponto_active : user.ponto_active;
         const finalFinance = finance_active !== undefined ? finance_active : user.finance_active;
         const finalLimit = checklist_limit !== undefined ? checklist_limit : user.checklist_limit;
+        const finalPontoLimit = ponto_limit !== undefined ? ponto_limit : user.ponto_limit;
         const finalTz = timezone !== undefined ? timezone : user.timezone;
         const finalContador = contador_email !== undefined ? contador_email : user.contador_email;
         const finalFechamento = fechamento_dia !== undefined ? fechamento_dia : user.fechamento_dia;
@@ -1340,16 +1452,19 @@ export default async function handler(req, res) {
         const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
 
         if (finalStatus === 'active' && user.status !== 'active') {
+          const resetChecklists = user.status === 'trial' ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
           await pool.query(`
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
+            name = $21, store = $22, ponto_limit = $23,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
+            ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit]);
         }
         // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
         const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
@@ -1400,6 +1515,22 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
         const { name, email, password, role, store, plan, phone } = req.body;
+
+        if (role === 'funcionario') {
+          const { rows: admins } = await pool.query("SELECT id, plan, status, ponto_limit, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
+          if (admins.length > 0) {
+            const admin = admins[0];
+            const { rows: countRes } = await pool.query("SELECT COUNT(*) FROM users WHERE store = $1 AND role = 'funcionario'", [store]);
+            const currentCount = parseInt(countRes[0].count);
+            const limit = admin.ponto_limit || 5;
+
+            const isUnlimited = limit >= 999999 || admin.status === 'trial' || admin.role === 'master';
+            if (!isUnlimited && currentCount >= limit) {
+              return res.status(400).json({ error: `Você atingiu o limite de ${limit} colaboradores do seu plano de Ponto eletrônico. Faça upgrade do seu plano de Ponto para cadastrar mais colaboradores.` });
+            }
+          }
+        }
+
         // Hash da senha do novo funcionário
         const hashedPassword = await bcrypt.hash(password, 12);
         const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, phone', [name, email, hashedPassword, role, store, plan, phone || null]);
@@ -1539,7 +1670,64 @@ export default async function handler(req, res) {
 
         // ── INCREMENTAR COTA ──────────────────────────────────
         if (storeAdmins && storeAdmins.length > 0) {
-          await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [storeAdmins[0].id]);
+          const adminId = storeAdmins[0].id;
+          await pool.query('UPDATE users SET checklists_used = COALESCE(checklists_used, 0) + 1 WHERE id = $1', [adminId]);
+
+          const { rows: freshAdminDetails } = await pool.query('SELECT name, email, store, plan, status, checklist_limit, checklists_used, upgrade_alert_sent, phone, whatsapp_phone FROM users WHERE id = $1', [adminId]);
+          if (freshAdminDetails.length > 0) {
+            const admin = freshAdminDetails[0];
+            const limit = admin.checklist_limit || getPlanLimit(admin.plan);
+            const used = admin.checklists_used || 0;
+            const threshold = limit * 0.9;
+
+            if (used >= threshold && !admin.upgrade_alert_sent && admin.status === 'active') {
+              let nextPlan = '';
+              let upgradeLink = '';
+              let cleanPlan = (admin.plan || '').toLowerCase();
+
+              if (cleanPlan === 'starter') {
+                nextPlan = 'Pro';
+                upgradeLink = 'https://pay.cakto.com.br/e7c88df';
+              } else if (cleanPlan === 'pro' || cleanPlan === 'mensal') {
+                nextPlan = 'Business';
+                upgradeLink = 'https://pay.cakto.com.br/iy4399h';
+              }
+
+              if (nextPlan && upgradeLink) {
+                await pool.query('UPDATE users SET upgrade_alert_sent = TRUE WHERE id = $1', [adminId]);
+
+                const clientPhone = admin.whatsapp_phone || admin.phone;
+                if (clientPhone) {
+                  const cleanPhone = clientPhone.replace(/\D/g, '');
+                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+
+                  const upgradeMsg = 
+                    `⚠️ *ALERTA DE USO DE CRÉDITOS* ⚠️\n\n` +
+                    `Olá, *${admin.name?.split(' ')[0]}*!\n\n` +
+                    `Sua equipe utilizou *${used} de ${limit}* checklists disponíveis no seu plano atual (*${(used / limit * 100).toFixed(0)}%* de uso).\n\n` +
+                    `Para garantir a continuidade das suas auditorias diárias, recomendamos fazer o upgrade para o plano *${nextPlan}* agora mesmo:\n` +
+                    `👉 Link de Upgrade: ${upgradeLink}?email=${encodeURIComponent(admin.email || '')}\n\n` +
+                    `*não deixe sua equipe sem creditos faça o upgrade antes que acabe* 🚀`;
+
+                  const evoUrl = process.env.EVOLUTION_API_URL;
+                  const evoKey = process.env.EVOLUTION_API_KEY;
+                  const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+                  if (evoUrl && evoKey) {
+                    fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                      body: JSON.stringify({ number: fullPhone, text: upgradeMsg })
+                    }).then(r => r.json()).then(d => {
+                      console.log(`[WhatsApp Upgrade Alert] Enviado com sucesso para ${fullPhone}`);
+                    }).catch(err => {
+                      console.error(`[WhatsApp Upgrade Alert] Erro ao enviar para ${fullPhone}:`, err.message);
+                    });
+                  }
+                }
+              }
+            }
+          }
         }
 
         // ── PUSH NOTIFICATION ─────────────────────────────────
