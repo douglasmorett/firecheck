@@ -37,6 +37,7 @@ export default function ChecklistExecution() {
   const [aiFeedback, setAIFeedback] = useState({});
   const [userProfile, setUserProfile] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [startedAt] = useState(() => new Date().toISOString());
 
   // Estados novos: Assinatura e Veículos
   const [category, setCategory] = useState('geral');
@@ -399,7 +400,8 @@ export default function ChecklistExecution() {
       selfie,
       checklistId: currentChecklistId,
       vehicleId: vehicleId ? parseInt(vehicleId) : (selectedVehicleId ? parseInt(selectedVehicleId) : null),
-      signature
+      signature,
+      startedAt
     };
 
     try {

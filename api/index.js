@@ -1204,7 +1204,7 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
-        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature } = req.body;
+        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature, startedAt } = req.body;
 
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
@@ -1323,6 +1323,23 @@ export default async function handler(req, res) {
           const evoKey = process.env.EVOLUTION_API_KEY;
           const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
+          // Buscar título do checklist
+          let checklistTitle = 'Checklist';
+          if (checklistId) {
+            const { rows: clRows } = await pool.query('SELECT title FROM checklists WHERE id = $1', [checklistId]);
+            if (clRows.length > 0) checklistTitle = clRows[0].title;
+          }
+
+          // Formatar data e horários
+          const now = new Date();
+          const dataHoje = now.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          const horaFim = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+          let horaInicio = '—';
+          if (startedAt) {
+            const startDate = new Date(startedAt);
+            horaInicio = startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+          }
+
           if (evoUrl && evoKey) {
             const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
             const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
@@ -1345,9 +1362,12 @@ export default async function handler(req, res) {
                   const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
 
                   const successMsg = `✅ *FireCheck - Checklist Concluído com Sucesso*\n\n` +
-                    `Colaborador: *${employeeName}*\n` +
-                    `Loja: *${store}*\n` +
-                    `Status: *✅ Tudo em Conformidade*\n\n` +
+                    `📋 *${checklistTitle}*\n` +
+                    `👤 Colaborador: *${employeeName}*\n` +
+                    `🏪 Loja: *${store}*\n` +
+                    `📅 Data: *${dataHoje}*\n` +
+                    `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
+                    `Status: *✅ Tudo em Conformidade*\n` +
                     `Nenhuma irregularidade encontrada. Operação segura! 🚀`;
 
                   fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
@@ -1363,8 +1383,11 @@ export default async function handler(req, res) {
                   const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
 
                   const textMsg = `⚠️ *FireCheck - Checklist com Irregularidades*\n\n` +
-                    `Colaborador: *${employeeName}*\n` +
-                    `Loja: *${store}*\n` +
+                    `📋 *${checklistTitle}*\n` +
+                    `👤 Colaborador: *${employeeName}*\n` +
+                    `🏪 Loja: *${store}*\n` +
+                    `📅 Data: *${dataHoje}*\n` +
+                    `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                     `Status: *⚠️ Irregularidades Detectadas*\n\n` +
                     `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
 
@@ -1392,7 +1415,10 @@ export default async function handler(req, res) {
                 const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
 
                 const textMsg = `✅ *FireCheck - Checklist Enviado*\n\n` +
-                  `Olá, *${employeeName}*! Seu checklist da loja *${store}* foi finalizado e enviado com sucesso.\n\n` +
+                  `📋 *${checklistTitle}*\n` +
+                  `Olá, *${employeeName}*! Seu checklist da loja *${store}* foi finalizado com sucesso.\n` +
+                  `📅 Data: *${dataHoje}*\n` +
+                  `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                   `Obrigado por manter nossa operação segura! 🚀`;
 
                 fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
