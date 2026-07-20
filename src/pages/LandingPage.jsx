@@ -472,74 +472,127 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Seção de Notificações WhatsApp / Celular (Super Destaque) ── */}
+      {/* ── Seção MEGA: Assistente WhatsApp + Notificações (Diferencial) ── */}
       <section style={{ backgroundColor: '#ffffff', padding: '80px 20px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
-        <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: '40px' }}>
-          <div style={{ flex: '1 1 400px', minWidth: '280px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(37, 211, 102, 0.1)', color: '#25D366', padding: '6px 16px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '16px' }}>
-               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#25D366', display: 'inline-block' }}></span>
-               Notificações Inclusas e Ilimitadas
-            </div>
-            <h2 style={{ fontSize: 'min(2.2rem, 7vw)', fontWeight: '800', lineHeight: '1.2', color: '#0f172a', marginBottom: '20px' }}>
-               Receba as notificações da sua loja diretamente no seu <span style={{ color: '#25D366' }}>WhatsApp</span> e no celular.
-            </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '24px' }}>
-               Não perca nenhum detalhe da sua operação. O FireCheck envia alertas instantâneos de checklists atrasados, vistorias reprovadas e comprovantes de ponto em tempo real.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                 <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '8px', borderRadius: '8px', color: 'var(--primary)', flexShrink: 0 }}>
-                   <Bell size={20} />
-                 </div>
-                 <div>
-                   <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 'bold', color: '#0f172a' }}>Alertas no App (Push)</h4>
-                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Notificações nativas na tela do seu celular para ações imediatas.</p>
-                 </div>
-               </div>
-               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                 <div style={{ backgroundColor: 'rgba(37, 211, 102, 0.1)', padding: '8px', borderRadius: '8px', color: '#25D366', flexShrink: 0 }}>
-                   <Smartphone size={20} />
-                 </div>
-                 <div>
-                   <h4 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 'bold', color: '#0f172a' }}>Mensagens no WhatsApp</h4>
-                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Alertas de checklists com irregularidades e comprovantes de ponto direto no chat.</p>
-                 </div>
-               </div>
-            </div>
-          </div>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           
-          {/* Card Visual de WhatsApp simulando chat */}
-          <div style={{ flex: '1 1 300px', display: 'flex', justifyContent: 'center', width: '100%' }}>
-            <div className="card" style={{ width: '100%', maxWidth: '340px', padding: '20px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.06)', borderRadius: '18px', backgroundColor: '#efeae2', position: 'relative', overflow: 'hidden' }}>
-              {/* Header do chat */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#075e54', color: 'white', padding: '12px 16px', margin: '-20px -20px 16px -20px' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: '#128c7e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem' }}>FC</div>
+          {/* Badge de destaque */}
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(135deg, #25D366, #128c7e)', color: 'white', padding: '10px 24px', borderRadius: '30px', fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '20px', boxShadow: '0 8px 20px rgba(37, 211, 102, 0.3)', animation: 'float 3s ease-in-out infinite' }}>
+               <MessageSquare size={20} />
+               EXCLUSIVO — Gerencie sua operação pelo WhatsApp
+            </div>
+            <h2 style={{ fontSize: 'min(2.5rem, 7vw)', fontWeight: '800', lineHeight: '1.2', color: '#0f172a', marginBottom: '16px' }}>
+               Seu assistente <span style={{ color: '#25D366' }}>WhatsApp</span> com inteligência artificial
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', lineHeight: '1.6', maxWidth: '700px', margin: '0 auto' }}>
+               Converse com o <strong>Bill</strong>, nosso assistente IA, direto pelo WhatsApp. Crie checklists, consulte dados da loja, gerencie funcionários e receba relatórios — tudo sem abrir o navegador.
+            </p>
+          </div>
+
+          {/* Grid: Chat Simulado + Features */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'flex-start' }}>
+            
+            {/* Chat WhatsApp Simulado */}
+            <div style={{ flex: '1 1 360px', display: 'flex', justifyContent: 'center' }}>
+              <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', borderRadius: '18px', backgroundColor: '#efeae2', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#075e54', color: 'white', padding: '14px 16px' }}>
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #06b6d4, #0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Bot size={18} color="white" />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>Bill IA — FireCheck</div>
+                    <div style={{ fontSize: '0.7rem', opacity: 0.8, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#25D366', display: 'inline-block' }}></span>
+                      Online 24h
+                    </div>
+                  </div>
+                </div>
+                
+                <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ alignSelf: 'flex-end', backgroundColor: '#dcf8c6', color: '#303030', padding: '8px 12px', borderRadius: '8px 0 8px 8px', fontSize: '0.82rem', maxWidth: '80%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                    Cria um checklist de abertura de loja com 5 itens
+                  </div>
+                  
+                  <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '8px 12px', borderRadius: '0 8px 8px 8px', fontSize: '0.82rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', whiteSpace: 'pre-wrap' }}>{'🤖 *Bill IA*\nEntendi! Antes de montar:\n1. Tem algum item que precisa de foto?\n2. Qual horário limite de execução?'}</div>
+                  
+                  <div style={{ alignSelf: 'flex-end', backgroundColor: '#dcf8c6', color: '#303030', padding: '8px 12px', borderRadius: '8px 0 8px 8px', fontSize: '0.82rem', maxWidth: '80%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                    Foto da vitrine e até 08:30
+                  </div>
+
+                  <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '0 8px 8px 8px', fontSize: '0.82rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', whiteSpace: 'pre-wrap' }}>{'✅ Checklist *"Abertura de Loja"* criado!\n\n📋 5 tarefas configuradas\n📸 1 com foto obrigatória\n⏰ Limite: 08:30\n🔄 Recorrência: diária\n\nJá disponível para equipe! 🔥'}</div>
+
+                  <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '0 8px 8px 8px', fontSize: '0.82rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)', whiteSpace: 'pre-wrap', borderLeft: '3px solid #25D366' }}>{'✅ *Checklist Concluído*\n📋 *Abertura de Loja*\n👤 Thiago Laurentino\n📅 20/07 • 🕐 08:15 → 08:28\nStatus: ✅ Tudo OK! 🚀'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Features Grid */}
+            <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px', borderRadius: '14px', backgroundColor: '#f0fdf4', border: '1px solid rgba(37, 211, 102, 0.2)' }}>
+                <div style={{ backgroundColor: '#25D366', padding: '10px', borderRadius: '10px', flexShrink: 0 }}>
+                  <Bot size={22} color="white" />
+                </div>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>FireCheck Notificações</div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.8 }}>Online</div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 'bold', color: '#0f172a' }}>Assistente IA via WhatsApp</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    Crie checklists, consulte relatórios, gerencie funcionários e altere configurações — conversando naturalmente pelo WhatsApp. <strong>24h por dia.</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px', borderRadius: '14px', backgroundColor: 'rgba(6, 182, 212, 0.05)', border: '1px solid rgba(6, 182, 212, 0.15)' }}>
+                <div style={{ backgroundColor: '#06b6d4', padding: '10px', borderRadius: '10px', flexShrink: 0 }}>
+                  <ClipboardList size={22} color="white" />
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 'bold', color: '#0f172a' }}>Crie Checklists pelo WhatsApp</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    Diga <em>"cria um checklist de fechamento de caixa"</em> e o Bill monta tudo automaticamente. Simples assim.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px', borderRadius: '14px', backgroundColor: 'rgba(139, 92, 246, 0.05)', border: '1px solid rgba(139, 92, 246, 0.15)' }}>
+                <div style={{ backgroundColor: '#8b5cf6', padding: '10px', borderRadius: '10px', flexShrink: 0 }}>
+                  <Users size={22} color="white" />
+                </div>
+                <div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 'bold', color: '#0f172a' }}>Gerencie sua Equipe</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    Cadastre funcionários, consulte quem bateu ponto, veja checklists pendentes — sem sair do WhatsApp.
+                  </p>
                 </div>
               </div>
               
-              {/* Balões de conversa */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '8px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.15)', whiteSpace: 'pre-wrap' }}>
-⏰ *Comprovante de Ponto*
-
-Colaborador: *Thiago Laurentino*
-Tipo: *Entrada às 08:02* ✅
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', padding: '20px', borderRadius: '14px', backgroundColor: 'rgba(255, 77, 0, 0.04)', border: '1px solid rgba(255, 77, 0, 0.15)' }}>
+                <div style={{ backgroundColor: 'var(--primary)', padding: '10px', borderRadius: '10px', flexShrink: 0 }}>
+                  <Bell size={22} color="white" />
                 </div>
-                
-                <div style={{ alignSelf: 'flex-start', backgroundColor: '#ffffff', color: '#303030', padding: '10px 12px', borderRadius: '8px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.15)', whiteSpace: 'pre-wrap' }}>
-⚠️ *Alerta de Checklist*
-
-Checklist: *Fechamento de Cozinha*
-Status: *Irregularidade na limpeza da chapa* ❌
+                <div>
+                  <h4 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', fontWeight: 'bold', color: '#0f172a' }}>Notificações Automáticas em Tempo Real</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    Receba alertas de irregularidades, atrasos, comprovantes de ponto e checklists concluídos — com nome, data, hora de início e fim.
+                  </p>
                 </div>
               </div>
+
+              <div style={{ textAlign: 'center', padding: '16px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(37, 211, 102, 0.08), rgba(6, 182, 212, 0.08))', border: '1px dashed #25D366' }}>
+                <p style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: '#0f172a' }}>
+                  💚 Incluso em <strong>todos os planos</strong> — sem custo adicional
+                </p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                  Notificações ilimitadas + Assistente IA 24h
+                </p>
+              </div>
             </div>
+
           </div>
         </div>
       </section>
+
+
 
       {/* Templates de Checklist (Piloto Automático) - Mapeado como Segunda Seção */}
       <section className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)', borderBottom: '1px solid #e2e8f0' }}>
