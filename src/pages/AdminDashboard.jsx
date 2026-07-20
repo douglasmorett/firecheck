@@ -2082,7 +2082,7 @@ export default function AdminDashboard() {
                   • Trava de GPS integrada
                 </div>
               </div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/kfx3fri_869702?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
                 Assinar Starter
               </button>
             </div>
@@ -2100,7 +2100,7 @@ export default function AdminDashboard() {
                   • Automação de folhas
                 </div>
               </div>
-              <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+              <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/otm7qgn?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
                 Assinar Pro
               </button>
             </div>
@@ -2117,7 +2117,7 @@ export default function AdminDashboard() {
                   • Suporte prioritário
                 </div>
               </div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/o2xichf?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
                 Assinar Business
               </button>
             </div>

@@ -1128,7 +1128,10 @@ export default async function handler(req, res) {
                 
                 let detectedPlan = 'pro';
                 const lowerProduct = productName.toLowerCase();
-                if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
+                if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
+                else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
+                else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
+                else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
                 else if (lowerProduct.includes('business')) detectedPlan = 'business';
                 
                 const isAnnual = lowerProduct.includes('anual');
@@ -1164,11 +1167,11 @@ export default async function handler(req, res) {
               } else {
                 let detectedPlan = 'pro';
                 const lowerProduct = productName.toLowerCase();
-                if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
-                else if (lowerProduct.includes('business')) detectedPlan = 'business';
-                else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
+                if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
                 else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
                 else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
+                else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
+                else if (lowerProduct.includes('business')) detectedPlan = 'business';
 
                 const limitMap = {
                   starter: 300,
