@@ -26,6 +26,8 @@ export default function Checkout() {
 
   const handleCheckout = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     if (formData.password.length < 6) {
       alert('A senha deve ter pelo menos 6 caracteres.');
       return;
@@ -45,25 +47,26 @@ export default function Checkout() {
         if (data.token) localStorage.setItem('firecheck_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // Dispara os eventos do Meta Pixel para o Facebook
+        // Dispara os eventos do Meta Pixel para o Facebook (com eventID único para evitar duplicados)
         if (window.fbq) {
-          // Correspondência Avançada (Advanced Matching) com os dados inseridos
+          const eventId = `signup_${data.user.id}`;
           window.fbq('init', '1508278337585097', {
             em: formData.email.toLowerCase().trim(),
             ph: formData.phone.replace(/\D/g, ''),
             fn: formData.name.trim().toLowerCase()
           });
 
-          window.fbq('track', 'Lead');
+          window.fbq('track', 'Lead', {}, { eventID: `${eventId}_lead` });
 
-          // Dispara StartTrial exclusivamente para cadastro de teste gratuito
+          // Dispara StartTrial exclusivamente para cadastro de teste gratuito com eventID único por usuário
           if (plan === 'trial' || !plan) {
-            window.fbq('track', 'StartTrial');
+            window.fbq('track', 'StartTrial', {}, { eventID: `${eventId}_trial` });
           } else {
             // Dispara InitiateCheckout para qualquer outro plano que seja pago
-            window.fbq('track', 'InitiateCheckout');
+            window.fbq('track', 'InitiateCheckout', {}, { eventID: `${eventId}_checkout` });
           }
         }
+
 
         const userEmail = encodeURIComponent(formData.email);
         const userName = encodeURIComponent(formData.name);
