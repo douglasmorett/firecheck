@@ -1079,8 +1079,9 @@ export default async function handler(req, res) {
           weekdays: typeof r.weekdays === 'string' ? (() => { try { return JSON.parse(r.weekdays); } catch(e) { return r.weekdays; }})() : r.weekdays
         }));
         
-        return res.status(200).json(formatted);
       }
+    }
+
     // Helper para cancelamento automático de assinatura na Cakto via API
     const cancelCaktoSubscription = async (subscriptionId) => {
       const clientId = process.env.CAKTO_CLIENT_ID;
@@ -1476,18 +1477,23 @@ export default async function handler(req, res) {
       // ── Proteção JWT: Somente admin/master pode editar usuários ──
       const authUser = authenticateToken(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
-      if (authUser.role !== 'admin' && authUser.role !== 'master') {
+      if (authUser.role !== 'admin' && authUser.role !== 'master' && authUser.role !== 'gestor') {
         return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       }
 
       const match = url.match(/\/api\/users\/([^\/?]+)/);
       const id = match[1];
       if (method === 'DELETE') {
-        // Admin só pode deletar usuários da própria loja (master pode deletar qualquer)
+        // Admin/Gestor só pode deletar usuários da própria loja (master pode deletar qualquer)
         if (authUser.role !== 'master') {
-          const { rows: target } = await pool.query('SELECT store FROM users WHERE id = $1', [id]);
-          if (target.length > 0 && target[0].store !== authUser.store) {
-            return res.status(403).json({ error: 'Você só pode remover usuários da sua própria loja.' });
+          const { rows: target } = await pool.query('SELECT store, role FROM users WHERE id = $1', [id]);
+          if (target.length > 0) {
+            if (target[0].store !== authUser.store) {
+              return res.status(403).json({ error: 'Você só pode remover usuários da sua própria loja.' });
+            }
+            if (authUser.role === 'gestor' && target[0].role === 'admin') {
+              return res.status(403).json({ error: 'Gestores não podem excluir a conta do proprietário.' });
+            }
           }
         }
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
@@ -1599,16 +1605,16 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
 
       if (method === 'POST') {
-        if (authUser.role !== 'admin' && authUser.role !== 'master') {
+        if (authUser.role !== 'admin' && authUser.role !== 'master' && authUser.role !== 'gestor') {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
         const { name, email, password, role, store, plan, phone } = req.body;
 
-        if (role === 'funcionario') {
+        if (role === 'funcionario' || role === 'gestor') {
           const { rows: admins } = await pool.query("SELECT id, plan, status, ponto_limit, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
           if (admins.length > 0) {
             const admin = admins[0];
-            const { rows: countRes } = await pool.query("SELECT COUNT(*) FROM users WHERE store = $1 AND role = 'funcionario'", [store]);
+            const { rows: countRes } = await pool.query("SELECT COUNT(*) FROM users WHERE store = $1 AND (role = 'funcionario' OR role = 'gestor')", [store]);
             const currentCount = parseInt(countRes[0].count);
             const limit = admin.ponto_limit || 5;
 

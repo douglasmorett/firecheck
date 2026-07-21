@@ -210,6 +210,7 @@ export default function AdminDashboard() {
   const [waChecklistAtrasado, setWaChecklistAtrasado] = useState(true);
   const [waPontoDiario, setWaPontoDiario] = useState(true);
   const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
+  const [rankingPeriod, setRankingPeriod] = useState('hoje');
   
 
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
@@ -1227,8 +1228,9 @@ export default function AdminDashboard() {
                    userProfile?.email?.toLowerCase() === 'douglas@firecheck.com' || 
                    userProfile?.email?.toLowerCase() === 'contatohakim@gmail.com';
   const isAdmin = userProfile?.role === 'admin' && !isMaster; // Dono da Loja
-
+  const isGestor = userProfile?.role === 'gestor';
   const isFuncionario = userProfile?.role === 'funcionario';
+  const isAdminOrGestor = isAdmin || isGestor;
   
   const handleSaveCompanyProfile = async () => {
     if (!userProfile) return;
@@ -1580,6 +1582,7 @@ export default function AdminDashboard() {
             { key: 'perfil',      label: 'Perfil da Empresa', icon: <Settings size={18}/> },
           ].filter(Boolean)).map(t => {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
+            if (isGestor && t.key === 'perfil') return null;
             const isActive = tab === t.key;
             return (
               <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }} title={isSidebarCollapsed ? t.label : ''}
@@ -2445,57 +2448,241 @@ export default function AdminDashboard() {
 
       {/* ── Tab: Ranking de Funcionários ─────────────────────────────────── */}
       {tab === 'ranking' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Trophy size={20} color="#FFA000" /> Ranking de Funcionários — Hoje
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Ordenado por % de tarefas concluídas</p>
+        <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
+          {/* Header e Filtros */}
+          <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+            <div>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                <Trophy size={22} color="#f59e0b" /> Ranking de Performance da Equipe
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px', marginBottom: 0 }}>
+                Métricas de conformidade e auditorias dos colaboradores
+              </p>
+            </div>
+            
+            {/* Filtros de Período */}
+            <div style={{ display: 'flex', backgroundColor: 'var(--bg-main)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <button 
+                onClick={() => setRankingPeriod('hoje')} 
+                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'hoje' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'hoje' ? 'white' : 'var(--text-muted)' }}
+              >
+                Hoje
+              </button>
+              <button 
+                onClick={() => setRankingPeriod('semana')} 
+                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'semana' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'semana' ? 'white' : 'var(--text-muted)' }}
+              >
+                Semana
+              </button>
+              <button 
+                onClick={() => setRankingPeriod('mes')} 
+                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'mes' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'mes' ? 'white' : 'var(--text-muted)' }}
+              >
+                Mês
+              </button>
+            </div>
           </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(() => {
-              const rankingData = submissions.reduce((acc, sub) => {
-                const name = sub.employee_name;
-                const completed = sub.tasks?.filter(t => t.done)?.length || 0;
-                const total = sub.tasks?.length || 1;
-                if (!acc[name]) acc[name] = { name, totalCompleted: 0, totalPossible: 0 };
-                acc[name].totalCompleted += completed;
-                acc[name].totalPossible += total;
-                return acc;
-              }, {});
 
-              const sortedRanking = Object.values(rankingData)
-                .map(r => ({
-                  nome: r.name,
-                  pct: Math.round((r.totalCompleted / r.totalPossible) * 100),
-                  concluidos: r.totalCompleted,
-                  total: r.totalPossible
-                }))
-                .sort((a, b) => b.pct - a.pct)
-                .map((r, idx) => ({ ...r, pos: idx + 1, medalha: idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null }));
+          {/* Dados Calculados */}
+          {(() => {
+            const now = new Date();
+            const filteredSubmissions = submissions.filter(sub => {
+              const subDate = new Date(sub.created_at);
+              if (rankingPeriod === 'hoje') {
+                return subDate.toDateString() === now.toDateString();
+              } else if (rankingPeriod === 'semana') {
+                const diffTime = Math.abs(now - subDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                return diffDays <= 7;
+              } else if (rankingPeriod === 'mes') {
+                return subDate.getMonth() === now.getMonth() && subDate.getFullYear() === now.getFullYear();
+              }
+              return true;
+            });
 
-              return sortedRanking.length > 0 ? sortedRanking.map(r => (
-                <div key={r.pos} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px',
-                  border: r.pos === 1 ? '1px solid rgba(255,160,0,0.3)' : '1px solid transparent' }}>
-                  <div style={{ fontSize: '1.5rem', minWidth: '36px', textAlign: 'center' }}>
-                    {r.medalha || <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>#{r.pos}</span>}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <span style={{ fontWeight: 'bold' }}>{r.nome}</span>
-                      <span style={{ fontWeight: 'bold', color: r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)' }}>{r.pct}%</span>
-                    </div>
-                    <BarPct pct={r.pct} color={r.pct === 100 ? 'var(--success)' : r.pct > 60 ? '#FFA000' : 'var(--error)'} />
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '4px' }}>{r.concluidos}/{r.total} tarefas acumuladas</p>
-                  </div>
-                </div>
-              )) : (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  <p>Ainda não há dados para gerar o ranking.</p>
+            let totalTasksCompleted = 0;
+            let totalTasksPossible = 0;
+
+            const rankingData = filteredSubmissions.reduce((acc, sub) => {
+              const name = sub.employee_name;
+              const completed = sub.tasks?.filter(t => t.done)?.length || 0;
+              const total = sub.tasks?.length || 1;
+              if (!acc[name]) acc[name] = { name, totalCompleted: 0, totalPossible: 0 };
+              acc[name].totalCompleted += completed;
+              acc[name].totalPossible += total;
+              
+              totalTasksCompleted += completed;
+              totalTasksPossible += total;
+              return acc;
+            }, {});
+
+            const teamEfficiency = totalTasksPossible > 0 ? Math.round((totalTasksCompleted / totalTasksPossible) * 100) : 0;
+
+            const sortedRanking = Object.values(rankingData)
+              .map(r => ({
+                nome: r.name,
+                pct: Math.round((r.totalCompleted / r.totalPossible) * 100),
+                concluidos: r.totalCompleted,
+                total: r.totalPossible
+              }))
+              .sort((a, b) => b.pct - a.pct)
+              .map((r, idx) => ({ ...r, pos: idx + 1 }));
+
+            if (sortedRanking.length === 0) {
+              return (
+                <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
+                  <Trophy size={48} color="var(--border-color)" style={{ marginBottom: '16px' }} />
+                  <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: '500' }}>Nenhum checklist auditado neste período.</p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>Os dados do ranking aparecerão assim que os funcionários realizarem submissões.</p>
                 </div>
               );
-            })()}
-          </div>
+            }
+
+            return (
+              <div>
+                {/* Banner de Estatísticas da Equipe */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px 24px 12px 24px' }}>
+                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarefas Concluídas</span>
+                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '2rem', color: 'var(--text-main)', fontWeight: '800' }}>{totalTasksCompleted}</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>acumulado do período</span>
+                  </div>
+                  
+                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Média de Conformidade</span>
+                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '2rem', color: teamEfficiency >= 90 ? 'var(--success)' : teamEfficiency >= 70 ? '#f59e0b' : 'var(--error)', fontWeight: '800' }}>{teamEfficiency}%</h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>auditoria geral da equipe</span>
+                  </div>
+
+                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder do Ranking</span>
+                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '1.2rem', color: 'var(--primary)', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', textAlign: 'center' }}>
+                      👑 {sortedRanking[0].nome}
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 'bold' }}>{sortedRanking[0].pct}% de acertos</span>
+                  </div>
+                </div>
+
+                {/* Visualização de Pódio (Top 3) */}
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '12px', margin: '32px auto 24px auto', padding: '0 24px', maxWidth: '500px', flexWrap: 'nowrap' }}>
+                  {/* 2º Lugar */}
+                  {sortedRanking[1] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '110px' }}>
+                      <div style={{ position: 'relative', marginBottom: '8px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                          {sortedRanking[1].nome.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#94a3b8', color: '#1e293b', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>🥈</div>
+                      </div>
+                      <span style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[1].nome}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>{sortedRanking[1].pct}%</span>
+                      <div style={{ height: '60px', width: '70px', background: 'linear-gradient(to top, rgba(148,163,184,0.1), rgba(148,163,184,0.01))', border: '1px solid rgba(148,163,184,0.2)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#94a3b8' }}>2º</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 1º Lugar */}
+                  {sortedRanking[0] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '130px', zIndex: 2 }}>
+                      <div style={{ position: 'relative', marginBottom: '8px' }}>
+                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a, #fbbf24)', border: '3px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 'bold', color: '#78350f', boxShadow: '0 6px 20px rgba(245,158,11,0.25)' }}>
+                          {sortedRanking[0].nome.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%) rotate(-5deg)', fontSize: '1.3rem' }}>👑</div>
+                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#fbbf24', color: '#78350f', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>🥇</div>
+                      </div>
+                      <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[0].nome}</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--success)' }}>{sortedRanking[0].pct}%</span>
+                      <div style={{ height: '90px', width: '80px', background: 'linear-gradient(to top, rgba(245,158,11,0.15), rgba(245,158,11,0.02))', border: '2px solid rgba(245,158,11,0.25)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
+                        <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fbbf24' }}>1º</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 3º Lugar */}
+                  {sortedRanking[2] && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '110px' }}>
+                      <div style={{ position: 'relative', marginBottom: '8px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', border: '2px solid #ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+                          {sortedRanking[2].nome.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ca8a04', color: '#fef08a', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>🥉</div>
+                      </div>
+                      <span style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[2].nome}</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>{sortedRanking[2].pct}%</span>
+                      <div style={{ height: '45px', width: '70px', background: 'linear-gradient(to top, rgba(202,138,4,0.1), rgba(202,138,4,0.01))', border: '1px solid rgba(202,138,4,0.2)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
+                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#ca8a04' }}>3º</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lista Completa e Detalhada dos Colaboradores */}
+                <div style={{ padding: '0 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {sortedRanking.map(r => {
+                    const badgeColor = r.pct >= 90 ? 'var(--success)' : r.pct >= 70 ? '#f59e0b' : 'var(--error)';
+                    const badgeText = r.pct >= 90 ? '🔥 Super Produtivo' : r.pct >= 70 ? '🏃 Em Evolução' : '⚠️ Precisa Atenção';
+                    const isTop3 = r.pos <= 3;
+                    
+                    return (
+                      <div 
+                        key={r.pos} 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '16px', 
+                          padding: '16px', 
+                          backgroundColor: 'var(--bg-main)', 
+                          borderRadius: '12px',
+                          border: isTop3 ? `1px solid ${badgeColor}25` : '1px solid var(--border-color)',
+                          boxShadow: isTop3 ? `0 4px 12px ${badgeColor}04` : 'none',
+                          transition: 'transform 0.2s',
+                          cursor: 'default'
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
+                      >
+                        {/* Posição */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.03)', fontWeight: 'bold', fontSize: '0.95rem' }}>
+                          {r.pos === 1 ? '🥇' : r.pos === 2 ? '🥈' : r.pos === 3 ? '🥉' : `#${r.pos}`}
+                        </div>
+
+                        {/* Foto/Avatar */}
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                          {r.nome.substring(0, 2).toUpperCase()}
+                        </div>
+
+                        {/* Informações */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                            <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</span>
+                            <span style={{ fontWeight: '800', fontSize: '0.95rem', color: badgeColor }}>{r.pct}%</span>
+                          </div>
+                          
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <BarPct pct={r.pct} color={badgeColor} />
+                            </div>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0, fontWeight: '500' }}>
+                              {r.concluidos}/{r.total} tarefas
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Badges de Destaque */}
+                        <div style={{ display: 'none', mdDisplay: 'block' }}>
+                          <span style={{ backgroundColor: `${badgeColor}15`, color: badgeColor, border: `1px solid ${badgeColor}30`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                            {badgeText}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -3203,6 +3390,16 @@ export default function AdminDashboard() {
                         {statusInfo.text}
                       </span>
                     )}
+                    {!isMaster && member.role === 'gestor' && (
+                      <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        Gestor / Gerente
+                      </span>
+                    )}
+                    {!isMaster && member.role === 'admin' && (
+                      <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', border: '1px solid rgba(255, 77, 0, 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        Dono / Administrador
+                      </span>
+                    )}
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
                     {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
@@ -3226,9 +3423,11 @@ export default function AdminDashboard() {
                       Alterar Plano
                     </button>
                   )}
-                  <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
-                    <Trash2 size={15} />
-                  </button>
+                  {(isMaster || (member.role !== 'admin' && member.id !== userProfile?.id)) && (
+                    <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                 </div>
               </div>
             )})}
@@ -3937,7 +4136,12 @@ export default function AdminDashboard() {
                   <label className="input-label">Papel / Nível</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
                     {isMaster && <option value="admin">Dono (Cliente)</option>}
-                    {isAdmin && <option value="funcionario">Funcionário</option>}
+                    {isAdminOrGestor && (
+                      <>
+                        <option value="funcionario">Funcionário</option>
+                        <option value="gestor">Gestor / Gerente</option>
+                      </>
+                    )}
                     {isMaster && <option value="master">Gestor Master</option>}
                   </select>
                 </div>
