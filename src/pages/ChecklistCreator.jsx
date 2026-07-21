@@ -389,7 +389,7 @@ export default function ChecklistCreator() {
           })
           .then(r => { handle401(r, navigate); return r.json(); })
           .then(data => {
-             if (Array.isArray(data)) setTeam(data.filter(u => u.role === 'funcionario' || u.role === 'employee'));
+             if (Array.isArray(data)) setTeam(data.filter(u => u.role === 'funcionario' || u.role === 'employee' || u.role === 'gestor' || u.role === 'admin' || u.role === 'master'));
           })
           .catch(() => {});
       }

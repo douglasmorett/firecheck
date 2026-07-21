@@ -124,6 +124,8 @@ export default function AdminDashboard() {
   const [team, setTeam] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
+  const [editingUser, setEditingUser] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [submissions, setSubmissions] = useState([]);
@@ -1183,7 +1185,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       
       if (!res.ok) {
-        alert(`⚠️ ${data.message || 'Erro ao adicionar usuário.'}`);
+        alert(`⚠️ ${data.error || data.message || 'Erro ao adicionar usuário.'}`);
         return;
       }
 
@@ -1191,6 +1193,31 @@ export default function AdminDashboard() {
       setNewUser({ name: '', email: '', password: '', store: isMaster ? '' : userProfile?.store || '' });
       fetchData();
     } catch (e) { alert('Erro de conexão com o servidor.'); }
+  };
+
+  const handleEditUser = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: editingUser.name,
+          phone: editingUser.phone,
+          role: editingUser.role
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(`⚠️ ${data.error || data.message || 'Erro ao editar colaborador.'}`);
+        return;
+      }
+      setShowEditModal(false);
+      setEditingUser(null);
+      fetchData();
+    } catch (e) {
+      alert('Erro de conexão ao salvar alterações.');
+    }
   };
 
   const handleDeleteUser = async (id) => {
@@ -1711,7 +1738,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
-                {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : 'Painel do Funcionário'}
+                {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
             </div>
@@ -1761,7 +1788,7 @@ export default function AdminDashboard() {
               <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'starter' }); setShowUserModal(true); }}>
                 <UserPlus size={18} /> Nova Conta
               </button>
-            ) : isAdmin ? (
+            ) : (isAdmin || isGestor) ? (
               <button className="btn" onClick={() => navigate('/admin/creator')}>
                 <Plus size={18} /> Criar Checklist
               </button>
@@ -3178,7 +3205,7 @@ export default function AdminDashboard() {
                   <label className="input-label">👤 Motorista Vinculado (Equipe)</label>
                   <select className="input-field" value={newVehicle.employeeId} onChange={e => setNewVehicle({ ...newVehicle, employeeId: e.target.value })}>
                     <option value="">Nenhum — Apenas livre demanda</option>
-                    {team.filter(m => m.role === 'funcionario').map(m => (
+                    {team.filter(m => m.role === 'funcionario' || m.role === 'gestor' || m.role === 'admin' || m.role === 'master').map(m => (
                       <option key={m.id} value={m.id}>👤 {m.name} ({m.email})</option>
                     ))}
                   </select>
@@ -3466,6 +3493,14 @@ export default function AdminDashboard() {
                     </button>
                   )}
                   {(isMaster || (member.role !== 'admin' && member.id !== userProfile?.id)) && (
+                    <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
+                      setEditingUser({ ...member });
+                      setShowEditModal(true);
+                    }}>
+                      Editar
+                    </button>
+                  )}
+                  {(isMaster || (member.role !== 'admin' && member.id !== userProfile?.id)) && (
                     <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
                       <Trash2 size={15} />
                     </button>
@@ -3699,8 +3734,8 @@ export default function AdminDashboard() {
                       <div style={{ flex: 1, minWidth: '150px' }}>
                         <label className="input-label">Atribuir a</label>
                         <select className="input-field" value={newShopping.assignedTo} onChange={e => setNewShopping(p => ({ ...p, assignedTo: e.target.value }))}>
-                          <option value="todos">Qualquer funcionário</option>
-                          {team.filter(m => m.role === 'funcionario').map(m => (
+                          <option value="todos">Qualquer colaborador/admin</option>
+                          {team.filter(m => m.role === 'funcionario' || m.role === 'gestor' || m.role === 'admin' || m.role === 'master').map(m => (
                             <option key={m.id} value={m.name}>{m.name}</option>
                           ))}
                         </select>
@@ -4178,7 +4213,7 @@ export default function AdminDashboard() {
                   <label className="input-label">Papel / Nível</label>
                   <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
                     {isMaster && <option value="admin">Dono (Cliente)</option>}
-                    {isAdminOrGestor && (
+                    {(isAdminOrGestor || isMaster) && (
                       <>
                         <option value="funcionario">Funcionário</option>
                         <option value="gestor">Gestor / Gerente</option>
@@ -4411,6 +4446,48 @@ export default function AdminDashboard() {
                 fetchData();
               } catch (e) { alert('Erro ao salvar plano.'); }
             }}>Salvar Alterações</button>
+          </div>
+        </div>
+      )}
+      {showEditModal && editingUser && (
+        <div style={{ 
+          position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', 
+          backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+          zIndex: 99999, padding: '20px', backdropFilter: 'blur(5px)' 
+        }}>
+          <div className="card animate-scale" style={{ maxWidth: '400px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px' }}>
+            <button onClick={() => setShowEditModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>&times;</button>
+            <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Edit2 color="var(--primary)" /> Editar Colaborador
+            </h3>
+            <form onSubmit={handleEditUser}>
+              <div style={{ marginBottom: '16px' }}>
+                <label className="input-label">Nome Completo</label>
+                <input type="text" className="input-field" required value={editingUser.name} onChange={e => setEditingUser({...editingUser, name: e.target.value})} />
+              </div>
+              <div style={{ marginBottom: '16px' }}>
+                <label className="input-label">Telefone / WhatsApp</label>
+                <input type="text" className="input-field" value={editingUser.phone || ''} onChange={e => setEditingUser({...editingUser, phone: e.target.value})} placeholder="Ex: 21999999999" />
+              </div>
+              
+              <div style={{ marginBottom: '24px' }}>
+                <label className="input-label">Papel / Nível</label>
+                <select className="input-field" style={{ padding: '10px' }} value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})}>
+                  {isMaster && <option value="admin">Dono (Cliente)</option>}
+                  {(isAdminOrGestor || isMaster) && (
+                    <>
+                      <option value="funcionario">Funcionário</option>
+                      <option value="gestor">Gestor / Gerente</option>
+                    </>
+                  )}
+                  {isMaster && <option value="master">Gestor Master</option>}
+                </select>
+              </div>
+
+              <button type="submit" className="btn" style={{ width: '100%', padding: '16px', fontWeight: 'bold' }}>
+                Salvar Alterações
+              </button>
+            </form>
           </div>
         </div>
       )}

@@ -430,13 +430,12 @@ export default async function handler(req, res) {
             const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
             const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
 
-            // 1. Notificação para o Dono (Admin/Master)
+            // 1. Notificação para os Donos e Gestores (Admin/Master/Gestor)
             const { rows: storeAdmins } = await pool.query(
-              "SELECT id, phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              "SELECT id, phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
               [store]
             );
-            if (storeAdmins.length > 0) {
-              const adm = storeAdmins[0];
+            for (const adm of storeAdmins) {
               const isWhatsappActive = adm.whatsapp_active !== false;
               const targetPhone = adm.whatsapp_phone || adm.phone;
 
@@ -458,9 +457,9 @@ export default async function handler(req, res) {
               }
             }
 
-            // 2. Notificação para o Funcionário
+            // 2. Notificação para o Colaborador
             const { rows: employeeDetails } = await pool.query(
-              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE store = $1 AND name = $2 AND role = 'funcionario' LIMIT 1",
+              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE store = $1 AND name = $2 LIMIT 1",
               [store, employeeName]
             );
             if (employeeDetails.length > 0) {
