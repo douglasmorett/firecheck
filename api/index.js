@@ -136,7 +136,9 @@ async function sendTrialWelcomeMessage(userPhone, userName, userStore) {
 
   const evoUrl = process.env.EVOLUTION_API_URL;
   const evoKey = process.env.EVOLUTION_API_KEY;
-  const evoInstance = process.env.EVOLUTION_SUPPORT_INSTANCE || process.env.EVOLUTION_INSTANCE || 'firecheck';
+  // A instância do número de suporte 22998851680 na Evolution API chama-se 'evopdv'
+  const evoInstance = process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv';
+
 
   if (!evoUrl || !evoKey) {
     console.log(`[WhatsApp Suporte] API não configurada. Mensagem de boas-vindas não enviada para ${fullPhone}`);
