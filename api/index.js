@@ -3508,30 +3508,14 @@ Responda APENAS com JSON válido.`;
             'SELECT * FROM wa_conversations WHERE phone = $1', [phoneRaw]
           );
           let conversation;
+          let isFirstInteraction = false;
           if (convRows.length === 0) {
             const { rows: newConv } = await pool.query(
               'INSERT INTO wa_conversations (phone, user_id, store, role, messages) VALUES ($1, $2, $3, $4, $5) RETURNING *',
               [phoneRaw, foundUser.id, foundUser.store, foundUser.role, JSON.stringify([])]
             );
             conversation = newConv[0];
-            // Mensagem de boas-vindas na primeira interação
-            const welcomeMsg = foundUser.role === 'funcionario' || foundUser.role === 'employee'
-              ? `Olá, *${foundUser.name}*! 👋 Eu sou o *Bill*, seu assistente do FireCheck.\n\n` +
-                `Você pode me perguntar:\n` +
-                `📋 "Tem checklist pendente?"\n` +
-                `⏰ "Meu ponto de hoje"\n` +
-                `❓ Qualquer dúvida sobre a operação\n\n` +
-                `Como posso te ajudar?`
-              : `Olá, *${foundUser.name}*! 👋 Eu sou o *Bill*, seu assistente do FireCheck.\n\n` +
-                `Posso te ajudar com:\n` +
-                `📋 Criar checklists — _"cria um checklist de abertura"_\n` +
-                `📊 Consultar dados — _"como tá a loja hoje?"_\n` +
-                `👥 Gerenciar equipe — _"lista meus funcionários"_\n` +
-                `⏰ Ponto — _"quem bateu ponto hoje?"_\n` +
-                `⚙️ Configurações — _"muda entrada pra 09:00"_\n\n` +
-                `Me fala o que precisa! 🔥`;
-            await sendWAReply(welcomeMsg);
-            return res.status(200).json({ handled: true, reason: 'welcome_sent' });
+            isFirstInteraction = true;
           } else {
             conversation = convRows[0];
           }
@@ -3601,17 +3585,19 @@ DADOS DA LOJA "${userStore}" — HOJE (${todayDate}):
           const isAdmin = foundUser.role === 'admin' || foundUser.role === 'master';
           const userRoleDesc = isAdmin ? 'ADMINISTRADOR/DONO da loja' : 'FUNCIONÁRIO da loja';
 
-          const systemPrompt = `Você é o BILL, assistente inteligente do FireCheck via WhatsApp. Seja conciso, use emojis e formatação WhatsApp (*negrito*, _itálico_).
+          const systemPrompt = `Você é o BILL, o assistente inteligente com Inteligência Artificial avançada do FireCheck via WhatsApp.
+Sua personalidade: Extremamente simpático, amigável, inteligente, fluido e conversacional. Responda com respostas ricas, humanas e coerentes, como se fosse um colega especializado e prestativo!
 
 USUÁRIO: ${foundUser.name} (${foundUser.email}) — ${userRoleDesc}
 LOJA: ${userStore}
+${isFirstInteraction ? 'NOTA: Esta é a primeira mensagem do usuário nesta conversa. Cumprimente-o com entusiasmo como Bill, assistente do FireCheck, e responda diretamente ao que ele disse!' : ''}
 ${storeContext}
 
 HISTÓRICO DA CONVERSA:
 ${conversationText}
 
 ═══════════════════════════════════════════
- SUAS CAPACIDADES
+ SUAS CAPACIDADES DE AÇÃO
 ═══════════════════════════════════════════
 
 Você pode executar AÇÕES retornando JSON com o campo "action". As ações disponíveis são:
@@ -3651,24 +3637,20 @@ SEMPRE responda em JSON puro com este formato:
 ═══════════════════════════════════════════
  REGRAS DE OURO
 ═══════════════════════════════════════════
-1. NUNCA invente dados. Use APENAS os dados fornecidos no contexto acima.
-2. Seja CONCISO — mensagens WhatsApp devem ser curtas e objetivas.
-3. Para CRIAR CHECKLIST: sempre converse primeiro (1-2 perguntas), depois gere.
-4. Para CONSULTAS: use os dados do contexto e formate bonito com emojis.
-5. Se o usuário pedir algo que você não pode fazer, explique educadamente.
-6. ${isAdmin ? 'NUNCA delete dados. Apenas criação e alteração.' : 'NUNCA execute ações de admin. Apenas consultas.'}
-7. Se a mensagem for uma saudação simples (oi, olá, bom dia), responda de forma simpática e pergunte como pode ajudar.
-8. Formatação WhatsApp: *negrito*, _itálico_, ~tachado~, \`código\`
-9. Use quebras de linha (\\n) para organizar a resposta.
-10. Quando criar um checklist com sucesso via ação, comemore! O usuário vai adorar.`;
+1. Responda de forma fluida, coerente, simpática e natural a QUALQUER conversa do usuário (saudações, perguntas gerais ou comandos do FireCheck).
+2. NUNCA invente dados. Use APENAS os dados fornecidos no contexto acima para informações da loja.
+3. Seja agradável e conversacional, usando marcações de WhatsApp (*negrito*, _itálico_) e emojis para deixar a leitura leve.
+4. Para CRIAR CHECKLIST ou LISTAS: converse amigavelmente primeiro para entender o que o usuário precisa.
+5. Se a mensagem for social (ex: "tudo bem com você?"), responda calorosamente e pergunte como pode ajudar na operação da loja!`;
 
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
             let result;
-            const modelNames = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-pro"];
+            const modelNames = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
             let lastModelErr = null;
-            
+
             for (const mName of modelNames) {
+
               try {
                 const model = genAI.getGenerativeModel({
                   model: mName,
