@@ -119,6 +119,46 @@ function getAiCreationLimit(plan) {
   return 50; // default/starter (mais barato)
 }
 
+// ── Disparo de Boas-Vindas Trial via WhatsApp de Suporte (22998851680) ──
+async function sendTrialWelcomeMessage(userPhone, userName, userStore) {
+  if (!userPhone) return { success: false, reason: 'Telefone não informado' };
+  
+  const cleanPhone = userPhone.replace(/\D/g, '');
+  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+  const firstName = (userName || '').split(' ')[0] || 'Cliente';
+  const storeName = userStore || 'sua loja';
+
+  const welcomeMsg = `👋 *Olá, ${firstName}! Tudo bem?*\n\n` +
+    `Seja muito bem-vindo(a) ao período de teste do *FireCheck*! 🚀\n\n` +
+    `Meu nome é *Douglas* e sou o atendente responsável por te ajudar e tirar todas as suas dúvidas nesse período de adaptação para a sua loja (*${storeName}*). O que você precisar, é só falar comigo por aqui! 💬\n\n` +
+    `💡 *Lembrando:* somos os próprios desenvolvedores do sistema e estamos sempre melhorando o FireCheck com o seu feedback. Qualquer sugestão ou oportunidade de melhoria, pode falar comigo!\n\n` +
+    `Estou à disposição para te ajudar a configurar tudo! FireCheck 🔥`;
+
+  const evoUrl = process.env.EVOLUTION_API_URL;
+  const evoKey = process.env.EVOLUTION_API_KEY;
+  const evoInstance = process.env.EVOLUTION_SUPPORT_INSTANCE || process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+  if (!evoUrl || !evoKey) {
+    console.log(`[WhatsApp Suporte] API não configurada. Mensagem de boas-vindas não enviada para ${fullPhone}`);
+    return { success: false, reason: 'Evolution API não configurada' };
+  }
+
+  try {
+    const response = await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+      body: JSON.stringify({ number: fullPhone, text: welcomeMsg })
+    });
+    const data = await response.json();
+    console.log(`[WhatsApp Suporte] Boas-vindas enviada para ${fullPhone} (instância: ${evoInstance}):`, data?.key?.id || 'ok');
+    return { success: true, data };
+  } catch (e) {
+    console.error(`[WhatsApp Suporte] Falha ao enviar para ${fullPhone}:`, e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+
 // ── Função de Reset de Cota ─────────────────────────────────────
 async function checkAndResetQuota(pool, userId, quotaResetDate) {
   if (quotaResetDate && new Date(quotaResetDate) < new Date()) {
@@ -1391,46 +1431,50 @@ export default async function handler(req, res) {
           [name, email, hashedPassword, 'admin', store, initialStatus, phone, plan || 'trial']
         );
 
-        // ── WhatsApp de Boas-Vindas (fire and forget) ──────────────
-        if (phone) {
-          const cleanPhone = phone.replace(/\D/g, '');
-          const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
-          const firstName = (name || '').split(' ')[0];
-          
-          const welcomeMsg = `🔥 *Olá, ${firstName}! Bem-vindo(a) ao FireCheck!*\n\n` +
-            `Que bom ter você com a gente! 🎉\n\n` +
-            `Sua conta para a loja *${store}* já está sendo preparada.\n\n` +
-            `📋 *O que você pode fazer agora:*\n` +
-            `✅ Criar checklists inteligentes com IA\n` +
-            `✅ Auditar tarefas com fotos em tempo real\n` +
-            `✅ Monitorar sua equipe de qualquer lugar\n\n` +
-            `💡 *Dica:* Acesse seu painel em firecheckapp.com.br/login\n\n` +
-            `Qualquer dúvida, é só chamar aqui neste número! Estamos à disposição 24h. 🚀\n\n` +
-            `— Equipe FireCheck 🔥`;
-
-          // Tenta enviar via Evolution API (configurar EVOLUTION_API_URL e EVOLUTION_API_KEY na Vercel)
-          const evoUrl = process.env.EVOLUTION_API_URL;
-          const evoKey = process.env.EVOLUTION_API_KEY;
-          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
-
-          if (evoUrl && evoKey) {
-            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-              body: JSON.stringify({ number: fullPhone, text: welcomeMsg })
-            }).then(r => r.json()).then(d => {
-              console.log(`[WhatsApp] Boas-vindas enviada para ${fullPhone}:`, d?.key?.id || 'ok');
-            }).catch(e => {
-              console.error(`[WhatsApp] Falha ao enviar para ${fullPhone}:`, e.message);
-            });
-          } else {
-            console.log(`[WhatsApp] API não configurada. Mensagem não enviada para ${fullPhone}`);
-          }
+        // ── WhatsApp de Boas-Vindas do Suporte no Trial (fire and forget) ──
+        if (phone && initialStatus === 'trial') {
+          sendTrialWelcomeMessage(phone, name, store).catch(e => console.error('[WhatsApp Signup Error]', e));
         }
 
         return res.status(200).json({ status: 'success', user: rows[0] });
       }
     }
+
+    // ── Endpoint Manual/Disparo de Teste para Boas-Vindas do Trial ──
+    if (url.includes('/api/send-trial-welcome')) {
+      try {
+        let targetEmail = searchParams.get('email');
+        let targetPhone = searchParams.get('phone');
+        let targetName = searchParams.get('name');
+        let targetStore = searchParams.get('store');
+
+        if (req.method === 'POST' && req.body) {
+          targetEmail = req.body.email || targetEmail;
+          targetPhone = req.body.phone || targetPhone;
+          targetName = req.body.name || targetName;
+          targetStore = req.body.store || targetStore;
+        }
+
+        if (targetEmail) {
+          const { rows } = await pool.query('SELECT name, phone, store FROM users WHERE LOWER(email) = LOWER($1)', [targetEmail]);
+          if (rows.length > 0) {
+            targetName = targetName || rows[0].name;
+            targetPhone = targetPhone || rows[0].phone;
+            targetStore = targetStore || rows[0].store;
+          }
+        }
+
+        if (!targetPhone) {
+          return res.status(400).json({ status: 'error', error: 'Telefone ou e-mail de usuário válido não informado.' });
+        }
+
+        const result = await sendTrialWelcomeMessage(targetPhone, targetName, targetStore);
+        return res.status(200).json({ status: 'success', result });
+      } catch (err) {
+        return res.status(500).json({ status: 'error', error: err.message });
+      }
+    }
+
 
     // ── Esqueci Minha Senha ──────────────────────────────────────────
     if (url.includes('/api/forgot-password')) {
@@ -3251,56 +3295,71 @@ Responda APENAS com JSON válido.`;
     if (url.includes('/api/webhooks/whatsapp')) {
       if (method === 'POST') {
         try {
-          const body = req.body;
-          // Evolution API envia diferentes eventos — só processar mensagens recebidas
-          const event = body.event;
-          if (event !== 'messages.upsert') return res.status(200).json({ ignored: true });
+          const body = req.body || {};
+          
+          // Evolution API envia diferentes formatos de evento (messages.upsert, MESSAGES_UPSERT, etc.)
+          const rawEvent = (body.event || body.type || '').toString().toLowerCase().replace(/[^a-z]/g, '');
+          
+          // Se houver nome de evento especificado, ignorar apenas se for explicitamente um evento não relacionado a mensagens
+          if (rawEvent && !rawEvent.includes('messagesupsert') && !rawEvent.includes('messageset') && !rawEvent.includes('sendmessage')) {
+            return res.status(200).json({ ignored: true, reason: 'event_type' });
+          }
 
-          const msgData = body.data;
-          if (!msgData || !msgData.key || !msgData.message) return res.status(200).json({ ignored: true });
+          // Extrair mensagem de body.data (pode ser objeto ou array) ou do próprio body
+          let msgData = body.data || body;
+          if (Array.isArray(msgData)) msgData = msgData[0];
+
+          if (!msgData) return res.status(200).json({ ignored: true, reason: 'no_data' });
+
+          const key = msgData.key || msgData.messageKey || {};
+          const message = msgData.message || msgData.msg || {};
+
+          if (!key.remoteJid || !message) {
+            return res.status(200).json({ ignored: true, reason: 'missing_key_or_message' });
+          }
 
           // Ignorar mensagens próprias e de grupos
-          if (msgData.key.fromMe) return res.status(200).json({ ignored: 'own_message' });
-          if (msgData.key.remoteJid.includes('@g.us')) return res.status(200).json({ ignored: 'group' });
+          if (key.fromMe) return res.status(200).json({ ignored: 'own_message' });
+          if (key.remoteJid.includes('@g.us')) return res.status(200).json({ ignored: 'group' });
 
-          // Extrair telefone e texto
-          const remoteJid = msgData.key.remoteJid;
-          const phoneRaw = remoteJid.replace('@s.whatsapp.net', '').replace('@c.us', '');
-          
-          let incomingText = msgData.message.conversation
-            || msgData.message.extendedTextMessage?.text
-            || msgData.message.imageMessage?.caption
+          // Extrair telefone limpo (remover sufixos como :12@s.whatsapp.net ou @c.us)
+          const remoteJid = key.remoteJid;
+          const phoneClean = remoteJid.split('@')[0].split(':')[0].replace(/\D/g, '');
+          const phoneRaw = phoneClean;
+
+          let incomingText = message.conversation
+            || message.extendedTextMessage?.text
+            || message.imageMessage?.caption
             || '';
-          
-          let isAudioMessage = false;
 
           // ── Suporte a ÁUDIO (voice notes / áudio) ──
-          if (!incomingText.trim() && (msgData.message.audioMessage || msgData.message.pttMessage)) {
-            isAudioMessage = true;
+          if (!incomingText.trim() && (message.audioMessage || message.pttMessage)) {
             try {
               const evoUrlAudio = process.env.EVOLUTION_API_URL;
               const evoKeyAudio = process.env.EVOLUTION_API_KEY;
               const evoInstAudio = process.env.EVOLUTION_INSTANCE || 'firecheck';
-              const msgId = msgData.key.id;
-              
-              // Baixar áudio base64 via Evolution API
+
               const audioResp = await fetch(`${evoUrlAudio}/chat/getBase64FromMediaMessage/${evoInstAudio}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'apikey': evoKeyAudio },
                 body: JSON.stringify({ message: msgData, convertToMp4: false })
               });
-              
+
               if (audioResp.ok) {
                 const audioData = await audioResp.json();
                 const audioBase64 = audioData.base64;
-                const mimeType = audioData.mimetype || msgData.message.audioMessage?.mimetype || 'audio/ogg';
-                
+                const mimeType = audioData.mimetype || message.audioMessage?.mimetype || 'audio/ogg';
+
                 if (audioBase64) {
-                  // Transcrever com Gemini
                   const transcribeKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
                   if (transcribeKey) {
                     const tGenAI = new GoogleGenerativeAI(transcribeKey);
-                    const tModel = tGenAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+                    let tModel;
+                    try {
+                      tModel = tGenAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+                    } catch(e) {
+                      tModel = tGenAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+                    }
                     const tResult = await tModel.generateContent([
                       { inlineData: { mimeType, data: audioBase64 } },
                       'Transcreva este áudio em português brasileiro. Retorne APENAS o texto transcrito, sem formatação.'
@@ -3332,35 +3391,109 @@ Responda APENAS com JSON válido.`;
 
           // Função auxiliar para enviar resposta via WhatsApp
           const sendWAReply = async (text) => {
-            if (!evoUrl || !evoKey) return;
-            await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-              body: JSON.stringify({ number: phoneRaw, text })
-            }).catch(e => console.error('[WA Bot] Erro ao responder:', e.message));
+            if (!evoUrl || !evoKey) {
+              console.error('[WA Bot] EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurado.');
+              return;
+            }
+            try {
+              const replyResp = await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                body: JSON.stringify({ number: phoneRaw, text })
+              });
+              if (!replyResp.ok) {
+                const replyText = await replyResp.text();
+                console.error('[WA Bot] Erro ao responder via Evolution API:', replyResp.status, replyText);
+              }
+            } catch (e) {
+              console.error('[WA Bot] Exceção ao responder:', e.message);
+            }
           };
 
-          // ── 1. IDENTIFICAR USUÁRIO ──
-          // Buscar por whatsapp_phone, phone, ou telefone sem 55
-          const phoneVariants = [phoneRaw, phoneRaw.replace(/^55/, ''), '+' + phoneRaw];
+          // ── 1. IDENTIFICAR USUÁRIO (SUPORTE COMPLETO A DDD/9º DÍGITO NO BRASIL) ──
+          const getPhoneVariants = (raw) => {
+            const digits = raw.replace(/\D/g, '');
+            const variants = new Set([digits]);
+
+            let local = digits;
+            if (digits.startsWith('55') && digits.length >= 12) {
+              local = digits.slice(2);
+            }
+            variants.add(local);
+            variants.add('55' + local);
+            variants.add('+' + digits);
+            variants.add('+55' + local);
+
+            if (local.length === 10) {
+              const withNine = local.slice(0, 2) + '9' + local.slice(2);
+              variants.add(withNine);
+              variants.add('55' + withNine);
+              variants.add('+' + withNine);
+              variants.add('+55' + withNine);
+            } else if (local.length === 11 && local[2] === '9') {
+              const withoutNine = local.slice(0, 2) + local.slice(3);
+              variants.add(withoutNine);
+              variants.add('55' + withoutNine);
+              variants.add('+' + withoutNine);
+              variants.add('+55' + withoutNine);
+            }
+            return Array.from(variants);
+          };
+
+          const variantsList = getPhoneVariants(phoneRaw);
           let foundUser = null;
-          for (const pv of phoneVariants) {
-            const { rows } = await pool.query(
-              "SELECT * FROM users WHERE REPLACE(REPLACE(REPLACE(whatsapp_phone, ' ', ''), '-', ''), '+', '') = $1 OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = $1 LIMIT 1",
-              [pv.replace(/\D/g, '')]
-            );
-            if (rows.length > 0) { foundUser = rows[0]; break; }
+
+          const { rows: matchedUsers } = await pool.query(
+            `SELECT * FROM users 
+             WHERE REPLACE(REPLACE(REPLACE(whatsapp_phone, ' ', ''), '-', ''), '+', '') = ANY($1::text[])
+                OR REPLACE(REPLACE(REPLACE(phone, ' ', ''), '-', ''), '+', '') = ANY($1::text[])
+             LIMIT 1`,
+            [variantsList]
+          );
+
+          if (matchedUsers.length > 0) {
+            foundUser = matchedUsers[0];
           }
 
-          // Se não encontrou usuário
+          // ── 1.1 VINCULAÇÃO AUTOMÁTICA DE CONTA VIA E-MAIL ──
           if (!foundUser) {
+            const emailMatch = incomingText.trim().match(/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/);
+            if (emailMatch) {
+              const inputEmail = emailMatch[0].toLowerCase();
+              const { rows: emailUsers } = await pool.query(
+                "SELECT * FROM users WHERE LOWER(email) = $1 LIMIT 1", [inputEmail]
+              );
+              if (emailUsers.length > 0) {
+                foundUser = emailUsers[0];
+                await pool.query(
+                  "UPDATE users SET whatsapp_phone = $1, whatsapp_active = true WHERE id = $2",
+                  [phoneRaw, foundUser.id]
+                );
+                await sendWAReply(
+                  `🎉 *WhatsApp Vinculado com Sucesso!*\n\n` +
+                  `Olá, *${foundUser.name}*! Seu número foi vinculado à sua conta do *FireCheck* (${foundUser.store}).\n\n` +
+                  `Eu sou o *Bill*, seu assistente inteligente. Agora você pode me enviar mensagens aqui para:\n` +
+                  `📋 Criar checklists e tarefas\n` +
+                  `🛒 Criar e consultar listas de compras\n` +
+                  `📊 Ver resumos da sua loja e ponto\n` +
+                  `👥 Cadastrar funcionários\n\n` +
+                  `Como posso te ajudar hoje? 🔥`
+                );
+                return res.status(200).json({ handled: true, reason: 'user_linked' });
+              } else {
+                await sendWAReply(
+                  `⚠️ Não encontrei nenhuma conta no FireCheck com o e-mail *${inputEmail}*.\n\n` +
+                  `Verifique se digitou corretamente ou acesse *firecheckapp.com.br* para criar sua conta.`
+                );
+                return res.status(200).json({ handled: true, reason: 'email_not_found' });
+              }
+            }
+
             await sendWAReply(
               `Olá! 👋 Eu sou o *Bill*, assistente inteligente do *FireCheck*.\n\n` +
-              `Não encontrei seu número cadastrado no sistema.\n\n` +
-              `Para usar o assistente:\n` +
-              `1️⃣ Peça ao admin da sua loja para cadastrar seu número\n` +
-              `2️⃣ Ou acesse *firecheckapp.com.br* para criar sua conta\n\n` +
-              `Se já tem conta, configure seu WhatsApp no painel em *Configurações > WhatsApp* 📱`
+              `Ainda não encontrei seu WhatsApp vinculado a uma conta no sistema.\n\n` +
+              `👉 *Para vincular agora:* Responda a esta mensagem enviando apenas o seu *e-mail de cadastro* no FireCheck (ex: *seuemail@empresa.com*).\n\n` +
+              `Ou configure seu WhatsApp no painel em *Configurações > WhatsApp* 📱`
             );
             return res.status(200).json({ handled: true, reason: 'user_not_found' });
           }
@@ -3526,12 +3659,25 @@ SEMPRE responda em JSON puro com este formato:
 
           try {
             const genAI = new GoogleGenerativeAI(apiKey);
-            const model = genAI.getGenerativeModel({
-              model: "gemini-2.5-flash",
-              generationConfig: { responseMimeType: "application/json" }
-            });
-
-            const result = await model.generateContent(systemPrompt);
+            let result;
+            const modelNames = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-pro"];
+            let lastModelErr = null;
+            
+            for (const mName of modelNames) {
+              try {
+                const model = genAI.getGenerativeModel({
+                  model: mName,
+                  generationConfig: { responseMimeType: "application/json" }
+                });
+                result = await model.generateContent(systemPrompt);
+                if (result && result.response) break;
+              } catch(mErr) {
+                lastModelErr = mErr;
+              }
+            }
+            if (!result || !result.response) {
+              throw lastModelErr || new Error('Não foi possível gerar resposta com o Gemini');
+            }
             const responseText = result.response.text();
             let parsed;
             try {
