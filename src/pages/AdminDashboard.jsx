@@ -211,6 +211,10 @@ export default function AdminDashboard() {
   const [waPontoDiario, setWaPontoDiario] = useState(true);
   const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
   const [rankingPeriod, setRankingPeriod] = useState('hoje');
+  const [rankingCustomDates, setRankingCustomDates] = useState({
+    start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    end: new Date().toISOString().split('T')[0]
+  });
   
 
   const [isPurchasesOpen, setIsPurchasesOpen] = useState(false);
@@ -2480,8 +2484,40 @@ export default function AdminDashboard() {
               >
                 Mês
               </button>
+              <button 
+                onClick={() => setRankingPeriod('personalizado')} 
+                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'personalizado' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'personalizado' ? 'white' : 'var(--text-muted)' }}
+              >
+                Personalizado
+              </button>
             </div>
           </div>
+
+          {/* Seletores Personalizados */}
+          {rankingPeriod === 'personalizado' && (
+            <div style={{ padding: '12px 24px 20px 24px', backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>De:</span>
+                <input 
+                  type="date" 
+                  value={rankingCustomDates.start} 
+                  onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, start: e.target.value })} 
+                  className="input-field" 
+                  style={{ width: '150px', padding: '6px 10px', fontSize: '0.85rem', margin: 0 }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Até:</span>
+                <input 
+                  type="date" 
+                  value={rankingCustomDates.end} 
+                  onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, end: e.target.value })} 
+                  className="input-field" 
+                  style={{ width: '150px', padding: '6px 10px', fontSize: '0.85rem', margin: 0 }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Dados Calculados */}
           {(() => {
@@ -2496,6 +2532,12 @@ export default function AdminDashboard() {
                 return diffDays <= 7;
               } else if (rankingPeriod === 'mes') {
                 return subDate.getMonth() === now.getMonth() && subDate.getFullYear() === now.getFullYear();
+              } else if (rankingPeriod === 'personalizado') {
+                const startLimit = rankingCustomDates.start ? new Date(rankingCustomDates.start + 'T00:00:00') : null;
+                const endLimit = rankingCustomDates.end ? new Date(rankingCustomDates.end + 'T23:59:59') : null;
+                if (startLimit && subDate < startLimit) return false;
+                if (endLimit && subDate > endLimit) return false;
+                return true;
               }
               return true;
             });
