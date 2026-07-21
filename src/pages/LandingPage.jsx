@@ -729,7 +729,7 @@ export default function LandingPage() {
         <div style={{ position: 'absolute', bottom: '0', right: '10%', width: '30%', height: '30%', background: 'radial-gradient(circle, rgba(59, 130, 246, 0.03) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none', zIndex: 0 }}></div>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 5%', position: 'relative', zIndex: 10 }}>
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(24px, 5vw, 60px)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
               VISÃO GERAL DO SISTEMA
             </span>
@@ -1081,7 +1081,7 @@ export default function LandingPage() {
       {/* SEÇÃO COMPARATIVA: ANTES VS DEPOIS (A VIRADA) - TEMA CLARO */}
       <section className="section-mobile-padding" id="a-virada" style={{ padding: '100px 5%', backgroundColor: '#ffffff', borderBottom: '1px solid #e2e8f0' }}>
         <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(24px, 5vw, 60px)' }}>
             <span style={{ fontSize: '0.85rem', fontWeight: '800', color: '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', display: 'block', marginBottom: '12px' }}>
               A VIRADA
             </span>
@@ -1093,18 +1093,18 @@ export default function LandingPage() {
             </p>
           </div>
 
+
           <style>{`
             .comparison-grid {
               display: grid;
               grid-template-columns: 1fr 1fr;
-              gap: 24px;
+              gap: 16px 24px;
             }
             .comp-col-title {
               font-size: 0.95rem;
               font-weight: 800;
               letter-spacing: 1px;
               text-transform: uppercase;
-              margin-bottom: 20px;
               display: flex;
               align-items: center;
               gap: 8px;
@@ -1115,17 +1115,14 @@ export default function LandingPage() {
               display: flex;
               gap: 16px;
               align-items: flex-start;
-              min-height: 100px;
             }
             .card-without {
               background: #fef2f2;
               border: 1px solid #fee2e2;
-              box-shadow: 0 4px 6px rgba(239, 68, 68, 0.02);
             }
             .card-with {
               background: #f0fdf4;
               border: 1px solid #bbf7d0;
-              box-shadow: 0 10px 25px rgba(34, 197, 94, 0.04);
             }
             .comp-card-icon {
               display: flex;
@@ -1133,132 +1130,100 @@ export default function LandingPage() {
               border-radius: 50%;
               flex-shrink: 0;
             }
-            .icon-without {
-              background: #fee2e2;
-              color: #ef4444;
-            }
-            .icon-with {
-              background: #dcfce7;
-              color: #16a34a;
-            }
+            .icon-without { background: #fee2e2; color: #ef4444; }
+            .icon-with { background: #dcfce7; color: #16a34a; }
             .comp-card-text {
               font-size: 0.95rem;
               line-height: 1.5;
               color: #475569;
             }
-            .card-without .comp-card-text {
-              color: #7f1d1d;
-            }
-            .card-with .comp-card-text {
-              color: #14532d;
-              font-weight: 500;
-            }
+            .card-without .comp-card-text { color: #7f1d1d; }
+            .card-with .comp-card-text { color: #14532d; font-weight: 500; }
             
             @media (max-width: 768px) {
               .comparison-grid {
-                grid-template-columns: 1fr 1fr;
-                gap: 12px;
-              }
-              .comp-col {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
+                gap: 6px 8px;
               }
               .comp-col-title {
-                margin-bottom: 4px;
                 font-size: 0.7rem;
                 letter-spacing: 0.5px;
               }
               .comp-card {
-                padding: 10px 12px;
-                min-height: auto;
-                gap: 8px;
-                border-radius: 12px;
+                padding: 8px 10px;
+                gap: 6px;
+                border-radius: 10px;
               }
               .comp-card-icon {
-                padding: 5px;
+                padding: 4px;
               }
               .comp-card-icon svg {
-                width: 12px;
-                height: 12px;
+                width: 10px;
+                height: 10px;
               }
               .comp-card-text {
-                font-size: 0.78rem;
-                line-height: 1.4;
-              }
-            }
-            @media (max-width: 380px) {
-              .comparison-grid {
-                grid-template-columns: 1fr;
-                gap: 16px;
-              }
-              .comp-card-text {
-                font-size: 0.85rem;
+                font-size: 0.68rem;
+                line-height: 1.35;
               }
             }
           `}</style>
 
           <div className="comparison-grid">
-            <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="comp-col-title" style={{ color: '#ef4444' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span> Sem o FireCheck
-              </div>
-              
-              <div className="comp-card card-without">
-                <div className="comp-card-icon icon-without"><X size={16} /></div>
-                <div className="comp-card-text">Você tem três unidades físicas e não sabe qual delas realmente abriu no horário correto hoje.</div>
-              </div>
-
-              <div className="comp-card card-without">
-                <div className="comp-card-icon icon-without"><X size={16} /></div>
-                <div className="comp-card-text">Um erro grave aconteceu na cozinha às 7h. Você só fica sabendo no fechamento às 18h, quando não há mais o que reverter.</div>
-              </div>
-
-              <div className="comp-card card-without">
-                <div className="comp-card-icon icon-without"><X size={16} /></div>
-                <div className="comp-card-text">Você monta processos no papel, delega para a equipe e reza para que eles sigam as regras. Sem nenhuma prova de execução.</div>
-              </div>
-
-              <div className="comp-card card-without">
-                <div className="comp-card-icon icon-without"><X size={16} /></div>
-                <div className="comp-card-text">Cada gerente de unidade tem uma versão diferente do que é um "padrão bom". Sua marca perde consistência.</div>
-              </div>
-
-              <div className="comp-card card-without">
-                <div className="comp-card-icon icon-without"><X size={16} /></div>
-                <div className="comp-card-text">Quando você se afasta para viajar ou descansar, a operação segue pura e simplesmente na base da fé.</div>
-              </div>
+            {/* Row 1: Títulos */}
+            <div className="comp-col-title" style={{ color: '#ef4444' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }}></span> Sem o FireCheck
+            </div>
+            <div className="comp-col-title" style={{ color: '#16a34a' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#16a34a' }}></span> Com o FireCheck
             </div>
 
-            <div className="comp-col" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="comp-col-title" style={{ color: '#16a34a' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#16a34a' }}></span> Com o FireCheck
-              </div>
+            {/* Row 2 */}
+            <div className="comp-card card-without">
+              <div className="comp-card-icon icon-without"><X size={16} /></div>
+              <div className="comp-card-text">Você tem três unidades físicas e não sabe qual delas realmente abriu no horário correto hoje.</div>
+            </div>
+            <div className="comp-card card-with">
+              <div className="comp-card-icon icon-with"><Check size={16} /></div>
+              <div className="comp-card-text">Você abre o painel geral no seu celular e vê o status em tempo real de cada unidade, turno a turno, antes do seu primeiro café.</div>
+            </div>
 
-              <div className="comp-card card-with">
-                <div className="comp-card-icon icon-with"><Check size={16} /></div>
-                <div className="comp-card-text">Você abre o painel geral no seu celular e vê o status em tempo real de cada unidade, turno a turno, antes do seu primeiro café.</div>
-              </div>
+            {/* Row 3 */}
+            <div className="comp-card card-without">
+              <div className="comp-card-icon icon-without"><X size={16} /></div>
+              <div className="comp-card-text">Um erro grave aconteceu na cozinha às 7h. Você só fica sabendo no fechamento às 18h, quando não há mais o que reverter.</div>
+            </div>
+            <div className="comp-card card-with">
+              <div className="comp-card-icon icon-with"><Check size={16} /></div>
+              <div className="comp-card-text">Alertas de itens críticos (gás aberto, câmara quente) caem no seu WhatsApp no exato segundo em que o desvio ocorre.</div>
+            </div>
 
-              <div className="comp-card card-with">
-                <div className="comp-card-icon icon-with"><Check size={16} /></div>
-                <div className="comp-card-text">Alertas de itens críticos (gás aberto, câmara quente) caem no seu WhatsApp no exato segundo em que o desvio ocorre.</div>
-              </div>
+            {/* Row 4 */}
+            <div className="comp-card card-without">
+              <div className="comp-card-icon icon-without"><X size={16} /></div>
+              <div className="comp-card-text">Você monta processos no papel, delega para a equipe e reza para que eles sigam as regras. Sem nenhuma prova de execução.</div>
+            </div>
+            <div className="comp-card card-with">
+              <div className="comp-card-icon icon-with"><Check size={16} /></div>
+              <div className="comp-card-text">Evidências inquestionáveis. As tarefas exigem foto em tempo real tirada na hora e localização via GPS. Se não registrar, não conta.</div>
+            </div>
 
-              <div className="comp-card card-with">
-                <div className="comp-card-icon icon-with"><Check size={16} /></div>
-                <div className="comp-card-text">Evidências inquestionáveis. As tarefas exigem foto em tempo real tirada na hora e localização via GPS. Se não registrar, não conta.</div>
-              </div>
+            {/* Row 5 */}
+            <div className="comp-card card-without">
+              <div className="comp-card-icon icon-without"><X size={16} /></div>
+              <div className="comp-card-text">Cada gerente de unidade tem uma versão diferente do que é um "padrão bom". Sua marca perde consistência.</div>
+            </div>
+            <div className="comp-card card-with">
+              <div className="comp-card-icon icon-with"><Check size={16} /></div>
+              <div className="comp-card-text">Scoreboard automático por filial, setor e operador. Você compara o desempenho das unidades com dados concretos.</div>
+            </div>
 
-              <div className="comp-card card-with">
-                <div className="comp-card-icon icon-with"><Check size={16} /></div>
-                <div className="comp-card-text">Scoreboard automático por filial, setor e operador. Você compara o desempenho das unidades com dados concretos.</div>
-              </div>
-
-              <div className="comp-card card-with">
-                <div className="comp-card-icon icon-with"><Check size={16} /></div>
-                <div className="comp-card-text">Dashboard no bolso. Sua equipe executa as tarefas seguindo o padrão pré-definido por IA, mesmo sem a sua presença física.</div>
-              </div>
+            {/* Row 6 */}
+            <div className="comp-card card-without">
+              <div className="comp-card-icon icon-without"><X size={16} /></div>
+              <div className="comp-card-text">Quando você se afasta para viajar ou descansar, a operação segue pura e simplesmente na base da fé.</div>
+            </div>
+            <div className="comp-card card-with">
+              <div className="comp-card-icon icon-with"><Check size={16} /></div>
+              <div className="comp-card-text">Dashboard no bolso. Sua equipe executa as tarefas seguindo o padrão pré-definido por IA, mesmo sem a sua presença física.</div>
             </div>
           </div>
           
@@ -1279,7 +1244,7 @@ export default function LandingPage() {
         <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, transparent 70%)', pointerEvents: 'none' }}></div>
 
         <div style={{ maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
-          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+          <div style={{ textAlign: 'center', marginBottom: 'clamp(20px, 4vw, 56px)' }}>
             <div style={{ border: '1px solid rgba(255, 77, 0, 0.4)', color: '#ff4d00', padding: '8px 20px', borderRadius: '30px', fontSize: '0.85rem', fontWeight: '800', marginBottom: '20px', display: 'inline-flex', alignItems: 'center', gap: '8px', letterSpacing: '1px', textTransform: 'uppercase', backgroundColor: 'rgba(255, 77, 0, 0.05)', boxShadow: '0 0 20px rgba(255, 77, 0, 0.15)' }}>
               <Sparkles size={16} /> Adeus Trabalho Manual
             </div>
@@ -2050,90 +2015,64 @@ export default function LandingPage() {
           }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
-                gap: 12px !important;
+                display: flex;
+                overflow-x: auto;
+                scroll-snap-type: x mandatory;
+                -webkit-overflow-scrolling: touch;
+                gap: 12px;
+                padding-bottom: 12px;
+                max-width: 100%;
+                scrollbar-width: none;
+             }
+             .pricing-grid-mobile::-webkit-scrollbar {
+                display: none;
              }
              .pricing-grid-mobile .card {
-                padding: 16px !important;
-             }
-          }
-          @media (max-width: 768px) {
-             .pricing-grid-mobile {
-                grid-template-columns: repeat(3, 1fr) !important;
-                max-width: 100% !important;
-                gap: 8px !important;
-             }
-             .pricing-grid-mobile .card {
-                padding: 10px !important;
-                border-radius: 12px !important;
+                min-width: 260px;
+                max-width: 280px;
+                flex-shrink: 0;
+                scroll-snap-align: center;
                 transform: none !important;
+                padding: 20px !important;
              }
              .pricing-grid-mobile .card > h3 {
-                font-size: 0.85rem !important;
-                margin-bottom: 2px !important;
+                font-size: 1.1rem !important;
+                margin-bottom: 4px !important;
              }
              .pricing-grid-mobile .card > p {
-                font-size: 0.6rem !important;
-                margin-bottom: 6px !important;
-                line-height: 1.3 !important;
+                font-size: 0.8rem !important;
+                margin-bottom: 12px !important;
              }
              .pricing-grid-mobile .card > .price-text {
-                font-size: 1.1rem !important;
-                margin-bottom: 2px !important;
+                font-size: 2rem !important;
+                margin-bottom: 4px !important;
              }
              .pricing-grid-mobile .card > .price-text span {
-                font-size: 0.6rem !important;
+                font-size: 0.8rem !important;
              }
              .pricing-grid-mobile .card ul {
-                margin: 0 0 8px 0 !important;
+                margin: 0 0 16px 0 !important;
              }
              .pricing-grid-mobile .card ul li {
-                font-size: 0.65rem !important;
-                margin-bottom: 3px !important;
-                gap: 3px !important;
+                font-size: 0.8rem !important;
+                margin-bottom: 6px !important;
              }
              .pricing-grid-mobile .card ul li svg {
-                width: 10px !important;
-                height: 10px !important;
+                width: 14px !important;
+                height: 14px !important;
              }
              .pricing-grid-mobile .card button {
-                padding: 8px 6px !important;
-                font-size: 0.75rem !important;
-                min-height: 36px !important;
-             }
-             .pricing-grid-mobile .card > div[style*="transparent"] {
-                display: none !important;
-             }
-             .pricing-grid-mobile .card > div > div {
-                font-size: 0.65rem !important;
+                padding: 12px 16px !important;
+                font-size: 0.9rem !important;
              }
              .pricing-grid-mobile .card > div[style*="absolute"] {
-                font-size: 0.5rem !important;
-                padding: 2px 6px !important;
-                top: -8px !important;
-             }
-          }
-          @media (max-width: 380px) {
-             .pricing-grid-mobile {
-                gap: 4px !important;
-             }
-             .pricing-grid-mobile .card {
-                padding: 8px !important;
-             }
-             .pricing-grid-mobile .card > h3 {
-                font-size: 0.75rem !important;
-             }
-             .pricing-grid-mobile .card > .price-text {
-                font-size: 0.95rem !important;
-             }
-             .pricing-grid-mobile .card ul li {
-                font-size: 0.58rem !important;
-             }
-             .pricing-grid-mobile .card button {
-                padding: 6px 4px !important;
-                font-size: 0.65rem !important;
+                font-size: 0.7rem !important;
+                padding: 3px 10px !important;
+                top: -10px !important;
              }
           }
         `}</style>
+        <p className="hide-on-desktop" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>← Deslize para ver todos os planos →</p>
         <div className="pricing-grid-mobile">
           
           {/* Plano Starter */}
