@@ -594,13 +594,15 @@ export default async function handler(req, res) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
             body: JSON.stringify({
+              enabled: true,
               url: 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
-              webhook_by_events: true,
-              webhook_base64: false,
-              events: ['MESSAGES_UPSERT']
+              webhookByEvents: false,
+              webhook_by_events: false,
+              events: ['MESSAGES_UPSERT', 'messages.upsert']
             })
           });
           console.log('[Evolution] Webhook configurado com sucesso para /api/webhooks/whatsapp');
+
         }
       } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
 
@@ -1470,12 +1472,52 @@ export default async function handler(req, res) {
           return res.status(400).json({ status: 'error', error: 'Telefone ou e-mail de usuário válido não informado.' });
         }
 
-        const result = await sendTrialWelcomeMessage(targetPhone, targetName, targetStore);
-        return res.status(200).json({ status: 'success', result });
+    // ── Diagnostic & Fix: Webhook da Evolution API ──
+    if (url.includes('/api/admin/check-webhook')) {
+      try {
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+        if (!evoUrl || !evoKey) {
+          return res.status(500).json({ error: 'Evolution API não configurada.' });
+        }
+
+        // 1. Consultar webhook atual
+        let findRes = null;
+        try {
+          const f = await fetch(`${evoUrl}/webhook/find/${evoInstance}`, { headers: { 'apikey': evoKey } });
+          findRes = await f.json();
+        } catch (e) { findRes = e.message; }
+
+        // 2. Forçar re-configuração com enabled: true
+        let setRes = null;
+        try {
+          const s = await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+            body: JSON.stringify({
+              enabled: true,
+              url: 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
+              webhookByEvents: false,
+              webhook_by_events: false,
+              events: ['MESSAGES_UPSERT', 'messages.upsert']
+            })
+          });
+          setRes = await s.json();
+        } catch (e) { setRes = e.message; }
+
+        return res.status(200).json({
+          success: true,
+          instance: evoInstance,
+          findRes,
+          setRes
+        });
       } catch (err) {
-        return res.status(500).json({ status: 'error', error: err.message });
+        return res.status(500).json({ error: err.message });
       }
     }
+
 
 
 
