@@ -1475,6 +1475,25 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Diagnostic: Listar Instâncias do Evolution API ──
+    if (url.includes('/api/admin/list-instances')) {
+      try {
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        if (!evoUrl || !evoKey) {
+          return res.status(500).json({ error: 'Evolution API URL/Key não configurada.' });
+        }
+        const resp = await fetch(`${evoUrl}/instance/fetchInstances`, {
+          headers: { 'apikey': evoKey }
+        });
+        const data = await resp.json();
+        return res.status(200).json({ success: true, data });
+      } catch (err) {
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+
 
     // ── Esqueci Minha Senha ──────────────────────────────────────────
     if (url.includes('/api/forgot-password')) {
