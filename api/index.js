@@ -293,6 +293,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_creations_used INTEGER DEFAULT 0");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrade_alert_sent BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_limit INTEGER DEFAULT 5");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_subscription_id VARCHAR(100)");
       // Migrar limites de ponto para planos existentes
       await pool.query("UPDATE users SET ponto_limit = 15 WHERE plan IN ('pro', 'pro_mensal', 'mensal') AND (ponto_limit IS NULL OR ponto_limit = 5)");
       await pool.query("UPDATE users SET ponto_limit = 50 WHERE plan IN ('business', 'business_mensal', 'anual') AND (ponto_limit IS NULL OR ponto_limit = 5)");
@@ -1079,7 +1080,53 @@ export default async function handler(req, res) {
         
         return res.status(200).json(formatted);
       }
-    }
+    // Helper para cancelamento automático de assinatura na Cakto via API
+    const cancelCaktoSubscription = async (subscriptionId) => {
+      const clientId = process.env.CAKTO_CLIENT_ID;
+      const clientSecret = process.env.CAKTO_CLIENT_SECRET;
+      if (!clientId || !clientSecret || !subscriptionId) {
+        console.log('[CAKTO CANCEL] Chaves ou subscriptionId ausentes. Cancelamento automático ignorado.');
+        return false;
+      }
+      try {
+        console.log(`[CAKTO CANCEL] Solicitando token OAuth2 para cancelamento...`);
+        const tokenRes = await fetch('https://api.cakto.com.br/oauth/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            grant_type: 'client_credentials',
+            client_id: clientId,
+            client_secret: clientSecret,
+            scope: 'subscriptions'
+          })
+        });
+        if (!tokenRes.ok) {
+          console.error(`[CAKTO CANCEL] Erro ao obter Token: ${tokenRes.status} ${tokenRes.statusText}`);
+          return false;
+        }
+        const tokenData = await tokenRes.json();
+        const token = tokenData.access_token;
+        if (!token) return false;
+
+        console.log(`[CAKTO CANCEL] Enviando requisição de cancelamento da assinatura ${subscriptionId}...`);
+        const cancelRes = await fetch(`https://api.cakto.com.br/v1/subscriptions/${subscriptionId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (cancelRes.ok) {
+          console.log(`[CAKTO CANCEL] Assinatura ${subscriptionId} cancelada com sucesso na Cakto!`);
+          return true;
+        }
+        console.error(`[CAKTO CANCEL] Falha no cancelamento. Status: ${cancelRes.status}`);
+        return false;
+      } catch (err) {
+        console.error(`[CAKTO CANCEL ERROR] Erro no cancelamento:`, err.message);
+        return false;
+      }
+    };
 
     // ── Webhook CAKTO (Bloqueio Automático) ──────────────────────────
     if (url.includes('/api/webhooks/cakto')) {
@@ -1092,6 +1139,7 @@ export default async function handler(req, res) {
           // Tentamos capturar o email do comprador
           const customerEmail = payload?.data?.customer?.email || payload?.customer?.email || payload?.email;
           const status = payload?.data?.status || payload?.status || payload?.event;
+          const subscriptionId = payload?.data?.subscription?.id || payload?.subscription?.id || payload?.data?.subscription_id || payload?.subscription_id;
 
           if (!customerEmail) {
             return res.status(400).json({ error: 'E-mail não encontrado no payload' });
@@ -1139,8 +1187,8 @@ export default async function handler(req, res) {
                 const defaultPasswordHash = await bcrypt.hash('123456', 12);
                 
                 await pool.query(`
-                  INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + CASE WHEN $9 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END)
+                  INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date, cakto_subscription_id)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + CASE WHEN $9 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END, $10)
                 `, [
                   customerName,
                   customerEmail,
@@ -1150,7 +1198,8 @@ export default async function handler(req, res) {
                   'active',
                   customerPhone,
                   detectedPlan,
-                  isAnnual
+                  isAnnual,
+                  subscriptionId
                 ]);
                 console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente com a senha padrão 123456.`);
               } else {
@@ -1191,7 +1240,7 @@ export default async function handler(req, res) {
                 const isPontoPlan = detectedPlan.startsWith('ponto_');
                 const pontoActiveUpdate = isPontoPlan ? ', ponto_active = TRUE' : '';
 
-                const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active FROM users WHERE email = $1', [customerEmail]);
+                const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active, cakto_subscription_id FROM users WHERE email = $1', [customerEmail]);
                 if (existingDetails.length > 0) {
                   const oldUser = existingDetails[0];
                   const oldPlan = oldUser.plan;
@@ -1200,6 +1249,8 @@ export default async function handler(req, res) {
                   const isPlanChanged = oldPlan !== detectedPlan;
                   const isTrialTransition = oldStatus === 'trial';
                   const checklistsResetQuery = isTrialTransition ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
+
+                  const subscriptionIdUpdate = subscriptionId ? `, cakto_subscription_id = '${subscriptionId}'` : '';
 
                   await pool.query(`
                      UPDATE users 
@@ -1210,12 +1261,19 @@ export default async function handler(req, res) {
                          expiration_date = NOW() + CASE WHEN $2 = 'anual' OR $2 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
                          ${pontoActiveUpdate}
                          ${checklistsResetQuery}
+                         ${subscriptionIdUpdate}
                      WHERE email = $1
                   `, [customerEmail, detectedPlan, isPontoPlan ? oldUser.checklist_limit : newChecklistLimit, newPontoLimit]);
 
                   console.log(`[CAKTO] Usuário ${customerEmail} atualizado para ACTIVE com plano ${detectedPlan}!`);
 
                   if (isPlanChanged && oldStatus === 'active') {
+                    let isAutoCancelled = false;
+                    const oldSubId = oldUser.cakto_subscription_id;
+                    if (oldSubId && oldSubId !== subscriptionId) {
+                      isAutoCancelled = await cancelCaktoSubscription(oldSubId);
+                    }
+
                     const evoUrl = process.env.EVOLUTION_API_URL;
                     const evoKey = process.env.EVOLUTION_API_KEY;
                     const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
@@ -1228,12 +1286,13 @@ export default async function handler(req, res) {
                           const cleanMasterPhone = masterPhone.replace(/\D/g, '');
                           const fullMasterPhone = cleanMasterPhone.startsWith('55') ? cleanMasterPhone : '55' + cleanMasterPhone;
 
-                          const masterMsg = 
-                            `🔄 *UPGRADE DE PLANO DETECTADO* 🔄\n\n` +
-                            `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, acabou de alterar o plano dele:\n` +
-                            `➖ Plano Anterior: *${oldPlan}*\n` +
-                            `➕ Novo Plano: *${detectedPlan}*\n\n` +
-                            `⚠️ *Atenção:* Por favor, verifique no painel da Cakto e cancele a assinatura anterior dele para evitar cobranças duplicadas!`;
+                          const masterMsg = isAutoCancelled 
+                            ? `🔄 *UPGRADE DE PLANO AUTOMÁTICO* 🔄\n\n` +
+                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${detectedPlan}*.\n` +
+                              `✅ A assinatura anterior (*${oldSubId}*) foi cancelada automaticamente na Cakto.`
+                            : `🔄 *UPGRADE DE PLANO DETECTADO* 🔄\n\n` +
+                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${detectedPlan}*.\n` +
+                              `⚠️ *Atenção:* Por favor, verifique no painel da Cakto e cancele a assinatura anterior dele para evitar cobranças duplicadas!`;
 
                           fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
                             method: 'POST',
@@ -1248,11 +1307,15 @@ export default async function handler(req, res) {
                         const cleanClientPhone = clientPhone.replace(/\D/g, '');
                         const fullClientPhone = cleanClientPhone.startsWith('55') ? cleanClientPhone : '55' + cleanClientPhone;
 
-                        const clientMsg = 
-                          `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
-                          `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
-                          `Confirmamos a alteração do seu plano para o plano *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
-                          `⚠️ *Importante:* Se você tinha uma assinatura ativa do plano anterior, lembre-se de cancelá-la no seu painel da Cakto ou entrar em contato com o suporte para garantir que não ocorra nenhuma cobrança dupla.`;
+                        const clientMsg = isAutoCancelled
+                          ? `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
+                            `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
+                            `Confirmamos a alteração do seu plano para *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
+                            `✅ A sua assinatura do plano anterior foi cancelada automaticamente para evitar cobranças duplicadas.`
+                          : `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
+                            `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
+                            `Confirmamos a alteração do seu plano para *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
+                            `⚠️ *Importante:* Se você tinha uma assinatura ativa do plano anterior, lembre-se de cancelá-la no seu painel da Cakto ou entrar em contato com o suporte para garantir que não ocorra nenhuma cobrança dupla.`;
 
                         fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
                           method: 'POST',
