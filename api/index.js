@@ -294,6 +294,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrade_alert_sent BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_limit INTEGER DEFAULT 5");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_subscription_id VARCHAR(100)");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_ponto_subscription_id VARCHAR(100)");
       // Migrar limites de ponto para planos existentes
       await pool.query("UPDATE users SET ponto_limit = 15 WHERE plan IN ('pro', 'pro_mensal', 'mensal') AND (ponto_limit IS NULL OR ponto_limit = 5)");
       await pool.query("UPDATE users SET ponto_limit = 50 WHERE plan IN ('business', 'business_mensal', 'anual') AND (ponto_limit IS NULL OR ponto_limit = 5)");
@@ -1238,39 +1239,56 @@ export default async function handler(req, res) {
                 else if (detectedPlan === 'ponto_business' || detectedPlan === 'business') newPontoLimit = 50;
 
                 const isPontoPlan = detectedPlan.startsWith('ponto_');
-                const pontoActiveUpdate = isPontoPlan ? ', ponto_active = TRUE' : '';
 
-                const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active, cakto_subscription_id FROM users WHERE email = $1', [customerEmail]);
+                const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active, cakto_subscription_id, cakto_ponto_subscription_id FROM users WHERE email = $1', [customerEmail]);
                 if (existingDetails.length > 0) {
                   const oldUser = existingDetails[0];
                   const oldPlan = oldUser.plan;
                   const oldStatus = oldUser.status;
+                  const oldSubId = isPontoPlan ? oldUser.cakto_ponto_subscription_id : oldUser.cakto_subscription_id;
 
-                  const isPlanChanged = oldPlan !== detectedPlan;
                   const isTrialTransition = oldStatus === 'trial';
                   const checklistsResetQuery = isTrialTransition ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
 
-                  const subscriptionIdUpdate = subscriptionId ? `, cakto_subscription_id = '${subscriptionId}'` : '';
+                  const subscriptionIdColumn = isPontoPlan ? 'cakto_ponto_subscription_id' : 'cakto_subscription_id';
+                  const subscriptionIdUpdate = subscriptionId ? `, ${subscriptionIdColumn} = '${subscriptionId}'` : '';
 
-                  await pool.query(`
-                     UPDATE users 
-                     SET status = 'active', 
-                         plan = $2,
-                         checklist_limit = $3,
-                         ponto_limit = $4,
-                         expiration_date = NOW() + CASE WHEN $2 = 'anual' OR $2 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
-                         ${pontoActiveUpdate}
-                         ${checklistsResetQuery}
-                         ${subscriptionIdUpdate}
-                     WHERE email = $1
-                  `, [customerEmail, detectedPlan, isPontoPlan ? oldUser.checklist_limit : newChecklistLimit, newPontoLimit]);
+                  let updateQuery = '';
+                  let updateParams = [];
+                  if (isPontoPlan) {
+                    updateQuery = `
+                      UPDATE users 
+                      SET status = 'active',
+                          ponto_limit = $2,
+                          ponto_active = TRUE,
+                          expiration_date = NOW() + INTERVAL '30 days'
+                          ${checklistsResetQuery}
+                          ${subscriptionIdUpdate}
+                      WHERE email = $1
+                    `;
+                    updateParams = [customerEmail, newPontoLimit];
+                  } else {
+                    updateQuery = `
+                      UPDATE users 
+                      SET status = 'active',
+                          plan = $2,
+                          checklist_limit = $3,
+                          expiration_date = NOW() + CASE WHEN $2 = 'anual' OR $2 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                          ${checklistsResetQuery}
+                          ${subscriptionIdUpdate}
+                      WHERE email = $1
+                    `;
+                    updateParams = [customerEmail, detectedPlan, newChecklistLimit];
+                  }
+                  await pool.query(updateQuery, updateParams);
 
                   console.log(`[CAKTO] Usuário ${customerEmail} atualizado para ACTIVE com plano ${detectedPlan}!`);
 
-                  if (isPlanChanged && oldStatus === 'active') {
+                  const isUpgrade = oldSubId && oldSubId !== subscriptionId;
+
+                  if (isUpgrade && oldStatus === 'active') {
                     let isAutoCancelled = false;
-                    const oldSubId = oldUser.cakto_subscription_id;
-                    if (oldSubId && oldSubId !== subscriptionId) {
+                    if (oldSubId) {
                       isAutoCancelled = await cancelCaktoSubscription(oldSubId);
                     }
 
@@ -1286,12 +1304,14 @@ export default async function handler(req, res) {
                           const cleanMasterPhone = masterPhone.replace(/\D/g, '');
                           const fullMasterPhone = cleanMasterPhone.startsWith('55') ? cleanMasterPhone : '55' + cleanMasterPhone;
 
+                          const planNameFriendly = isPontoPlan ? `Ponto ${detectedPlan.replace('ponto_', '').toUpperCase()}` : detectedPlan.toUpperCase();
+
                           const masterMsg = isAutoCancelled 
                             ? `🔄 *UPGRADE DE PLANO AUTOMÁTICO* 🔄\n\n` +
-                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${detectedPlan}*.\n` +
+                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${planNameFriendly}*.\n` +
                               `✅ A assinatura anterior (*${oldSubId}*) foi cancelada automaticamente na Cakto.`
                             : `🔄 *UPGRADE DE PLANO DETECTADO* 🔄\n\n` +
-                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${detectedPlan}*.\n` +
+                              `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${planNameFriendly}*.\n` +
                               `⚠️ *Atenção:* Por favor, verifique no painel da Cakto e cancele a assinatura anterior dele para evitar cobranças duplicadas!`;
 
                           fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
@@ -1307,14 +1327,16 @@ export default async function handler(req, res) {
                         const cleanClientPhone = clientPhone.replace(/\D/g, '');
                         const fullClientPhone = cleanClientPhone.startsWith('55') ? cleanClientPhone : '55' + cleanClientPhone;
 
+                        const planNameFriendly = isPontoPlan ? `Ponto ${detectedPlan.replace('ponto_', '').toUpperCase()}` : detectedPlan.toUpperCase();
+
                         const clientMsg = isAutoCancelled
                           ? `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
                             `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
-                            `Confirmamos a alteração do seu plano para *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
+                            `Confirmamos a alteração do seu plano para *${planNameFriendly}*.\n\n` +
                             `✅ A sua assinatura do plano anterior foi cancelada automaticamente para evitar cobranças duplicadas.`
                           : `🎉 *Upgrade de Plano Confirmado!* 🎉\n\n` +
                             `Olá, *${oldUser.name?.split(' ')[0]}*!\n\n` +
-                            `Confirmamos a alteração do seu plano para *${detectedPlan.replace('ponto_', 'Ponto ').toUpperCase()}*.\n\n` +
+                            `Confirmamos a alteração do seu plano para *${planNameFriendly}*.\n\n` +
                             `⚠️ *Importante:* Se você tinha uma assinatura ativa do plano anterior, lembre-se de cancelá-la no seu painel da Cakto ou entrar em contato com o suporte para garantir que não ocorra nenhuma cobrança dupla.`;
 
                         fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
