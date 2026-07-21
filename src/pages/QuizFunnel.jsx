@@ -6,6 +6,7 @@ import API_URL from '../api';
 
 export default function QuizFunnel() {
   const navigate = useNavigate();
+  const isMobile = window.innerWidth < 480;
   const [step, setStep] = useState(-1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingText, setLoadingText] = useState('');
@@ -128,12 +129,12 @@ export default function QuizFunnel() {
   if (step === 100) {
     return (
       <div style={{ backgroundColor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-        <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+        <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: isMobile ? '24px 20px' : '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)', textAlign: 'center' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255, 59, 48, 0.1)', color: '#ef4444', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', marginBottom: '24px' }}>
             <ShieldAlert size={20} /> ALERTA DE RISCO
           </div>
           
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2' }}>Risco Operacional: <span style={{ color: '#ef4444' }}>MUITO ALTO</span></h1>
+          <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2' }}>Risco Operacional: <span style={{ color: '#ef4444' }}>MUITO ALTO</span></h1>
           
           <div style={{ backgroundColor: 'rgba(255, 59, 48, 0.05)', borderLeft: '4px solid #ef4444', padding: '20px', textAlign: 'left', marginBottom: '32px', borderRadius: '0 8px 8px 0' }}>
             <p style={{ marginBottom: '12px', fontSize: '1.1rem' }}><strong>O Diagnóstico:</strong> Você está preso na microgestão. Sem você vigiando de perto, o padrão da sua loja cai drasticamente.</p>
@@ -145,7 +146,7 @@ export default function QuizFunnel() {
             <img src="/icon-192.png" alt="FireCheck Logo" style={{ width: '80px', height: '80px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(255,77,0,0.3)', marginBottom: '8px' }} />
             <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>
           </div>
-          <p style={{ marginBottom: '32px', color: '#334155', lineHeight: '1.6', textAlign: 'justify' }}>
+          <p style={{ marginBottom: '32px', color: '#334155', lineHeight: '1.6', textAlign: 'left' }}>
             A única forma de escalar sem perder a sanidade é ter um sistema que cobre a equipe por você.<br/><br/>
             Com o <strong>FireCheck</strong>, o seu funcionário é OBRIGADO a tirar uma foto provando que limpou o chão. A nossa <strong>Inteligência Artificial</strong> audita a foto em 2 segundos. Se estiver mal feito, a IA rejeita e manda ele refazer na hora. Você não precisa nem levantar da cadeira, só recebe a notificação de que está 100% perfeito.
           </p>
@@ -171,7 +172,7 @@ export default function QuizFunnel() {
       <div style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
           
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
+          <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
             A sua equipe só funciona de verdade quando <span style={{ color: '#ef4444' }}>você está lá?</span>
           </h1>
           <p style={{ fontSize: '1.1rem', color: '#94a3b8', marginBottom: '24px' }}>
@@ -195,9 +196,9 @@ export default function QuizFunnel() {
                   }
                 }}
               >
-                <div style={{ backgroundColor: '#ef4444', color: 'var(--text-main)', padding: '24px 40px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(239, 68, 68, 0.6)', animation: 'pulse 1.5s infinite', border: '3px solid white', textAlign: 'center' }}>
+                <div style={{ backgroundColor: '#ef4444', color: 'var(--text-main)', padding: isMobile ? '16px 20px' : '24px 40px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', boxShadow: '0 10px 30px rgba(239, 68, 68, 0.6)', animation: 'pulse 1.5s infinite', border: '3px solid white', textAlign: 'center' }}>
                   <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>Clique aqui</span>
-                  <VolumeX size={50} />
+                  <VolumeX size={isMobile ? 32 : 50} />
                   <span style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>para ativar o som</span>
                 </div>
               </div>
@@ -241,7 +242,7 @@ export default function QuizFunnel() {
             <button 
               className={showOffer ? "btn-pulse-green" : ""}
               style={{ 
-                width: '100%', padding: '20px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', 
+                width: '100%', padding: '20px', fontSize: isMobile ? '1rem' : '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', 
                 backgroundColor: showOffer ? '#16a34a' : 'rgba(255,255,255,0.05)', 
                 color: showOffer ? 'white' : '#94a3b8', 
                 borderRadius: '12px', fontWeight: 'bold', 
@@ -272,8 +273,8 @@ export default function QuizFunnel() {
         </div>
       </div>
 
-      <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
-        <h2 style={{ fontSize: '1.8rem', fontWeight: 'bold', marginBottom: '32px', lineHeight: '1.3' }}>
+      <div style={{ maxWidth: '600px', width: '100%', backgroundColor: '#ffffff', padding: isMobile ? '24px 20px' : '40px', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 10px 40px rgba(0,0,0,0.05)' }}>
+        <h2 style={{ fontSize: isMobile ? '1.3rem' : '1.8rem', fontWeight: 'bold', marginBottom: '32px', lineHeight: '1.3' }}>
           {questions[step].title}
         </h2>
         
@@ -289,8 +290,9 @@ export default function QuizFunnel() {
               }}
               onMouseOver={(e) => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.backgroundColor = 'rgba(34, 197, 94, 0.05)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
               onMouseOut={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'translateY(0)'; }}
+              onTouchEnd={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#f8fafc'; e.currentTarget.style.transform = 'translateY(0)'; }}
             >
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>
+              <div style={{ width: '24px', height: '24px', flexShrink: 0, borderRadius: '50%', border: '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}></div>
               {opt}
             </button>
           ))}

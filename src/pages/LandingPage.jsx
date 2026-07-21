@@ -46,6 +46,7 @@ const AI_DEMO_DATA = {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
   const [isVideoActive, setIsVideoActive] = useState(false);
   const videoRef = useRef(null);
 
@@ -137,14 +138,32 @@ export default function LandingPage() {
           </div>
           <span style={{ fontSize: '1.5rem', fontWeight: 'bold', letterSpacing: '-1px' }}>FireCheck</span>
         </div>
-        <div style={{ display: 'flex', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' })}>Como Funciona</button>
           <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
           <button className="btn" style={{ padding: '10px 24px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)' }} onClick={() => navigate('/login')}>
             Acessar
           </button>
+          <style>{`
+            .hamburger-btn { display: none; }
+            @media (max-width: 768px) { .hamburger-btn { display: flex; align-items: center; justify-content: center; background: transparent; border: none; font-size: 1.8rem; cursor: pointer; padding: 0 5px; color: var(--text-main); } }
+          `}</style>
+          <button className="hamburger-btn" onClick={() => setMenuOpen(true)}>
+            ☰
+          </button>
         </div>
       </nav>
+
+      {menuOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: '#fff', zIndex: 9999, padding: '40px 24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={() => setMenuOpen(false)} style={{ background: 'transparent', border: 'none', fontSize: '2rem', cursor: 'pointer', color: '#000' }}>✕</button>
+          </div>
+          <a onClick={() => { setMenuOpen(false); document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' }); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Como Funciona</a>
+          <a onClick={() => { setMenuOpen(false); document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Planos</a>
+          <a onClick={() => { setMenuOpen(false); navigate('/login'); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Acessar</a>
+        </div>
+      )}
 
       {/* Hero Section */}
       <section className="hero-section" style={{ padding: '80px 5%', maxWidth: '1200px', margin: '0 auto', position: 'relative', zIndex: 10 }}>
@@ -185,7 +204,7 @@ export default function LandingPage() {
             .hero-section {
               display: flex;
               flex-direction: column;
-              padding: 60px 20px 32px 20px !important; /* Aumenta padding superior para dar espaço ao navbar sticky */
+              padding: 40px 20px 32px 20px !important; /* Padding ajustado para mobile */
               gap: 20px !important;
             }
             .hero-col-left, .hero-col-right {
@@ -195,7 +214,7 @@ export default function LandingPage() {
               order: 1; 
               align-self: center; 
               margin-bottom: 12px !important; 
-              font-size: 0.75rem !important; 
+              font-size: 0.85rem !important; 
               padding: 6px 14px !important; 
               white-space: normal !important; 
               text-align: center;
@@ -226,8 +245,8 @@ export default function LandingPage() {
               width: 100%; 
               gap: 12px !important; 
             }
-            .hero-cta button { width: 100%; justify-content: center; padding: 14px 28px !important; font-size: 1rem !important; }
-            .hero-cta p { text-align: center; width: 100%; margin-top: 4px !important; font-size: 0.78rem !important; }
+            .hero-cta button { width: 100%; justify-content: center; padding: 14px 28px !important; font-size: 1rem !important; min-height: 48px; }
+            .hero-cta p { text-align: center; width: 100%; margin-top: 4px !important; font-size: 0.88rem !important; }
             
             .hero-video-wrapper { 
               order: 5; /* Move o mockup de celular para o final, abaixo do CTA */
@@ -473,7 +492,14 @@ export default function LandingPage() {
       </section>
 
       {/* ── Seção MEGA: Assistente WhatsApp + Notificações (Diferencial) ── */}
-      <section style={{ backgroundColor: '#ffffff', padding: '80px 20px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+      <section className="mega-section" style={{ backgroundColor: '#ffffff', padding: '80px 20px', borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)' }}>
+        <style>{`
+          @media (max-width: 768px) {
+            .mega-section {
+              padding: 40px 20px !important;
+            }
+          }
+        `}</style>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           
           {/* Badge de destaque */}
@@ -494,8 +520,8 @@ export default function LandingPage() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'flex-start' }}>
             
             {/* Chat WhatsApp Simulado */}
-            <div style={{ flex: '1 1 360px', display: 'flex', justifyContent: 'center' }}>
-              <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', borderRadius: '18px', backgroundColor: '#efeae2', overflow: 'hidden' }}>
+            <div style={{ flex: '1 1 auto', minWidth: 'min(360px, 100%)', display: 'flex', justifyContent: 'center' }}>
+              <div className="card" style={{ width: '100%', maxWidth: 'min(380px, 100%)', padding: '0', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px rgba(0,0,0,0.1)', borderRadius: '18px', backgroundColor: '#efeae2', overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#075e54', color: 'white', padding: '14px 16px' }}>
                   <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #06b6d4, #0891b2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Bot size={18} color="white" />
@@ -616,7 +642,7 @@ export default function LandingPage() {
           }
           @media (max-width: 768px) {
              .four-steps-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-columns: 1fr !important;
                 gap: 12px !important;
              }
              .four-steps-grid > div {
@@ -635,11 +661,11 @@ export default function LandingPage() {
                 margin-bottom: 8px !important;
              }
              .four-steps-grid > div > h3 {
-                font-size: 0.85rem !important;
+                font-size: 1rem !important;
                 margin-bottom: 6px !important;
              }
              .four-steps-grid > div > p {
-                font-size: 0.75rem !important;
+                font-size: 0.88rem !important;
              }
           }
         `}</style>
@@ -805,20 +831,26 @@ export default function LandingPage() {
             }
             @media (max-width: 600px) {
               .showcase-container {
-                height: 280px;
+                height: auto;
+                flex-direction: column;
+                align-items: center;
+                gap: 24px;
+                padding-bottom: 20px;
               }
               .float-chip {
                 display: none;
               }
               .laptop-mockup {
-                width: 90%;
-                transform: translateX(0);
+                width: 100%;
+                transform: none;
+                order: 1;
               }
               .laptop-mockup:hover {
                 transform: none;
               }
               .phone-mockup-overlap {
-                width: 32%;
+                position: relative;
+                width: 45%;
                 right: 2%;
               }
             }
@@ -938,10 +970,10 @@ export default function LandingPage() {
                       <div style={{ borderBottom: '1px solid #f1f5f9', padding: '8px 10px', display: 'flex', alignItems: 'center', fontSize: '0.55rem' }}>
                         <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: '700', color: '#0f172a' }}>Auditoria de Fechamento</span>
-                          <span style={{ fontSize: '0.48rem', color: '#64748b' }}>Eduardo Silva</span>
+                          <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Eduardo Silva</span>
                         </div>
                         <div style={{ flex: 2 }}>
-                          <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '10px', fontSize: '0.48rem', fontWeight: 'bold' }}>✅ Aprovado pela IA</span>
+                          <span style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: 'bold' }}>✅ Aprovado pela IA</span>
                         </div>
                         <div style={{ flex: 1, textAlign: 'right', color: '#64748b' }}>14:31</div>
                       </div>
@@ -949,11 +981,11 @@ export default function LandingPage() {
                       <div style={{ borderBottom: '1px solid #f1f5f9', padding: '8px 10px', display: 'flex', alignItems: 'center', fontSize: '0.55rem' }}>
                         <div style={{ flex: 2, display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontWeight: '700', color: '#0f172a' }}>Limpeza da Chapa</span>
-                          <span style={{ fontSize: '0.48rem', color: '#64748b' }}>Funcionario Demo</span>
+                          <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Funcionario Demo</span>
                         </div>
                         <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '2px 8px', borderRadius: '10px', fontSize: '0.48rem', fontWeight: 'bold', width: 'fit-content' }}>❌ Reprovado pela IA</span>
-                          <span style={{ fontSize: '0.45rem', color: '#ef4444', fontWeight: '500' }}>Resíduo de carvão</span>
+                          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '2px 8px', borderRadius: '10px', fontSize: '0.65rem', fontWeight: 'bold', width: 'fit-content' }}>❌ Reprovado pela IA</span>
+                          <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: '500' }}>Resíduo de carvão</span>
                         </div>
                         <div style={{ flex: 1, textAlign: 'right', color: '#64748b' }}>14:20</div>
                       </div>
@@ -1000,7 +1032,7 @@ export default function LandingPage() {
                     <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #10b981', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Auditoria de Fechamento</div>
-                        <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Concluído</span>
+                        <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 'bold' }}>Concluído</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
@@ -1014,7 +1046,7 @@ export default function LandingPage() {
                     <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #ff4d00', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Limpeza da Chapa</div>
-                        <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', color: '#ff4d00', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Aguardando</span>
+                        <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', color: '#ff4d00', padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 'bold' }}>Aguardando</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
@@ -1028,7 +1060,7 @@ export default function LandingPage() {
                     <div style={{ backgroundColor: '#ffffff', borderRadius: '8px', borderLeft: '4px solid #94a3b8', padding: '8px', display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #e4e4e7', borderRight: '1px solid #e4e4e7', borderBottom: '1px solid #e4e4e7', opacity: 0.75 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div style={{ fontWeight: 'bold', color: '#0f172a', fontSize: '0.6rem' }}>Ponto Eletrônico</div>
-                        <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', padding: '1px 6px', borderRadius: '8px', fontSize: '0.45rem', fontWeight: 'bold' }}>Pendente</span>
+                        <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', padding: '1px 6px', borderRadius: '8px', fontSize: '0.65rem', fontWeight: 'bold' }}>Pendente</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <div style={{ flex: 1, height: '4px', backgroundColor: '#e4e4e7', borderRadius: '2px', overflow: 'hidden' }}>
@@ -1124,20 +1156,41 @@ export default function LandingPage() {
             
             @media (max-width: 768px) {
               .comparison-grid {
-                grid-template-columns: 1fr;
-                gap: 40px;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
               }
               .comp-col {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
+                gap: 8px;
               }
               .comp-col-title {
-                margin-bottom: 8px;
+                margin-bottom: 4px;
+                font-size: 0.7rem;
+                letter-spacing: 0.5px;
               }
               .comp-card {
-                padding: 16px;
+                padding: 10px 12px;
                 min-height: auto;
+                gap: 8px;
+                border-radius: 12px;
+              }
+              .comp-card-icon {
+                padding: 5px;
+              }
+              .comp-card-icon svg {
+                width: 12px;
+                height: 12px;
+              }
+              .comp-card-text {
+                font-size: 0.78rem;
+                line-height: 1.4;
+              }
+            }
+            @media (max-width: 380px) {
+              .comparison-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
               }
               .comp-card-text {
                 font-size: 0.85rem;
@@ -1267,18 +1320,56 @@ export default function LandingPage() {
           </div>
 
           {/* Simulation Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '40px', alignItems: 'stretch' }}>
+          <style>{`
+            .ai-sim-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 24px;
+              align-items: stretch;
+            }
+            @media (max-width: 768px) {
+              .ai-sim-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+              }
+              .ai-sim-grid .ai-chat-box {
+                padding: 14px !important;
+                height: 360px !important;
+              }
+              .ai-sim-grid .ai-checklist-box {
+                padding: 16px !important;
+                height: 360px !important;
+              }
+              .ai-sim-grid .ai-chat-box .chat-header-name { font-size: 0.8rem !important; }
+              .ai-sim-grid .ai-chat-box .chat-msg { font-size: 0.75rem !important; padding: 8px 10px !important; }
+              .ai-sim-grid .ai-checklist-box h3 { font-size: 0.95rem !important; }
+              .ai-sim-grid .ai-checklist-box .task-row { padding: 10px !important; }
+              .ai-sim-grid .ai-checklist-box .task-text { font-size: 0.78rem !important; }
+              .ai-sim-grid .ai-checklist-box .task-tag { font-size: 0.6rem !important; padding: 2px 5px !important; }
+              .ai-sim-grid .ai-checklist-box .deploy-btn { padding: 10px !important; font-size: 0.85rem !important; }
+            }
+            @media (max-width: 420px) {
+              .ai-sim-grid {
+                grid-template-columns: 1fr;
+              }
+              .ai-sim-grid .ai-chat-box,
+              .ai-sim-grid .ai-checklist-box {
+                height: 340px !important;
+              }
+            }
+          `}</style>
+          <div className="ai-sim-grid">
             
             {/* Left Box: Chat Simulator */}
-            <div style={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', position: 'relative' }}>
+            <div className="ai-chat-box" style={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '24px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', position: 'relative' }}>
               
               {/* Chat Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px', marginBottom: '16px' }}>
-                <div style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(6,182,212,0.3)' }}>
+                <div style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 10px rgba(6,182,212,0.3)', flexShrink: 0 }}>
                   <Bot size={20} color="white" />
                 </div>
                 <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#ffffff' }}>Bill IA</div>
+                  <div className="chat-header-name" style={{ fontWeight: 'bold', fontSize: '0.95rem', color: '#ffffff' }}>Bill IA</div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#10b981' }}>
                     <span style={{ width: '6px', height: '6px', backgroundColor: '#10b981', borderRadius: '50%', display: 'inline-block', animation: 'pulse 1.5s infinite' }}></span>
                     online
@@ -1290,13 +1381,13 @@ export default function LandingPage() {
               <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingRight: '4px' }}>
                 
                 {/* System/Intro Message */}
-                <div style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '12px 16px', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '85%' }}>
+                <div className="chat-msg" style={{ backgroundColor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '16px', padding: '12px 16px', fontSize: '0.85rem', color: '#94a3b8', maxWidth: '85%' }}>
                   🤖 <strong>Bill IA:</strong> Olá! Me diga qual checklist você quer criar hoje. Você pode falar ou digitar!
                 </div>
 
                 {/* User Message (Step >= 1) */}
                 {demoStep >= 1 && (
-                  <div style={{ alignSelf: 'flex-end', backgroundColor: '#ff4d00', color: '#ffffff', borderRadius: '16px 16px 4px 16px', padding: '12px 16px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.2)', animation: 'slideUp 0.3s ease' }}>
+                  <div className="chat-msg" style={{ alignSelf: 'flex-end', backgroundColor: '#ff4d00', color: '#ffffff', borderRadius: '16px 16px 4px 16px', padding: '12px 16px', fontSize: '0.85rem', maxWidth: '85%', boxShadow: '0 4px 10px rgba(255, 77, 0, 0.2)', animation: 'slideUp 0.3s ease' }}>
                     {AI_DEMO_DATA[activeAiDemo].isAudio ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Mic size={16} />
@@ -1320,14 +1411,14 @@ export default function LandingPage() {
 
                 {/* User transcription text if it was audio */}
                 {demoStep >= 2 && AI_DEMO_DATA[activeAiDemo].isAudio && (
-                  <div style={{ alignSelf: 'flex-end', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px 12px', fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '85%', fontStyle: 'italic', marginTop: '-8px' }}>
+                  <div className="chat-msg" style={{ alignSelf: 'flex-end', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '12px', padding: '8px 12px', fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '85%', fontStyle: 'italic', marginTop: '-8px' }}>
                     Transcrição: "{AI_DEMO_DATA[activeAiDemo].userText}"
                   </div>
                 )}
 
                 {/* AI Analyzing status (Step === 2) */}
                 {demoStep === 2 && (
-                  <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#06b6d4', maxWidth: '85%', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div className="chat-msg" style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#06b6d4', maxWidth: '85%', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <span className="dot" style={{ width: '6px', height: '6px', backgroundColor: '#06b6d4', borderRadius: '50%', display: 'inline-block', animation: 'ai-bounce 1.4s infinite' }}></span>
                       <span className="dot" style={{ width: '6px', height: '6px', backgroundColor: '#06b6d4', borderRadius: '50%', display: 'inline-block', animation: 'ai-bounce 1.4s infinite 0.2s' }}></span>
@@ -1339,7 +1430,7 @@ export default function LandingPage() {
 
                 {/* AI Reply (Step >= 3) */}
                 {demoStep >= 3 && (
-                  <div style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#cbd5e1', maxWidth: '85%', animation: 'slideUp 0.3s ease' }}>
+                  <div className="chat-msg" style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px 16px 16px 4px', padding: '12px 16px', fontSize: '0.85rem', color: '#cbd5e1', maxWidth: '85%', animation: 'slideUp 0.3s ease' }}>
                     🤖 <strong>Bill IA:</strong> {AI_DEMO_DATA[activeAiDemo].aiReply}
                   </div>
                 )}
@@ -1352,7 +1443,7 @@ export default function LandingPage() {
                   <span>Fale com o Bill IA...</span>
                   <Mic size={16} color="#64748b" />
                 </div>
-                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ backgroundColor: 'rgba(255, 255, 255, 0.05)', width: '42px', height: '42px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                   <span style={{ fontSize: '1rem' }}>⚡</span>
                 </div>
               </div>
@@ -1360,7 +1451,7 @@ export default function LandingPage() {
             </div>
 
             {/* Right Box: Dynamic Checklist Generator */}
-            <div style={{ backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid var(--border-color)', padding: '32px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', color: 'var(--text-main)' }}>
+            <div className="ai-checklist-box" style={{ backgroundColor: '#ffffff', borderRadius: '24px', border: '1px solid var(--border-color)', padding: '32px', display: 'flex', flexDirection: 'column', height: '420px', boxShadow: '0 20px 40px rgba(0,0,0,0.05)', color: 'var(--text-main)' }}>
               
               {demoStep < 3 ? (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--text-muted)' }}>
@@ -1373,70 +1464,79 @@ export default function LandingPage() {
                   </div>
                 </div>
               ) : (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.5s ease' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', animation: 'fadeIn 0.5s ease', overflow: 'hidden' }}>
                   {/* Checklist Header */}
-                  <div style={{ marginBottom: '24px', borderBottom: '2px dashed var(--border-color)', paddingBottom: '16px' }}>
+                  <div style={{ marginBottom: '16px', borderBottom: '2px dashed var(--border-color)', paddingBottom: '12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.75rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', color: '#ff4d00', backgroundColor: 'rgba(255, 77, 0, 0.08)', padding: '4px 10px', borderRadius: '20px' }}>
+                      <span style={{ fontSize: '0.7rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '1px', color: '#ff4d00', backgroundColor: 'rgba(255, 77, 0, 0.08)', padding: '4px 10px', borderRadius: '20px' }}>
                         ✓ Checklist Gerado por IA
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>3 tarefas</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>3 tarefas</span>
                     </div>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginTop: '12px', color: 'var(--text-main)' }}>
+                    <h3 style={{ fontSize: '1.15rem', fontWeight: '800', marginTop: '10px', color: 'var(--text-main)' }}>
                       {AI_DEMO_DATA[activeAiDemo].checklistTitle}
                     </h3>
                   </div>
 
-                  {/* Tasks List */}
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {AI_DEMO_DATA[activeAiDemo].tasks.map((task, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '16px',
-                          borderRadius: '12px',
-                          border: '1px solid var(--border-color)',
-                          backgroundColor: '#f8fafc',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
-                          animation: `slideUp 0.3s ease forwards ${i * 0.15}s`,
-                          opacity: 0,
-                          transform: 'translateY(10px)'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-                          <div style={{ width: '20px', height: '20px', borderRadius: '4px', border: '2px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)' }}>
-                            <Check size={14} color="#10b981" style={{ strokeWidth: '3.5px' }} />
+                  {/* Tasks List with Progress */}
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'auto' }}>
+                    {AI_DEMO_DATA[activeAiDemo].tasks.map((task, i) => {
+                      const pcts = [100, 75, 40];
+                      const pct = pcts[i] || 0;
+                      const barColor = pct === 100 ? '#10b981' : pct >= 60 ? '#ff4d00' : '#f59e0b';
+                      return (
+                        <div
+                          className="task-row"
+                          key={i}
+                          style={{
+                            padding: '14px',
+                            borderRadius: '12px',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: '#f8fafc',
+                            animation: `slideUp 0.3s ease forwards ${i * 0.15}s`,
+                            opacity: 0,
+                            transform: 'translateY(10px)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                              <div style={{ width: '18px', height: '18px', borderRadius: '4px', border: `2px solid ${barColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: pct === 100 ? 'rgba(16, 185, 129, 0.08)' : 'transparent' }}>
+                                {pct === 100 && <Check size={12} color="#10b981" style={{ strokeWidth: '3.5px' }} />}
+                              </div>
+                              <span className="task-text" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.3', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {task.text}
+                              </span>
+                            </div>
+                            <span className="task-tag" style={{
+                              fontSize: '0.65rem',
+                              fontWeight: '700',
+                              padding: '3px 7px',
+                              borderRadius: '6px',
+                              backgroundColor: task.type === '📸 Foto Obrigatória' ? 'rgba(255, 77, 0, 0.08)' : task.type === '📝 Texto' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(241, 245, 249, 1)',
+                              color: task.type === '📸 Foto Obrigatória' ? '#ff4d00' : task.type === '📝 Texto' ? '#3b82f6' : 'var(--text-muted)',
+                              marginLeft: '8px',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0
+                            }}>
+                              {task.type}
+                            </span>
                           </div>
-                          <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-main)', lineHeight: '1.4' }}>
-                            {task.text}
-                          </span>
+                          {/* Progress Bar */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ flex: 1, height: '6px', backgroundColor: '#e4e4e7', borderRadius: '100px', overflow: 'hidden' }}>
+                              <div style={{ width: `${pct}%`, height: '100%', backgroundColor: barColor, borderRadius: '100px', transition: 'width 0.6s ease' }}></div>
+                            </div>
+                            <span style={{ fontSize: '0.7rem', fontWeight: '700', color: barColor, minWidth: '32px', textAlign: 'right' }}>{pct}%</span>
+                          </div>
                         </div>
-                        
-                        {/* Task validation tag */}
-                        <div style={{
-                          fontSize: '0.75rem',
-                          fontWeight: '700',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          backgroundColor: task.type === '📸 Foto Obrigatória' ? 'rgba(255, 77, 0, 0.08)' : task.type === '📝 Texto' ? 'rgba(59, 130, 246, 0.08)' : 'rgba(241, 245, 249, 1)',
-                          color: task.type === '📸 Foto Obrigatória' ? '#ff4d00' : task.type === '📝 Texto' ? '#3b82f6' : 'var(--text-muted)',
-                          marginLeft: '12px',
-                          whiteSpace: 'nowrap'
-                        }}>
-                          {task.type}
-                        </div>
-
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Deploy Action */}
-                  <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+                  <div style={{ marginTop: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px' }}>
                     <button
-                      className="btn"
+                      className="btn deploy-btn"
                       style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.95rem', padding: '14px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(255, 77, 0, 0.3)' }}
                       onClick={() => handleTrackAndNavigate('Enviar Checklist IA para Equipe', '/checkout?plan=trial')}
                     >
@@ -1449,6 +1549,8 @@ export default function LandingPage() {
             </div>
 
           </div>
+
+
         </div>
 
         {/* Global Styles helper for the simulation animations */}
@@ -1631,7 +1733,7 @@ export default function LandingPage() {
             @media (max-width: 768px) {
               .grid-2-col-mobile {
                 display: grid !important;
-                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-columns: 1fr !important;
                 gap: 12px !important;
                 margin-top: 24px !important;
               }
@@ -1654,22 +1756,21 @@ export default function LandingPage() {
                 line-height: 1.2 !important;
               }
               .grid-2-col-mobile p {
-                font-size: 0.75rem !important;
+                font-size: 0.9rem !important;
                 margin-bottom: 12px !important;
                 line-height: 1.3 !important;
               }
               /* For the nested badges inside the cards */
               .grid-2-col-mobile > div > div:last-child {
                 padding: 6px !important;
-                font-size: 0.65rem !important;
+                font-size: 0.85rem !important;
                 margin-top: auto !important;
               }
               .grid-2-col-mobile > div > div:last-child > div {
-                font-size: 0.65rem !important;
+                font-size: 0.85rem !important;
                 padding: 4px !important;
               }
               .scale-on-mobile {
-                zoom: 0.75;
                 margin-top: 24px !important;
                 width: 100% !important;
               }
@@ -1934,8 +2035,8 @@ export default function LandingPage() {
       {/* Seção de Planos (Pricing) */}
       <section id="pricing" className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-          <h2 style={{ fontSize: '2.5rem', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
+          <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 2.5rem)', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: 'clamp(0.85rem, 2vw, 1rem)' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
         </div>
 
         <style>{`
@@ -1949,55 +2050,55 @@ export default function LandingPage() {
           }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
-                grid-template-columns: 1fr !important;
-                max-width: 400px !important;
-                gap: 16px !important;
+                gap: 12px !important;
              }
              .pricing-grid-mobile .card {
-                transform: none !important;
+                padding: 16px !important;
              }
           }
           @media (max-width: 768px) {
              .pricing-grid-mobile {
-                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-columns: repeat(3, 1fr) !important;
                 max-width: 100% !important;
                 gap: 8px !important;
              }
              .pricing-grid-mobile .card {
-                padding: 12px !important;
+                padding: 10px !important;
                 border-radius: 12px !important;
                 transform: none !important;
              }
              .pricing-grid-mobile .card > h3 {
-                font-size: 0.95rem !important;
-                margin-bottom: 4px !important;
+                font-size: 0.85rem !important;
+                margin-bottom: 2px !important;
              }
              .pricing-grid-mobile .card > p {
-                font-size: 0.7rem !important;
-                margin-bottom: 8px !important;
+                font-size: 0.6rem !important;
+                margin-bottom: 6px !important;
+                line-height: 1.3 !important;
              }
              .pricing-grid-mobile .card > .price-text {
-                font-size: 1.4rem !important;
-                margin-bottom: 4px !important;
+                font-size: 1.1rem !important;
+                margin-bottom: 2px !important;
              }
              .pricing-grid-mobile .card > .price-text span {
-                font-size: 0.65rem !important;
+                font-size: 0.6rem !important;
              }
              .pricing-grid-mobile .card ul {
-                margin: 0 0 16px 0 !important;
+                margin: 0 0 8px 0 !important;
              }
              .pricing-grid-mobile .card ul li {
                 font-size: 0.65rem !important;
-                margin-bottom: 6px !important;
-                gap: 4px !important;
+                margin-bottom: 3px !important;
+                gap: 3px !important;
              }
              .pricing-grid-mobile .card ul li svg {
-                width: 12px !important;
-                height: 12px !important;
+                width: 10px !important;
+                height: 10px !important;
              }
              .pricing-grid-mobile .card button {
-                padding: 8px !important;
+                padding: 8px 6px !important;
                 font-size: 0.75rem !important;
+                min-height: 36px !important;
              }
              .pricing-grid-mobile .card > div[style*="transparent"] {
                 display: none !important;
@@ -2006,9 +2107,30 @@ export default function LandingPage() {
                 font-size: 0.65rem !important;
              }
              .pricing-grid-mobile .card > div[style*="absolute"] {
-                font-size: 0.55rem !important;
+                font-size: 0.5rem !important;
                 padding: 2px 6px !important;
                 top: -8px !important;
+             }
+          }
+          @media (max-width: 380px) {
+             .pricing-grid-mobile {
+                gap: 4px !important;
+             }
+             .pricing-grid-mobile .card {
+                padding: 8px !important;
+             }
+             .pricing-grid-mobile .card > h3 {
+                font-size: 0.75rem !important;
+             }
+             .pricing-grid-mobile .card > .price-text {
+                font-size: 0.95rem !important;
+             }
+             .pricing-grid-mobile .card ul li {
+                font-size: 0.58rem !important;
+             }
+             .pricing-grid-mobile .card button {
+                padding: 6px 4px !important;
+                font-size: 0.65rem !important;
              }
           }
         `}</style>

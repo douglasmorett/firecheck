@@ -1017,11 +1017,14 @@ export default async function handler(req, res) {
       }
 
       // ── Delete lista ──
-      const deleteMatch = url.match(/\/api\/shopping\/(\d+)$/);
-      if (deleteMatch && method === 'DELETE') {
-        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
-        await pool.query('DELETE FROM shopping_lists WHERE id = $1', [deleteMatch[1]]);
-        return res.status(200).json({ success: true });
+      if (method === 'DELETE') {
+        const pathname = new URL(url, `http://${req.headers.host}`).pathname;
+        const deleteMatch = pathname.match(/\/api\/shopping\/(\d+)/);
+        if (deleteMatch) {
+          if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+          await pool.query('DELETE FROM shopping_lists WHERE id = $1', [deleteMatch[1]]);
+          return res.status(200).json({ success: true });
+        }
       }
 
       // ── POST: criar/editar lista com itens ──
@@ -1083,6 +1086,7 @@ export default async function handler(req, res) {
           weekdays: typeof r.weekdays === 'string' ? (() => { try { return JSON.parse(r.weekdays); } catch(e) { return r.weekdays; }})() : r.weekdays
         }));
         
+        return res.status(200).json(formatted);
       }
     }
 
@@ -1632,7 +1636,20 @@ export default async function handler(req, res) {
 
         // Hash da senha do novo funcionário
         const hashedPassword = await bcrypt.hash(password, 12);
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, store, phone', [name, email, hashedPassword, role, store, plan, phone || null]);
+        
+        // Herdar status do admin da loja (gestor/funcionário herda o status active do admin que pagou)
+        let inheritedStatus = 'trial'; // default
+        if (role === 'funcionario' || role === 'gestor') {
+          const { rows: adminRows } = await pool.query(
+            "SELECT status FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+            [store]
+          );
+          if (adminRows.length > 0 && (adminRows[0].status === 'active' || adminRows[0].status === 'trial')) {
+            inheritedStatus = adminRows[0].status;
+          }
+        }
+        
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, store, phone, status', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus]);
         return res.status(200).json(rows[0]);
       }
       // GET users: admin vê só da sua loja, master vê tudo
@@ -3469,11 +3486,15 @@ AÇÕES DE ADMIN:
    - Máximo 15 tarefas, mínimo 3
    - Se o usuário pedir para criar, CONVERSE com ele para entender o que precisa antes de gerar. Faça 1-2 perguntas curtas.
    
-2. CRIAR FUNCIONÁRIO: {"action": "create_employee", "name": "Nome", "email": "email@x.com", "password": "senha123"}
+2. CRIAR LISTA DE COMPRAS: {"action": "create_shopping_list", "title": "Nome da Lista", "items": [{"name": "Produto", "unit": "un|kg|L|cx|pct|dz", "minStock": 5, "category": "geral"}], "recurrence": "daily|weekly|monthly"}
+   - Categorias de itens: "limpeza", "alimentos", "bebidas", "embalagens", "descartáveis", "escritório", "higiene", "manutenção", "geral"
+   - Se o usuário pedir uma lista de compras, CONVERSE para entender os itens antes de gerar.
 
-3. ALTERAR CONFIGURAÇÃO DE PONTO: {"action": "update_config", "field": "ponto_hora_entrada|ponto_hora_saida|ponto_tolerancia", "value": "09:00"}
+3. CRIAR FUNCIONÁRIO: {"action": "create_employee", "name": "Nome", "email": "email@x.com", "password": "senha123"}
 
-4. CONSULTAR DADOS: {"action": "query", "type": "stats|checklists|ponto|employees|submissions|quota"}
+4. ALTERAR CONFIGURAÇÃO DE PONTO: {"action": "update_config", "field": "ponto_hora_entrada|ponto_hora_saida|ponto_tolerancia", "value": "09:00"}
+
+5. CONSULTAR DADOS: {"action": "query", "type": "stats|checklists|ponto|employees|submissions|quota"}
 ` : `
 AÇÕES DE FUNCIONÁRIO:
 1. CONSULTAR DADOS: {"action": "query", "type": "my_checklists|my_ponto|pending"}
@@ -3581,6 +3602,37 @@ SEMPRE responda em JSON puro com este formato:
                       await pool.query(`UPDATE users SET ${field} = $1 WHERE id = $2`, [value, foundUser.id]);
                       const fieldNames = { ponto_hora_entrada: 'Horário de entrada', ponto_hora_saida: 'Horário de saída', ponto_tolerancia: 'Tolerância' };
                       finalReply = `✅ *${fieldNames[field]}* atualizado para *${value}${field === 'ponto_tolerancia' ? ' minutos' : ''}*.`;
+                    }
+                  }
+                }
+
+                else if (parsed.action.action === 'create_shopping_list' || parsed.action.type === 'create_shopping_list') {
+                  if (!isAdmin) {
+                    finalReply = '⚠️ Apenas administradores podem criar listas de compras.';
+                  } else {
+                    const act = parsed.action;
+                    const slTitle = act.title;
+                    const slItems = act.items || [];
+                    const slRecurrence = act.recurrence || 'weekly';
+
+                    if (slTitle && slItems.length > 0) {
+                      const { rows: newSl } = await pool.query(
+                        'INSERT INTO shopping_lists (store, title, recurrence, category) VALUES ($1, $2, $3, $4) RETURNING *',
+                        [userStore, slTitle, slRecurrence, 'geral']
+                      );
+                      const listId = newSl[0].id;
+
+                      for (let i = 0; i < slItems.length; i++) {
+                        const item = slItems[i];
+                        await pool.query(
+                          'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                          [listId, item.name, item.unit || 'un', item.minStock || 0, null, item.category || 'geral', i]
+                        );
+                      }
+
+                      finalReply += `\n\n✅ Lista de compras *"${slTitle}"* criada com ${slItems.length} itens! Já está disponível na seção Compras e Estoques do app. 🛒`;
+                    } else {
+                      finalReply += '\n\n⚠️ Não foi possível criar a lista. Informe o nome da lista e os itens desejados.';
                     }
                   }
                 }

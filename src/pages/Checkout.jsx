@@ -8,6 +8,7 @@ export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const plan = searchParams.get('plan') || 'trial';
+  const isMobile = window.innerWidth < 600;
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -114,10 +115,10 @@ export default function Checkout() {
   };
 
   return (
-    <div className="page-container animate-fade" style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 20px' }}>
+    <div className="page-container animate-fade" style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '20px 16px' : '40px 20px' }}>
       
       <header style={{ marginBottom: '40px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <button className="btn-secondary" style={{ padding: '8px', borderRadius: '50%' }} onClick={() => navigate('/')}>
+        <button className="btn-secondary" style={{ padding: '10px', minWidth: '44px', minHeight: '44px', borderRadius: '50%' }} onClick={() => navigate('/')}>
           <ArrowLeft size={24} />
         </button>
         <div>
@@ -132,7 +133,7 @@ export default function Checkout() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '40px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))', gap: '40px' }}>
         
         {/* Formulário de Cadastro/Pagamento */}
         <div className="card">
@@ -184,7 +185,7 @@ export default function Checkout() {
                 value={formData.password} onChange={handleInputChange}
                 placeholder="******"
               />
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Você usará este e-mail e senha para acessar o painel administrativo.</p>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>Você usará este e-mail e senha para acessar o painel administrativo.</p>
             </div>
 
             <div style={{ marginTop: '32px' }}>
@@ -196,7 +197,7 @@ export default function Checkout() {
               >
                 {loading ? 'Processando...' : (
                   plan === 'mensal' || plan === 'anual' || plan === 'starter' || plan === 'pro' || plan === 'business'
-                  ? 'Criar Conta e Prosseguir para Pagamento' 
+                  ? 'Criar Conta e Pagar' 
                   : 'Criar Conta e Acessar o Sistema'
                 )}
               </button>

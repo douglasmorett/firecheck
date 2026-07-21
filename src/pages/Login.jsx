@@ -13,6 +13,7 @@ export default function Login() {
   const [errorMsg, setErrorMsg] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
   const navigate = useNavigate();
+  const isMobile = window.innerWidth < 480;
 
   useEffect(() => {
     const token = localStorage.getItem('firecheck_token');
@@ -108,7 +109,7 @@ export default function Login() {
 
   return (
     <div className="animate-fade" style={{ backgroundColor: 'var(--bg-color)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-      <div className="card" style={{ maxWidth: '400px', width: '100%', padding: '40px' }}>
+      <div className="card" style={{ maxWidth: '400px', width: '100%', padding: isMobile ? '24px 20px' : '40px' }}>
         
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{ backgroundColor: 'var(--primary)', width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
@@ -160,7 +161,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                  style={{ position: 'absolute', right: '4px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px', minWidth: '44px', minHeight: '44px' }}
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -168,7 +169,7 @@ export default function Login() {
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '24px' }}>
             {!isForgot && (
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                 <input 
@@ -183,7 +184,7 @@ export default function Login() {
             <button 
               type="button" 
               onClick={() => { setIsForgot(!isForgot); setErrorMsg(null); setSuccessMsg(null); }}
-              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500', marginLeft: 'auto' }}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: '0.85rem', cursor: 'pointer', fontWeight: '500', marginLeft: 'auto', padding: '8px 0' }}
             >
               {isForgot ? 'Voltar para o Login' : 'Esqueceu a senha?'}
             </button>
@@ -199,7 +200,7 @@ export default function Login() {
             Ainda não tem uma conta? <br/>
             <button 
               onClick={() => navigate('/')}
-              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px', padding: '8px 0' }}
             >
               Ver Planos e Assinar
             </button>

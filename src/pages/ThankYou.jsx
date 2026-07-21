@@ -5,6 +5,7 @@ export default function ThankYou() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const email = searchParams.get('email') || '';
+  const isMobile = window.innerWidth < 480;
 
   return (
     <div style={{ 
@@ -38,11 +39,11 @@ export default function ThankYou() {
           <Flame size={40} color="white" />
         </div>
 
-        <h1 style={{ fontSize: '2.5rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-1px', background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-1px', background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Assinatura Confirmada! 🎉
         </h1>
         
-        <p style={{ fontSize: '1.15rem', color: '#94a3b8', marginBottom: '36px', lineHeight: '1.5' }}>
+        <p style={{ fontSize: '1.15rem', color: '#94a3b8', marginBottom: isMobile ? '20px' : '36px', lineHeight: '1.5' }}>
           Sua empresa agora tem tudo para se tornar autogerenciável. Veja como acessar o sistema.
         </p>
 
@@ -51,7 +52,7 @@ export default function ThankYou() {
           backgroundColor: '#0f172a', 
           border: '1px solid rgba(255, 255, 255, 0.08)', 
           borderRadius: '24px', 
-          padding: '32px', 
+          padding: isMobile ? '20px 16px' : '32px', 
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
           textAlign: 'left',
           marginBottom: '32px'
@@ -125,8 +126,6 @@ export default function ThankYou() {
             transition: 'all 0.3s ease',
             marginBottom: '20px'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#ff6622'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ff4d00'}
         >
           Acessar o Painel Administrativo <ArrowRight size={20} />
         </button>
@@ -145,7 +144,8 @@ export default function ThankYou() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              marginLeft: '4px'
+              marginLeft: '4px',
+              padding: '12px 16px'
             }}
           >
             <MessageSquare size={16} /> Falar no Suporte
