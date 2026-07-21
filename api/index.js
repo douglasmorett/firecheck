@@ -1480,18 +1480,44 @@ export default async function handler(req, res) {
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
+        const defaultInstance = process.env.EVOLUTION_INSTANCE;
+        const supportInstance = process.env.EVOLUTION_SUPPORT_INSTANCE;
+
         if (!evoUrl || !evoKey) {
           return res.status(500).json({ error: 'Evolution API URL/Key não configurada.' });
         }
-        const resp = await fetch(`${evoUrl}/instance/fetchInstances`, {
+
+        const fetchRes = await fetch(`${evoUrl}/instance/fetchInstances`, {
           headers: { 'apikey': evoKey }
         });
-        const data = await resp.json();
-        return res.status(200).json({ success: true, data });
+        const instances = await fetchRes.json();
+
+        // Tentar obter estado de conexão da instância padrão
+        let defaultState = null;
+        if (defaultInstance) {
+          try {
+            const stRes = await fetch(`${evoUrl}/instance/connectionState/${defaultInstance}`, {
+              headers: { 'apikey': evoKey }
+            });
+            defaultState = await stRes.json();
+          } catch (e) {}
+        }
+
+        return res.status(200).json({
+          success: true,
+          env: {
+            evoUrl,
+            defaultInstance,
+            supportInstance
+          },
+          defaultState,
+          instances
+        });
       } catch (err) {
         return res.status(500).json({ error: err.message });
       }
     }
+
 
 
 
