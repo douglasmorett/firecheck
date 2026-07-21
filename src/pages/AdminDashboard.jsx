@@ -210,7 +210,7 @@ export default function AdminDashboard() {
   const [waChecklistAtrasado, setWaChecklistAtrasado] = useState(true);
   const [waPontoDiario, setWaPontoDiario] = useState(true);
   const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
-  const [rankingPeriod, setRankingPeriod] = useState('hoje');
+  const [rankingPeriod, setRankingPeriod] = useState('mes');
   const [rankingCustomDates, setRankingCustomDates] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
