@@ -160,6 +160,92 @@ export default function AdminDashboard() {
   // -- Bill Integration --
   const [billLinked, setBillLinked] = useState(false);
   const [billUser, setBillUser] = useState(null);
+
+  // -- Tutorial Interativo / Tour Guiado --
+  const [showWelcomeTourModal, setShowWelcomeTourModal] = useState(false);
+  const [isTourActive, setIsTourActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+
+  useEffect(() => {
+    const tourDismissed = localStorage.getItem('firecheck_tour_dismissed');
+    if (!tourDismissed) {
+      const timer = setTimeout(() => {
+        setShowWelcomeTourModal(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  const TOUR_STEPS = [
+    {
+      title: '📊 Painel do Dono (Dashboard & Métricas)',
+      badge: 'Passo 1 de 7',
+      description: 'Acompanhe em tempo real o total de checklists realizados hoje, a taxa de conformidade da equipe e os alertas emitidos pela Inteligência Artificial.',
+      tabTarget: 'auditoria',
+      icon: <Activity size={24} color="var(--primary)" />
+    },
+    {
+      title: '🤖 Criar Checklist com Inteligência Artificial (Bill)',
+      badge: 'Passo 2 de 7',
+      description: 'Com o botão "+ Criar Checklist", peça ao Bill (nossa IA) para gerar rotinas completas com exigência de foto obrigatória enviando apenas um comando por texto ou áudio.',
+      tabTarget: 'checklists',
+      icon: <Sparkles size={24} color="#FF8800" />
+    },
+    {
+      title: '📸 Auditoria com Fotos e Fiscalização por IA',
+      badge: 'Passo 3 de 7',
+      description: 'Veja as fotos tiradas pelos funcionários na loja. O sistema de visão computacional analisa se a chapa está limpa, se o lixo foi retirado e marca o selo Aprovado ou Reprovado automaticamente.',
+      tabTarget: 'auditoria',
+      icon: <ShieldCheck size={24} color="#10B981" />
+    },
+    {
+      title: '⏰ Controle de Ponto por Reconhecimento Facial',
+      badge: 'Passo 4 de 7',
+      description: 'No menu "Controle de Ponto IA", seus colaboradores batem ponto de entrada e saída por foto facial com geolocalização e relatórios sem fraudes.',
+      tabTarget: 'ponto',
+      icon: <Clock size={24} color="#60A5FA" />
+    },
+    {
+      title: '💬 Conectar com Bill no WhatsApp',
+      badge: 'Passo 5 de 7',
+      description: 'Vincule a IA do FireCheck ao seu WhatsApp comercial. Mande áudios diretamente do seu celular e a IA gera checklists e avisa sua equipe!',
+      tabTarget: 'bill',
+      icon: <Bot size={24} color="#EC4899" />
+    },
+    {
+      title: '👥 Gestão de Equipe, Filiais e Frotas',
+      badge: 'Passo 6 de 7',
+      description: 'Cadastre gerentes, colaboradores e unidades da sua empresa em "Equipe", e gerencie vistorias de saída/entrada de veículos com fotos dos pneus em "Frota e Veículos".',
+      tabTarget: 'equipe',
+      icon: <Users size={24} color="#A855F7" />
+    },
+    {
+      title: '📱 Aplicativo NATIVO para Android e iOS',
+      badge: 'Passo 7 de 7',
+      description: 'Baixe o aplicativo oficial no topo da tela (basta clicar no botão verde do Android ou azul do iPhone) para receber notificações PUSH em tempo real sempre que um checklist for feito ou reprovado!',
+      tabTarget: 'auditoria',
+      icon: <Smartphone size={24} color="#FF4D00" />
+    }
+  ];
+
+  const handleNextTourStep = () => {
+    if (tourStep < TOUR_STEPS.length - 1) {
+      const nextStep = tourStep + 1;
+      setTourStep(nextStep);
+      setTab(TOUR_STEPS[nextStep].tabTarget);
+    } else {
+      setIsTourActive(false);
+      localStorage.setItem('firecheck_tour_dismissed', 'true');
+    }
+  };
+
+  const handlePrevTourStep = () => {
+    if (tourStep > 0) {
+      const prevStep = tourStep - 1;
+      setTourStep(prevStep);
+      setTab(TOUR_STEPS[prevStep].tabTarget);
+    }
+  };
   
   // -- Veículos --
   const [vehicles, setVehicles] = useState([]);
@@ -1634,6 +1720,31 @@ export default function AdminDashboard() {
               </button>
             );
           })}
+
+          {/* Botão para Reiniciar o Tour Interativo */}
+          <button 
+            onClick={() => {
+              setTourStep(0);
+              setTab(TOUR_STEPS[0].tabTarget);
+              setIsTourActive(true);
+              setIsSidebarOpen(false);
+            }} 
+            title="Tour Interativo do Sistema"
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
+              justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+              borderRadius: '8px', border: '1px solid rgba(255, 77, 0, 0.4)', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', 
+              transition: 'all 0.2s', textAlign: 'left',
+              backgroundColor: 'rgba(255, 77, 0, 0.1)',
+              color: 'var(--primary)',
+              marginTop: '10px'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.2)'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.1)'}
+          >
+            <span><Sparkles size={18} color="var(--primary)" /></span>
+            {!isSidebarCollapsed && '🎓 Tour do Sistema'}
+          </button>
         </div>
 
         {/* FOOTER DA SIDEBAR */}
@@ -4639,6 +4750,153 @@ export default function AdminDashboard() {
             <button style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setViewingPhotoUrl(null)}><X size={24} /></button>
             <h3 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Comprovante / Nota Fiscal</h3>
             <img src={viewingPhotoUrl} alt="Comprovante" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />
+          </div>
+        </div>
+      )}
+
+      {/* 🚀 MODAL POP-UP DE BOAS-VINDAS (Pergunta se deseja o tutorial) */}
+      {showWelcomeTourModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '520px', width: '100%', padding: '32px', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', textAlign: 'center', position: 'relative' }}>
+            <button 
+              onClick={() => {
+                setShowWelcomeTourModal(false);
+                localStorage.setItem('firecheck_tour_dismissed', 'true');
+              }}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255, 77, 0, 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.3)' }}>
+              <Flame size={36} />
+            </div>
+
+            <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '10px' }}>
+              Bem-vindo ao FireCheck! 🔥
+            </h2>
+
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '24px' }}>
+              Gostaria de fazer um tour guiado rápido de 1 minuto para aprender como funciona a criação de checklists com IA, auditoria de fotos e controle de ponto?
+            </p>
+
+            <div style={{ backgroundColor: 'var(--bg-color)', padding: '16px', borderRadius: '12px', textAlign: 'left', marginBottom: '28px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Conheça o Dashboard e Auditoria com Visão Computacional</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Crie rotinas com a Inteligência Artificial (Bill)</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Registre Ponto Facial e conecte ao WhatsApp</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => {
+                  setShowWelcomeTourModal(false);
+                  localStorage.setItem('firecheck_tour_dismissed', 'true');
+                }}
+                style={{ padding: '12px 20px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}
+              >
+                Agora Não
+              </button>
+
+              <button 
+                onClick={() => {
+                  setShowWelcomeTourModal(false);
+                  setIsTourActive(true);
+                  setTourStep(0);
+                  setTab(TOUR_STEPS[0].tabTarget);
+                }}
+                style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
+              >
+                🚀 Sim, Iniciar Tutorial!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🎓 OVERLAY DO TUTORIAL INTERATIVO PASSO A PASSO */}
+      {isTourActive && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '24px', pointerEvents: 'auto' }}>
+          <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '650px', width: '100%', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', position: 'relative' }}>
+            
+            {/* Header do Passo */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgba(255, 77, 0, 0.12)' }}>
+                  {TOUR_STEPS[tourStep].icon}
+                </div>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '1px', backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                  {TOUR_STEPS[tourStep].badge}
+                </span>
+              </div>
+              <button 
+                onClick={() => {
+                  setIsTourActive(false);
+                  localStorage.setItem('firecheck_tour_dismissed', 'true');
+                }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Pular Tour <X size={16} />
+              </button>
+            </div>
+
+            {/* Título & Descrição */}
+            <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '10px' }}>
+              {TOUR_STEPS[tourStep].title}
+            </h3>
+
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '24px' }}>
+              {TOUR_STEPS[tourStep].description}
+            </p>
+
+            {/* Barra de Progresso */}
+            <div style={{ height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '10px', overflow: 'hidden', marginBottom: '24px' }}>
+              <div style={{ width: `${((tourStep + 1) / TOUR_STEPS.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 0.3s ease' }} />
+            </div>
+
+            {/* Controles de Navegação */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <button 
+                onClick={handlePrevTourStep}
+                disabled={tourStep === 0}
+                style={{ 
+                  padding: '10px 18px', 
+                  borderRadius: '8px', 
+                  border: '1px solid var(--border-color)', 
+                  backgroundColor: 'transparent', 
+                  color: tourStep === 0 ? 'var(--border-color)' : 'var(--text-main)', 
+                  fontWeight: 600, 
+                  fontSize: '0.85rem', 
+                  cursor: tourStep === 0 ? 'not-allowed' : 'pointer' 
+                }}
+              >
+                ⬅️ Anterior
+              </button>
+
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {tourStep + 1} de {TOUR_STEPS.length}
+              </div>
+
+              <button 
+                onClick={handleNextTourStep}
+                style={{ 
+                  padding: '10px 24px', 
+                  borderRadius: '8px', 
+                  border: 'none', 
+                  backgroundColor: 'var(--primary)', 
+                  color: 'white', 
+                  fontWeight: 800, 
+                  fontSize: '0.9rem', 
+                  cursor: 'pointer',
+                  boxShadow: '0 0 15px rgba(255, 77, 0, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {tourStep === TOUR_STEPS.length - 1 ? '🎉 Finalizar Tour' : 'Próximo ➡️'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
