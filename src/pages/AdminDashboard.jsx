@@ -163,6 +163,8 @@ export default function AdminDashboard() {
 
   // -- Tutorial Interativo / Tour Guiado --
   const [showWelcomeTourModal, setShowWelcomeTourModal] = useState(false);
+  const [showTutorialHub, setShowTutorialHub] = useState(false);
+  const [selectedTutorialTopic, setSelectedTutorialTopic] = useState('checklists');
   const [isTourActive, setIsTourActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -176,60 +178,198 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  const TOUR_STEPS = [
-    {
-      title: '📊 Painel do Dono (Dashboard & Métricas)',
-      badge: 'Passo 1 de 6',
-      description: 'Acompanhe em tempo real o total de checklists realizados hoje, a taxa de conformidade da equipe e os alertas emitidos pela Inteligência Artificial.',
-      tabTarget: 'auditoria',
-      icon: <Activity size={24} color="var(--primary)" />
+  const TUTORIAL_TOPICS = {
+    checklists: {
+      id: 'checklists',
+      title: '📝 Como Criar um Checklist com IA (Bill)',
+      subtitle: 'Aprenda a criar rotinas automatizadas por voz ou texto em segundos.',
+      categoryIcon: <ClipboardList size={22} color="#FF8800" />,
+      steps: [
+        {
+          title: '1. Acesse a Seção de Checklists',
+          description: 'Clique no botão laranja "+ Criar Checklist" no topo do seu painel ou acesse a aba "Checklists" no menu lateral.',
+          tabTarget: 'checklists',
+          icon: <ClipboardList size={24} color="#FF8800" />
+        },
+        {
+          title: '2. Peça ao Bill IA por Voz ou Texto',
+          description: 'No criador, digite ou grave um áudio. Exemplo: "Cria um checklist de fechamento para a minha cozinha com foto na chapa e verificação de lixo e gás".',
+          tabTarget: 'checklists',
+          icon: <Sparkles size={24} color="#FF8800" />
+        },
+        {
+          title: '3. Exigência de Fotos e Respostas',
+          description: 'A IA gera as perguntas automaticamente. Marque quais tarefas exigem "Foto Obrigatória" para fiscalizar se a equipe realmente realizou o procedimento.',
+          tabTarget: 'checklists',
+          icon: <ShieldCheck size={24} color="#10B981" />
+        },
+        {
+          title: '4. Frequência e Definição de Loja',
+          description: 'Escolha a frequência (Diário, Semanal ou Mensal) e atribua a filial responsável. Ao salvar, o checklist fica disponível na hora nos celulares da equipe!',
+          tabTarget: 'checklists',
+          icon: <CheckCircle size={24} color="#10B981" />
+        }
+      ]
     },
-    {
-      title: '🤖 Criar Checklist com Inteligência Artificial (Bill)',
-      badge: 'Passo 2 de 6',
-      description: 'Com o botão "+ Criar Checklist", peça ao Bill (nossa IA) para gerar rotinas completas com exigência de foto obrigatória enviando apenas um comando por texto ou áudio.',
-      tabTarget: 'checklists',
-      icon: <Sparkles size={24} color="#FF8800" />
+
+    frota: {
+      id: 'frota',
+      title: '🚚 Como Cadastrar e Vistoriar Minha Frota',
+      subtitle: 'Controle saída de veículos, pneus, lataria e nível de combustível.',
+      categoryIcon: <Car size={22} color="#60A5FA" />,
+      steps: [
+        {
+          title: '1. Acesse o Menu Frota e Veículos',
+          description: 'No menu lateral esquerdo, clique em "Frota e Veículos" para ver os carros, caminhões ou utilitários cadastrados.',
+          tabTarget: 'vehicles',
+          icon: <Car size={24} color="#60A5FA" />
+        },
+        {
+          title: '2. Cadastre um Novo Veículo',
+          description: 'Clique no botão "+ Cadastrar Veículo", informe a placa, modelo, marca, ano e vincule o motorista responsável.',
+          tabTarget: 'vehicles',
+          icon: <Plus size={24} color="#60A5FA" />
+        },
+        {
+          title: '3. Vistoria Pré-Viagem Obrigatória',
+          description: 'Os motoristas abrem o app no celular e realizam a vistoria antes de sair, enviando fotos dos pneus, lataria e nível de combustível.',
+          tabTarget: 'vehicles',
+          icon: <ShieldCheck size={24} color="#10B981" />
+        }
+      ]
     },
-    {
-      title: '📸 Auditoria com Fotos e Fiscalização por IA',
-      badge: 'Passo 3 de 6',
-      description: 'Veja as fotos tiradas pelos funcionários na loja. O sistema de visão computacional analisa se a chapa está limpa, se o lixo foi retirado e marca o selo Aprovado ou Reprovado automaticamente.',
-      tabTarget: 'auditoria',
-      icon: <ShieldCheck size={24} color="#10B981" />
+
+    compras: {
+      id: 'compras',
+      title: '🛒 Como Fazer Lista de Compras e Estoque',
+      subtitle: 'Evite falta de insumos com reposição automatizada.',
+      categoryIcon: <ShoppingCart size={22} color="#EC4899" />,
+      steps: [
+        {
+          title: '1. Acesse Compras e Estoque',
+          description: 'Clique no menu "Compras e Estoque" na barra lateral para visualizar os produtos e listas de reposição.',
+          tabTarget: 'compras',
+          icon: <ShoppingCart size={24} color="#EC4899" />
+        },
+        {
+          title: '2. Crie uma Lista ou Peça ao Bill IA',
+          description: 'Clique em "+ Nova Lista de Compras" ou peça para o Bill IA gerar os insumos da sua empresa por comando de áudio.',
+          tabTarget: 'compras',
+          icon: <Sparkles size={24} color="#EC4899" />
+        },
+        {
+          title: '3. Alerta de Estoque Mínimo',
+          description: 'Cadastre o estoque mínimo de cada item. Quando os funcionários apontarem falta no checklist diário, o item entra direto para a lista de compras!',
+          tabTarget: 'compras',
+          icon: <CheckCircle size={24} color="#10B981" />
+        }
+      ]
     },
-    {
-      title: '⏰ Controle de Ponto por Reconhecimento Facial',
-      badge: 'Passo 4 de 6',
-      description: 'No menu "Controle de Ponto IA", seus colaboradores batem ponto de entrada e saída por foto facial com geolocalização e relatórios sem fraudes.',
-      tabTarget: 'ponto',
-      icon: <Clock size={24} color="#60A5FA" />
+
+    equipe: {
+      id: 'equipe',
+      title: '👥 Como Cadastrar Minha Equipe e Gerentes',
+      subtitle: 'Adicione colaboradores, defina níveis de acesso e filiais.',
+      categoryIcon: <Users size={22} color="#A855F7" />,
+      steps: [
+        {
+          title: '1. Acesse o Menu Equipe',
+          description: 'Clique em "Equipe" na barra lateral para visualizar os colaboradores da sua empresa.',
+          tabTarget: 'equipe',
+          icon: <Users size={24} color="#A855F7" />
+        },
+        {
+          title: '2. Cadastre o Novo Colaborador',
+          description: 'Clique em "+ Novo Colaborador", informe Nome, E-mail, Senha de Acesso e a Loja/Filial correspondente.',
+          tabTarget: 'equipe',
+          icon: <UserPlus size={24} color="#A855F7" />
+        },
+        {
+          title: '3. Níveis de Permissão (Gerente vs Funcionário)',
+          description: 'Defina o perfil de acesso: Gerente (pode criar rotinas e relatórios) ou Funcionário (apenas executa checklists e marca ponto).',
+          tabTarget: 'equipe',
+          icon: <Lock size={24} color="#10B981" />
+        }
+      ]
     },
-    {
-      title: '👥 Gestão de Equipe, Filiais e Frotas',
-      badge: 'Passo 5 de 6',
-      description: 'Cadastre gerentes, colaboradores e unidades da sua empresa em "Equipe", e gerencie vistorias de saída/entrada de veículos com fotos dos pneus em "Frota e Veículos".',
-      tabTarget: 'equipe',
-      icon: <Users size={24} color="#A855F7" />
+
+    ponto: {
+      id: 'ponto',
+      title: '⏰ Como Funciona o Ponto por Reconhecimento Facial',
+      subtitle: 'Registro de entrada e saída com foto e GPS sem fraudes.',
+      categoryIcon: <Clock size={22} color="#60A5FA" />,
+      steps: [
+        {
+          title: '1. Acesse Controle de Ponto IA',
+          description: 'No menu lateral, acesse "Controle de Ponto IA" para acompanhar as batidas de ponto em tempo real.',
+          tabTarget: 'ponto',
+          icon: <Clock size={24} color="#60A5FA" />
+        },
+        {
+          title: '2. Batida de Ponto pelo Celular ou Tablet da Loja',
+          description: 'A equipe abre o aplicativo na loja, tira uma foto rápida da face e o sistema registra o horário e localização GPS exata.',
+          tabTarget: 'ponto',
+          icon: <UserCheck size={24} color="#60A5FA" />
+        },
+        {
+          title: '3. Relatórios e Espelho de Ponto em PDF',
+          description: 'Exporte o relatório mensal completo em PDF/Excel com 1 clique para enviar diretamente à contabilidade.',
+          tabTarget: 'ponto',
+          icon: <FileDown size={24} color="#10B981" />
+        }
+      ]
     },
-    {
-      title: '📱 Aplicativo NATIVO para Android e iOS',
-      badge: 'Passo 6 de 6',
-      description: 'Baixe o aplicativo oficial no topo da tela (basta clicar no botão verde do Android ou azul do iPhone) para receber notificações PUSH em tempo real sempre que um checklist for feito ou reprovado!',
-      tabTarget: 'auditoria',
-      icon: <Smartphone size={24} color="#FF4D00" />
+
+    dashboard: {
+      id: 'dashboard',
+      title: '📊 Visão Geral do Dashboard & Auditoria com Fotos',
+      subtitle: 'Acompanhe a conformidade geral e fiscalização por visão computacional.',
+      categoryIcon: <Activity size={22} color="var(--primary)" />,
+      steps: [
+        {
+          title: '1. Indicadores da Sua Empresa em Tempo Real',
+          description: 'Na tela inicial (Dashboard), veja o número de checklists concluídos no dia, conformidade percentual e não conformidades.',
+          tabTarget: 'auditoria',
+          icon: <Activity size={24} color="var(--primary)" />
+        },
+        {
+          title: '2. Auditoria por Visão Computacional (Fotos)',
+          description: 'Em Auditoria em Tempo Real, inspecione as fotos enviadas. A IA analisa visualmente se o ambiente está limpo e aprova ou reprova.',
+          tabTarget: 'auditoria',
+          icon: <ShieldCheck size={24} color="#10B981" />
+        },
+        {
+          title: '3. Detalhamento e Zoom de Evidências',
+          description: 'Clique em qualquer auditoria para ver a selfie do funcionário, o horário de execução e dar zoom em alta resolução nas fotos.',
+          tabTarget: 'auditoria',
+          icon: <CheckCircle size={24} color="#10B981" />
+        }
+      ]
     }
-  ];
+  };
+
+  const activeTopicObj = TUTORIAL_TOPICS[selectedTutorialTopic] || TUTORIAL_TOPICS.checklists;
+
+  const handleStartSpecificTutorial = (topicId) => {
+    setSelectedTutorialTopic(topicId);
+    setTourStep(0);
+    const target = TUTORIAL_TOPICS[topicId]?.steps[0]?.tabTarget || 'auditoria';
+    setTab(target);
+    setShowWelcomeTourModal(false);
+    setShowTutorialHub(false);
+    setIsTourActive(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleNextTourStep = () => {
-    if (tourStep < TOUR_STEPS.length - 1) {
+    if (tourStep < activeTopicObj.steps.length - 1) {
       const nextStep = tourStep + 1;
       setTourStep(nextStep);
-      setTab(TOUR_STEPS[nextStep].tabTarget);
+      setTab(activeTopicObj.steps[nextStep].tabTarget);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setIsTourActive(false);
-      localStorage.setItem('firecheck_tour_dismissed', 'true');
+      setShowTutorialHub(true); // Retorna ao Hub após concluir
     }
   };
 
@@ -237,7 +377,7 @@ export default function AdminDashboard() {
     if (tourStep > 0) {
       const prevStep = tourStep - 1;
       setTourStep(prevStep);
-      setTab(TOUR_STEPS[prevStep].tabTarget);
+      setTab(activeTopicObj.steps[prevStep].tabTarget);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -1716,15 +1856,13 @@ export default function AdminDashboard() {
             );
           })}
 
-          {/* Botão para Reiniciar o Tour Interativo */}
+          {/* Botão para Acessar a Central de Tutoriais */}
           <button 
             onClick={() => {
-              setTourStep(0);
-              setTab(TOUR_STEPS[0].tabTarget);
-              setIsTourActive(true);
+              setShowTutorialHub(true);
               setIsSidebarOpen(false);
             }} 
-            title="Tour Interativo do Sistema"
+            title="Central de Tutoriais do Sistema"
             style={{ 
               display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
               justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
@@ -4749,7 +4887,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 🚀 MODAL POP-UP DE BOAS-VINDAS (Pergunta se deseja o tutorial) */}
+      {/* 🚀 POP-UP DE BOAS-VINDAS (Abre na primeira visita) */}
       {showWelcomeTourModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
           <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '520px', width: '100%', padding: '32px', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', textAlign: 'center', position: 'relative' }}>
@@ -4772,14 +4910,8 @@ export default function AdminDashboard() {
             </h2>
 
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '24px' }}>
-              Gostaria de fazer um tour guiado rápido de 1 minuto para aprender como funciona a criação de checklists com IA, auditoria de fotos e controle de ponto?
+              Gostaria de ver um tutorial rápido de como criar checklists por IA, cadastrar equipe, gerenciar frotas ou bater ponto facial?
             </p>
-
-            <div style={{ backgroundColor: 'var(--bg-color)', padding: '16px', borderRadius: '12px', textAlign: 'left', marginBottom: '28px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Conheça o Dashboard e Auditoria com Visão Computacional</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Crie rotinas com a Inteligência Artificial (Bill)</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><CheckCircle size={16} color="var(--success)" /> Registre Ponto Facial e conecte ao WhatsApp</div>
-            </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button 
@@ -4795,22 +4927,98 @@ export default function AdminDashboard() {
               <button 
                 onClick={() => {
                   setShowWelcomeTourModal(false);
-                  setIsTourActive(true);
-                  setTourStep(0);
-                  setTab(TOUR_STEPS[0].tabTarget);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  setShowTutorialHub(true);
                 }}
                 style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                🚀 Sim, Iniciar Tutorial!
+                🎓 Escolher um Tutorial!
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* 🎓 CENTRAL DE TUTORIAIS INTERATIVOS (HUB) */}
+      {showTutorialHub && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '24px', maxWidth: '750px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '32px', boxShadow: '0 25px 60px rgba(0,0,0,0.6)', position: 'relative' }}>
+            
+            <button 
+              onClick={() => setShowTutorialHub(false)}
+              style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.08)', border: 'none', color: 'var(--text-main)', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: 'rgba(255,77,0,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
+                🎓 Central de Ajuda Interativa
+              </span>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '8px' }}>
+                O que você deseja aprender agora?
+              </h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginTop: '6px' }}>
+                Clique no tópico desejado para iniciar um guia prático passo a passo no seu painel.
+              </p>
+            </div>
+
+            {/* Grid de Tópicos de Tutorial */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+              {Object.values(TUTORIAL_TOPICS).map(topic => (
+                <div 
+                  key={topic.id}
+                  onClick={() => handleStartSpecificTutorial(topic.id)}
+                  style={{
+                    backgroundColor: 'var(--bg-color)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary)';
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-color)';
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                      <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                        {topic.categoryIcon}
+                      </div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>
+                        {topic.title}
+                      </h3>
+                    </div>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      {topic.subtitle}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', pt: '8px', borderTop: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{topic.steps.length} passos rápidos</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      Iniciar Tour <ArrowRight size={14} />
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* 🎓 OVERLAY DO TUTORIAL INTERATIVO PASSO A PASSO (FIXADO NO TOPO) */}
-      {isTourActive && (
+      {isTourActive && activeTopicObj && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 20px 20px 20px', overflowY: 'auto', pointerEvents: 'auto' }}>
           <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '650px', width: '100%', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', position: 'relative', marginTop: '10px' }}>
             
@@ -4818,35 +5026,36 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgba(255, 77, 0, 0.12)' }}>
-                  {TOUR_STEPS[tourStep].icon}
+                  {activeTopicObj.steps[tourStep].icon}
                 </div>
                 <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '1px', backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
-                  {TOUR_STEPS[tourStep].badge}
+                  Passo {tourStep + 1} de {activeTopicObj.steps.length}
                 </span>
               </div>
+
               <button 
                 onClick={() => {
                   setIsTourActive(false);
-                  localStorage.setItem('firecheck_tour_dismissed', 'true');
+                  setShowTutorialHub(true);
                 }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
               >
-                Pular Tour <X size={16} />
+                🎓 Voltar ao Menu
               </button>
             </div>
 
-            {/* Título & Descrição */}
+            {/* Título & Descrição do Passo */}
             <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '10px' }}>
-              {TOUR_STEPS[tourStep].title}
+              {activeTopicObj.steps[tourStep].title}
             </h3>
 
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '24px' }}>
-              {TOUR_STEPS[tourStep].description}
+              {activeTopicObj.steps[tourStep].description}
             </p>
 
             {/* Barra de Progresso */}
             <div style={{ height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '10px', overflow: 'hidden', marginBottom: '24px' }}>
-              <div style={{ width: `${((tourStep + 1) / TOUR_STEPS.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 0.3s ease' }} />
+              <div style={{ width: `${((tourStep + 1) / activeTopicObj.steps.length) * 100}%`, height: '100%', backgroundColor: 'var(--primary)', transition: 'width 0.3s ease' }} />
             </div>
 
             {/* Controles de Navegação */}
@@ -4869,7 +5078,7 @@ export default function AdminDashboard() {
               </button>
 
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                {tourStep + 1} de {TOUR_STEPS.length}
+                {tourStep + 1} de {activeTopicObj.steps.length}
               </div>
 
               <button 
@@ -4889,7 +5098,7 @@ export default function AdminDashboard() {
                   gap: '6px'
                 }}
               >
-                {tourStep === TOUR_STEPS.length - 1 ? '🎉 Finalizar Tour' : 'Próximo ➡️'}
+                {tourStep === activeTopicObj.steps.length - 1 ? '🎉 Finalizar e Voltar' : 'Próximo ➡️'}
               </button>
             </div>
 
