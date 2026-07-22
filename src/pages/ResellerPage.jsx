@@ -22,11 +22,11 @@ const CAKTO_AFFILIATE_LINK = "https://app.cakto.com.br/affiliate/invite/c15a7c11
 export default function ResellerPage() {
   const navigate = useNavigate();
   const [clientCount, setClientCount] = useState(25);
-  const [ticketPrice] = useState(147); // Valor médio mensal aproximado por cliente
-  const [commissionRate] = useState(30); // 30% de comissão estimada
+  const [selectedPlan, setSelectedPlan] = useState(97); // Plano base R$ 97 por padrão
+  const [commissionRate] = useState(30); // 30% de comissão recorrente
 
   // Cálculo da Renda Recorrente Mensal (MRR) estimada
-  const monthlyRevenue = Math.round(clientCount * ticketPrice * (commissionRate / 100));
+  const monthlyRevenue = (clientCount * selectedPlan * (commissionRate / 100));
   const yearlyRevenue = monthlyRevenue * 12;
 
   const handleOpenCakto = () => {
@@ -205,14 +205,46 @@ export default function ResellerPage() {
       <section style={{ padding: '80px 5%', backgroundColor: '#0B0F17', position: 'relative' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)', border: '1px solid rgba(255, 77, 0, 0.3)', borderRadius: '24px', padding: '40px 6%', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' }}>
           
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <span style={{ color: '#FF8800', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Simulador de Renda Recorrente</span>
+          <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+            <span style={{ color: '#FF8800', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Simulador de Renda Recorrente (30% de Comissão)</span>
             <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', marginTop: '8px' }}>
               Quanto você quer receber todo mês?
             </h2>
             <p style={{ color: '#9CA3AF', fontSize: '0.95rem', marginTop: '8px' }}>
               Mova a barra abaixo e simule seus ganhos mensais acumulados como revendedor FireCheck.
             </p>
+          </div>
+
+          {/* Selector de Plano de Referência */}
+          <div style={{ marginBottom: '28px' }}>
+            <div style={{ textAlign: 'center', fontSize: '0.85rem', color: '#D1D5DB', fontWeight: 600, marginBottom: '10px' }}>
+              Selecione o plano do cliente para a simulação:
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {[
+                { price: 97, label: 'Plano R$ 97/mês (Base)' },
+                { price: 147, label: 'Plano R$ 147/mês (Pro)' },
+                { price: 197, label: 'Plano R$ 197/mês (Business)' }
+              ].map((plan) => (
+                <button
+                  key={plan.price}
+                  onClick={() => setSelectedPlan(plan.price)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    border: selectedPlan === plan.price ? '2px solid #FF4D00' : '1px solid rgba(255,255,255,0.15)',
+                    backgroundColor: selectedPlan === plan.price ? 'rgba(255, 77, 0, 0.2)' : 'rgba(15, 23, 42, 0.6)',
+                    color: selectedPlan === plan.price ? '#FF8800' : '#9CA3AF',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  {plan.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Slider Controls */}
@@ -245,21 +277,28 @@ export default function ResellerPage() {
             <div>
               <div style={{ fontSize: '0.85rem', color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Renda Mensal Recorrente (MRR)</div>
               <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#10B981', marginTop: '4px' }}>
-                R$ {monthlyRevenue.toLocaleString('pt-BR')} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#9CA3AF' }}>/mês</span>
+                R$ {monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#9CA3AF' }}>/mês</span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>Cai na sua conta todos os meses</div>
+              <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: '4px' }}>
+                30% de comissão = R$ {(selectedPlan * 0.3).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por cliente/mês
+              </div>
             </div>
 
             <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.1)' }}>
               <div style={{ fontSize: '0.85rem', color: '#9CA3AF', textTransform: 'uppercase', fontWeight: 600 }}>Ganhos Anuais Estimados</div>
               <div style={{ fontSize: '2.4rem', fontWeight: 900, color: '#FF8800', marginTop: '4px' }}>
-                R$ {yearlyRevenue.toLocaleString('pt-BR')} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#9CA3AF' }}>/ano</span>
+                R$ {yearlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#9CA3AF' }}>/ano</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: '#6B7280', marginTop: '4px' }}>Renda acumulada em 12 meses</div>
             </div>
           </div>
 
-          <div style={{ textAlign: 'center', marginTop: '32px' }}>
+          {/* Aviso sobre a oscilação conforme o plano assinado */}
+          <div style={{ marginTop: '20px', padding: '14px 18px', backgroundColor: 'rgba(255, 77, 0, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 77, 0, 0.25)', fontSize: '0.825rem', color: '#D1D5DB', textAlign: 'center', lineHeight: 1.5 }}>
+            <span style={{ color: '#FF8800', fontWeight: 700 }}>💡 Observação Importante:</span> O valor exato da sua renda mensal pode oscilar para mais ou para menos dependendo do plano assinado por cada cliente indicado (ex: R$ 97, R$ 147 ou R$ 197/mês) ou upgrades de contratação. A sua comissão é sempre fixa em <strong>30% recorrente</strong> em cada mensalidade paga!
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '28px' }}>
             <button 
               onClick={handleOpenCakto} 
               style={{ backgroundColor: '#FF4D00', color: '#FFFFFF', border: 'none', padding: '16px 36px', borderRadius: '12px', fontSize: '1.1rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 0 25px rgba(255, 77, 0, 0.4)', transition: 'all 0.2s' }}
