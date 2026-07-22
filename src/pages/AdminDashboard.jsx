@@ -179,49 +179,42 @@ export default function AdminDashboard() {
   const TOUR_STEPS = [
     {
       title: '📊 Painel do Dono (Dashboard & Métricas)',
-      badge: 'Passo 1 de 7',
+      badge: 'Passo 1 de 6',
       description: 'Acompanhe em tempo real o total de checklists realizados hoje, a taxa de conformidade da equipe e os alertas emitidos pela Inteligência Artificial.',
       tabTarget: 'auditoria',
       icon: <Activity size={24} color="var(--primary)" />
     },
     {
       title: '🤖 Criar Checklist com Inteligência Artificial (Bill)',
-      badge: 'Passo 2 de 7',
+      badge: 'Passo 2 de 6',
       description: 'Com o botão "+ Criar Checklist", peça ao Bill (nossa IA) para gerar rotinas completas com exigência de foto obrigatória enviando apenas um comando por texto ou áudio.',
       tabTarget: 'checklists',
       icon: <Sparkles size={24} color="#FF8800" />
     },
     {
       title: '📸 Auditoria com Fotos e Fiscalização por IA',
-      badge: 'Passo 3 de 7',
+      badge: 'Passo 3 de 6',
       description: 'Veja as fotos tiradas pelos funcionários na loja. O sistema de visão computacional analisa se a chapa está limpa, se o lixo foi retirado e marca o selo Aprovado ou Reprovado automaticamente.',
       tabTarget: 'auditoria',
       icon: <ShieldCheck size={24} color="#10B981" />
     },
     {
       title: '⏰ Controle de Ponto por Reconhecimento Facial',
-      badge: 'Passo 4 de 7',
+      badge: 'Passo 4 de 6',
       description: 'No menu "Controle de Ponto IA", seus colaboradores batem ponto de entrada e saída por foto facial com geolocalização e relatórios sem fraudes.',
       tabTarget: 'ponto',
       icon: <Clock size={24} color="#60A5FA" />
     },
     {
-      title: '💬 Conectar com Bill no WhatsApp',
-      badge: 'Passo 5 de 7',
-      description: 'Vincule a IA do FireCheck ao seu WhatsApp comercial. Mande áudios diretamente do seu celular e a IA gera checklists e avisa sua equipe!',
-      tabTarget: 'bill',
-      icon: <Bot size={24} color="#EC4899" />
-    },
-    {
       title: '👥 Gestão de Equipe, Filiais e Frotas',
-      badge: 'Passo 6 de 7',
+      badge: 'Passo 5 de 6',
       description: 'Cadastre gerentes, colaboradores e unidades da sua empresa em "Equipe", e gerencie vistorias de saída/entrada de veículos com fotos dos pneus em "Frota e Veículos".',
       tabTarget: 'equipe',
       icon: <Users size={24} color="#A855F7" />
     },
     {
       title: '📱 Aplicativo NATIVO para Android e iOS',
-      badge: 'Passo 7 de 7',
+      badge: 'Passo 6 de 6',
       description: 'Baixe o aplicativo oficial no topo da tela (basta clicar no botão verde do Android ou azul do iPhone) para receber notificações PUSH em tempo real sempre que um checklist for feito ou reprovado!',
       tabTarget: 'auditoria',
       icon: <Smartphone size={24} color="#FF4D00" />
@@ -233,6 +226,7 @@ export default function AdminDashboard() {
       const nextStep = tourStep + 1;
       setTourStep(nextStep);
       setTab(TOUR_STEPS[nextStep].tabTarget);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setIsTourActive(false);
       localStorage.setItem('firecheck_tour_dismissed', 'true');
@@ -244,6 +238,7 @@ export default function AdminDashboard() {
       const prevStep = tourStep - 1;
       setTourStep(prevStep);
       setTab(TOUR_STEPS[prevStep].tabTarget);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
   
@@ -4803,6 +4798,7 @@ export default function AdminDashboard() {
                   setIsTourActive(true);
                   setTourStep(0);
                   setTab(TOUR_STEPS[0].tabTarget);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
@@ -4813,10 +4809,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 🎓 OVERLAY DO TUTORIAL INTERATIVO PASSO A PASSO */}
+      {/* 🎓 OVERLAY DO TUTORIAL INTERATIVO PASSO A PASSO (FIXADO NO TOPO) */}
       {isTourActive && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '24px', pointerEvents: 'auto' }}>
-          <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '650px', width: '100%', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', position: 'relative' }}>
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)', zIndex: 99999, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '30px 20px 20px 20px', overflowY: 'auto', pointerEvents: 'auto' }}>
+          <div className="animate-scale" style={{ backgroundColor: 'var(--bg-card)', border: '2px solid var(--primary)', borderRadius: '20px', maxWidth: '650px', width: '100%', padding: '28px', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', position: 'relative', marginTop: '10px' }}>
             
             {/* Header do Passo */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
