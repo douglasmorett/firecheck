@@ -141,6 +141,26 @@ export default function LandingPage() {
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
           <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' })}>Como Funciona</button>
           <button className="btn-secondary hide-on-mobile" style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' })}>Planos</button>
+          <button 
+            className="hide-on-mobile" 
+            style={{ 
+              padding: '10px 18px', 
+              borderRadius: '8px', 
+              border: '1px solid #FF4D00', 
+              backgroundColor: 'rgba(255, 77, 0, 0.08)', 
+              color: '#FF4D00', 
+              fontSize: '0.9rem', 
+              fontWeight: 700, 
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.2s'
+            }} 
+            onClick={() => navigate('/revenda')}
+          >
+            🤝 Revenda nossa Solução
+          </button>
           <button className="btn" style={{ padding: '10px 24px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)' }} onClick={() => navigate('/login')}>
             Acessar
           </button>
@@ -161,6 +181,7 @@ export default function LandingPage() {
           </div>
           <a onClick={() => { setMenuOpen(false); document.getElementById('como-funciona').scrollIntoView({ behavior: 'smooth' }); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Como Funciona</a>
           <a onClick={() => { setMenuOpen(false); document.getElementById('pricing').scrollIntoView({ behavior: 'smooth' }); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Planos</a>
+          <a onClick={() => { setMenuOpen(false); navigate('/revenda'); }} style={{ fontSize: '1.2rem', fontWeight: 700, color: '#FF4D00', cursor: 'pointer' }}>🤝 Revenda Nossa Solução (Afiliados)</a>
           <a onClick={() => { setMenuOpen(false); navigate('/login'); }} style={{ fontSize: '1.2rem', fontWeight: 600, color: '#000', cursor: 'pointer' }}>Acessar</a>
         </div>
       )}

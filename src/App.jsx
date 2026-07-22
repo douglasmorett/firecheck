@@ -14,6 +14,7 @@ import TermsOfUse from './pages/TermsOfUse';
 import PontoPage from './pages/PontoPage';
 import RenewPlan from './pages/RenewPlan';
 import ThankYou from './pages/ThankYou';
+import ResellerPage from './pages/ResellerPage';
 
 function RouteTracker() {
   const location = useLocation();
@@ -42,6 +43,11 @@ function App() {
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/quiz" element={<QuizFunnel />} />
         <Route path="/obrigado" element={<ThankYou />} />
+        
+        {/* Programa de Revenda / Afiliados */}
+        <Route path="/revenda" element={<ResellerPage />} />
+        <Route path="/revendedor" element={<ResellerPage />} />
+        <Route path="/afiliados" element={<ResellerPage />} />
         
         {/* Tela de Login do Sistema */}
         <Route path="/login" element={<Login />} />
