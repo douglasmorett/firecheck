@@ -222,9 +222,9 @@ export default function ResellerPage() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap' }}>
               {[
-                { price: 97, label: 'Plano R$ 97/mês (Base)' },
-                { price: 147, label: 'Plano R$ 147/mês (Pro)' },
-                { price: 197, label: 'Plano R$ 197/mês (Business)' }
+                { price: 67, label: 'Plano R$ 67/mês' },
+                { price: 97, label: 'Plano R$ 97/mês (Mais Vendido)' },
+                { price: 197, label: 'Plano R$ 197/mês (Pro)' }
               ].map((plan) => (
                 <button
                   key={plan.price}
@@ -295,7 +295,7 @@ export default function ResellerPage() {
 
           {/* Aviso sobre a oscilação conforme o plano assinado */}
           <div style={{ marginTop: '20px', padding: '14px 18px', backgroundColor: 'rgba(255, 77, 0, 0.08)', borderRadius: '12px', border: '1px solid rgba(255, 77, 0, 0.25)', fontSize: '0.825rem', color: '#D1D5DB', textAlign: 'center', lineHeight: 1.5 }}>
-            <span style={{ color: '#FF8800', fontWeight: 700 }}>💡 Observação Importante:</span> O valor exato da sua renda mensal pode oscilar para mais ou para menos dependendo do plano assinado por cada cliente indicado (ex: R$ 97, R$ 147 ou R$ 197/mês) ou upgrades de contratação. A sua comissão é sempre fixa em <strong>30% recorrente</strong> em cada mensalidade paga!
+            <span style={{ color: '#FF8800', fontWeight: 700 }}>💡 Observação Importante:</span> O valor da sua renda mensal varia de acordo com o plano assinado pelo cliente (R$ 67, R$ 97 ou R$ 197/mês) ou de eventuais upgrades contratados. A sua comissão é sempre fixa em <strong>30% recorrente</strong> em cada mensalidade paga!
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '28px' }}>
