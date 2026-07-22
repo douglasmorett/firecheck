@@ -171,6 +171,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     const tourDismissed = localStorage.getItem('firecheck_tour_dismissed');
     if (!tourDismissed) {
+      // Marcar imediatamente no localStorage para nunca mais reaparecer sozinho
+      localStorage.setItem('firecheck_tour_dismissed', 'true');
       const timer = setTimeout(() => {
         setShowWelcomeTourModal(true);
       }, 800);
