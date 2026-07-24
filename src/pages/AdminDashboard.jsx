@@ -394,6 +394,8 @@ export default function AdminDashboard() {
   const [categoryFilter, setCategoryFilter] = useState('todos');
   // -- Compras / Estoque --
   const [shoppingLists, setShoppingLists] = useState([]);
+  const [shoppingSubmissions, setShoppingSubmissions] = useState([]);
+  const [selectedShoppingSubModal, setSelectedShoppingSubModal] = useState(null);
   const [showShoppingModal, setShowShoppingModal] = useState(false);
   const [editingShopping, setEditingShopping] = useState(null);
   const [newShopping, setNewShopping] = useState({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
@@ -752,6 +754,19 @@ export default function AdminDashboard() {
   };
 
   // -- Compras / Estoque --
+  const fetchShoppingSubmissions = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/shopping/submissions`, {
+        headers: getAuthHeaders()
+      });
+      handle401(res);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setShoppingSubmissions(data);
+      }
+    } catch (e) { console.error('Erro ao buscar histórico de compras:', e); }
+  };
+
   const fetchShoppingLists = async () => {
     try {
       const savedUser = localStorage.getItem('user');
@@ -763,6 +778,7 @@ export default function AdminDashboard() {
       handle401(res);
       const data = await res.json();
       if (Array.isArray(data)) setShoppingLists(data);
+      fetchShoppingSubmissions();
     } catch (e) { console.error('Erro ao buscar listas de compras:', e); }
   };
 
@@ -3880,6 +3896,134 @@ export default function AdminDashboard() {
               <ShoppingCart size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }}/>
               <h3>Nenhuma lista de compras cadastrada</h3>
               <p style={{ color: 'var(--text-muted)' }}>Crie sua primeira lista de compras para controlar o estoque da sua loja.</p>
+            </div>
+          )}
+
+          {/* Seção: Histórico de Conferências de Estoque Realizadas */}
+          <div style={{ marginTop: '40px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={20} color="var(--primary)" /> Histórico de Conferências de Estoque
+            </h3>
+
+            {shoppingSubmissions.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {shoppingSubmissions.map(sub => {
+                  const belowMin = typeof sub.below_minimum === 'string' ? (() => { try { return JSON.parse(sub.below_minimum); } catch(e) { return []; } })() : (sub.below_minimum || []);
+                  const itemsList = typeof sub.items === 'string' ? (() => { try { return JSON.parse(sub.items); } catch(e) { return []; } })() : (sub.items || []);
+                  const hasBelowMin = belowMin.length > 0;
+
+                  return (
+                    <div
+                      key={sub.id}
+                      className="card"
+                      style={{
+                        padding: '16px 20px',
+                        borderLeft: hasBelowMin ? '4px solid #ef4444' : '4px solid #10b981',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        flexWrap: 'wrap',
+                        gap: '12px'
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <strong style={{ fontSize: '1rem' }}>{sub.list_title || 'Lista de Compras'}</strong>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            👤 Conferido por: <strong>{sub.employee_name}</strong>
+                          </span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            📅 {new Date(sub.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '0.85rem' }}>
+                          <span>📦 Total de itens: <strong>{itemsList.length}</strong></span>
+                          {hasBelowMin ? (
+                            <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                              ⚠️ {belowMin.length} item(ns) abaixo do estoque mínimo
+                            </span>
+                          ) : (
+                            <span style={{ color: '#10b981', fontWeight: 'bold' }}>
+                              ✓ Estoque Completo
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        className="btn-secondary"
+                        onClick={() => setSelectedShoppingSubModal(sub)}
+                        style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 'bold' }}
+                      >
+                        Ver Relatório Detalhado
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Nenhuma conferência de estoque realizada recentemente.
+              </div>
+            )}
+          </div>
+
+          {/* Modal de Detalhes da Submissão de Compras */}
+          {selectedShoppingSubModal && (
+            <div className="modal-overlay animate-fade">
+              <div className="modal-content" style={{ maxWidth: '650px', width: '94%', maxHeight: '90vh', overflow: 'auto', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={{ margin: 0 }}>Relatório de Conferência de Estoque</h3>
+                  <button onClick={() => setSelectedShoppingSubModal(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
+                </div>
+
+                <div style={{ backgroundColor: 'var(--bg-main)', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '0.9rem' }}>
+                  <p style={{ margin: '0 0 4px 0' }}>📋 <strong>Lista:</strong> {selectedShoppingSubModal.list_title || 'Lista de Compras'}</p>
+                  <p style={{ margin: '0 0 4px 0' }}>👤 <strong>Funcionário:</strong> {selectedShoppingSubModal.employee_name}</p>
+                  <p style={{ margin: 0 }}>📅 <strong>Data:</strong> {new Date(selectedShoppingSubModal.created_at).toLocaleString('pt-BR')}</p>
+                  {selectedShoppingSubModal.notes && (
+                    <p style={{ margin: '8px 0 0 0', color: 'var(--primary)' }}>📝 <strong>Obs:</strong> {selectedShoppingSubModal.notes}</p>
+                  )}
+                </div>
+
+                <h4 style={{ fontSize: '0.95rem', marginBottom: '12px' }}>Itens Verificados:</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(typeof selectedShoppingSubModal.items === 'string' ? JSON.parse(selectedShoppingSubModal.items || '[]') : (selectedShoppingSubModal.items || [])).map((it, idx) => {
+                    const isBelow = parseFloat(it.currentStock) < parseFloat(it.minStock);
+                    return (
+                      <div key={idx} style={{
+                        padding: '12px 16px', borderRadius: '8px',
+                        backgroundColor: isBelow ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-main)',
+                        border: isBelow ? '1px solid #ef4444' : '1px solid var(--border-color)',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                      }}>
+                        <div>
+                          <strong>{it.name}</strong>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>
+                            Mínimo exigido: {it.minStock} {it.unit || 'un'}
+                          </span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 'bold', color: isBelow ? '#ef4444' : '#10b981' }}>
+                            {it.currentStock} {it.unit || 'un'}
+                          </span>
+                          {isBelow && (
+                            <span style={{ fontSize: '0.75rem', color: '#ef4444', display: 'block', fontWeight: 'bold' }}>
+                              (Faltam {(parseFloat(it.minStock) - parseFloat(it.currentStock)).toFixed(1)} {it.unit || 'un'})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{ marginTop: '24px', textAlign: 'right' }}>
+                  <button className="btn" onClick={() => setSelectedShoppingSubModal(null)} style={{ padding: '10px 20px' }}>
+                    Fechar
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

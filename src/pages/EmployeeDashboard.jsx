@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -62,6 +62,7 @@ const setupPushNotifications = async (email) => {
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const [checklists, setChecklists] = useState([]);
+  const [shoppingLists, setShoppingLists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -69,6 +70,23 @@ export default function EmployeeDashboard() {
   const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
   const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  const fetchShoppingLists = useCallback(async (profile) => {
+    try {
+      const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+      const res = await fetch(`${API_URL}/api/shopping${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setShoppingLists(data);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao buscar listas de compras:', err);
+    }
+  }, []);
 
   const fetchMyVehicles = useCallback(async (profile) => {
     try {
@@ -143,15 +161,17 @@ export default function EmployeeDashboard() {
     // Busca inicial
     fetchChecklists(profile);
     fetchMyVehicles(profile);
+    fetchShoppingLists(profile);
 
     // Auto-refresh a cada 10 segundos (Quase Tempo Real)
     const interval = setInterval(() => {
       fetchChecklists(profile);
-    fetchMyVehicles(profile);
+      fetchMyVehicles(profile);
+      fetchShoppingLists(profile);
     }, 10000);
 
     return () => clearInterval(interval);
-  }, [navigate, fetchChecklists]);
+  }, [navigate, fetchChecklists, fetchMyVehicles, fetchShoppingLists]);
 
   // Lógica de monitoramento de conectividade e sincronização automática
   useEffect(() => {
@@ -417,6 +437,63 @@ export default function EmployeeDashboard() {
                 </div>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {shoppingLists.length > 0 && (
+        <section style={{ marginBottom: '32px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShoppingCart size={16} color="var(--primary)" /> Checklists de Compras & Estoque ({shoppingLists.length})
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {shoppingLists.map(list => (
+              <div
+                key={list.id}
+                className="card animate-scale"
+                style={{
+                  padding: '16px 20px',
+                  cursor: 'pointer',
+                  borderLeft: '4px solid #3b82f6',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  transition: 'all 0.2s ease',
+                  position: 'relative'
+                }}
+                onClick={() => navigate(`/shopping/execucao/${list.id}`)}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                  <ShoppingCart size={24} color="#3b82f6" />
+                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', marginTop: '4px' }}>
+                    {list.recurrence === 'daily' ? 'Diário' : list.recurrence === 'weekly' ? 'Semanal' : 'Mensal'}
+                  </span>
+                </div>
+
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
+                    {list.title}
+                  </h3>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <span>📦 <strong>{list.item_count || 0}</strong> itens cadastrados</span>
+                    {parseInt(list.below_min_count) > 0 && (
+                      <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
+                        ⚠️ {list.below_min_count} abaixo do mínimo
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '20px' }}>
+                    Conferir Estoque <ArrowRight size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

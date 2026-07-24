@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import ChecklistCreator from './pages/ChecklistCreator';
 import ChecklistExecution from './pages/ChecklistExecution';
+import ShoppingExecution from './pages/ShoppingExecution';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import LandingPage from './pages/LandingPage';
 import Checkout from './pages/Checkout';
@@ -63,6 +64,7 @@ function App() {
         <Route path="/ponto" element={<PontoPage />} />
         <Route path="/execucao/:id" element={<ChecklistExecution />} />
         <Route path="/execucao/veiculo/:vehicleId" element={<ChecklistExecution />} />
+        <Route path="/shopping/execucao/:id" element={<ShoppingExecution />} />
 
         {/* Rota 404 — redireciona para a página inicial */}
         <Route path="*" element={<Navigate to="/" replace />} />
