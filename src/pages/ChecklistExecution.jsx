@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame } from 'lucide-react';
+import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame, ShieldAlert } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -24,6 +24,20 @@ export default function ChecklistExecution() {
   const [title, setTitle] = useState('Carregando...');
   const [isShoppingMode, setIsShoppingMode] = useState(false);
   
+  const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+
+  const handleReturnToAdmin = () => {
+    const backup = localStorage.getItem('firecheck_admin_backup');
+    if (backup) {
+      localStorage.setItem('user', backup);
+      localStorage.removeItem('firecheck_admin_backup');
+      localStorage.removeItem('firecheck_impersonated');
+      navigate('/admin');
+    } else {
+      navigate('/admin');
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('firecheck_token');
@@ -622,6 +636,48 @@ export default function ChecklistExecution() {
 
   return (
     <div className="page-container" style={{ maxWidth: '600px' }}>
+      {isImpersonating && (
+        <div style={{
+          backgroundColor: '#2563eb',
+          color: 'white',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          fontWeight: 'bold',
+          fontSize: '0.88rem',
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>👁️</span>
+            <span>Acessando como: <strong>{EMPLOYEE.name}</strong></span>
+          </div>
+          <button
+            onClick={handleReturnToAdmin}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#2563eb',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+            }}
+          >
+            <ShieldAlert size={16} color="#2563eb" /> Voltar ao Painel do Administrador
+          </button>
+        </div>
+      )}
+
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
            <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>

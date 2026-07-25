@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -70,6 +70,19 @@ export default function EmployeeDashboard() {
   const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
   const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+
+  const handleReturnToAdmin = () => {
+    const backup = localStorage.getItem('firecheck_admin_backup');
+    if (backup) {
+      localStorage.setItem('user', backup);
+      localStorage.removeItem('firecheck_admin_backup');
+      localStorage.removeItem('firecheck_impersonated');
+      navigate('/admin');
+    } else {
+      navigate('/admin');
+    }
+  };
 
   const fetchShoppingLists = useCallback(async (profile) => {
     try {
@@ -101,23 +114,6 @@ export default function EmployeeDashboard() {
       }
     } catch (err) {
       console.error('Erro ao buscar veículos vinculados:', err);
-    }
-  }, []);
-
-  const fetchShoppingLists = useCallback(async (profile) => {
-    try {
-      const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
-      const res = await fetch(`${API_URL}/api/shopping${storeParam}`, {
-        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setShoppingLists(data);
-        }
-      }
-    } catch (err) {
-      console.error('Erro ao buscar listas de compras:', err);
     }
   }, []);
 
@@ -269,6 +265,48 @@ export default function EmployeeDashboard() {
 
   return (
     <div className="page-container" style={{ maxWidth: '600px' }}>
+      {isImpersonating && (
+        <div style={{
+          backgroundColor: '#2563eb',
+          color: 'white',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          fontWeight: 'bold',
+          fontSize: '0.88rem',
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>👁️</span>
+            <span>Acessando como: <strong>{userProfile?.name}</strong></span>
+          </div>
+          <button
+            onClick={handleReturnToAdmin}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#2563eb',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+            }}
+          >
+            <ShieldAlert size={16} color="#2563eb" /> Voltar ao Painel do Administrador
+          </button>
+        </div>
+      )}
+
       {!isOnline && (
         <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', padding: '12px 16px', borderRadius: '12px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
           <span>📡</span>

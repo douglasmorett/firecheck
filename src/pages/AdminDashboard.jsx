@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -1457,6 +1457,26 @@ export default function AdminDashboard() {
     } catch (e) {
       alert('Erro de conexão ao salvar alterações.');
     }
+  };
+
+  const handleImpersonateUser = (member) => {
+    const currentAdmin = localStorage.getItem('user');
+    if (currentAdmin) {
+      localStorage.setItem('firecheck_admin_backup', currentAdmin);
+      localStorage.setItem('firecheck_impersonated', 'true');
+    }
+
+    const employeeUser = {
+      id: member.id,
+      name: member.name,
+      email: member.email,
+      role: member.role || 'funcionario',
+      store: member.store || userProfile?.store,
+      plan: userProfile?.plan || 'pro',
+      status: 'active'
+    };
+    localStorage.setItem('user', JSON.stringify(employeeUser));
+    navigate('/funcionario');
   };
 
   const handleDeleteUser = async (id) => {
@@ -3746,7 +3766,13 @@ export default function AdminDashboard() {
                     </div>
                   )}
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {member.id !== userProfile?.id && (
+                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)', fontWeight: 'bold' }}
+                      onClick={() => handleImpersonateUser(member)}>
+                      <Eye size={14} /> Acessar Conta
+                    </button>
+                  )}
                   {isMaster && member.role === 'admin' && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
                        setEditingPlan({ ...member });
