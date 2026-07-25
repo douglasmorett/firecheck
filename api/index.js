@@ -990,13 +990,52 @@ export default async function handler(req, res) {
           }
         }
 
-        // ── Enviar WhatsApp para o dono se há itens abaixo do mínimo ──
-        if (belowMinimum.length > 0) {
-          try {
-            const { rows: admins } = await pool.query(
-              "SELECT * FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master') AND whatsapp_active = TRUE",
-              [store]
-            );
+        // ── Enviar Notificação WhatsApp para os Donos/Gestores ──
+        try {
+          const { rows: admins } = await pool.query(
+            "SELECT * FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master' OR role = 'gestor') AND whatsapp_active = TRUE",
+            [store]
+          );
+
+          if (admins.length > 0) {
+            const { rows: listInfo } = await pool.query('SELECT title FROM shopping_lists WHERE id = $1', [shoppingListId]);
+            const listTitle = listInfo[0]?.title || 'Checklist de Compras';
+            const dataHoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+            const horaHoje = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+
+            const evoUrl = process.env.EVOLUTION_API_URL;
+            const evoKey = process.env.EVOLUTION_API_KEY;
+            const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+            let msg = '';
+            if (belowMinimum.length > 0) {
+              msg = `🛒 *FireCheck - Alerta de Checklist de Compras*\n\n` +
+                    `📋 Checklist: *${listTitle}*\n` +
+                    `👤 Colaborador: *${employeeName}*\n` +
+                    `🏪 Loja: *${store}*\n` +
+                    `📅 Data: *${dataHoje} às ${horaHoje}*\n\n` +
+                    `⚠️ *ITENS QUE PRECISEM SER COMPRADOS (${belowMinimum.length}):*\n` +
+                    `━━━━━━━━━━━━━━━━━━\n`;
+
+              belowMinimum.forEach((item, i) => {
+                const diff = (parseFloat(item.minStock) - parseFloat(item.currentStock)).toFixed(1);
+                msg += `🔴 *${item.name}*\n`;
+                msg += `   • Estoque Atual: *${item.currentStock} ${item.unit || 'un'}*\n`;
+                msg += `   • Mínimo Exigido: *${item.minStock} ${item.unit || 'un'}*\n`;
+                msg += `   • 🚨 *Faltam: ${diff} ${item.unit || 'un'}*\n\n`;
+              });
+
+              msg += `━━━━━━━━━━━━━━━━━━\n` +
+                     `🛒 *Por favor, providencie a compra desses itens!*`;
+            } else {
+              msg = `✅ *FireCheck - Checklist de Compras OK*\n\n` +
+                    `📋 Checklist: *${listTitle}*\n` +
+                    `👤 Colaborador: *${employeeName}*\n` +
+                    `🏪 Loja: *${store}*\n` +
+                    `📅 Data: *${dataHoje} às ${horaHoje}*\n\n` +
+                    `Status: *✅ Todos os itens estão com estoque acima do mínimo!*\n` +
+                    `Nenhum item precisa ser comprado no momento. 🚀`;
+            }
 
             for (const admin of admins) {
               const phone = admin.whatsapp_phone || admin.phone;
@@ -1004,37 +1043,16 @@ export default async function handler(req, res) {
               const cleanPhone = phone.replace(/\D/g, '');
               const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
 
-              const { rows: listInfo } = await pool.query('SELECT title FROM shopping_lists WHERE id = $1', [shoppingListId]);
-              const listTitle = listInfo[0]?.title || 'Lista de Compras';
-
-              let alertMsg = `🛒 *FireCheck - Alerta de Estoque Baixo*\n\n`;
-              alertMsg += `📋 *${listTitle}*\n`;
-              alertMsg += `👤 Preenchido por: *${employeeName}*\n`;
-              alertMsg += `📅 Data: *${new Date().toLocaleDateString('pt-BR')}*\n\n`;
-              alertMsg += `⚠️ *${belowMinimum.length} item(ns) abaixo do estoque mínimo:*\n\n`;
-              
-              belowMinimum.forEach((item, i) => {
-                alertMsg += `${i + 1}. *${item.name}*\n`;
-                alertMsg += `   📦 Estoque atual: *${item.currentStock} ${item.unit || 'un'}*\n`;
-                alertMsg += `   🔻 Mínimo: *${item.minStock} ${item.unit || 'un'}*\n`;
-                alertMsg += `   ❗ Faltam: *${(parseFloat(item.minStock) - parseFloat(item.currentStock)).toFixed(1)} ${item.unit || 'un'}*\n\n`;
-              });
-
-              alertMsg += `\n🛒 *Providencie a compra desses itens!*`;
-
-              const evoUrl = process.env.EVOLUTION_API_URL;
-              const evoKey = process.env.EVOLUTION_API_KEY;
-              const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
               if (evoUrl && evoKey) {
                 fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                  body: JSON.stringify({ number: fullPhone, text: alertMsg })
+                  body: JSON.stringify({ number: fullPhone, text: msg })
                 }).catch(e => console.error('[Shopping] Erro WhatsApp:', e.message));
               }
             }
-          } catch (waErr) { console.error('[Shopping] Erro ao notificar:', waErr.message); }
-        }
+          }
+        } catch (waErr) { console.error('[Shopping] Erro ao notificar WhatsApp:', waErr.message); }
 
         return res.status(200).json({ success: true, submission: rows[0], belowMinimum });
       }
@@ -1118,9 +1136,17 @@ export default async function handler(req, res) {
       if (method === 'GET') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
         const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+        const today = new Date().toISOString().split('T')[0];
         const { rows } = await pool.query(
-          'SELECT sl.*, (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id) as item_count, (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id AND si.current_stock IS NOT NULL AND si.current_stock < si.min_stock) as below_min_count FROM shopping_lists sl WHERE LOWER(sl.store) = LOWER($1) AND sl.active = TRUE ORDER BY sl.id DESC',
-          [store]
+          `SELECT sl.*, 
+                  (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id) as item_count, 
+                  (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id AND si.current_stock IS NOT NULL AND si.current_stock < si.min_stock) as below_min_count,
+                  EXISTS(SELECT 1 FROM shopping_submissions ss WHERE ss.shopping_list_id = sl.id AND ss.created_at >= $2) as completed_today,
+                  (SELECT employee_name FROM shopping_submissions ss WHERE ss.shopping_list_id = sl.id AND ss.created_at >= $2 ORDER BY ss.id DESC LIMIT 1) as completed_by
+           FROM shopping_lists sl 
+           WHERE LOWER(sl.store) = LOWER($1) AND sl.active = TRUE 
+           ORDER BY sl.id DESC`,
+          [store, today + ' 00:00:00']
         );
         
         // Parsear assigned_to e weekdays

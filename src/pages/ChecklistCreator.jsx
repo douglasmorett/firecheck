@@ -22,6 +22,7 @@ const RESPONSE_TYPES = [
   { value: 'boolean',  label: '✅  Sim / Não' },
   { value: 'rating',   label: '⭐  Avaliação (1 a 5 estrelas)' },
   { value: 'numeric',  label: '🔢  Número (quantidade, temperatura…)' },
+  { value: 'stock',    label: '📦  Estoque / Quantidade Mínima de Compra' },
   { value: 'multiple', label: '📋  Múltipla Escolha' },
   { value: 'itemlist', label: '🗳️  Lista de Itens (conferir um por um)' },
   { value: 'text',     label: '✏️  Texto Livre' },
@@ -56,6 +57,8 @@ const newTask = () => ({
   assignee: '', // Novo campo para funcionário específico (e-mail)
   section: '',
   maxPhotos: 1,
+  minQuantity: '',
+  unit: 'un',
 });
 
 // Dados simulados (futuramente virão do backend/banco de dados)
@@ -637,6 +640,7 @@ export default function ChecklistCreator() {
             <label className="input-label">Categoria do Checklist</label>
             <select className="input-field" value={category} onChange={e => setCategory(e.target.value)}>
               <option value="geral">📦 Geral / Operação</option>
+              <option value="compras">🛒 Lista de Compras / Estoque</option>
               <option value="loja">🏪 Loja (Limpeza, Abertura...)</option>
               <option value="restaurante">🍽️ Cozinha / Alimentos</option>
               <option value="consultorio">🏥 Clínicas e Consultórios</option>

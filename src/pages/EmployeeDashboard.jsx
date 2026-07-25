@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -101,6 +101,23 @@ export default function EmployeeDashboard() {
       }
     } catch (err) {
       console.error('Erro ao buscar veículos vinculados:', err);
+    }
+  }, []);
+
+  const fetchShoppingLists = useCallback(async (profile) => {
+    try {
+      const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+      const res = await fetch(`${API_URL}/api/shopping${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setShoppingLists(data);
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao buscar listas de compras:', err);
     }
   }, []);
 
@@ -441,62 +458,79 @@ export default function EmployeeDashboard() {
         </section>
       )}
 
-      {shoppingLists.length > 0 && (
-        <section style={{ marginBottom: '32px' }}>
-          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShoppingCart size={16} color="var(--primary)" /> Checklists de Compras & Estoque ({shoppingLists.length})
-          </h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {shoppingLists.map(list => (
-              <div
-                key={list.id}
-                className="card animate-scale"
-                style={{
-                  padding: '16px 20px',
-                  cursor: 'pointer',
-                  borderLeft: '4px solid #3b82f6',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '16px',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '16px',
-                  transition: 'all 0.2s ease',
-                  position: 'relative'
-                }}
-                onClick={() => navigate(`/shopping/execucao/${list.id}`)}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                  <ShoppingCart size={24} color="#3b82f6" />
-                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', marginTop: '4px' }}>
-                    {list.recurrence === 'daily' ? 'Diário' : list.recurrence === 'weekly' ? 'Semanal' : 'Mensal'}
-                  </span>
-                </div>
+      {/* 🛒 LISTAS DE COMPRAS PENDENTES */}
+      {(() => {
+        const pendingShopping = shoppingLists.filter(s => {
+          if (s.completed_today) return false;
+          if (!s.assigned_to || s.assigned_to === 'todos' || s.assigned_to === 'pendente') return true;
+          if (Array.isArray(s.assigned_to)) return s.assigned_to.includes(userProfile?.email);
+          return s.assigned_to === userProfile?.email;
+        });
 
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
-                    {list.title}
-                  </h3>
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    <span>📦 <strong>{list.item_count || 0}</strong> itens cadastrados</span>
-                    {parseInt(list.below_min_count) > 0 && (
-                      <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                        ⚠️ {list.below_min_count} abaixo do mínimo
+        if (pendingShopping.length === 0) return null;
+
+        return (
+          <section style={{ marginBottom: '32px' }}>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+              <ShoppingCart size={18} color="var(--primary)" /> Listas de Compras ({pendingShopping.length})
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {pendingShopping.map(list => (
+                <div
+                  key={`shopping-${list.id}`}
+                  className="card animate-scale"
+                  style={{
+                    padding: '18px 20px',
+                    cursor: 'pointer',
+                    borderLeft: '4px solid #06b6d4',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '16px',
+                    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                  onClick={() => navigate(`/execucao/compras/${list.id}`)}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0891b2' }}>COMPRA</span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                      {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : 'Mensal'}
+                    </span>
+                  </div>
+
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {list.title}
+                    </h3>
+                    
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <Package size={14} color="#0891b2" />
+                        {list.item_count || 0} itens para conferir estoque
                       </span>
-                    )}
+                      {parseInt(list.below_min_count) > 0 && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#ef4444', fontWeight: 'bold' }}>
+                          <AlertCircle size={14} />
+                          {list.below_min_count} abaixo do mínimo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0891b2', border: 'none', color: 'white', borderRadius: '20px' }}>
+                      <Play size={12} fill="white" /> Preencher
+                    </button>
                   </div>
                 </div>
-
-                <div>
-                  <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#3b82f6', border: 'none', color: 'white', borderRadius: '20px' }}>
-                    Conferir Estoque <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       <section style={{ marginBottom: '32px' }}>
         <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>

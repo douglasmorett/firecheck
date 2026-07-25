@@ -19,9 +19,10 @@ const handle401 = (res, navigate) => {
 
 export default function ChecklistExecution() {
   const navigate = useNavigate();
-  const { id, vehicleId } = useParams();
+  const { id, vehicleId, shoppingListId } = useParams();
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('Carregando...');
+  const [isShoppingMode, setIsShoppingMode] = useState(false);
   
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -67,11 +68,63 @@ export default function ChecklistExecution() {
   const [completedTodayInfo, setCompletedTodayInfo] = useState(null);
   const [requireSelfie, setRequireSelfie] = useState(false);
 
-  // Carregar checklists da loja
+  // Carregar checklists ou listas de compras da loja
   useEffect(() => {
     setTasks([]);
     const profile = JSON.parse(localStorage.getItem('user') || '{}');
     
+    if (shoppingListId) {
+      setIsShoppingMode(true);
+      const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+      
+      // Buscar título da lista de compras
+      fetch(`${API_URL}/api/shopping${storeParam}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      })
+      .then(res => res.json())
+      .then(lists => {
+        if (Array.isArray(lists)) {
+          const list = lists.find(l => String(l.id) === String(shoppingListId));
+          if (list) {
+            setTitle(`Checklist de Compras — ${list.title}`);
+            if (list.completed_today) {
+              setCompletedTodayInfo(list.completed_by);
+              setSubmitted(true);
+            }
+          }
+        }
+      })
+      .catch(() => {});
+
+      // Buscar itens da lista de compras
+      fetch(`${API_URL}/api/shopping/items?listId=${shoppingListId}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      })
+      .then(res => { handle401(res, navigate); return res.json(); })
+      .then(items => {
+        if (Array.isArray(items)) {
+          setCategory('compras');
+          setRequireSelfie(false);
+          setRequireSignature(false);
+          setTasks(items.map(item => ({
+            id: item.id,
+            text: item.name,
+            unit: item.unit || 'un',
+            minStock: parseFloat(item.min_stock || 0),
+            done: item.current_stock !== null && item.current_stock !== undefined ? parseFloat(item.current_stock) : '',
+            type: 'stock',
+            category: item.category || 'geral'
+          })));
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Erro ao buscar itens de compras:', err);
+        setLoading(false);
+      });
+      return;
+    }
+
     if (vehicleId) {
       // Carregar vistorias específicas de veículo
       fetch(`${API_URL}/api/vehicles?employeeId=${profile.id}`, {
@@ -378,6 +431,40 @@ export default function ChecklistExecution() {
   };
 
   const handleFinish = async () => {
+    if (shoppingListId) {
+      const items = tasks.map(t => ({
+        id: t.id,
+        name: t.text,
+        unit: t.unit || 'un',
+        minStock: t.minStock !== undefined ? t.minStock : (t.minQuantity || 0),
+        currentStock: t.done !== '' && t.done !== null && t.done !== undefined ? parseFloat(t.done) : 0
+      }));
+      const belowMinimum = items.filter(i => parseFloat(i.currentStock) < parseFloat(i.minStock));
+
+      try {
+        const res = await fetch(`${API_URL}/api/shopping/submit`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            shoppingListId: parseInt(shoppingListId),
+            store: EMPLOYEE.store,
+            employeeName: EMPLOYEE.name,
+            items,
+            belowMinimum
+          })
+        });
+        if (res.ok) {
+          setSubmitted(true);
+        } else {
+          alert('Erro ao enviar o checklist de compras.');
+        }
+      } catch (err) {
+        console.error('Erro ao enviar checklist de compras:', err);
+        alert('Erro de conexão ao enviar checklist de compras.');
+      }
+      return;
+    }
+
     const pendingPhoto = tasks.filter(t => t.requirePhoto && (!t.photo && (!t.photos || t.photos.length === 0)));
     if (pendingPhoto.length > 0) {
       alert('Envie a foto de todas as tarefas obrigatórias antes de finalizar.'); return;
@@ -647,7 +734,66 @@ export default function ChecklistExecution() {
                 </div>
               )}
 
-              {task.type === 'numeric' && (
+              {(task.type === 'stock' || task.minStock !== undefined || task.minQuantity !== undefined) && (
+                <div style={{ marginBottom: '12px' }}>
+                  {/* Banner do Estoque Mínimo TRAVADO (read-only) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justify: 'space-between',
+                    backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                    border: '1px solid var(--border-color)',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    marginBottom: '10px'
+                  }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '1rem' }}>🔒</span> Estoque Mínimo Exigido:
+                    </span>
+                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-main)', backgroundColor: 'var(--bg-card)', padding: '2px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      {task.minStock !== undefined ? task.minStock : (task.minQuantity || 0)} {task.unit || 'un'}
+                    </span>
+                  </div>
+
+                  {/* Input do Estoque Atual (editável pelo funcionário) */}
+                  <label className="input-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
+                    Informe o Estoque Atual Apurado:
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="input-field"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold' }}
+                    value={task.done !== null && task.done !== undefined ? task.done : ''}
+                    onChange={e => handleNumeric(task.id, e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    placeholder={`Digite a quantidade atual em ${task.unit || 'un'}...`}
+                  />
+
+                  {/* Dynamic Feedback when below minimum */}
+                  {task.done !== '' && task.done !== null && task.done !== undefined && (() => {
+                    const current = parseFloat(task.done);
+                    const min = parseFloat(task.minStock !== undefined ? task.minStock : (task.minQuantity || 0));
+                    if (current < min) {
+                      const diff = (min - current).toFixed(1);
+                      return (
+                        <div style={{ marginTop: '8px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                          <AlertCircle size={16} />
+                          <span>⚠️ Abaixo do Mínimo! Faltam <strong>{diff} {task.unit || 'un'}</strong> para o estoque ideal. Será destacado para o dono comprar.</span>
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', color: '#22c55e', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <CheckCircle size={14} />
+                          <span>Estoque em conformidade (OK).</span>
+                        </div>
+                      );
+                    }
+                  })()}
+                </div>
+              )}
+
+              {task.type === 'numeric' && !task.minStock && task.minQuantity === undefined && (
                 <div style={{ marginBottom: '8px' }}>
                   <input
                     type="number"
