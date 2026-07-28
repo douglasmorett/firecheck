@@ -1443,7 +1443,10 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           name: editingUser.name,
           phone: editingUser.phone,
-          role: editingUser.role
+          role: editingUser.role,
+          ponto_hora_entrada: editingUser.ponto_hora_entrada || undefined,
+          ponto_hora_saida: editingUser.ponto_hora_saida || undefined,
+          ponto_tolerancia: editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : undefined
         })
       });
       const data = await res.json();
@@ -3751,6 +3754,11 @@ export default function AdminDashboard() {
                         Dono / Administrador
                       </span>
                     )}
+                    {!isMaster && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
+                      <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        ⏰ {member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}
+                      </span>
+                    )}
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
                     {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
@@ -4898,6 +4906,39 @@ export default function AdminDashboard() {
                   )}
                   {isMaster && <option value="master">Gestor Master</option>}
                 </select>
+              </div>
+
+              {/* Escala de Trabalho Individual */}
+              <div style={{ marginBottom: '24px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', color: '#3b82f6', fontWeight: 'bold' }}>
+                  ⏰ Escala de Trabalho Individual
+                </label>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Defina horários específicos para este colaborador. Se deixar em branco, será usado o horário padrão da loja.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                  <div>
+                    <label className="input-label" style={{ fontSize: '0.75rem' }}>Entrada</label>
+                    <input type="time" className="input-field" value={editingUser.ponto_hora_entrada || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_entrada: e.target.value})} />
+                  </div>
+                  <div>
+                    <label className="input-label" style={{ fontSize: '0.75rem' }}>Saída</label>
+                    <input type="time" className="input-field" value={editingUser.ponto_hora_saida || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_saida: e.target.value})} />
+                  </div>
+                </div>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.75rem' }}>Tolerância</label>
+                  <select className="input-field" style={{ padding: '8px' }} value={editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : ''} onChange={e => setEditingUser({...editingUser, ponto_tolerancia: e.target.value ? Number(e.target.value) : null})}>
+                    <option value="">Usar padrão da loja</option>
+                    <option value={0}>Sem tolerância</option>
+                    <option value={5}>5 minutos</option>
+                    <option value={10}>10 minutos</option>
+                    <option value={15}>15 minutos</option>
+                    <option value={20}>20 minutos</option>
+                    <option value={30}>30 minutos</option>
+                    <option value={60}>1 hora</option>
+                  </select>
+                </div>
               </div>
 
               <button type="submit" className="btn" style={{ width: '100%', padding: '16px', fontWeight: 'bold' }}>

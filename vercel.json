@@ -3,5 +3,9 @@
     { "source": "/api/:path*", "destination": "/api/index.js" },
     { "source": "/privacy.html", "destination": "/privacy.html" },
     { "source": "/:path((?!api).*)*", "destination": "/index.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/ponto-ausencia", "schedule": "0 10,14 * * 1-6" },
+    { "path": "/api/cron/checklists-delayed", "schedule": "*/30 * * * *" }
   ]
 }

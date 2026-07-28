@@ -495,6 +495,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_reprovado BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_atrasado BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_ausencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_aprovado BOOLEAN DEFAULT TRUE");
       // ── Tabela de Veículos e melhorias de checklists ──
       await pool.query(`
@@ -2063,6 +2064,126 @@ export default async function handler(req, res) {
     }
 
     // ── Cron de Checklists Atrasados ─────────────────────────────────
+    // ── Cron de Ponto - Notificação de Ausência/Falta ─────────────────────────────────
+    if (url.includes('/api/cron/ponto-ausencia')) {
+      try {
+        const evoUrl = process.env.EVOLUTION_API_URL;
+        const evoKey = process.env.EVOLUTION_API_KEY;
+        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+        if (!evoUrl || !evoKey) {
+          return res.status(500).json({ error: 'Evolution API não configurada.' });
+        }
+
+        // Buscar todas as lojas que têm ponto ativo
+        const { rows: adminsWithPonto } = await pool.query(
+          "SELECT DISTINCT store, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, timezone, wa_ponto_ausencia FROM users WHERE (role = 'admin' OR role = 'master') AND (ponto_active = TRUE OR status = 'trial')"
+        );
+
+        let alertasEnviados = 0;
+
+        for (const admin of adminsWithPonto) {
+          const storeName = admin.store;
+          if (!storeName) continue;
+
+          const isAusenciaActive = admin.wa_ponto_ausencia !== false;
+          if (!isAusenciaActive) continue;
+
+          const tz = admin.timezone || 'America/Sao_Paulo';
+          const agora = new Date();
+          const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+          const [hAtual, mAtual] = horaAtual.split(':').map(Number);
+          const atualMinutos = hAtual * 60 + mAtual;
+
+          const horaEntrada = admin.ponto_hora_entrada || '08:00';
+          const tolerancia = admin.ponto_tolerancia || 15;
+          const [hEntrada, mEntrada] = horaEntrada.split(':').map(Number);
+          const limiteMinutos = hEntrada * 60 + mEntrada + tolerancia + 30; // 30 min extra de margem
+
+          // Só verificar se já passou do horário limite
+          if (atualMinutos < limiteMinutos) continue;
+
+          // Buscar todos os funcionários da loja
+          const today = agora.toLocaleDateString('en-CA', { timeZone: tz });
+          const { rows: employees } = await pool.query(
+            "SELECT id, name, ponto_hora_entrada, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'funcionario' OR role = 'gestor')",
+            [storeName]
+          );
+
+          // Buscar quem JÁ bateu entrada hoje
+          const { rows: pontoHoje } = await pool.query(
+            "SELECT DISTINCT user_id FROM ponto_records WHERE store = $1 AND type = 'entrada' AND timestamp::date = $2",
+            [storeName, today]
+          );
+          const quemBateu = new Set(pontoHoje.map(r => r.user_id));
+
+          // Filtrar quem faltou
+          const ausentes = employees.filter(emp => {
+            if (quemBateu.has(emp.id)) return false;
+            // Verificar escala individual do funcionário
+            const empEntrada = emp.ponto_hora_entrada && emp.ponto_hora_entrada !== '08:00' ? emp.ponto_hora_entrada : horaEntrada;
+            const empTolerancia = emp.ponto_tolerancia != null && emp.ponto_hora_entrada && emp.ponto_hora_entrada !== '08:00' ? emp.ponto_tolerancia : tolerancia;
+            const [hEmp, mEmp] = empEntrada.split(':').map(Number);
+            const limiteEmp = hEmp * 60 + mEmp + empTolerancia + 30;
+            return atualMinutos >= limiteEmp;
+          });
+
+          if (ausentes.length === 0) continue;
+
+          // Buscar gestores/admins da loja para notificar
+          const { rows: recipients } = await pool.query(
+            "SELECT fcm_token, name, whatsapp_active, whatsapp_phone, phone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+            [storeName]
+          );
+
+          const listaAusentes = ausentes.map(a => `  • ${a.name}`).join('\n');
+          const textMsg = `🚨 *FireCheck - Alerta de Ausência/Falta*\n\n` +
+            `Na loja *${storeName}*, os seguintes colaboradores *não registraram entrada* até agora (${horaAtual}):\n\n` +
+            `${listaAusentes}\n\n` +
+            `Horário esperado: *${horaEntrada}* (tolerância: ${tolerancia}min)\n` +
+            `Verifique com a equipe! ⚠️`;
+
+          for (const recipient of recipients) {
+            // Push notification
+            if (recipient.fcm_token) {
+              try {
+                await admin.messaging().send({
+                  token: recipient.fcm_token,
+                  notification: {
+                    title: '🚨 Alerta de Ausência',
+                    body: `${ausentes.length} colaborador(es) não bateram ponto em ${storeName}`
+                  },
+                  data: { url: '/admin' },
+                  apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+                }).catch(e => console.error('[Push Ausencia] Erro:', e.message));
+              } catch (pushErr) {
+                console.error('[Push Ausencia] Erro:', pushErr.message);
+              }
+            }
+
+            // WhatsApp
+            const isWhatsappActive = recipient.whatsapp_active !== false;
+            const targetPhone = recipient.whatsapp_phone || recipient.phone;
+            if (isWhatsappActive && targetPhone) {
+              const cleanPhone = targetPhone.replace(/\D/g, '');
+              const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+              fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+                body: JSON.stringify({ number: fullPhone, text: textMsg })
+              }).catch(e => console.error('[WhatsApp Ausencia] Erro:', e.message));
+            }
+            alertasEnviados++;
+          }
+        }
+
+        return res.status(200).json({ success: true, alertasEnviados });
+      } catch (cronErr) {
+        console.error('Erro no cron de ausência de ponto:', cronErr);
+        return res.status(500).json({ error: cronErr.message });
+      }
+    }
+
     if (url.includes('/api/cron/checklists-delayed')) {
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
@@ -3075,14 +3196,9 @@ Responda APENAS com JSON válido.`;
           const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
           if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
         }
-        // Verificar duplicata (usa timezone da loja para consistência)
+        // Calcular data de hoje no timezone da loja
         const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-        const { rows: existing } = await pool.query(
-          "SELECT * FROM ponto_records WHERE user_id = $1 AND type = $2 AND timestamp::date = $3",
-          [userId, type, today]
-        );
-        if (existing.length > 0) return res.status(400).json({ error: `Você já registrou ${type} hoje às ${new Date(existing[0].timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}.` });
-        // Verificar sequência: precisa ter entrada antes de saída
+        // Verificar sequência: a primeira batida do dia precisa ser entrada
         if (type === 'saida') {
           const { rows: entradas } = await pool.query(
             "SELECT * FROM ponto_records WHERE user_id = $1 AND type = 'entrada' AND timestamp::date = $2",
@@ -3148,19 +3264,29 @@ Responda APENAS com JSON válido.`;
         // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
         if (store) {
           try {
-            // Obter configuração de tolerância/horário da loja (de preferência do admin/dono)
+            // Buscar escala individual do funcionário primeiro
+            const { rows: empConfig } = await pool.query(
+              "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE id = $1",
+              [userId]
+            );
+            // Obter configuração padrão da loja (admin/dono)
             const { rows: configRows } = await pool.query(
               "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND role = 'admin' LIMIT 1",
               [store]
             );
             
-            let configData = configRows[0];
-            if (!configData) {
+            let storeConfig = configRows[0];
+            if (!storeConfig) {
               const { rows: backupConfig } = await pool.query(
                 "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
                 [store]
               );
-              if (backupConfig.length > 0) configData = backupConfig[0];
+              if (backupConfig.length > 0) storeConfig = backupConfig[0];
+            }
+            // Usar escala individual do funcionário se existir, senão usar padrão da loja
+            let configData = storeConfig;
+            if (empConfig.length > 0 && empConfig[0].ponto_hora_entrada && empConfig[0].ponto_hora_entrada !== '08:00') {
+              configData = empConfig[0];
             }
 
             if (configData) {
