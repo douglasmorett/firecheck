@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, LogOut, Flame, ShieldAlert } from 'lucide-react';
+import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -685,8 +685,8 @@ export default function ChecklistExecution() {
            </div>
            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck Pro</h2>
         </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
-           Sair <LogOut size={16} />
+        <button onClick={() => navigate('/funcionario')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+           <ArrowLeft size={16} /> Voltar
         </button>
       </header>
 
