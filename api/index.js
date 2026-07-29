@@ -464,6 +464,10 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS selfie_url TEXT");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS address TEXT");
       await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS device_info TEXT");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS notes TEXT");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS edited_by TEXT");
+      await pool.query("ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP");
       // ── Dropar colunas antigas que sobraram (sem dados relevantes) ──
       await pool.query("ALTER TABLE ponto_records DROP COLUMN IF EXISTS punch_type");
       await pool.query("ALTER TABLE ponto_records DROP COLUMN IF EXISTS punch_timestamp");
@@ -3171,15 +3175,58 @@ Responda APENAS com JSON válido.`;
         [store, startDate, endDate]
       );
       // Gerar CSV
-      let csv = 'Funcionário,Tipo,Data,Horário,Latitude,Longitude,Endereço\n';
+      let csv = 'Funcionário,Tipo,Data,Horário,Origem,Justificativa/Observação,Latitude,Longitude,Endereço\n';
       rows.forEach(r => {
         const dt = new Date(r.timestamp);
-        csv += `"${r.user_name}","${r.type}","${dt.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}","${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
+        const tipoStr = r.type === 'entrada' ? 'Entrada' : (r.type === 'saida' ? 'Saída' : r.type);
+        const origemStr = r.is_manual ? 'Ajuste Manual (Gestor)' : 'Aplicativo (Selfie/GPS)';
+        const notesStr = (r.notes || '').replace(/"/g, "'");
+        csv += `"${r.user_name}","${tipoStr}","${dt.toLocaleDateString('pt-BR', { timeZone: tz })}","${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz })}","${origemStr}","${notesStr}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
         csv += '\n';
       });
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=folha-ponto-${store}-${month}.csv`);
       return res.status(200).send(csv);
+    }
+
+    // ── Lançamento Manual de Ponto (Gestor) ──────────────────────────
+    if (url.includes('/api/ponto/manual') && method === 'POST') {
+      const { userId, userName, store, type, timestamp, notes, editedBy } = req.body;
+      if (!userId || !userName || !store || !type || !timestamp) {
+        return res.status(400).json({ error: 'userId, userName, store, type e timestamp são obrigatórios' });
+      }
+      const { rows } = await pool.query(
+        `INSERT INTO ponto_records (user_id, user_name, store, type, timestamp, is_manual, notes, edited_by)
+         VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7) RETURNING *`,
+        [userId, userName, store, type, timestamp, notes || 'Ajuste manual pelo gestor', editedBy || 'Gestor']
+      );
+      return res.status(200).json({ success: true, record: rows[0] });
+    }
+
+    // ── Edição ou Exclusão de Registro de Ponto ───────────────────────
+    if (url.includes('/api/ponto/record')) {
+      if (method === 'PUT') {
+        const { id, type, timestamp, notes, editedBy } = req.body;
+        if (!id) return res.status(400).json({ error: 'id do registro é obrigatório' });
+        const { rows } = await pool.query(
+          `UPDATE ponto_records
+           SET type = COALESCE($1, type),
+               timestamp = COALESCE($2, timestamp),
+               notes = COALESCE($3, notes),
+               is_manual = TRUE,
+               edited_by = COALESCE($4, edited_by),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $5 RETURNING *`,
+          [type, timestamp, notes, editedBy || 'Gestor', id]
+        );
+        return res.status(200).json({ success: true, record: rows[0] });
+      }
+      if (method === 'DELETE') {
+        const id = searchParams.get('id') || req.body?.id;
+        if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+        await pool.query('DELETE FROM ponto_records WHERE id = $1', [id]);
+        return res.status(200).json({ success: true });
+      }
     }
 
     if (url.includes('/api/ponto')) {

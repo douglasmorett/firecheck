@@ -419,6 +419,16 @@ export default function AdminDashboard() {
   const [pontoFilterEmployee, setPontoFilterEmployee] = useState('todos');
   const [showPontoPanel, setShowPontoPanel] = useState(false);
   const [pontoPhotoPreview, setPontoPhotoPreview] = useState(null);
+  const [showPontoManualModal, setShowPontoManualModal] = useState(false);
+  const [editingPontoRecord, setEditingPontoRecord] = useState(null);
+  const [pontoManualForm, setPontoManualForm] = useState({
+    userId: '',
+    type: 'entrada',
+    date: new Date().toISOString().slice(0, 10),
+    time: '08:00',
+    notes: ''
+  });
+  const [pontoSubmitting, setPontoSubmitting] = useState(false);
   const [pontoTimezone, setPontoTimezone] = useState('America/Sao_Paulo');
   const [contadorEmail, setContadorEmail] = useState('');
   const [fechamentoDia, setFechamentoDia] = useState('ultimo_dia');
@@ -735,6 +745,105 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (Array.isArray(data)) setPontoRecords(data);
     } catch (err) { console.error('Erro ponto:', err); }
+  };
+
+  const handleSavePontoManual = async () => {
+    if (!pontoManualForm.userId || !pontoManualForm.date || !pontoManualForm.time) {
+      alert('Preencha todos os campos obrigatórios: Funcionário, Data e Horário.');
+      return;
+    }
+    try {
+      setPontoSubmitting(true);
+      const selectedEmp = (users || []).find(u => String(u.id) === String(pontoManualForm.userId));
+      const empName = selectedEmp ? selectedEmp.name : 'Funcionário';
+      const timestamp = `${pontoManualForm.date}T${pontoManualForm.time}:00`;
+      
+      const res = await fetch(`${API_URL}/api/ponto/manual`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          userId: pontoManualForm.userId,
+          userName: empName,
+          store: userProfile?.store,
+          type: pontoManualForm.type,
+          timestamp,
+          notes: pontoManualForm.notes || 'Ajuste manual pelo gestor',
+          editedBy: userProfile?.name || 'Gestor'
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Batida de ponto manual cadastrada com sucesso!');
+        setShowPontoManualModal(false);
+        setPontoManualForm({
+          userId: '',
+          type: 'entrada',
+          date: new Date().toISOString().slice(0, 10),
+          time: '08:00',
+          notes: ''
+        });
+        fetchPontoRecords();
+      } else {
+        alert(data.error || 'Erro ao salvar ponto manual');
+      }
+    } catch (err) {
+      console.error('Erro salvar ponto manual:', err);
+      alert('Erro de comunicação com o servidor ao salvar ponto');
+    } finally {
+      setPontoSubmitting(false);
+    }
+  };
+
+  const handleUpdatePontoRecord = async () => {
+    if (!editingPontoRecord) return;
+    try {
+      setPontoSubmitting(true);
+      const timestamp = `${editingPontoRecord.date}T${editingPontoRecord.time}:00`;
+      const res = await fetch(`${API_URL}/api/ponto/record`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          id: editingPontoRecord.id,
+          type: editingPontoRecord.type,
+          timestamp,
+          notes: editingPontoRecord.notes || 'Editado pelo gestor',
+          editedBy: userProfile?.name || 'Gestor'
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Registro de ponto atualizado com sucesso!');
+        setEditingPontoRecord(null);
+        fetchPontoRecords();
+      } else {
+        alert(data.error || 'Erro ao atualizar registro');
+      }
+    } catch (err) {
+      console.error('Erro atualizar ponto:', err);
+      alert('Erro de comunicação com o servidor ao atualizar');
+    } finally {
+      setPontoSubmitting(false);
+    }
+  };
+
+  const handleDeletePontoRecord = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta batida de ponto?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/ponto/record?id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert('Registro de ponto excluído com sucesso!');
+        fetchPontoRecords();
+      } else {
+        alert(data.error || 'Erro ao excluir ponto');
+      }
+    } catch (err) {
+      console.error('Erro excluir ponto:', err);
+      alert('Erro ao excluir registro');
+    }
   };
 
   const fetchVehicles = async () => {
@@ -2574,7 +2683,7 @@ export default function AdminDashboard() {
                 <button onClick={() => setShowPontoPanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20}/></button>
               </div>
 
-              {/* Filtros */}
+              {/* Filtros e Ações */}
               <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center', backgroundColor: 'var(--bg-main)', padding: '12px 16px', borderRadius: '10px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Users size={16} color="var(--text-muted)"/>
@@ -2588,13 +2697,19 @@ export default function AdminDashboard() {
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                   {(pontoFilterEmployee === 'todos' ? pontoRecords : pontoRecords.filter(r => r.user_name === pontoFilterEmployee)).length} registro(s)
                 </span>
-                <button className="btn" style={{ marginLeft: 'auto', padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                  onClick={() => window.open(`${API_URL}/api/ponto/export?store=${encodeURIComponent(userProfile?.store)}&month=${pontoMonth}`, '_blank')}>
-                  <FileDown size={16}/> Exportar Folha
-                </button>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button className="btn-secondary" style={{ padding: '8px 14px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setShowPontoManualModal(true)}>
+                    <Plus size={16} color="var(--primary)"/> Lançar Ponto Manual
+                  </button>
+                  <button className="btn" style={{ padding: '8px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => window.open(`${API_URL}/api/ponto/export?store=${encodeURIComponent(userProfile?.store)}&month=${pontoMonth}`, '_blank')}>
+                    <FileDown size={16}/> Exportar Folha
+                  </button>
+                </div>
               </div>
 
-              {/* Grid de registros com selfies */}
+              {/* Grid de registros com selfies e ações */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '600px', overflowY: 'auto' }}>
                 {(() => {
                   const filtered = pontoFilterEmployee === 'todos' ? pontoRecords : pontoRecords.filter(r => r.user_name === pontoFilterEmployee);
@@ -2619,17 +2734,49 @@ export default function AdminDashboard() {
                         </div>
                         {/* Info */}
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 'bold', fontSize: '0.95rem' }}>{rec.user_name || '—'}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {rec.user_name || '—'}
+                            {rec.is_manual && (
+                              <span style={{ backgroundColor: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04', padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 'bold' }}>
+                                ✏️ Ajuste Manual
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', gap: '12px', flexWrap: 'wrap', marginTop: '2px' }}>
                             <span>📅 {dataStr}</span>
                             <span>🕐 {horaStr}</span>
                             {rec.address && <span style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📍 {rec.address}</span>}
                           </div>
+                          {rec.notes && (
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: '3px' }}>
+                              📝 Justificativa: {rec.notes}
+                            </div>
+                          )}
                         </div>
                         {/* Badge tipo */}
                         <span style={{ backgroundColor: isEntrada ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', color: isEntrada ? '#22c55e' : '#ef4444', padding: '6px 12px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', flexShrink: 0 }}>
                           {rec.type || '—'}
                         </span>
+                        {/* Ações de Edição e Exclusão */}
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                          <button onClick={() => {
+                            const dtLocal = new Date(rec.timestamp);
+                            const dStr = dtLocal.toISOString().slice(0, 10);
+                            const tStr = dtLocal.toTimeString().slice(0, 5);
+                            setEditingPontoRecord({
+                              id: rec.id,
+                              type: rec.type || 'entrada',
+                              date: dStr,
+                              time: tStr,
+                              notes: rec.notes || ''
+                            });
+                          }} title="Editar Ponto" style={{ padding: '6px', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-card)', cursor: 'pointer', color: 'var(--text-main)' }}>
+                            <Edit2 size={15} />
+                          </button>
+                          <button onClick={() => handleDeletePontoRecord(rec.id)} title="Excluir Ponto" style={{ padding: '6px', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239, 68, 68, 0.08)', cursor: 'pointer', color: '#ef4444' }}>
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
                       </div>
                     );
                   });
@@ -2643,6 +2790,110 @@ export default function AdminDashboard() {
             <div className="modal-overlay animate-fade" onClick={() => setPontoPhotoPreview(null)} style={{ zIndex: 10000 }}>
               <div style={{ maxWidth: '500px', maxHeight: '80vh', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
                 <img src={pontoPhotoPreview} alt="Selfie do Ponto" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+              </div>
+            </div>
+          )}
+
+          {/* ── Modal de Lançamento Manual de Ponto ── */}
+          {showPontoManualModal && (
+            <div className="modal-overlay animate-fade" style={{ zIndex: 10000 }} onClick={() => setShowPontoManualModal(false)}>
+              <div className="card" style={{ maxWidth: '500px', width: '90%', padding: '24px', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+                    <Clock size={20}/> Lançar Ponto Manual (Gestor)
+                  </h3>
+                  <button onClick={() => setShowPontoManualModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20}/></button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div>
+                    <label className="input-label">Funcionário *</label>
+                    <select className="input-field" value={pontoManualForm.userId} onChange={e => setPontoManualForm({...pontoManualForm, userId: e.target.value})}>
+                      <option value="">Selecione o colaborador...</option>
+                      {(users || []).map(u => (
+                        <option key={u.id} value={u.id}>{u.name} ({u.role || 'Funcionário'})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="input-label">Tipo de Batida *</label>
+                      <select className="input-field" value={pontoManualForm.type} onChange={e => setPontoManualForm({...pontoManualForm, type: e.target.value})}>
+                        <option value="entrada">📥 Entrada</option>
+                        <option value="saida">📤 Saída</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="input-label">Horário *</label>
+                      <input type="time" className="input-field" value={pontoManualForm.time} onChange={e => setPontoManualForm({...pontoManualForm, time: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Data *</label>
+                    <input type="date" className="input-field" value={pontoManualForm.date} onChange={e => setPontoManualForm({...pontoManualForm, date: e.target.value})} />
+                  </div>
+
+                  <div>
+                    <label className="input-label">Motivo / Justificativa (Obrigatório)</label>
+                    <input type="text" className="input-field" placeholder="Ex: Esqueceu de bater ponto / Atestado médico" value={pontoManualForm.notes} onChange={e => setPontoManualForm({...pontoManualForm, notes: e.target.value})} />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                    <button className="btn-secondary" style={{ flex: 1, padding: '10px' }} onClick={() => setShowPontoManualModal(false)}>Cancelar</button>
+                    <button className="btn" style={{ flex: 1, padding: '10px' }} disabled={pontoSubmitting} onClick={handleSavePontoManual}>
+                      {pontoSubmitting ? 'Salvando...' : 'Salvar Ponto'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Modal de Edição de Ponto ── */}
+          {editingPontoRecord && (
+            <div className="modal-overlay animate-fade" style={{ zIndex: 10000 }} onClick={() => setEditingPontoRecord(null)}>
+              <div className="card" style={{ maxWidth: '500px', width: '90%', padding: '24px', borderRadius: '16px' }} onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
+                    <Edit2 size={20}/> Editar Ponto
+                  </h3>
+                  <button onClick={() => setEditingPontoRecord(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><X size={20}/></button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div>
+                      <label className="input-label">Tipo de Batida</label>
+                      <select className="input-field" value={editingPontoRecord.type} onChange={e => setEditingPontoRecord({...editingPontoRecord, type: e.target.value})}>
+                        <option value="entrada">📥 Entrada</option>
+                        <option value="saida">📤 Saída</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="input-label">Horário</label>
+                      <input type="time" className="input-field" value={editingPontoRecord.time} onChange={e => setEditingPontoRecord({...editingPontoRecord, time: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="input-label">Data</label>
+                    <input type="date" className="input-field" value={editingPontoRecord.date} onChange={e => setEditingPontoRecord({...editingPontoRecord, date: e.target.value})} />
+                  </div>
+
+                  <div>
+                    <label className="input-label">Justificativa da Alteração</label>
+                    <input type="text" className="input-field" placeholder="Ex: Ajuste de horário autorizado pelo gestor" value={editingPontoRecord.notes} onChange={e => setEditingPontoRecord({...editingPontoRecord, notes: e.target.value})} />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+                    <button className="btn-secondary" style={{ flex: 1, padding: '10px' }} onClick={() => setEditingPontoRecord(null)}>Cancelar</button>
+                    <button className="btn" style={{ flex: 1, padding: '10px' }} disabled={pontoSubmitting} onClick={handleUpdatePontoRecord}>
+                      {pontoSubmitting ? 'Salvando...' : 'Salvar Alteração'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
