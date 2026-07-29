@@ -172,6 +172,68 @@ async function checkAndResetQuota(pool, userId, quotaResetDate) {
   return false;
 }
 
+async function getEmployeeScheduleForDay(pool, userId, date) {
+  const { rows: users } = await pool.query('SELECT store, schedule_id, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE id = $1', [userId]);
+  if (users.length === 0) return { isWorkday: true };
+  const user = users[0];
+
+  if (user.schedule_id) {
+    const { rows: schedules } = await pool.query('SELECT * FROM work_schedules WHERE id = $1', [user.schedule_id]);
+    if (schedules.length > 0) {
+      const schedule = schedules[0];
+      const jsDay = new Date(date).getDay();
+      const weekdayIndex = jsDay === 0 ? 7 : jsDay;
+      const { rows: weekdays } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1 AND weekday = $2', [schedule.id, weekdayIndex]);
+      
+      if (weekdays.length > 0) {
+        const wd = weekdays[0];
+        if (!wd.is_workday) return { isWorkday: false };
+        return {
+          isWorkday: true,
+          horaEntrada: wd.hora_entrada || schedule.hora_entrada,
+          horaSaida: wd.hora_saida || schedule.hora_saida,
+          intervaloInicio: wd.intervalo_inicio || schedule.intervalo_inicio,
+          intervaloFim: wd.intervalo_fim || schedule.intervalo_fim,
+          tolerancia: schedule.tolerancia
+        };
+      } else {
+        if (weekdayIndex === 6 && !schedule.saturday_active) return { isWorkday: false };
+        if (weekdayIndex === 7 && !schedule.sunday_active) return { isWorkday: false };
+        return {
+          isWorkday: true,
+          horaEntrada: schedule.hora_entrada,
+          horaSaida: schedule.hora_saida,
+          intervaloInicio: schedule.intervalo_inicio,
+          intervaloFim: schedule.intervalo_fim,
+          tolerancia: schedule.tolerancia
+        };
+      }
+    }
+  }
+
+  if (user.ponto_hora_entrada && user.ponto_hora_saida) {
+     return {
+       isWorkday: true,
+       horaEntrada: user.ponto_hora_entrada,
+       horaSaida: user.ponto_hora_saida,
+       tolerancia: user.ponto_tolerancia || 15
+     };
+  }
+  
+  const { rows: admins } = await pool.query("SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [user.store]);
+  if (admins.length > 0) {
+    const admin = admins[0];
+    return {
+       isWorkday: true,
+       horaEntrada: admin.ponto_hora_entrada || '08:00',
+       horaSaida: admin.ponto_hora_saida || '18:00',
+       tolerancia: admin.ponto_tolerancia || 15
+    };
+  }
+
+  return { isWorkday: true, horaEntrada: '08:00', horaSaida: '18:00', tolerancia: 15 };
+}
+
 // ── Função Central de Auditoria IA (Reutilizável) ───────────────
 async function processAuditForSubmission(pool, submissionId) {
   const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
@@ -586,6 +648,40 @@ export default async function handler(req, res) {
           notes TEXT,
           created_at TIMESTAMP DEFAULT NOW()
         )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS work_schedules (
+          id SERIAL PRIMARY KEY,
+          store VARCHAR(255) NOT NULL,
+          name VARCHAR(100) NOT NULL,
+          type VARCHAR(20) DEFAULT 'fixed',
+          hora_entrada VARCHAR(5) DEFAULT '08:00',
+          hora_saida VARCHAR(5) DEFAULT '18:00',
+          intervalo_inicio VARCHAR(5),
+          intervalo_fim VARCHAR(5),
+          tolerancia INTEGER DEFAULT 15,
+          cycle_work_days INTEGER,
+          cycle_off_days INTEGER,
+          saturday_active BOOLEAN DEFAULT TRUE,
+          sunday_active BOOLEAN DEFAULT FALSE,
+          color VARCHAR(7) DEFAULT '#3B82F6',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS schedule_weekdays (
+          id SERIAL PRIMARY KEY,
+          schedule_id INTEGER REFERENCES work_schedules(id) ON DELETE CASCADE,
+          weekday INTEGER NOT NULL,
+          is_workday BOOLEAN DEFAULT TRUE,
+          hora_entrada VARCHAR(5),
+          hora_saida VARCHAR(5),
+          intervalo_inicio VARCHAR(5),
+          intervalo_fim VARCHAR(5)
+        )
+      `);
+      await pool.query(`
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS schedule_id INTEGER;
       `);
       migrationsRun = true;
 
@@ -1588,7 +1684,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role } = req.body;
+        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1621,8 +1717,9 @@ export default async function handler(req, res) {
         const finalTz = timezone !== undefined ? timezone : user.timezone;
         const finalContador = contador_email !== undefined ? contador_email : user.contador_email;
         const finalFechamento = fechamento_dia !== undefined ? fechamento_dia : user.fechamento_dia;
-        const finalHoraEntrada = ponto_hora_entrada !== undefined ? ponto_hora_entrada : user.ponto_hora_entrada;
-        const finalHoraSaida = ponto_hora_saida !== undefined ? ponto_hora_saida : user.ponto_hora_saida;
+        const finalScheduleId = schedule_id !== undefined ? schedule_id : user.schedule_id;
+        const finalHoraEntrada = (schedule_id !== undefined && schedule_id !== null) ? null : (ponto_hora_entrada !== undefined ? ponto_hora_entrada : user.ponto_hora_entrada);
+        const finalHoraSaida = (schedule_id !== undefined && schedule_id !== null) ? null : (ponto_hora_saida !== undefined ? ponto_hora_saida : user.ponto_hora_saida);
         const finalTolerancia = ponto_tolerancia !== undefined ? ponto_tolerancia : user.ponto_tolerancia;
         const finalPhone = phone !== undefined ? phone : user.phone;
         const finalWhatsappActive = whatsapp_active !== undefined ? whatsapp_active : user.whatsapp_active;
@@ -1640,14 +1737,14 @@ export default async function handler(req, res) {
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
-            name = $21, store = $22, ponto_limit = $23, role = $24,
+            name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
             ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId]);
         }
         // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
         const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
@@ -1688,6 +1785,77 @@ export default async function handler(req, res) {
 
         return res.status(200).json({ success: true });
       }
+    } else if (url.includes('/api/schedules')) {
+      const authUser = authenticateToken(req);
+      if (!authUser) return res.status(401).json({ error: 'Token inválido' });
+
+      const idMatch = url.match(/\/api\/schedules\/(\d+)/);
+      const scheduleId = idMatch ? idMatch[1] : null;
+      const store = authUser.store;
+
+      if (method === 'GET') {
+        const { rows } = await pool.query('SELECT * FROM work_schedules WHERE LOWER(store) = LOWER($1) ORDER BY name', [store]);
+        for (let i = 0; i < rows.length; i++) {
+          const { rows: wds } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1 ORDER BY weekday', [rows[i].id]);
+          rows[i].weekdays = wds;
+        }
+        return res.status(200).json(rows);
+      }
+      
+      if (method === 'POST') {
+        const { name, type, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim, tolerancia, cycle_work_days, cycle_off_days, saturday_active, sunday_active, color, weekdays } = req.body;
+        const { rows } = await pool.query(
+          `INSERT INTO work_schedules (store, name, type, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim, tolerancia, cycle_work_days, cycle_off_days, saturday_active, sunday_active, color)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+          [store, name, type || 'fixed', hora_entrada || '08:00', hora_saida || '18:00', intervalo_inicio, intervalo_fim, tolerancia || 15, cycle_work_days, cycle_off_days, saturday_active !== false, sunday_active === true, color || '#3B82F6']
+        );
+        const newSchedule = rows[0];
+        
+        if (weekdays && Array.isArray(weekdays)) {
+          for (const wd of weekdays) {
+            await pool.query(
+              `INSERT INTO schedule_weekdays (schedule_id, weekday, is_workday, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [newSchedule.id, wd.weekday, wd.is_workday !== false, wd.hora_entrada, wd.hora_saida, wd.intervalo_inicio, wd.intervalo_fim]
+            );
+          }
+        }
+        const { rows: savedWds } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1 ORDER BY weekday', [newSchedule.id]);
+        newSchedule.weekdays = savedWds;
+        return res.status(200).json(newSchedule);
+      }
+
+      if (method === 'PUT' && scheduleId) {
+        const { name, type, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim, tolerancia, cycle_work_days, cycle_off_days, saturday_active, sunday_active, color, weekdays } = req.body;
+        const { rows } = await pool.query(
+          `UPDATE work_schedules SET name = $1, type = $2, hora_entrada = $3, hora_saida = $4, intervalo_inicio = $5, intervalo_fim = $6, tolerancia = $7, cycle_work_days = $8, cycle_off_days = $9, saturday_active = $10, sunday_active = $11, color = $12
+           WHERE id = $13 AND LOWER(store) = LOWER($14) RETURNING *`,
+          [name, type, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim, tolerancia, cycle_work_days, cycle_off_days, saturday_active, sunday_active, color, scheduleId, store]
+        );
+        if (rows.length === 0) return res.status(404).json({ error: 'Escala não encontrada' });
+        const updatedSchedule = rows[0];
+
+        await pool.query('DELETE FROM schedule_weekdays WHERE schedule_id = $1', [scheduleId]);
+        if (weekdays && Array.isArray(weekdays)) {
+          for (const wd of weekdays) {
+            await pool.query(
+              `INSERT INTO schedule_weekdays (schedule_id, weekday, is_workday, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [updatedSchedule.id, wd.weekday, wd.is_workday !== false, wd.hora_entrada, wd.hora_saida, wd.intervalo_inicio, wd.intervalo_fim]
+            );
+          }
+        }
+        const { rows: savedWds } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1 ORDER BY weekday', [updatedSchedule.id]);
+        updatedSchedule.weekdays = savedWds;
+        return res.status(200).json(updatedSchedule);
+      }
+      
+      if (method === 'DELETE' && scheduleId) {
+        await pool.query('UPDATE users SET schedule_id = NULL WHERE schedule_id = $1', [scheduleId]);
+        await pool.query('DELETE FROM work_schedules WHERE id = $1 AND LOWER(store) = LOWER($2)', [scheduleId, store]);
+        return res.status(200).json({ success: true });
+      }
+
     } else if (url.includes('/api/users')) {
       // ── Proteção JWT ──
       const authUser = authenticateToken(req);
@@ -1738,7 +1906,13 @@ export default async function handler(req, res) {
         const { rows: userRows } = await pool.query('SELECT store FROM users WHERE id = $1', [authUser.id]);
         if (userRows.length > 0) store = userRows[0].store;
       }
-      const { rows } = await pool.query('SELECT id, name, email, role, store, plan, phone, status, created_at, expiration_date, camera_expiration, ponto_active, finance_active, checklist_limit, checklists_used, quota_reset_date, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado FROM users' + (store ? ' WHERE LOWER(store) = LOWER($1)' : '') + ' ORDER BY created_at DESC', store ? [store] : []);
+      const { rows } = await pool.query(`
+        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, ws.name AS schedule_name, ws.color AS schedule_color
+        FROM users u
+        LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
+        ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
+        ORDER BY u.created_at DESC
+      `, store ? [store] : []);
       return res.status(200).json(rows);
     }
 
@@ -2122,15 +2296,21 @@ export default async function handler(req, res) {
           const quemBateu = new Set(pontoHoje.map(r => r.user_id));
 
           // Filtrar quem faltou
-          const ausentes = employees.filter(emp => {
-            if (quemBateu.has(emp.id)) return false;
-            // Verificar escala individual do funcionário
-            const empEntrada = emp.ponto_hora_entrada && emp.ponto_hora_entrada !== '08:00' ? emp.ponto_hora_entrada : horaEntrada;
-            const empTolerancia = emp.ponto_tolerancia != null && emp.ponto_hora_entrada && emp.ponto_hora_entrada !== '08:00' ? emp.ponto_tolerancia : tolerancia;
+          const ausentes = [];
+          for (const emp of employees) {
+            if (quemBateu.has(emp.id)) continue;
+            
+            const configData = await getEmployeeScheduleForDay(pool, emp.id, agora);
+            if (!configData.isWorkday) continue;
+
+            const empEntrada = configData.horaEntrada || '08:00';
+            const empTolerancia = configData.tolerancia || 15;
             const [hEmp, mEmp] = empEntrada.split(':').map(Number);
             const limiteEmp = hEmp * 60 + mEmp + empTolerancia + 30;
-            return atualMinutos >= limiteEmp;
-          });
+            if (atualMinutos >= limiteEmp) {
+               ausentes.push(emp);
+            }
+          }
 
           if (ausentes.length === 0) continue;
 
@@ -3311,32 +3491,9 @@ Responda APENAS com JSON válido.`;
         // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
         if (store) {
           try {
-            // Buscar escala individual do funcionário primeiro
-            const { rows: empConfig } = await pool.query(
-              "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE id = $1",
-              [userId]
-            );
-            // Obter configuração padrão da loja (admin/dono)
-            const { rows: configRows } = await pool.query(
-              "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND role = 'admin' LIMIT 1",
-              [store]
-            );
+            const configData = await getEmployeeScheduleForDay(pool, userId, new Date());
             
-            let storeConfig = configRows[0];
-            if (!storeConfig) {
-              const { rows: backupConfig } = await pool.query(
-                "SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
-                [store]
-              );
-              if (backupConfig.length > 0) storeConfig = backupConfig[0];
-            }
-            // Usar escala individual do funcionário se existir, senão usar padrão da loja
-            let configData = storeConfig;
-            if (empConfig.length > 0 && empConfig[0].ponto_hora_entrada && empConfig[0].ponto_hora_entrada !== '08:00') {
-              configData = empConfig[0];
-            }
-
-            if (configData) {
+            if (configData && configData.isWorkday) {
               // Buscar todos os destinatários da loja (admin, master, gestor)
               const { rows: recipients } = await pool.query(
                 "SELECT fcm_token, name, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
@@ -3355,7 +3512,7 @@ Responda APENAS com JSON válido.`;
               let detalheMsg = '';
 
               if (type === 'entrada') {
-                const horaEntradaCfg = configData.ponto_hora_entrada || '08:00';
+                const horaEntradaCfg = configData.horaEntrada || '08:00';
                 const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
                 const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
 
@@ -3364,7 +3521,7 @@ Responda APENAS com JSON válido.`;
                   detalheMsg = `registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`;
                 }
               } else if (type === 'saida') {
-                const horaSaidaCfg = configData.ponto_hora_saida || '18:00';
+                const horaSaidaCfg = configData.horaSaida || '18:00';
                 const [hCfg, mCfg] = horaSaidaCfg.split(':').map(Number);
                 const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
 

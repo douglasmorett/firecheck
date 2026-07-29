@@ -440,6 +440,22 @@ export default function AdminDashboard() {
   const [pontoHoraEntrada, setPontoHoraEntrada] = useState('08:00');
   const [pontoHoraSaida, setPontoHoraSaida] = useState('18:00');
   const [pontoTolerancia, setPontoTolerancia] = useState(15);
+  const [schedules, setSchedules] = useState([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+    weekdays: [
+      { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 2, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 3, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 4, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 5, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+      { weekday: 6, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' }
+    ]
+  });
+
   const [whatsappActive, setWhatsappActive] = useState(true);
   const [whatsappPhone, setWhatsappPhone] = useState('');
   const [waPontoAtraso, setWaPontoAtraso] = useState(true);
@@ -552,6 +568,7 @@ export default function AdminDashboard() {
     fetchCameras();
     fetchQuota();
     fetchPontoRecords();
+    fetchSchedules();
     fetchVehicles();
     fetchShoppingLists();
 
@@ -746,6 +763,89 @@ export default function AdminDashboard() {
       if (Array.isArray(data)) setPontoRecords(data);
     } catch (err) { console.error('Erro ponto:', err); }
   };
+
+  const fetchSchedules = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      const res = await fetch(`${API_URL}/api/schedules?store=${encodeURIComponent(user.store)}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSchedules(data);
+      }
+    } catch (err) { console.error('Erro ao buscar escalas:', err); }
+  };
+
+  const handleSaveSchedule = async () => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (!savedUser) return;
+      const user = JSON.parse(savedUser);
+      
+      const payload = {
+        ...scheduleForm,
+        store: user.store
+      };
+
+      const url = editingSchedule ? `${API_URL}/api/schedules/${editingSchedule.id}` : `${API_URL}/api/schedules`;
+      const method = editingSchedule ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        fetchSchedules();
+        setShowScheduleModal(false);
+      }
+    } catch (err) {
+      console.error('Erro ao salvar escala:', err);
+    }
+  };
+
+  const handleDeleteSchedule = async (id) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta escala?')) return;
+    try {
+      const res = await fetch(`${API_URL}/api/schedules/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        fetchSchedules();
+      }
+    } catch (err) {
+      console.error('Erro ao excluir escala:', err);
+    }
+  };
+
+  const handleEditSchedule = (schedule) => {
+    setEditingSchedule(schedule);
+    let parsedWeekdays = schedule.weekdays;
+    if (typeof parsedWeekdays === 'string') {
+      try { parsedWeekdays = JSON.parse(parsedWeekdays); } catch(e) { parsedWeekdays = scheduleForm.weekdays; }
+    }
+    setScheduleForm({
+      name: schedule.name || '',
+      type: schedule.type || 'fixed',
+      hora_entrada: schedule.hora_entrada || '08:00',
+      hora_saida: schedule.hora_saida || '18:00',
+      intervalo_inicio: schedule.intervalo_inicio || '12:00',
+      intervalo_fim: schedule.intervalo_fim || '13:00',
+      tolerancia: schedule.tolerancia || 15,
+      color: schedule.color || '#3B82F6',
+      weekdays: parsedWeekdays || scheduleForm.weekdays
+    });
+    setShowScheduleModal(true);
+  };
+
 
   const handleSavePontoManual = async () => {
     if (!pontoManualForm.userId || !pontoManualForm.date || !pontoManualForm.time) {
@@ -2665,6 +2765,74 @@ export default function AdminDashboard() {
                 </div>
              </div>
 
+             {/* Escalas de Trabalho */}
+             <div className="card" style={{ padding: '24px', gridColumn: '1 / -1' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                   <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-color)' }}>
+                      <Calendar size={20} color="var(--primary)" /> Escalas de Trabalho
+                   </h3>
+                   <button className="btn-primary" onClick={() => {
+                     setEditingSchedule(null);
+                     setScheduleForm({
+                       name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+                       weekdays: [
+                         { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 2, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 3, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 4, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 5, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+                         { weekday: 6, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' }
+                       ]
+                     });
+                     setShowScheduleModal(true);
+                   }} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Plus size={16} /> Nova Escala
+                   </button>
+                </div>
+                
+                {schedules.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                     Nenhuma escala cadastrada. Clique em "Nova Escala" para começar.
+                  </div>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+                     {schedules.map(sch => (
+                       <div key={sch.id} style={{ backgroundColor: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', position: 'relative' }}>
+                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                             <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: sch.color || '#3B82F6' }}></div>
+                             <h4 style={{ margin: 0 }}>{sch.name}</h4>
+                           </div>
+                           <div style={{ display: 'flex', gap: '8px' }}>
+                             <button onClick={() => handleEditSchedule(sch)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}><Edit2 size={16} /></button>
+                             <button onClick={() => handleDeleteSchedule(sch.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444' }}><Trash2 size={16} /></button>
+                           </div>
+                         </div>
+                         <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <Clock size={14} /> {sch.hora_entrada} - {sch.hora_saida}
+                         </div>
+                         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                           {['D','S','T','Q','Q','S','S'].map((day, idx) => {
+                             let isActive = true;
+                             try {
+                               const wds = typeof sch.weekdays === 'string' ? JSON.parse(sch.weekdays) : sch.weekdays;
+                               const wd = wds.find(w => w.weekday === idx);
+                               if (wd) isActive = wd.is_workday;
+                             } catch(e) {}
+                             return (
+                               <span key={idx} style={{ width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: isActive ? (sch.color || '#3B82F6') : 'var(--border-color)', color: isActive ? '#fff' : 'var(--text-muted)' }}>
+                                 {day}
+                               </span>
+                             )
+                           })}
+                         </div>
+                       </div>
+                     ))}
+                  </div>
+                )}
+             </div>
+
              {/* Botão Verificar Registros */}
              <div className="card" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', border: '2px dashed var(--primary)', backgroundColor: 'rgba(255, 77, 0, 0.03)', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowPontoPanel(true)}>
                 <UserCheck size={36} color="var(--primary)" style={{ marginBottom: '8px' }}/>
@@ -4005,7 +4173,16 @@ export default function AdminDashboard() {
                         Dono / Administrador
                       </span>
                     )}
-                    {!isMaster && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
+                    {!isMaster && member.schedule_id && (() => {
+                      const sch = schedules.find(s => String(s.id) === String(member.schedule_id));
+                      if (!sch) return null;
+                      return (
+                        <span style={{ backgroundColor: `${sch.color}15`, border: `1px solid ${sch.color}40`, color: sch.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                          📅 Escala: {sch.name}
+                        </span>
+                      );
+                    })()}
+                    {!isMaster && !member.schedule_id && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
                       <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         ⏰ {member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}
                       </span>
@@ -5162,34 +5339,58 @@ export default function AdminDashboard() {
               {/* Escala de Trabalho Individual */}
               <div style={{ marginBottom: '24px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', color: '#3b82f6', fontWeight: 'bold' }}>
-                  ⏰ Escala de Trabalho Individual
+                  ⏰ Escala de Trabalho
                 </label>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Defina horários específicos para este colaborador. Se deixar em branco, será usado o horário padrão da loja.
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-                  <div>
-                    <label className="input-label" style={{ fontSize: '0.75rem' }}>Entrada</label>
-                    <input type="time" className="input-field" value={editingUser.ponto_hora_entrada || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_entrada: e.target.value})} />
-                  </div>
-                  <div>
-                    <label className="input-label" style={{ fontSize: '0.75rem' }}>Saída</label>
-                    <input type="time" className="input-field" value={editingUser.ponto_hora_saida || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_saida: e.target.value})} />
-                  </div>
-                </div>
-                <div>
-                  <label className="input-label" style={{ fontSize: '0.75rem' }}>Tolerância</label>
-                  <select className="input-field" style={{ padding: '8px' }} value={editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : ''} onChange={e => setEditingUser({...editingUser, ponto_tolerancia: e.target.value ? Number(e.target.value) : null})}>
-                    <option value="">Usar padrão da loja</option>
-                    <option value={0}>Sem tolerância</option>
-                    <option value={5}>5 minutos</option>
-                    <option value={10}>10 minutos</option>
-                    <option value={15}>15 minutos</option>
-                    <option value={20}>20 minutos</option>
-                    <option value={30}>30 minutos</option>
-                    <option value={60}>1 hora</option>
+                <div style={{ marginBottom: '12px' }}>
+                  <label className="input-label" style={{ fontSize: '0.75rem' }}>Selecione uma Escala</label>
+                  <select className="input-field" style={{ padding: '8px' }} value={editingUser.schedule_id || ''} onChange={e => setEditingUser({...editingUser, schedule_id: e.target.value})}>
+                    <option value="">Sem escala (usar padrão da loja)</option>
+                    {schedules.map(sch => (
+                      <option key={sch.id} value={sch.id}>{sch.name}</option>
+                    ))}
                   </select>
                 </div>
+                
+                {editingUser.schedule_id ? (() => {
+                  const sch = schedules.find(s => String(s.id) === String(editingUser.schedule_id));
+                  if (!sch) return null;
+                  return (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px' }}>
+                      <strong>{sch.name}</strong><br/>
+                      Entrada: {sch.hora_entrada} | Saída: {sch.hora_saida}<br/>
+                      Tolerância: {sch.tolerancia} min
+                    </div>
+                  );
+                })() : (
+                  <>
+                    <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                      Ou defina horários individuais se não houver escala.
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
+                      <div>
+                        <label className="input-label" style={{ fontSize: '0.75rem' }}>Entrada</label>
+                        <input type="time" className="input-field" value={editingUser.ponto_hora_entrada || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_entrada: e.target.value})} />
+                      </div>
+                      <div>
+                        <label className="input-label" style={{ fontSize: '0.75rem' }}>Saída</label>
+                        <input type="time" className="input-field" value={editingUser.ponto_hora_saida || ''} onChange={e => setEditingUser({...editingUser, ponto_hora_saida: e.target.value})} />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="input-label" style={{ fontSize: '0.75rem' }}>Tolerância</label>
+                      <select className="input-field" style={{ padding: '8px' }} value={editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : ''} onChange={e => setEditingUser({...editingUser, ponto_tolerancia: e.target.value ? Number(e.target.value) : null})}>
+                        <option value="">Usar padrão da loja</option>
+                        <option value={0}>Sem tolerância</option>
+                        <option value={5}>5 minutos</option>
+                        <option value={10}>10 minutos</option>
+                        <option value={15}>15 minutos</option>
+                        <option value={20}>20 minutos</option>
+                        <option value={30}>30 minutos</option>
+                        <option value={60}>1 hora</option>
+                      </select>
+                    </div>
+                  </>
+                )}
               </div>
 
               <button type="submit" className="btn" style={{ width: '100%', padding: '16px', fontWeight: 'bold' }}>
@@ -5571,6 +5772,115 @@ export default function AdminDashboard() {
       )}
 
       </main>
+
+      {showScheduleModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', backdropFilter: 'blur(5px)' }}>
+          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
+            <button onClick={() => setShowScheduleModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>&times;</button>
+            <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Calendar color="var(--primary)" /> {editingSchedule ? 'Editar Escala' : 'Nova Escala'}
+            </h3>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px', marginBottom: '20px' }}>
+              <div>
+                <label className="input-label">Nome da Escala</label>
+                <input type="text" className="input-field" value={scheduleForm.name} onChange={e => setScheduleForm({...scheduleForm, name: e.target.value})} placeholder="Ex: Comercial, Produção, Madrugada" />
+              </div>
+              <div>
+                <label className="input-label">Cor de Identificação</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#6366F1'].map(color => (
+                    <div key={color} onClick={() => setScheduleForm({...scheduleForm, color})} style={{ width: '32px', height: '32px', borderRadius: '50%', backgroundColor: color, cursor: 'pointer', border: scheduleForm.color === color ? '3px solid #fff' : 'none', outline: scheduleForm.color === color ? `2px solid ${color}` : 'none' }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>Horário Padrão</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.8rem' }}>Entrada</label>
+                  <input type="time" className="input-field" value={scheduleForm.hora_entrada} onChange={e => setScheduleForm({...scheduleForm, hora_entrada: e.target.value})} />
+                </div>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.8rem' }}>Saída</label>
+                  <input type="time" className="input-field" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.8rem' }}>Início Intervalo (Opcional)</label>
+                  <input type="time" className="input-field" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
+                </div>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.8rem' }}>Fim Intervalo (Opcional)</label>
+                  <input type="time" className="input-field" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
+                </div>
+              </div>
+              <div>
+                <label className="input-label" style={{ fontSize: '0.8rem' }}>Tolerância (Minutos)</label>
+                <select className="input-field" value={scheduleForm.tolerancia} onChange={e => setScheduleForm({...scheduleForm, tolerancia: Number(e.target.value)})}>
+                  <option value={0}>Sem tolerância</option>
+                  <option value={5}>5 minutos</option>
+                  <option value={10}>10 minutos</option>
+                  <option value={15}>15 minutos</option>
+                  <option value={20}>20 minutos</option>
+                  <option value={30}>30 minutos</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--bg-secondary)', padding: '16px', borderRadius: '12px', marginBottom: '24px' }}>
+              <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem' }}>Dias da Semana (Personalizar Horários)</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dayName, idx) => {
+                  const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { weekday: idx, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' };
+                  return (
+                    <div key={idx} style={{ padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: wd.is_workday ? '12px' : '0' }}>
+                        <span style={{ fontWeight: 'bold' }}>{dayName}</span>
+                        <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                          <div style={{ position: 'relative', width: '40px', height: '22px', backgroundColor: wd.is_workday ? 'var(--primary)' : 'var(--border-color)', borderRadius: '11px', transition: '0.3s' }}>
+                            <div style={{ position: 'absolute', top: '3px', left: wd.is_workday ? '21px' : '3px', width: '16px', height: '16px', backgroundColor: '#fff', borderRadius: '50%', transition: '0.3s' }}></div>
+                          </div>
+                          <input type="checkbox" style={{ display: 'none' }} checked={wd.is_workday} onChange={e => {
+                            const newWd = [...scheduleForm.weekdays];
+                            const i = newWd.findIndex(w => w.weekday === idx);
+                            if (i >= 0) newWd[i].is_workday = e.target.checked;
+                            setScheduleForm({...scheduleForm, weekdays: newWd});
+                          }} />
+                        </label>
+                      </div>
+                      {wd.is_workday && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                          <input type="time" className="input-field" style={{ padding: '6px', fontSize: '0.8rem' }} placeholder="Entrada" title="Entrada (deixe em branco para usar o padrão)" value={wd.hora_entrada || ''} onChange={e => {
+                            const newWd = [...scheduleForm.weekdays];
+                            const i = newWd.findIndex(w => w.weekday === idx);
+                            if (i >= 0) newWd[i].hora_entrada = e.target.value;
+                            setScheduleForm({...scheduleForm, weekdays: newWd});
+                          }} />
+                          <input type="time" className="input-field" style={{ padding: '6px', fontSize: '0.8rem' }} placeholder="Saída" title="Saída (deixe em branco para usar o padrão)" value={wd.hora_saida || ''} onChange={e => {
+                            const newWd = [...scheduleForm.weekdays];
+                            const i = newWd.findIndex(w => w.weekday === idx);
+                            if (i >= 0) newWd[i].hora_saida = e.target.value;
+                            setScheduleForm({...scheduleForm, weekdays: newWd});
+                          }} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowScheduleModal(false)} style={{ flex: 1 }}>Cancelar</button>
+              <button type="button" className="btn-primary" onClick={handleSaveSchedule} style={{ flex: 1 }}>{editingSchedule ? 'Salvar Alterações' : 'Criar Escala'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Container de Toasts */}
       <div style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 999999, display: 'flex', flexDirection: 'column', gap: '12px' }}>

@@ -68,6 +68,7 @@ export default function EmployeeDashboard() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [hasPonto, setHasPonto] = useState(false);
   const [pontoData, setPontoData] = useState({ entrada: null, saida: null });
+  const [mySchedule, setMySchedule] = useState(null);
   const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
@@ -166,6 +167,18 @@ export default function EmployeeDashboard() {
                .then(r => { handle401(r, navigate); return r.json(); })
                .then(data => setPontoData(data))
                .catch(console.error);
+
+             if (profile.schedule_id) {
+               fetch(`${API_URL}/api/schedules?store=${encodeURIComponent(profile.store)}`, {
+                   headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+                 })
+                 .then(r => { handle401(r, navigate); return r.json(); })
+                 .then(schedules => {
+                   const sch = schedules.find(s => String(s.id) === String(profile.schedule_id));
+                   if (sch) setMySchedule(sch);
+                 })
+                 .catch(console.error);
+             }
           }
         })
         .catch(console.error);
@@ -385,6 +398,25 @@ export default function EmployeeDashboard() {
             <Clock size={16} /> Meu Ponto (Hoje)
           </h4>
           <div className="card" style={{ padding: '24px', textAlign: 'center', border: '1px solid #3b82f6' }}>
+            {mySchedule && (() => {
+              let wd = null;
+              try {
+                const wds = typeof mySchedule.weekdays === 'string' ? JSON.parse(mySchedule.weekdays) : mySchedule.weekdays;
+                wd = wds.find(w => w.weekday === new Date().getDay());
+              } catch(e) {}
+              const isFolga = wd && !wd.is_workday;
+              const ent = (wd && wd.hora_entrada) || mySchedule.hora_entrada;
+              const sai = (wd && wd.hora_saida) || mySchedule.hora_saida;
+
+              return (
+                <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
+                  <h5 style={{ margin: '0 0 4px 0', color: mySchedule.color || 'var(--primary)' }}>{mySchedule.name}</h5>
+                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    {isFolga ? '📅 Folga' : `⏰ ${ent} às ${sai}`}
+                  </p>
+                </div>
+              );
+            })()}
             <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
               <div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>

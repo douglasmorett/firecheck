@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X } from 'lucide-react';
+import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X, Calendar } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -71,6 +71,8 @@ export default function PontoPage() {
   // Registros do dia
   const [todayRecords, setTodayRecords] = useState([]);
   const [loadingRecords, setLoadingRecords] = useState(true);
+  const [mySchedule, setMySchedule] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
 
   // Estado de envio
   const [submitting, setSubmitting] = useState(false);
@@ -192,9 +194,29 @@ export default function PontoPage() {
     }
   }, [user, navigate]);
 
+  const fetchMySchedule = useCallback(async () => {
+    if (!user) return;
+    try {
+      setScheduleLoading(true);
+      const res = await fetch(`${API_URL}/api/schedules?store=${encodeURIComponent(user.store)}`, {
+        headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+      });
+      if (res.ok) {
+        const schedules = await res.json();
+        const sch = schedules.find(s => String(s.id) === String(user.schedule_id));
+        if (sch) setMySchedule(sch);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => {
     fetchTodayRecords();
-  }, [fetchTodayRecords]);
+    fetchMySchedule();
+  }, [fetchTodayRecords, fetchMySchedule]);
 
   // ─── Câmera ───
   const startCamera = async () => {
@@ -518,6 +540,41 @@ export default function PontoPage() {
           </p>
         </div>
       </div>
+
+      {/* ═══ Escala de Hoje ═══ */}
+      {!scheduleLoading && mySchedule && (() => {
+        let wd = null;
+        try {
+          const wds = typeof mySchedule.weekdays === 'string' ? JSON.parse(mySchedule.weekdays) : mySchedule.weekdays;
+          wd = wds.find(w => w.weekday === new Date().getDay());
+        } catch(e) {}
+        
+        const isFolga = wd && !wd.is_workday;
+        
+        if (isFolga) {
+          return (
+            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ backgroundColor: '#3b82f6', borderRadius: '50%', padding: '10px' }}><Calendar size={20} color="#fff" /></div>
+              <div>
+                <h4 style={{ margin: 0, color: '#3b82f6', fontSize: '1rem' }}>📅 Hoje é seu dia de folga</h4>
+                <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Escala: {mySchedule.name}</p>
+              </div>
+            </div>
+          );
+        }
+        
+        const ent = (wd && wd.hora_entrada) || mySchedule.hora_entrada;
+        const sai = (wd && wd.hora_saida) || mySchedule.hora_saida;
+        return (
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', padding: '10px' }}><Clock size={20} color="#10b981" /></div>
+            <div style={{ flex: 1 }}>
+              <h4 style={{ margin: 0, fontSize: '0.95rem' }}>{mySchedule.name}</h4>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Horário de hoje: <strong>{ent} às {sai}</strong></p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ═══ Erro da API ═══ */}
       {apiError && (
