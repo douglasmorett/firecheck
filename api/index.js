@@ -1236,7 +1236,7 @@ export default async function handler(req, res) {
       // ── GET: listar listas de compras ──
       if (method === 'GET') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
-        const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+        const store = (authUser.role === 'master' || !authUser.store) ? (searchParams.get('store') || authUser.store) : authUser.store;
         const today = new Date().toISOString().split('T')[0];
         const { rows } = await pool.query(
           `SELECT sl.*, 
@@ -1245,7 +1245,7 @@ export default async function handler(req, res) {
                   EXISTS(SELECT 1 FROM shopping_submissions ss WHERE ss.shopping_list_id = sl.id AND ss.created_at >= $2) as completed_today,
                   (SELECT employee_name FROM shopping_submissions ss WHERE ss.shopping_list_id = sl.id AND ss.created_at >= $2 ORDER BY ss.id DESC LIMIT 1) as completed_by
            FROM shopping_lists sl 
-           WHERE LOWER(sl.store) = LOWER($1) AND sl.active = TRUE 
+           WHERE LOWER(TRIM(sl.store)) = LOWER(TRIM($1)) AND sl.active = TRUE 
            ORDER BY sl.id DESC`,
           [store, today + ' 00:00:00']
         );

@@ -64,8 +64,8 @@ function App() {
         <Route path="/ponto" element={<PontoPage />} />
         <Route path="/execucao/:id" element={<ChecklistExecution />} />
         <Route path="/execucao/veiculo/:vehicleId" element={<ChecklistExecution />} />
-        <Route path="/execucao/compras/:shoppingListId" element={<ChecklistExecution />} />
-        <Route path="/shopping/execucao/:shoppingListId" element={<ChecklistExecution />} />
+        <Route path="/execucao/compras/:shoppingListId" element={<ShoppingExecution />} />
+        <Route path="/shopping/execucao/:shoppingListId" element={<ShoppingExecution />} />
 
         {/* Rota 404 — redireciona para a página inicial */}
         <Route path="*" element={<Navigate to="/" replace />} />

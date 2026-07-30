@@ -4,7 +4,8 @@ import { ShoppingCart, ArrowLeft, CheckCircle, AlertTriangle, Package, Send, Shi
 import API_URL from '../api';
 
 export default function ShoppingExecution() {
-  const { id } = useParams();
+  const { id, shoppingListId } = useParams();
+  const targetId = shoppingListId || id;
   const navigate = useNavigate();
   const [listInfo, setListInfo] = useState(null);
   const [items, setItems] = useState([]);
@@ -17,6 +18,7 @@ export default function ShoppingExecution() {
   const [userProfile, setUserProfile] = useState(null);
 
   const fetchItems = useCallback(async (user) => {
+    if (!targetId) return;
     try {
       // Buscar dados da lista
       const listRes = await fetch(`${API_URL}/api/shopping?store=${encodeURIComponent(user.store || '')}`, {
@@ -24,12 +26,12 @@ export default function ShoppingExecution() {
       });
       if (listRes.ok) {
         const lists = await listRes.json();
-        const found = lists.find(l => String(l.id) === String(id));
+        const found = lists.find(l => String(l.id) === String(targetId));
         if (found) setListInfo(found);
       }
 
       // Buscar itens da lista
-      const itemsRes = await fetch(`${API_URL}/api/shopping/items?listId=${id}`, {
+      const itemsRes = await fetch(`${API_URL}/api/shopping/items?listId=${targetId}`, {
         headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
       });
       if (itemsRes.ok) {
@@ -48,7 +50,7 @@ export default function ShoppingExecution() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [targetId]);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -90,7 +92,7 @@ export default function ShoppingExecution() {
           'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
         },
         body: JSON.stringify({
-          shoppingListId: id,
+          shoppingListId: targetId,
           employeeName: userProfile.name,
           store: userProfile.store,
           items: formattedItems,

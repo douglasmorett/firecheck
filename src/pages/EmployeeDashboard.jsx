@@ -533,8 +533,21 @@ export default function EmployeeDashboard() {
         const pendingShopping = shoppingLists.filter(s => {
           if (s.completed_today) return false;
           if (!s.assigned_to || s.assigned_to === 'todos' || s.assigned_to === 'pendente') return true;
-          if (Array.isArray(s.assigned_to)) return s.assigned_to.includes(userProfile?.email);
-          return s.assigned_to === userProfile?.email;
+
+          const userEmail = (userProfile?.email || '').toLowerCase().trim();
+          const userName = (userProfile?.name || '').toLowerCase().trim();
+          const userId = String(userProfile?.id || '');
+
+          const matchesUser = (target) => {
+            if (!target) return false;
+            const str = String(target).toLowerCase().trim();
+            return (userEmail && str === userEmail) || (userName && str === userName) || (userId && str === userId);
+          };
+
+          if (Array.isArray(s.assigned_to)) {
+            return s.assigned_to.some(matchesUser);
+          }
+          return matchesUser(s.assigned_to);
         });
 
         if (pendingShopping.length === 0) return null;
@@ -655,7 +668,7 @@ export default function EmployeeDashboard() {
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     <Folder size={12} />
-                    {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional'))}
+                    {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'compras' ? '🛒 Lista de Compras' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional')))}
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     <MapPin size={12} />
@@ -729,7 +742,7 @@ export default function EmployeeDashboard() {
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       <Folder size={12} />
-                      {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional'))}
+                      {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'compras' ? '🛒 Lista de Compras' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional')))}
                     </span>
                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                       <MapPin size={12} />
