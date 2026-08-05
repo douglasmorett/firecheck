@@ -96,6 +96,8 @@ export default function ChecklistCreator() {
   const [category, setCategory] = useState('geral');
   const [requireSignature, setRequireSignature] = useState(false);
   const [assetLinkType, setAssetLinkType] = useState('');
+  const [assignedTo, setAssignedTo] = useState([]); // Array de emails dos funcionários atribuídos (vazio = todos)
+
 
   // States for AI Generator (Chat-style)
   const [showAIModal, setShowAIModal] = useState(false);
@@ -416,6 +418,7 @@ export default function ChecklistCreator() {
             setAssetLinkType(cl.asset_link_type || '');
             setTasks(cl.tasks || []);
             setWeekdays(cl.weekdays || []);
+            setAssignedTo(cl.assigned_to || []);
           }
         });
     }
@@ -471,7 +474,8 @@ export default function ChecklistCreator() {
         body: JSON.stringify({
           id: id || null,
           title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null,
-          category, requireSignature, assetLinkType
+          category, requireSignature, assetLinkType,
+          assignedTo: assignedTo.length > 0 ? assignedTo : null
         })
       });
 
@@ -648,6 +652,77 @@ export default function ChecklistCreator() {
             </select>
           </div>
 
+          {/* Funcionários Responsáveis pelo Checklist */}
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+              <Users size={16} color="var(--primary)" /> Funcionários Responsáveis
+            </label>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', display: 'block', lineHeight: '1.4' }}>
+              Selecione quais funcionários devem executar este checklist. Se nenhum for selecionado, todos da loja terão acesso.
+            </span>
+            
+            {/* Botão Todos */}
+            <div 
+              onClick={() => setAssignedTo([])} 
+              style={{ 
+                padding: '10px 14px', borderRadius: '8px', marginBottom: '8px', cursor: 'pointer',
+                border: assignedTo.length === 0 ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                backgroundColor: assignedTo.length === 0 ? 'rgba(255, 69, 0, 0.1)' : 'var(--bg-card)',
+                color: assignedTo.length === 0 ? 'var(--primary)' : 'var(--text-muted)',
+                fontWeight: assignedTo.length === 0 ? 'bold' : 'normal', fontSize: '0.9rem',
+                display: 'flex', alignItems: 'center', gap: '8px'
+              }}
+            >
+              ✅ Todos os Funcionários
+            </div>
+
+            {/* Lista de funcionários com checkbox */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+              {team.filter(m => m.email).map(m => {
+                const isSelected = assignedTo.includes(m.email);
+                return (
+                  <div key={m.email}
+                    onClick={() => {
+                      setAssignedTo(prev => 
+                        prev.includes(m.email) 
+                          ? prev.filter(e => e !== m.email) 
+                          : [...prev, m.email]
+                      );
+                    }}
+                    style={{
+                      padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
+                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      backgroundColor: isSelected ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                      color: isSelected ? 'var(--text-color)' : 'var(--text-muted)',
+                      fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    <span style={{ width: '18px', height: '18px', borderRadius: '4px', border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)', backgroundColor: isSelected ? 'var(--primary)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'white', flexShrink: 0 }}>
+                      {isSelected ? '✓' : ''}
+                    </span>
+                    <div>
+                      <div style={{ fontWeight: isSelected ? '600' : 'normal' }}>{m.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{m.email}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {assignedTo.length > 0 && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '8px', display: 'block', fontWeight: 'bold' }}>
+                📌 {assignedTo.length} funcionário(s) selecionado(s)
+              </span>
+            )}
+            
+            {team.length === 0 && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>
+                Nenhum funcionário cadastrado. Adicione colaboradores no painel de equipe.
+              </span>
+            )}
+          </div>
+
           <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               🖋️ Exigir Assinatura Digital
@@ -804,23 +879,6 @@ export default function ChecklistCreator() {
                        onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
                    </div>
                  </div>
-
-                {/* Atribuição de Funcionário Específico */}
-                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--bg-card)', borderRadius: '8px', border: '1px dashed var(--border-color)' }}>
-                   <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     <Users size={14} color="var(--primary)" /> Responsável pela Tarefa
-                   </label>
-                   
-                   <div style={{ marginTop: '8px' }}>
-                     <select className="input-field" value={task.assignee || ''} onChange={e => updateTask(task.id, 'assignee', e.target.value)}>
-                       <option value="">Equipe Toda (Visível para todos)</option>
-                       {team.map(m => (
-                         <option key={m.email} value={m.email}>{m.name} ({m.email})</option>
-                       ))}
-                     </select>
-                     {team.length === 0 && <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>Nenhum funcionário cadastrado nesta loja. Adicione colaboradores no painel de equipe.</span>}
-                   </div>
-                </div>
               </div>
             ))}
           </div>

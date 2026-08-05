@@ -590,6 +590,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS schedule_data TEXT");
       await pool.query("ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS last_requested_at TIMESTAMP");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS category VARCHAR(100) DEFAULT 'geral'");
+      await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS assigned_to TEXT");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS require_signature BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS asset_link_type VARCHAR(100)");
       await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS vehicle_id INTEGER");
@@ -707,6 +708,7 @@ export default async function handler(req, res) {
         }
       } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
 
+
     } catch (e) { console.error('Migration error:', e); }
   }
 
@@ -753,7 +755,7 @@ export default async function handler(req, res) {
 
           // ── Verificação de Bloqueio ──────────────────────────
           // Funcionários herdam o status do admin da loja
-          if (user.role === 'funcionario' || user.role === 'employee') {
+          if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
             const { rows: admins } = await pool.query(
               "SELECT status, created_at, expiration_date FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
               [user.store]
@@ -889,17 +891,17 @@ export default async function handler(req, res) {
       }
 
       if (method === 'POST') {
-        const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays, category, requireSignature, assetLinkType } = req.body;
+        const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays, category, requireSignature, assetLinkType, assignedTo } = req.body;
         if (id) {
           const { rows } = await pool.query(
-            'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7, category = $8, require_signature = $9, asset_link_type = $10 WHERE id = $11 RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id]
+            'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7, category = $8, require_signature = $9, asset_link_type = $10, assigned_to = $12 WHERE id = $11 RETURNING *',
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id, assignedTo ? JSON.stringify(assignedTo) : null]
           );
           return res.status(200).json(rows[0]);
         } else {
           const { rows } = await pool.query(
-            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays, category, require_signature, asset_link_type) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null]
+            'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays, category, require_signature, asset_link_type, assigned_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, assignedTo ? JSON.stringify(assignedTo) : null]
           );
           return res.status(200).json(rows[0]);
         }
@@ -944,6 +946,18 @@ export default async function handler(req, res) {
           const dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
           if (dias.length > 0 && !dias.includes(todayWeekday)) return null;
         }
+
+        // Filtrar por assigned_to: se o usuário é funcionário/gestor, só mostrar checklists atribuídos a ele ou a todos
+        if (filterToday && r.assigned_to) {
+          const assignedList = typeof r.assigned_to === 'string' ? JSON.parse(r.assigned_to) : r.assigned_to;
+          if (Array.isArray(assignedList) && assignedList.length > 0) {
+            const userEmail = authUser.email?.toLowerCase();
+            if (!assignedList.some(email => email.toLowerCase() === userEmail)) {
+              return null; // Não atribuído a este funcionário
+            }
+          }
+        }
+
         let isCompleted = false;
         let completedBy = null;
         if (r.recurrence === 'unico' || r.recurrence === '') {
@@ -954,7 +968,7 @@ export default async function handler(req, res) {
           if (sub) { isCompleted = true; completedBy = sub.employee_name; }
         }
         const wk = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
-        return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), weekdays: wk, completedToday: isCompleted, completedBy };
+        return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), weekdays: wk, completedToday: isCompleted, completedBy, assigned_to: r.assigned_to ? (typeof r.assigned_to === 'string' ? JSON.parse(r.assigned_to) : r.assigned_to) : null };
       }).filter(Boolean));
     }
 
@@ -1555,6 +1569,7 @@ export default async function handler(req, res) {
         }
 
         const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
+
         // Hash da senha com bcrypt
         const hashedPassword = await bcrypt.hash(password, 12);
         const { rows } = await pool.query(
@@ -1692,6 +1707,17 @@ export default async function handler(req, res) {
         // Admin/Gestor só pode editar usuários da própria loja (ou a si mesmo)
         if (authUser.role !== 'master' && String(user.id) !== String(authUser.id) && user.store?.toLowerCase() !== authUser.store?.toLowerCase()) {
           return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
+        }
+
+        // Gestor não pode alterar campos sensíveis de um admin
+        if (authUser.role === 'gestor' && user.role === 'admin') {
+          // Gestor pode editar dados básicos do admin mas não campos de controle
+          if (role !== undefined && role !== user.role) {
+            return res.status(403).json({ error: 'Gestores não podem alterar o cargo do proprietário.' });
+          }
+          if (status !== undefined && status !== user.status) {
+            return res.status(403).json({ error: 'Gestores não podem alterar o status do proprietário.' });
+          }
         }
 
         // Renomear loja em todas as tabelas se necessário
@@ -1866,6 +1892,12 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
         const { name, email, password, role, store, plan, phone } = req.body;
+
+        // Verificar email duplicado antes de inserir
+        const { rows: existingEmail } = await pool.query('SELECT id, name, store FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (existingEmail.length > 0) {
+          return res.status(400).json({ error: `Este e-mail já está cadastrado no sistema (pertence a "${existingEmail[0].name}" da loja "${existingEmail[0].store}"). Use outro e-mail.` });
+        }
 
         if (role === 'funcionario' || role === 'gestor') {
           const { rows: admins } = await pool.query("SELECT id, plan, status, ponto_limit, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
@@ -4161,6 +4193,14 @@ SEMPRE responda em JSON puro com este formato:
 
     return res.status(200).json({ status: 'online' });
   } catch (err) {
+    // Tratar erros de constraint do PostgreSQL com mensagens amigáveis
+    if (err.code === '23505') {
+      // Unique violation — ex: email duplicado
+      if (err.constraint?.includes('email')) {
+        return res.status(400).json({ error: 'Este e-mail já está cadastrado no sistema. Use outro e-mail.' });
+      }
+      return res.status(400).json({ error: 'Este registro já existe no sistema. Verifique os dados e tente novamente.' });
+    }
     return res.status(500).json({ message: err.message });
   }
 }

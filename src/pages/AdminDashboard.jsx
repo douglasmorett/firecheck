@@ -4168,9 +4168,14 @@ export default function AdminDashboard() {
                         Gestor / Gerente
                       </span>
                     )}
-                    {!isMaster && member.role === 'admin' && (
+                    {!isMaster && member.role === 'admin' && member.id === userProfile?.id && (
                       <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', border: '1px solid rgba(255, 77, 0, 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         Dono / Administrador
+                      </span>
+                    )}
+                    {!isMaster && member.role === 'admin' && member.id !== userProfile?.id && (
+                      <span style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        Conta Secundária
                       </span>
                     )}
                     {!isMaster && member.schedule_id && (() => {
@@ -4216,7 +4221,7 @@ export default function AdminDashboard() {
                       Alterar Plano
                     </button>
                   )}
-                  {(isMaster || (member.role !== 'admin' && member.id !== userProfile?.id)) && (
+                  {(isMaster || member.id !== userProfile?.id) && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
                       setEditingUser({ ...member });
                       setShowEditModal(true);
@@ -4224,7 +4229,7 @@ export default function AdminDashboard() {
                       Editar
                     </button>
                   )}
-                  {(isMaster || (member.role !== 'admin' && member.id !== userProfile?.id)) && (
+                  {(isMaster || member.id !== userProfile?.id) && (
                     <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
                       <Trash2 size={15} />
                     </button>
