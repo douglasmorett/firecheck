@@ -2113,6 +2113,40 @@ export default function LandingPage() {
              margin: 0 auto;
              align-items: stretch;
           }
+          .btn-plan-checklist {
+             width: 100%;
+             padding: 14px;
+             font-size: 0.95rem;
+             font-weight: bold;
+             border: 1.5px solid #ff4500;
+             color: #ff4500;
+             background-color: transparent;
+             border-radius: 8px;
+             cursor: pointer;
+             transition: all 0.2s ease-in-out;
+          }
+          .btn-plan-checklist:hover {
+             background-color: #ff4500 !important;
+             color: #ffffff !important;
+             box-shadow: 0 4px 14px rgba(255, 69, 0, 0.3);
+          }
+          .btn-plan-ponto {
+             width: 100%;
+             padding: 14px;
+             font-size: 0.95rem;
+             font-weight: bold;
+             border: 1.5px solid #3b82f6;
+             color: #3b82f6;
+             background-color: transparent;
+             border-radius: 8px;
+             cursor: pointer;
+             transition: all 0.2s ease-in-out;
+          }
+          .btn-plan-ponto:hover {
+             background-color: #3b82f6 !important;
+             color: #ffffff !important;
+             box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+          }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
                 grid-template-columns: repeat(3, 1fr);
@@ -2177,7 +2211,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatórios em PDF e Excel</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Checklist ${billingCycle}`, `/checkout?plan=checklists_${billingCycle}`)}>
+            <button className="btn-plan-checklist" onClick={() => handleTrackAndNavigate(`Assinar Só Checklist ${billingCycle}`, `/checkout?plan=checklists_${billingCycle}`)}>
               Assinar Só Checklists
             </button>
           </div>
@@ -2248,7 +2282,7 @@ export default function LandingPage() {
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatório diário de espelho de ponto</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Folha de ponto pronta pro contador</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>
+            <button className="btn-plan-ponto" onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>
               Assinar Só Ponto
             </button>
           </div>
