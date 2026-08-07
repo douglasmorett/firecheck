@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Upload, Image } from 'lucide-react';
+import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Image } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -1156,6 +1156,7 @@ export default function ChecklistExecution() {
                           type="file" 
                           id={`file-input-${task.id}`} 
                           accept="image/*" 
+                          capture="environment" 
                           onChange={(e) => handleFileUpload(task.id, e)} 
                           style={{ display: 'none' }} 
                         />
@@ -1174,7 +1175,7 @@ export default function ChecklistExecution() {
                             style={{ flex: 1, padding: '14px', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', borderRadius: '12px' }} 
                             onClick={() => document.getElementById(`file-input-${task.id}`)?.click()}
                           >
-                            <Upload size={16} /> Arquivo/Galeria
+                            <Camera size={16} /> Câmera Nativa
                           </button>
                         </div>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
@@ -1205,6 +1206,7 @@ export default function ChecklistExecution() {
               type="file" 
               id="selfie-file-input" 
               accept="image/*" 
+              capture="user" 
               onChange={handleSelfieFileUpload} 
               style={{ display: 'none' }} 
             />
@@ -1217,7 +1219,7 @@ export default function ChecklistExecution() {
             <div style={{ padding: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { stopCamera(); setShowSelfieModal(false); }}>Cancelar</button>
               <button className="btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} onClick={() => document.getElementById('selfie-file-input')?.click()}>
-                <Upload size={16} /> Arquivo/Galeria
+                <Camera size={16} /> Câmera Nativa
               </button>
               <button className="btn" style={{ flex: 2 }} onClick={takeSelfie}>Capturar e Finalizar</button>
             </div>
