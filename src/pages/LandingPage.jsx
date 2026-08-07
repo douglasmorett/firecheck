@@ -2170,11 +2170,11 @@ export default function LandingPage() {
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>Checklists ILIMITADOS</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Até <strong>30 colaboradores</strong> cadastrados</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Auditoria visual por IA</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Alertas de irregularidade no WhatsApp</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatórios em PDF e Excel</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Colaboradores ilimitados</li>
             </ul>
             <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Checklist ${billingCycle}`, `/checkout?plan=checklists_${billingCycle}`)}>
               Assinar Só Checklists
@@ -2204,6 +2204,9 @@ export default function LandingPage() {
             )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem', backgroundColor: 'rgba(34, 197, 94, 0.12)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#047857' }}>
+                <CheckCircle size={18} color="#10b981" /> 🎁 <strong>BÔNUS: Até 50 colaboradores</strong> (+20 grátis!)
+              </li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Checklist Ilimitado</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Controle de Ponto IA</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Reconhecimento facial + Trava GPS</li>
@@ -2237,12 +2240,12 @@ export default function LandingPage() {
             )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Até <strong>30 colaboradores</strong> cadastrados</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>Reconhecimento Facial com IA</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Trava de Geolocalização (GPS)</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Alerta de Atraso e Saída no WhatsApp</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatório diário de espelho de ponto</li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Folha de ponto pronta pro contador</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Colaboradores ilimitados</li>
             </ul>
             <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>
               Assinar Só Ponto
@@ -2252,12 +2255,12 @@ export default function LandingPage() {
         </div>
 
         {/* Plano Custom abaixo */}
-        <div className="card" style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Precisa de mais de 1.500 checklists?</h3>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.1rem' }}>
-            Fale conosco para fazer um plano personalizado para a sua operação, com gerente de conta dedicado e IA treinada para o seu negócio.
+        <div className="card" style={{ maxWidth: '1100px', margin: '40px auto 0', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
+          <h3 style={{ fontSize: '1.5rem', marginBottom: '12px' }}>Tem mais de 50 funcionários?</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: '1.05rem', maxWidth: '750px' }}>
+            Fale com um de nossos consultores para fazer um plano personalizado para a sua operação, com limite expandido de colaboradores e suporte VIP.
           </p>
-          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.1rem' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom)', 'https://wa.me/5522998851680?text=Olá,%20gostaria%20de%20um%20plano%20Custom%20do%20FireCheck.')}>
+          <button className="btn-secondary" style={{ padding: '12px 32px', fontSize: '1.05rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom >50)', 'https://wa.me/5522998851680?text=Olá,%20tenho%20mais%20de%2050%20funcionários%20e%20gostaria%20de%20um%20plano%20personalizado%20do%20FireCheck.')}>
             Falar com nossos consultores
           </button>
         </div>
