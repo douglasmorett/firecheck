@@ -2096,13 +2096,8 @@ export default async function handler(req, res) {
               let upgradeLink = '';
               let cleanPlan = (admin.plan || '').toLowerCase();
 
-              if (cleanPlan === 'starter') {
-                nextPlan = 'Pro';
-                upgradeLink = 'https://pay.cakto.com.br/e7c88df';
-              } else if (cleanPlan === 'pro' || cleanPlan === 'mensal') {
-                nextPlan = 'Business';
-                upgradeLink = 'https://pay.cakto.com.br/iy4399h';
-              }
+              nextPlan = 'Combo Completo (Checklist Ilimitado + Ponto IA)';
+              upgradeLink = 'https://pay.cakto.com.br/pavdwiz_869704';
 
               if (nextPlan && upgradeLink) {
                 await pool.query('UPDATE users SET upgrade_alert_sent = TRUE WHERE id = $1', [adminId]);

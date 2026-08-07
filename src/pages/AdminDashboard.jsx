@@ -2443,18 +2443,14 @@ export default function AdminDashboard() {
               Faça upgrade para continuar auditando com IA.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {(!quotaInfo?.plan || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
-                <button className="btn" style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
-                  Upgrade Pro — R$97/mês (600 checklists)
-                </button>
-              )}
-              {(quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' || quotaInfo?.plan === 'starter' || quotaInfo?.plan === 'start') && (
-                <button className={quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'btn' : 'btn-secondary'} style={{ padding: '14px', width: '100%' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
-                  {quotaInfo?.plan === 'pro' || quotaInfo?.plan === 'mensal' ? 'Upgrade' : ''} Business — R$197/mês (1000 checklists)
-                </button>
-              )}
-              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20checklists%20no%20FireCheck.', '_blank')}>
-                💬 Plano Custom (falar no WhatsApp)
+              <button className="btn btn-pulse" style={{ padding: '14px', width: '100%', fontWeight: 'bold', backgroundColor: 'var(--primary)' }} onClick={() => window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                🔥 Combo Completo (Checklist + Ponto IA) — R$197/mês
+              </button>
+              <button className="btn-secondary" style={{ padding: '14px', width: '100%', fontWeight: 'bold' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                ⚡ Plano Anual com Desconto — 12x R$97/mês
+              </button>
+              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
+                💬 Plano Custom (>50 funcionários no WhatsApp)
               </button>
             </div>
             <button onClick={() => setShowQuotaUpgradeModal(false)} style={{ marginTop: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Fechar</button>
@@ -2646,55 +2642,121 @@ export default function AdminDashboard() {
               </ul>
             </div>
 
-          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '24px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px', marginTop: '32px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '30px', padding: '6px', border: '1px solid var(--border-color)', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => setDashBillingCycle('mensal')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.88rem',
+                  backgroundColor: dashBillingCycle === 'mensal' ? 'var(--primary)' : 'transparent',
+                  color: dashBillingCycle === 'mensal' ? 'white' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Pagamento Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setDashBillingCycle('anual')}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: '20px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.88rem',
+                  backgroundColor: dashBillingCycle === 'anual' ? '#10b981' : 'transparent',
+                  color: dashBillingCycle === 'anual' ? 'white' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <span>Plano Anual</span>
+                <span style={{ backgroundColor: dashBillingCycle === 'anual' ? 'rgba(255,255,255,0.25)' : 'rgba(16, 185, 129, 0.15)', color: dashBillingCycle === 'anual' ? 'white' : '#10b981', padding: '2px 6px', borderRadius: '10px', fontSize: '0.72rem', fontWeight: 'bold' }}>Economize até 35%</span>
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '16px' }}>
+            
+            {/* SÓ PONTO */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Ponto Starter</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Ideal para equipes pequenas em crescimento.</p>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
-                  • Até <strong>5 colaboradores</strong><br/>
-                  • Reconhecimento facial<br/>
-                  • Trava de GPS integrada
+                <div style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>⏰ MÓDULO PONTO IA</div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Ponto IA</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Ponto com biometria facial e trava de GPS.</p>
+                <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
+                  R${dashBillingCycle === 'anual' ? '97' : '149'}<span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/mês</span>
+                </div>
+                <div style={{ color: dashBillingCycle === 'anual' ? '#10b981' : 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '20px' }}>
+                  {dashBillingCycle === 'anual' ? '12x R$ 97 (R$ 1.164/ano)' : 'Até 30 colaboradores'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginBottom: '24px', color: 'var(--text-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>• Reconhecimento facial IA</div>
+                  <div>• Trava de GPS integrada</div>
+                  <div>• Alertas no WhatsApp</div>
+                  <div>• Até <strong>30 colaboradores</strong></div>
                 </div>
               </div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/kfx3fri_869702?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                Assinar Starter
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(dashBillingCycle === 'anual' ? `https://pay.cakto.com.br/o2xichf?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}` : `https://pay.cakto.com.br/kfx3fri_869702?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Só Ponto
               </button>
             </div>
 
-            <div className="card" style={{ width: '280px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white' }}>MAIS POPULAR</div>
+            {/* COMBO COMPLETO (DESTACADO) */}
+            <div className="card" style={{ width: '290px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 12px 30px rgba(255, 69, 0, 0.15)' }}>
+              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>🔥 MAIS VENDIDO • MELHOR CUSTO</div>
               <div>
-                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px', color: 'var(--primary)' }}>Ponto Pro</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Perfeito para médias empresas estruturadas.</p>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
-                  • Até <strong>15 colaboradores</strong><br/>
-                  • Reconhecimento facial<br/>
-                  • Trava de GPS integrada<br/>
-                  • Automação de folhas
+                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px', marginTop: '6px' }}>⚡ PACOTE COMPLETO</div>
+                <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Combo Tudo em 1</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Checklists Ilimitados + Ponto IA juntos.</p>
+                <div style={{ fontSize: '2.6rem', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>
+                  R${dashBillingCycle === 'anual' ? '167' : '197'}<span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/mês</span>
+                </div>
+                <div style={{ color: '#10b981', fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '20px' }}>
+                  {dashBillingCycle === 'anual' ? '12x R$ 167 (Economiza R$ 360)' : 'Economize R$ 101/mês vs 2 separados'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginBottom: '24px', color: 'var(--text-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ color: '#047857', fontWeight: 'bold' }}>🎁 BÔNUS: Até 50 colaboradores</div>
+                  <div>• <strong>Checklists ILIMITADOS</strong></div>
+                  <div>• Ponto com Reconhecimento Facial</div>
+                  <div>• Trava de GPS + WhatsApp</div>
                 </div>
               </div>
-              <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/otm7qgn?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                Assinar Pro
+              <button className="btn btn-pulse" style={{ width: '100%', padding: '12px', fontWeight: 'bold', backgroundColor: 'var(--primary)' }} onClick={() => window.open(dashBillingCycle === 'anual' ? `https://pay.cakto.com.br/36m7kzq?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}` : `https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Quero o Combo Completo →
               </button>
             </div>
 
+            {/* SÓ CHECKLISTS */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Ponto Business</h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Completo para grandes equipes de varejo.</p>
-                <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-                <div style={{ fontSize: '0.9rem', marginBottom: '24px', color: 'var(--text-color)' }}>
-                  • Até <strong>50 colaboradores</strong><br/>
-                  • Reconhecimento facial<br/>
-                  • Trava de GPS integrada<br/>
-                  • Suporte prioritário
+                <div style={{ color: '#ff4500', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>📋 MÓDULO CHECKLIST</div>
+                <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Checklists</h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Auditorias e vistorias ilimitadas com IA.</p>
+                <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
+                  R${dashBillingCycle === 'anual' ? '97' : '149'}<span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>/mês</span>
+                </div>
+                <div style={{ color: dashBillingCycle === 'anual' ? '#10b981' : 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '20px' }}>
+                  {dashBillingCycle === 'anual' ? '12x R$ 97 (R$ 1.164/ano)' : 'Até 30 colaboradores'}
+                </div>
+                <div style={{ fontSize: '0.85rem', marginBottom: '24px', color: 'var(--text-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>• <strong>Checklists ILIMITADOS</strong></div>
+                  <div>• Auditoria visual por IA</div>
+                  <div>• Alertas no WhatsApp</div>
+                  <div>• Até <strong>30 colaboradores</strong></div>
                 </div>
               </div>
-              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/o2xichf?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                Assinar Business
+              <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(dashBillingCycle === 'anual' ? `https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}` : `https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
+                Assinar Checklists
               </button>
             </div>
           </div>
