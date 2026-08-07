@@ -1156,7 +1156,6 @@ export default function ChecklistExecution() {
                           type="file" 
                           id={`file-input-${task.id}`} 
                           accept="image/*" 
-                          capture="environment" 
                           onChange={(e) => handleFileUpload(task.id, e)} 
                           style={{ display: 'none' }} 
                         />
@@ -1206,7 +1205,6 @@ export default function ChecklistExecution() {
               type="file" 
               id="selfie-file-input" 
               accept="image/*" 
-              capture="user" 
               onChange={handleSelfieFileUpload} 
               style={{ display: 'none' }} 
             />
