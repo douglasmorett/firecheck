@@ -47,7 +47,7 @@ const AI_DEMO_DATA = {
 export default function LandingPage() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [pricingTab, setPricingTab] = useState('completo');
+  const [billingCycle, setBillingCycle] = useState('anual'); // 'mensal' ou 'anual'
   const [isVideoActive, setIsVideoActive] = useState(false);
   const videoRef = useRef(null);
 
@@ -2061,42 +2061,46 @@ export default function LandingPage() {
       <section id="pricing" className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 2.5rem)', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: 'clamp(0.85rem, 2vw, 1rem)' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: 'clamp(0.85rem, 2vw, 1rem)' }}>Cancele a qualquer momento. Sem fidelidade no plano mensal.</p>
           
-          {/* Tab Switcher */}
-          <div style={{ display: 'inline-flex', backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '4px', border: '1px solid var(--border-color)', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {[
-              { key: 'checklists', label: '📋 Só Checklists', desc: 'Auditorias e vistorias' },
-              { key: 'ponto', label: '⏰ Só Ponto', desc: 'Controle de ponto IA' },
-              { key: 'completo', label: '🔥 Pacote Completo', desc: 'Tudo junto', badge: 'MELHOR CUSTO' },
-            ].map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setPricingTab(tab.key)}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  fontSize: '0.9rem',
-                  backgroundColor: pricingTab === tab.key ? 'var(--primary)' : 'transparent',
-                  color: pricingTab === tab.key ? 'white' : 'var(--text-muted)',
-                  transition: 'all 0.2s ease',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '2px',
-                }}
-              >
-                <span>{tab.label}</span>
-                <span style={{ fontSize: '0.7rem', fontWeight: '400', opacity: 0.8 }}>{tab.desc}</span>
-                {tab.badge && pricingTab === tab.key && (
-                  <span style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#10b981', color: 'white', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>{tab.badge}</span>
-                )}
-              </button>
-            ))}
+          {/* Seletor Mensal / Anual */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', backgroundColor: 'var(--bg-card)', borderRadius: '30px', padding: '6px', border: '1px solid var(--border-color)', gap: '6px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
+            <button
+              onClick={() => setBillingCycle('mensal')}
+              style={{
+                padding: '10px 24px',
+                borderRadius: '24px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                backgroundColor: billingCycle === 'mensal' ? 'var(--primary)' : 'transparent',
+                color: billingCycle === 'mensal' ? 'white' : 'var(--text-muted)',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              Pagamento Mensal
+            </button>
+            <button
+              onClick={() => setBillingCycle('anual')}
+              style={{
+                padding: '10px 24px',
+                borderRadius: '24px',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.95rem',
+                backgroundColor: billingCycle === 'anual' ? '#10b981' : 'transparent',
+                color: billingCycle === 'anual' ? 'white' : 'var(--text-muted)',
+                transition: 'all 0.2s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <span>Plano Anual</span>
+              <span style={{ backgroundColor: billingCycle === 'anual' ? 'rgba(255,255,255,0.25)' : 'rgba(16, 185, 129, 0.15)', color: billingCycle === 'anual' ? 'white' : '#10b981', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 'bold' }}>Economize até 35%</span>
+            </button>
           </div>
         </div>
 
@@ -2105,9 +2109,9 @@ export default function LandingPage() {
              display: grid;
              grid-template-columns: repeat(3, 1fr);
              gap: 24px;
-             max-width: 1100px;
+             max-width: 1150px;
              margin: 0 auto;
-             align-items: center;
+             align-items: stretch;
           }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
@@ -2124,162 +2128,124 @@ export default function LandingPage() {
                 display: none;
              }
              .pricing-grid-mobile .card {
-                min-width: 260px;
-                max-width: 280px;
+                min-width: 280px;
+                max-width: 300px;
                 flex-shrink: 0;
                 scroll-snap-align: center;
                 transform: none !important;
-                padding: 20px !important;
+                padding: 24px 20px !important;
              }
              .pricing-grid-mobile .card > h3 {
-                font-size: 1.1rem !important;
-                margin-bottom: 4px !important;
-             }
-             .pricing-grid-mobile .card > p {
-                font-size: 0.8rem !important;
-                margin-bottom: 12px !important;
+                font-size: 1.2rem !important;
              }
              .pricing-grid-mobile .card > .price-text {
-                font-size: 2rem !important;
-                margin-bottom: 4px !important;
-             }
-             .pricing-grid-mobile .card > .price-text span {
-                font-size: 0.8rem !important;
-             }
-             .pricing-grid-mobile .card ul {
-                margin: 0 0 16px 0 !important;
-             }
-             .pricing-grid-mobile .card ul li {
-                font-size: 0.8rem !important;
-                margin-bottom: 6px !important;
-             }
-             .pricing-grid-mobile .card ul li svg {
-                width: 14px !important;
-                height: 14px !important;
-             }
-             .pricing-grid-mobile .card button {
-                padding: 12px 16px !important;
-                font-size: 0.9rem !important;
-             }
-             .pricing-grid-mobile .card > div[style*="absolute"] {
-                font-size: 0.7rem !important;
-                padding: 3px 10px !important;
-                top: -10px !important;
+                font-size: 2.2rem !important;
              }
           }
         `}</style>
         <p className="hide-on-desktop" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>← Deslize para ver todos os planos →</p>
+        
         <div className="pricing-grid-mobile">
           
-          {/* STARTER */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Starter</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-              {pricingTab === 'checklists' ? 'Auditorias para pequenas operações.' : pricingTab === 'ponto' ? 'Ponto eletrônico essencial.' : 'Checklists + Ponto para começar.'}
-            </p>
-            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${pricingTab === 'completo' ? '117' : '67'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+          {/* SÓ CHECKLISTS */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#ff4500', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px' }}>
+              📋 MÓDULO CHECKLIST
             </div>
-            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$17/mês vs separado</div>}
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-              {pricingTab === 'checklists' ? '300 checklists/mês' : pricingTab === 'ponto' ? 'Até 5 colaboradores' : '300 checklists + 5 colaboradores'}
+            <h3 style={{ fontSize: '1.6rem', marginBottom: '8px' }}>Só Checklists</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>Auditoria, fotos e vistorias ilimitadas com IA.</p>
+            
+            <div className="price-text" style={{ fontSize: '2.8rem', fontWeight: 'bold', marginBottom: '4px' }}>
+              R${billingCycle === 'anual' ? '97' : '149'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/mês</span>
             </div>
+            {billingCycle === 'anual' ? (
+              <div style={{ color: '#10b981', fontSize: '0.82rem', fontWeight: '600', marginBottom: '24px' }}>
+                Faturado R$ 1.164/ano (Economiza R$ 624/ano)
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                Cobrado mensalmente no cartão
+              </div>
+            )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              {pricingTab !== 'ponto' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 5 funcionários</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com IA</strong></li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas no WhatsApp</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
-                </>
-              )}
-              {pricingTab !== 'checklists' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Reconhecimento facial</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Trava de GPS</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alerta de atraso no WhatsApp</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatório diário de ponto</li>
-                </>
-              )}
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>Checklists ILIMITADOS</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Auditoria visual por IA</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Alertas de irregularidade no WhatsApp</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatórios em PDF e Excel</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Colaboradores ilimitados</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Starter ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/kfx3fri_869702' : pricingTab === 'completo' ? '/checkout?plan=completo_starter' : 'https://pay.cakto.com.br/3eph5ko_856837')}>
-              Assinar Agora
+            <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Checklist ${billingCycle}`, `/checkout?plan=checklists_${billingCycle}`)}>
+              Assinar Só Checklists
             </button>
           </div>
 
-          {/* PRO (Highlighted) */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
-            <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>MAIS POPULAR</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-              {pricingTab === 'checklists' ? 'Controle total de auditorias.' : pricingTab === 'ponto' ? 'Gestão completa de ponto.' : 'O combo mais escolhido.'}
-            </p>
-            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${pricingTab === 'completo' ? '167' : '97'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+          {/* COMBO COMPLETO (Destacado) */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', zIndex: 2, backgroundColor: 'var(--bg-card)', boxShadow: '0 12px 30px rgba(255, 69, 0, 0.15)' }}>
+            <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', color: 'white', padding: '4px 16px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 'bold', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>🔥 MAIS VENDIDO • MELHOR CUSTO</div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px', marginTop: '4px' }}>
+              ⚡ PACOTE COMPLETO
             </div>
-            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$27/mês vs separado</div>}
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-              {pricingTab === 'checklists' ? '600 checklists/mês' : pricingTab === 'ponto' ? 'Até 15 colaboradores' : '600 checklists + 15 colaboradores'}
+            <h3 style={{ fontSize: '1.8rem', marginBottom: '8px', color: 'var(--primary)' }}>Combo Tudo em 1</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>Checklists Ilimitados + Ponto IA com biometria no mesmo lugar.</p>
+            
+            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>
+              R${billingCycle === 'anual' ? '167' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/mês</span>
             </div>
+            {billingCycle === 'anual' ? (
+              <div style={{ color: '#10b981', fontSize: '0.82rem', fontWeight: 'bold', marginBottom: '24px' }}>
+                12x R$ 167 (Economiza R$ 360/ano vs mensal!)
+              </div>
+            ) : (
+              <div style={{ color: '#10b981', fontSize: '0.82rem', fontWeight: 'bold', marginBottom: '24px' }}>
+                Economize R$ 101/mês comparado aos 2 separados!
+              </div>
+            )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              {pricingTab !== 'ponto' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 funcionários</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Starter</strong></li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Ranking de equipe</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatórios avançados</li>
-                </>
-              )}
-              {pricingTab !== 'checklists' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 colaboradores</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Ponto Starter</strong></li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Automação de folhas</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Escalas e tolerâncias</li>
-                </>
-              )}
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Checklist Ilimitado</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Controle de Ponto IA</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Reconhecimento facial + Trava GPS</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Alertas no WhatsApp (Atraso, Irregularidade)</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Suporte VIP com gerente de conta</li>
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Pro ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/otm7qgn' : pricingTab === 'completo' ? '/checkout?plan=completo_pro' : 'https://pay.cakto.com.br/e7c88df')}>
-              Assinar Agora
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '14px', fontSize: '1rem', fontWeight: 'bold', backgroundColor: 'var(--primary)' }} onClick={() => handleTrackAndNavigate(`Assinar Combo ${billingCycle}`, `/checkout?plan=combo_${billingCycle}`)}>
+              Quero o Combo Completo →
             </button>
           </div>
 
-          {/* BUSINESS */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Business</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
-              {pricingTab === 'checklists' ? 'Operações de grande escala.' : pricingTab === 'ponto' ? 'Ponto para grandes equipes.' : 'A solução definitiva.'}
-            </p>
-            <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R${pricingTab === 'completo' ? '347' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+          {/* SÓ PONTO IA */}
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#3b82f6', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px' }}>
+              ⏰ MÓDULO PONTO IA
             </div>
-            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$47/mês vs separado</div>}
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
-              {pricingTab === 'checklists' ? '1.500 checklists/mês' : pricingTab === 'ponto' ? 'Até 50 colaboradores' : '1.500 checklists + 50 colaboradores'}
+            <h3 style={{ fontSize: '1.6rem', marginBottom: '8px' }}>Só Ponto Eletrônico</h3>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.9rem' }}>Ponto com biometria facial, trava de GPS e alertas WhatsApp.</p>
+            
+            <div className="price-text" style={{ fontSize: '2.8rem', fontWeight: 'bold', marginBottom: '4px' }}>
+              R${billingCycle === 'anual' ? '97' : '149'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>/mês</span>
             </div>
+            {billingCycle === 'anual' ? (
+              <div style={{ color: '#10b981', fontSize: '0.82rem', fontWeight: '600', marginBottom: '24px' }}>
+                Faturado R$ 1.164/ano (Economiza R$ 624/ano)
+              </div>
+            ) : (
+              <div style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '24px' }}>
+                Cobrado mensalmente no cartão
+              </div>
+            )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              {pricingTab !== 'ponto' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Funcionários ilimitados</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Pro</strong></li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Módulos extras</li>
-                </>
-              )}
-              {pricingTab !== 'checklists' && (
-                <>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 50 colaboradores</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Ponto Pro</strong></li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
-                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Integração folha de pagamento</li>
-                </>
-              )}
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>Reconhecimento Facial com IA</strong></li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Trava de Geolocalização (GPS)</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Alerta de Atraso e Saída no WhatsApp</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Relatório diário de espelho de ponto</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Folha de ponto pronta pro contador</li>
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> Colaboradores ilimitados</li>
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Business ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/o2xichf' : pricingTab === 'completo' ? '/checkout?plan=completo_business' : 'https://pay.cakto.com.br/iy4399h')}>
-              Assinar Agora
+            <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontSize: '0.95rem', fontWeight: 'bold' }} onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>
+              Assinar Só Ponto
             </button>
           </div>
 

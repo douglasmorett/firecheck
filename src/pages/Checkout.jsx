@@ -71,29 +71,24 @@ export default function Checkout() {
         
         let checkoutLink = '';
         
-        if (plan === 'mensal' || plan === 'starter') {
+        if (plan === 'checklists_mensal' || plan === 'mensal' || plan === 'starter') {
           checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'pro') {
-          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'anual' || plan === 'business') {
+        } else if (plan === 'checklists_anual' || plan === 'anual' || plan === 'business') {
+          // TODO: Substituir pelo link do Cakto: Só Checklist Anual (R$ 1.164 / 12x R$ 97)
           checkoutLink = `https://pay.cakto.com.br/iy4399h?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'ponto_starter') {
-          checkoutLink = `https://pay.cakto.com.br/kfx3fri_869702?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'ponto_pro' || plan === 'ponto_mensal') {
+        } else if (plan === 'ponto_mensal' || plan === 'ponto_starter' || plan === 'ponto_pro') {
           checkoutLink = `https://pay.cakto.com.br/otm7qgn?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'ponto_business' || plan === 'ponto_anual') {
+        } else if (plan === 'ponto_anual' || plan === 'ponto_business') {
+          // TODO: Substituir pelo link do Cakto: Só Ponto Anual (R$ 1.164 / 12x R$ 97)
           checkoutLink = `https://pay.cakto.com.br/o2xichf?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'combo_mensal') {
+          // TODO: Substituir pelo link do Cakto: Combo Mensal (R$ 197)
+          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'combo_anual') {
+          // TODO: Substituir pelo link do Cakto: Combo Anual (12x R$ 167)
+          checkoutLink = `https://pay.cakto.com.br/iy4399h?email=${userEmail}&name=${userName}`;
         } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
           checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'completo_starter') {
-          // TODO: Substituir pelo link real do Cakto para Pacote Completo Starter
-          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_STARTER?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'completo_pro' || plan === 'completo') {
-          // TODO: Substituir pelo link real do Cakto para Pacote Completo Pro
-          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_PRO?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'completo_business') {
-          // TODO: Substituir pelo link real do Cakto para Pacote Completo Business
-          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_BUSINESS?email=${userEmail}&name=${userName}`;
         }
 
         if (checkoutLink) {
