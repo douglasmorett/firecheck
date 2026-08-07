@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert } from 'lucide-react';
+import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Upload, Image } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -277,13 +277,83 @@ export default function ChecklistExecution() {
   const startCamera = async (taskId) => {
     try {
       setActiveCameraTaskId(taskId);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      const constraintsList = [
+        { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        { video: { facingMode: 'environment' } },
+        { video: { facingMode: { ideal: 'user' } } },
+        { video: true }
+      ];
+
+      let stream = null;
+      for (const constraints of constraintsList) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (!stream) {
+        throw new Error('Não foi possível obter a transmissão da câmera');
+      }
+
       streamRef.current = stream;
-      if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-    } catch {
-      alert('Erro ao acessar a câmera.');
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play().catch(() => {});
+        }
+      }, 100);
+    } catch (err) {
+      console.warn('Câmera WebRTC indisponível. Abrindo seletor nativo de arquivo/câmera:', err);
       setActiveCameraTaskId(null);
+      const fileInput = document.getElementById(`file-input-${taskId}`);
+      if (fileInput) {
+        fileInput.click();
+      } else {
+        alert('Erro ao acessar a câmera ao vivo. Por favor, utilize o botão de selecionar foto.');
+      }
     }
+  };
+
+  const handleFileUpload = (taskId, e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = canvasRef.current || document.createElement('canvas');
+        const maxWidth = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((maxWidth / width) * height);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
+        setTasks(prev => prev.map(t => {
+          if (t.id === taskId) {
+            const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
+            currentPhotos.push(photoUrl);
+            return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
+          }
+          return t;
+        }));
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const stopCamera = useCallback(() => {
@@ -314,9 +384,6 @@ export default function ChecklistExecution() {
       return t;
     }));
     stopCamera();
-    
-    // A auditoria em tempo real foi removida daqui para não bloquear o funcionário.
-    // A foto é apenas salva e o checklist pode ser enviado instantaneamente.
   };
 
   const forceAcceptPhoto = (taskId) =>
@@ -347,7 +414,6 @@ export default function ChecklistExecution() {
         const pos = checkedItems.indexOf(itemIndex);
         if (pos !== -1) checkedItems.splice(pos, 1);
       }
-      // done = array de índices marcados; se todos marcados, também deixa verdadeiro para contar progresso
       return { ...t, done: checkedItems.length === (t.options || []).length && checkedItems.length > 0 ? checkedItems : checkedItems };
     }));
 
@@ -377,15 +443,65 @@ export default function ChecklistExecution() {
   const startSelfieCamera = async () => {
     try {
       setShowSelfieModal(true);
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      streamRef.current = stream;
-      setTimeout(() => {
-        if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play(); }
-      }, 100);
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      const constraintsList = [
+        { video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } } },
+        { video: { facingMode: 'user' } },
+        { video: true }
+      ];
+
+      let stream = null;
+      for (const constraints of constraintsList) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (stream) break;
+        } catch (e) {
+          continue;
+        }
+      }
+
+      if (stream) {
+        streamRef.current = stream;
+        setTimeout(() => {
+          if (videoRef.current) { videoRef.current.srcObject = stream; videoRef.current.play().catch(() => {}); }
+        }, 100);
+      }
     } catch {
-      alert('Erro ao acessar a câmera frontal.');
-      setShowSelfieModal(false);
+      console.warn('Câmera frontal WebRTC indisponível. Utilize o envio por arquivo.');
     }
+  };
+
+  const handleSelfieFileUpload = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = canvasRef.current || document.createElement('canvas');
+        const maxWidth = 600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((maxWidth / width) * height);
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
+        setSelfie(photoUrl);
+        setShowSelfieModal(false);
+        stopCamera();
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // ─── Funções de Desenho / Assinatura Canvas ───────────────────
@@ -790,75 +906,88 @@ export default function ChecklistExecution() {
                 </div>
               )}
 
-              {(task.type === 'stock' || task.minStock !== undefined || task.minQuantity !== undefined) && (
+              {(task.type === 'stock' || task.type === 'numeric' || task.minStock !== undefined || task.minQuantity !== undefined || task.maxQuantity !== undefined) && (
                 <div style={{ marginBottom: '12px' }}>
-                  {/* Banner do Estoque Mínimo TRAVADO (read-only) */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justify: 'space-between',
-                    backgroundColor: 'rgba(15, 23, 42, 0.05)',
-                    border: '1px solid var(--border-color)',
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    marginBottom: '10px'
-                  }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '1rem' }}>🔒</span> Estoque Mínimo Exigido:
-                    </span>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: 'var(--text-main)', backgroundColor: 'var(--bg-card)', padding: '2px 10px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      {task.minStock !== undefined ? task.minStock : (task.minQuantity || 0)} {task.unit || 'un'}
-                    </span>
-                  </div>
+                  {/* Banner de Limites Mínimo/Máximo TRAVADOS */}
+                  {(task.minStock !== undefined || task.minQuantity !== undefined || task.maxQuantity !== undefined) && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                      border: '1px solid var(--border-color)',
+                      padding: '10px 14px',
+                      borderRadius: '8px',
+                      marginBottom: '10px',
+                      flexWrap: 'wrap',
+                      gap: '8px'
+                    }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '1rem' }}>🔒</span> Limites Configurados:
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {(task.minStock !== undefined && task.minStock !== '' || task.minQuantity !== undefined && task.minQuantity !== '') && (
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--primary)', backgroundColor: 'var(--bg-card)', padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                            Min: {task.minStock !== undefined && task.minStock !== '' ? task.minStock : task.minQuantity} {task.unit || 'un'}
+                          </span>
+                        )}
+                        {task.maxQuantity !== undefined && task.maxQuantity !== '' && (
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#7c3aed', backgroundColor: 'var(--bg-card)', padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                            Max: {task.maxQuantity} {task.unit || 'un'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
-                  {/* Input do Estoque Atual (editável pelo funcionário) */}
+                  {/* Input do valor/quantidade */}
                   <label className="input-label" style={{ display: 'block', marginBottom: '6px', fontSize: '0.85rem', fontWeight: '600' }}>
-                    Informe o Estoque Atual Apurado:
+                    {task.type === 'stock' ? 'Informe a Quantidade Apurada:' : 'Informe o Valor Numérico:'}
                   </label>
                   <input
                     type="number"
-                    step="0.01"
+                    step="any"
                     className="input-field"
                     style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold' }}
                     value={task.done !== null && task.done !== undefined ? task.done : ''}
                     onChange={e => handleNumeric(task.id, e.target.value === '' ? '' : parseFloat(e.target.value))}
-                    placeholder={`Digite a quantidade atual em ${task.unit || 'un'}...`}
+                    placeholder={`Digite a quantidade em ${task.unit || 'un'}...`}
                   />
 
-                  {/* Dynamic Feedback when below minimum */}
+                  {/* Feedback dinâmico de Validação */}
                   {task.done !== '' && task.done !== null && task.done !== undefined && (() => {
                     const current = parseFloat(task.done);
-                    const min = parseFloat(task.minStock !== undefined ? task.minStock : (task.minQuantity || 0));
-                    if (current < min) {
-                      const diff = (min - current).toFixed(1);
+                    const hasMin = (task.minStock !== undefined && task.minStock !== '') || (task.minQuantity !== undefined && task.minQuantity !== '');
+                    const minVal = parseFloat(task.minStock !== undefined && task.minStock !== '' ? task.minStock : (task.minQuantity || 0));
+                    const hasMax = task.maxQuantity !== undefined && task.maxQuantity !== '';
+                    const maxVal = parseFloat(task.maxQuantity || 0);
+
+                    if (hasMin && current < minVal) {
+                      const diff = (minVal - current).toFixed(1);
                       return (
                         <div style={{ marginTop: '8px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', color: '#ef4444', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                           <AlertCircle size={16} />
-                          <span>⚠️ Abaixo do Mínimo! Faltam <strong>{diff} {task.unit || 'un'}</strong> para o estoque ideal. Será destacado para o dono comprar.</span>
+                          <span>⚠️ Abaixo do Mínimo! Faltam <strong>{diff} {task.unit || 'un'}</strong> para o estoque/quantidade ideal.</span>
                         </div>
                       );
-                    } else {
+                    } else if (hasMax && current > maxVal) {
+                      const excess = (current - maxVal).toFixed(1);
+                      return (
+                        <div style={{ marginTop: '8px', padding: '10px 14px', borderRadius: '8px', backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid #f59e0b', color: '#b45309', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                          <AlertCircle size={16} />
+                          <span>⚠️ Acima do Máximo! Excesso de <strong>{excess} {task.unit || 'un'}</strong> em relação ao limite.</span>
+                        </div>
+                      );
+                    } else if (hasMin || hasMax) {
                       return (
                         <div style={{ marginTop: '8px', padding: '8px 12px', borderRadius: '8px', backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', color: '#22c55e', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <CheckCircle size={14} />
-                          <span>Estoque em conformidade (OK).</span>
+                          <span>Quantidade em conformidade (OK).</span>
                         </div>
                       );
                     }
+                    return null;
                   })()}
-                </div>
-              )}
-
-              {task.type === 'numeric' && !task.minStock && task.minQuantity === undefined && (
-                <div style={{ marginBottom: '8px' }}>
-                  <input
-                    type="number"
-                    className="input-field"
-                    style={{ width: '100%', padding: '12px', borderRadius: '8px' }}
-                    value={task.done !== null && task.done !== undefined ? task.done : ''}
-                    onChange={e => handleNumeric(task.id, e.target.value === '' ? null : parseFloat(e.target.value))}
-                    placeholder="Insira o valor numérico..."
-                  />
                 </div>
               )}
 
@@ -1022,15 +1151,37 @@ export default function ChecklistExecution() {
                   ) : (
                     // Botão para Tirar Foto (só se não atingiu o limite de maxPhotos)
                     (!task.photos || task.photos.length < (task.maxPhotos || 1)) && !completedTodayInfo && (
-                      <button 
-                        className="btn btn-pulse animate-fade" 
-                        style={{ width: '100%', backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '16px', fontSize: '1.05rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease' }} 
-                        onClick={(e) => {
-                           startCamera(task.id);
-                        }}
-                      >
-                        <Camera size={22} /> Tirar Foto {(task.photos || []).length + 1} de {task.maxPhotos || 1}
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                        <input 
+                          type="file" 
+                          id={`file-input-${task.id}`} 
+                          accept="image/*" 
+                          capture="environment" 
+                          onChange={(e) => handleFileUpload(task.id, e)} 
+                          style={{ display: 'none' }} 
+                        />
+                        
+                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                          <button 
+                            className="btn btn-pulse animate-fade" 
+                            style={{ flex: 2, backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '14px', fontSize: '0.95rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease', fontWeight: '600' }} 
+                            onClick={() => startCamera(task.id)}
+                          >
+                            <Camera size={20} /> Câmera ao Vivo
+                          </button>
+
+                          <button 
+                            className="btn-secondary" 
+                            style={{ flex: 1, padding: '14px', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', borderRadius: '12px' }} 
+                            onClick={() => document.getElementById(`file-input-${task.id}`)?.click()}
+                          >
+                            <Upload size={16} /> Arquivo/Galeria
+                          </button>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Foto {(task.photos || []).length + 1} de {task.maxPhotos || 1}
+                        </span>
+                      </div>
                     )
                   )}
                 </div>
@@ -1051,13 +1202,25 @@ export default function ChecklistExecution() {
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '4px' }}>Sorria! Precisamos de uma foto sua para finalizar.</p>
             </div>
             
+            <input 
+              type="file" 
+              id="selfie-file-input" 
+              accept="image/*" 
+              capture="user" 
+              onChange={handleSelfieFileUpload} 
+              style={{ display: 'none' }} 
+            />
+
             <div style={{ width: '100%', backgroundColor: '#000', position: 'relative', aspectRatio: '3/4' }}>
               <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} autoPlay playsInline></video>
               <canvas ref={canvasRef} style={{ display: 'none' }}></canvas>
             </div>
 
-            <div style={{ padding: '20px', display: 'flex', gap: '12px' }}>
+            <div style={{ padding: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { stopCamera(); setShowSelfieModal(false); }}>Cancelar</button>
+              <button className="btn-secondary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }} onClick={() => document.getElementById('selfie-file-input')?.click()}>
+                <Upload size={16} /> Arquivo/Galeria
+              </button>
               <button className="btn" style={{ flex: 2 }} onClick={takeSelfie}>Capturar e Finalizar</button>
             </div>
           </div>

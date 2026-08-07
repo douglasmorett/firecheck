@@ -2181,8 +2181,32 @@ export default async function handler(req, res) {
           }
 
           if (evoUrl && evoKey) {
+            // Verificar discrepâncias de estoque/quantidade em updatedTasks
+            const stockDiscrepancies = [];
+            const tasksList = Array.isArray(updatedTasks) ? updatedTasks : (typeof updatedTasks === 'string' ? JSON.parse(updatedTasks) : []);
+            tasksList.forEach(t => {
+              if (t && t.done !== null && t.done !== undefined && t.done !== '') {
+                const val = parseFloat(t.done);
+                if (!isNaN(val)) {
+                  const hasMin = (t.minStock !== undefined && t.minStock !== '' && t.minStock !== null) || (t.minQuantity !== undefined && t.minQuantity !== '' && t.minQuantity !== null);
+                  const minVal = parseFloat(t.minStock !== undefined && t.minStock !== '' && t.minStock !== null ? t.minStock : (t.minQuantity || 0));
+                  const hasMax = t.maxQuantity !== undefined && t.maxQuantity !== '' && t.maxQuantity !== null;
+                  const maxVal = parseFloat(t.maxQuantity || 0);
+
+                  if (hasMin && val < minVal) {
+                    const diff = (minVal - val).toFixed(1);
+                    stockDiscrepancies.push(`🔻 *${t.text || 'Item'}*: Apurado *${val} ${t.unit || 'un'}* (Mínimo: ${minVal} ${t.unit || 'un'} — Faltam *${diff} ${t.unit || 'un'}*)`);
+                  } else if (hasMax && val > maxVal) {
+                    const excess = (val - maxVal).toFixed(1);
+                    stockDiscrepancies.push(`🔺 *${t.text || 'Item'}*: Apurado *${val} ${t.unit || 'un'}* (Máximo: ${maxVal} ${t.unit || 'un'} — Excesso: *${excess} ${t.unit || 'un'}*)`);
+                  }
+                }
+              }
+            });
+
             const feedbackParsed = typeof feedbackInfo === 'string' ? JSON.parse(feedbackInfo) : (feedbackInfo || {});
-            const hasWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
+            const hasAiWarnings = Object.values(feedbackParsed).some(f => f.status === 'warning' || f.status === 'error');
+            const hasWarnings = hasAiWarnings || stockDiscrepancies.length > 0;
 
              // 1. Notificação para os Donos e Gestores (Admin/Master/Gestor)
              const { rows: adminDetails } = await pool.query(
@@ -2197,7 +2221,7 @@ export default async function handler(req, res) {
                  const cleanPhone = targetPhone.replace(/\D/g, '');
                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
 
-                 // Notificação de checklist APROVADO (sem irregularidades)
+                 // Notificação de checklist APROVADO (sem irregularidades e sem discrepância de estoque)
                  if (!hasWarnings && adm.wa_checklist_aprovado !== false) {
                    const successMsg = `✅ *FireCheck - Checklist Concluído com Sucesso*\n\n` +
                      `📋 *${checklistTitle}*\n` +
@@ -2206,7 +2230,7 @@ export default async function handler(req, res) {
                      `📅 Data: *${dataHoje}*\n` +
                      `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                      `Status: *✅ Tudo em Conformidade*\n` +
-                     `Nenhuma irregularidade encontrada. Operação segura! 🚀`;
+                     `Nenhuma irregularidade ou falta de estoque encontrada. Operação segura! 🚀`;
 
                    fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
                      method: 'POST',
@@ -2215,15 +2239,21 @@ export default async function handler(req, res) {
                    }).catch(e => console.error('[WhatsApp Admin Aprovado] Erro ao enviar:', e.message));
                  }
 
-                 // Notificação de checklist REPROVADO (com irregularidades)
+                 // Notificação de checklist REPROVADO ou com Alerta de Estoque
                  if (hasWarnings && adm.wa_checklist_reprovado !== false) {
-                   const textMsg = `⚠️ *FireCheck - Checklist com Irregularidades*\n\n` +
+                   let stockDetailsMsg = '';
+                   if (stockDiscrepancies.length > 0) {
+                     stockDetailsMsg = `\n\n🚨 *ALERTAS DE ESTOQUE / QUANTIDADE:*\n` + stockDiscrepancies.join('\n');
+                   }
+
+                   const textMsg = `⚠️ *FireCheck - Alerta de Checklist & Estoque*\n\n` +
                      `📋 *${checklistTitle}*\n` +
                      `👤 Colaborador: *${employeeName}*\n` +
                      `🏪 Loja: *${store}*\n` +
                      `📅 Data: *${dataHoje}*\n` +
                      `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
-                     `Status: *⚠️ Irregularidades Detectadas*\n\n` +
+                     `Status: *⚠️ Irregularidade / Estoque Fora do Limite*` +
+                     stockDetailsMsg + `\n\n` +
                      `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
 
                    fetch(`${evoUrl}/message/sendText/${evoInstance}`, {

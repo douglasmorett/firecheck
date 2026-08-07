@@ -843,6 +843,65 @@ export default function ChecklistCreator() {
                   </div>
                 )}
 
+                {(task.type === 'stock' || task.type === 'numeric') && (
+                  <div style={{ marginBottom: '16px', padding: '14px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', marginBottom: '10px', fontWeight: 'bold' }}>
+                      📦 Limites de Quantidade (Estoque / Medição)
+                    </label>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
+                      <div>
+                        <label className="input-label" style={{ fontSize: '0.8rem' }}>Mínimo Exigido (MIN)</label>
+                        <input 
+                          type="number" 
+                          step="any"
+                          className="input-field" 
+                          placeholder="Ex: 10" 
+                          value={task.minQuantity !== undefined && task.minQuantity !== null ? task.minQuantity : (task.minStock !== undefined ? task.minStock : '')} 
+                          onChange={e => {
+                            const val = e.target.value === '' ? '' : parseFloat(e.target.value);
+                            updateTask(task.id, 'minQuantity', val);
+                            updateTask(task.id, 'minStock', val);
+                          }} 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="input-label" style={{ fontSize: '0.8rem' }}>Máximo Limite (MAX)</label>
+                        <input 
+                          type="number" 
+                          step="any"
+                          className="input-field" 
+                          placeholder="Ex: 20" 
+                          value={task.maxQuantity !== undefined && task.maxQuantity !== null ? task.maxQuantity : ''} 
+                          onChange={e => updateTask(task.id, 'maxQuantity', e.target.value === '' ? '' : parseFloat(e.target.value))} 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="input-label" style={{ fontSize: '0.8rem' }}>Unidade de Medida</label>
+                        <select 
+                          className="input-field" 
+                          value={task.unit || 'un'} 
+                          onChange={e => updateTask(task.id, 'unit', e.target.value)}
+                        >
+                          <option value="un">un (Unidades)</option>
+                          <option value="kg">kg (Quilos)</option>
+                          <option value="g">g (Gramas)</option>
+                          <option value="L">L (Litros)</option>
+                          <option value="ml">ml (Mililitros)</option>
+                          <option value="cx">cx (Caixas)</option>
+                          <option value="pct">pct (Pacotes)</option>
+                          <option value="°C">°C (Graus Celsius)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px', display: 'block' }}>
+                      💡 O funcionário verá esses limites durante a execução e será alertado se estiver abaixo do mínimo ou acima do máximo.
+                    </span>
+                  </div>
+                )}
+
                  <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
                    <div style={{ flex: '1', minWidth: '180px' }}>
                      <label className="input-label">Fiscalização por Foto (IA)</label>
