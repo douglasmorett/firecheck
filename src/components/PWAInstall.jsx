@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Download, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
@@ -85,15 +86,20 @@ export default function PWAInstall() {
         </button>
       </div>
 
-      {showInstructions && (
+      {showInstructions && createPortal(
         <div style={{
           position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100vw',
+          height: '100vh',
           backgroundColor: 'rgba(0,0,0,0.85)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 99999,
+          zIndex: 999999,
           padding: '20px',
           backdropFilter: 'blur(4px)'
         }} onClick={() => setShowInstructions(false)}>
@@ -133,7 +139,8 @@ export default function PWAInstall() {
               <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={() => setShowInstructions(false)}>Entendi</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`
