@@ -4168,6 +4168,11 @@ export default function AdminDashboard() {
                         Gestor / Gerente
                       </span>
                     )}
+                    {!isMaster && (!member.role || member.role === 'funcionario' || member.role === 'employee') && (
+                      <span style={{ backgroundColor: 'rgba(107, 114, 128, 0.1)', border: '1px solid rgba(107, 114, 128, 0.3)', color: '#6b7280', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        Funcionário
+                      </span>
+                    )}
                     {!isMaster && member.role === 'admin' && member.id === userProfile?.id && (
                       <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', border: '1px solid rgba(255, 77, 0, 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         Dono / Administrador
