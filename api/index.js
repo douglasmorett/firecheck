@@ -1891,7 +1891,7 @@ export default async function handler(req, res) {
         if (authUser.role !== 'admin' && authUser.role !== 'master' && authUser.role !== 'gestor') {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
-        const { name, email, password, role, store, plan, phone } = req.body;
+        const { name, email, password, role, store, plan, phone, permissions } = req.body;
 
         // Verificar email duplicado antes de inserir
         const { rows: existingEmail } = await pool.query('SELECT id, name, store FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -1929,7 +1929,8 @@ export default async function handler(req, res) {
           }
         }
         
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, store, phone, status', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus]);
+        const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions) : null;
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, phone, status, permissions', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus, permissionsJson]);
         return res.status(200).json(rows[0]);
       }
       // GET users: admin vê só da sua loja, master vê tudo
@@ -1939,7 +1940,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.permissions, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}

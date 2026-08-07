@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X, Calendar } from 'lucide-react';
+import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X, Calendar, ShieldAlert } from 'lucide-react';
 import API_URL from '../api';
 
 const getAuthHeaders = () => ({
@@ -79,6 +79,21 @@ export default function PontoPage() {
   const [toast, setToast] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [pontoAllowed, setPontoAllowed] = useState(false);
+
+  // Estado de impersonação
+  const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+
+  const handleReturnToAdmin = () => {
+    const backup = localStorage.getItem('firecheck_admin_backup');
+    if (backup) {
+      localStorage.setItem('user', backup);
+      localStorage.removeItem('firecheck_admin_backup');
+      localStorage.removeItem('firecheck_impersonated');
+      navigate('/admin');
+    } else {
+      navigate('/admin');
+    }
+  };
 
   // ─── Autenticação + verificação ponto_active ───
   useEffect(() => {
@@ -471,6 +486,51 @@ export default function PontoPage() {
           maxWidth: 'calc(100vw - 48px)',
         }}>
           <CheckCircle size={18} /> {toast}
+        </div>
+      )}
+
+      {isImpersonating && (
+        <div style={{
+          backgroundColor: '#f59e0b',
+          color: '#78350f',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontWeight: 'bold',
+          fontSize: '0.88rem',
+          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>🔒</span>
+            <div>
+              <span style={{ display: 'block', fontSize: '1rem', marginBottom: '2px' }}>Modo Simulação</span>
+              <span style={{ fontWeight: 'normal', fontSize: '0.8rem' }}>Esta é uma visualização da conta de {user?.name}. Para executar checklists ou registrar ponto, o funcionário deve logar com seu próprio login e senha.</span>
+            </div>
+          </div>
+          <button
+            onClick={handleReturnToAdmin}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#f59e0b',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+            }}
+          >
+            <ShieldAlert size={16} color="#f59e0b" /> Voltar ao Painel do Administrador
+          </button>
         </div>
       )}
 
@@ -868,38 +928,40 @@ export default function PontoPage() {
       }}>
         {/* Botão Entrada */}
         <button
-          onClick={() => handleRegistrar('entrada')}
-          disabled={!canRegister}
+          onClick={() => { if(!isImpersonating) handleRegistrar('entrada'); }}
+          disabled={!canRegister || isImpersonating}
           style={{
-            backgroundColor: canRegister ? 'var(--success)' : 'rgba(16, 185, 129, 0.3)',
+            backgroundColor: (canRegister && !isImpersonating) ? 'var(--success)' : 'rgba(16, 185, 129, 0.3)',
             color: '#fff', border: 'none', borderRadius: '14px',
-            padding: '22px 16px', cursor: canRegister ? 'pointer' : 'not-allowed',
+            padding: '22px 16px', cursor: (canRegister && !isImpersonating) ? 'pointer' : 'not-allowed',
             fontSize: '1rem', fontWeight: '700', display: 'flex',
             flexDirection: 'column', alignItems: 'center', gap: '8px',
-            boxShadow: canRegister ? '0 6px 24px rgba(16, 185, 129, 0.3)' : 'none',
-            transition: 'all 0.2s ease', opacity: canRegister ? 1 : 0.6,
+            boxShadow: (canRegister && !isImpersonating) ? '0 6px 24px rgba(16, 185, 129, 0.3)' : 'none',
+            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? 1 : 0.6,
           }}
         >
           <Clock size={28} />
           Registrar Entrada
+          {isImpersonating && <span style={{ fontSize: '0.75rem', fontWeight: 'normal' }}>🔒 Simulação</span>}
         </button>
 
         {/* Botão Saída */}
         <button
-          onClick={() => handleRegistrar('saida')}
-          disabled={!canRegister}
+          onClick={() => { if(!isImpersonating) handleRegistrar('saida'); }}
+          disabled={!canRegister || isImpersonating}
           style={{
-            backgroundColor: canRegister ? 'var(--error)' : 'rgba(239, 68, 68, 0.3)',
+            backgroundColor: (canRegister && !isImpersonating) ? 'var(--error)' : 'rgba(239, 68, 68, 0.3)',
             color: '#fff', border: 'none', borderRadius: '14px',
-            padding: '22px 16px', cursor: canRegister ? 'pointer' : 'not-allowed',
+            padding: '22px 16px', cursor: (canRegister && !isImpersonating) ? 'pointer' : 'not-allowed',
             fontSize: '1rem', fontWeight: '700', display: 'flex',
             flexDirection: 'column', alignItems: 'center', gap: '8px',
-            boxShadow: canRegister ? '0 6px 24px rgba(239, 68, 68, 0.3)' : 'none',
-            transition: 'all 0.2s ease', opacity: canRegister ? 1 : 0.6,
+            boxShadow: (canRegister && !isImpersonating) ? '0 6px 24px rgba(239, 68, 68, 0.3)' : 'none',
+            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? 1 : 0.6,
           }}
         >
           <LogOut size={28} />
           Registrar Saída
+          {isImpersonating && <span style={{ fontSize: '0.75rem', fontWeight: 'normal' }}>🔒 Simulação</span>}
         </button>
       </div>
 

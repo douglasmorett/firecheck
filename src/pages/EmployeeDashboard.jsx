@@ -281,29 +281,32 @@ export default function EmployeeDashboard() {
     <div className="page-container" style={{ maxWidth: '600px' }}>
       {isImpersonating && (
         <div style={{
-          backgroundColor: '#2563eb',
-          color: 'white',
+          backgroundColor: '#f59e0b',
+          color: '#78350f',
           padding: '12px 18px',
           borderRadius: '12px',
           marginBottom: '24px',
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           fontWeight: 'bold',
           fontSize: '0.88rem',
-          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)',
           flexWrap: 'wrap',
           gap: '10px'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.2rem' }}>👁️</span>
-            <span>Acessando como: <strong>{userProfile?.name}</strong></span>
+            <span style={{ fontSize: '1.2rem' }}>🔒</span>
+            <div>
+              <span style={{ display: 'block', fontSize: '1rem', marginBottom: '2px' }}>Modo Simulação</span>
+              <span style={{ fontWeight: 'normal', fontSize: '0.8rem' }}>Esta é uma visualização da conta de {userProfile?.name}. Para executar checklists ou registrar ponto, o funcionário deve logar com seu próprio login e senha.</span>
+            </div>
           </div>
           <button
             onClick={handleReturnToAdmin}
             style={{
               backgroundColor: '#ffffff',
-              color: '#2563eb',
+              color: '#f59e0b',
               border: 'none',
               padding: '8px 16px',
               borderRadius: '8px',
@@ -316,7 +319,7 @@ export default function EmployeeDashboard() {
               boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
             }}
           >
-            <ShieldAlert size={16} color="#2563eb" /> Voltar ao Painel do Administrador
+            <ShieldAlert size={16} color="#f59e0b" /> Voltar ao Painel do Administrador
           </button>
         </div>
       )}
@@ -439,12 +442,16 @@ export default function EmployeeDashboard() {
             </div>
             
             <button 
-              onClick={() => navigate('/ponto')} 
+              onClick={() => { if(!isImpersonating) navigate('/ponto'); }} 
+              disabled={isImpersonating}
               className="btn" 
-              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#3b82f6', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#3b82f6', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}
             >
               <Smartphone size={20} /> Registrar Ponto com IA
             </button>
+            {isImpersonating && (
+              <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</p>
+            )}
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
               <ShieldCheck size={12} color="#3b82f6" /> GPS e Câmera obrigatórios
             </p>
@@ -525,9 +532,12 @@ export default function EmployeeDashboard() {
                     </div>
                     
                     {!completed && (
-                      <button className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => navigate(`/execucao/veiculo/${vehicle.id}`)}>
-                        Iniciar Vistoria <ArrowRight size={14} />
-                      </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                        <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }} onClick={() => { if(!isImpersonating) navigate(`/execucao/veiculo/${vehicle.id}`); }}>
+                          Iniciar Vistoria <ArrowRight size={14} />
+                        </button>
+                        {isImpersonating && <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -573,7 +583,7 @@ export default function EmployeeDashboard() {
                   className="card animate-scale"
                   style={{
                     padding: '18px 20px',
-                    cursor: 'pointer',
+                    cursor: isImpersonating ? 'not-allowed' : 'pointer',
                     borderLeft: '4px solid #06b6d4',
                     backgroundColor: '#ffffff',
                     borderRadius: '16px',
@@ -582,9 +592,10 @@ export default function EmployeeDashboard() {
                     alignItems: 'center',
                     gap: '16px',
                     transition: 'all 0.2s ease',
-                    position: 'relative'
+                    position: 'relative',
+                    opacity: isImpersonating ? 0.7 : 1
                   }}
-                  onClick={() => navigate(`/execucao/compras/${list.id}`)}
+                  onClick={() => { if(!isImpersonating) navigate(`/execucao/compras/${list.id}`); }}
                 >
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
                     <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0891b2' }}>COMPRA</span>
@@ -612,10 +623,11 @@ export default function EmployeeDashboard() {
                     </div>
                   </div>
 
-                  <div>
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0891b2', border: 'none', color: 'white', borderRadius: '20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                    <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0891b2', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
                       <Play size={12} fill="white" /> Preencher
                     </button>
+                    {isImpersonating && <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
                   </div>
                 </div>
               ))}
@@ -635,7 +647,7 @@ export default function EmployeeDashboard() {
               className="card animate-scale" 
               style={{ 
                 padding: '16px 20px', 
-                cursor: 'pointer', 
+                cursor: isImpersonating ? 'not-allowed' : 'pointer', 
                 borderLeft: '4px solid #f97316', 
                 backgroundColor: '#ffffff',
                 borderRadius: '16px',
@@ -645,12 +657,20 @@ export default function EmployeeDashboard() {
                 gap: '16px',
                 transition: 'all 0.2s ease',
                 position: 'relative',
-                overflow: 'hidden'
+                overflow: 'hidden',
+                opacity: isImpersonating ? 0.7 : 1
               }}
-              onClick={() => navigate(`/execucao/${checklist.id}`)}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              onClick={() => { if(!isImpersonating) navigate(`/execucao/${checklist.id}`); }}
+              onMouseEnter={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(0)' }}
             >
+              {isImpersonating && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    🔒 Somente visualização
+                  </div>
+                </div>
+              )}
               {/* Left Indicator - Recurrence/Time */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>HOJE</span>
@@ -687,8 +707,8 @@ export default function EmployeeDashboard() {
               </div>
 
               {/* Right Action */}
-              <div>
-                <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', border: 'none', color: 'white', borderRadius: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
                   <Play size={12} fill="white" /> Iniciar
                 </button>
               </div>

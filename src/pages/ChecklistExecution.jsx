@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Image } from 'lucide-react';
 import API_URL from '../api';
 
@@ -20,11 +20,14 @@ const handle401 = (res, navigate) => {
 export default function ChecklistExecution() {
   const navigate = useNavigate();
   const { id, vehicleId, shoppingListId } = useParams();
+  const [searchParams] = useSearchParams();
+  const isPreview = searchParams.get('preview') === 'true';
   const [tasks, setTasks] = useState([]);
   const [title, setTitle] = useState('Carregando...');
   const [isShoppingMode, setIsShoppingMode] = useState(false);
   
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+  const isReadOnly = isPreview || isImpersonating;
 
   const handleReturnToAdmin = () => {
     const backup = localStorage.getItem('firecheck_admin_backup');
@@ -561,6 +564,10 @@ export default function ChecklistExecution() {
   };
 
   const handleFinish = async () => {
+    if (isReadOnly) {
+      alert('Modo de visualização. Não é possível submeter.');
+      return;
+    }
     if (shoppingListId) {
       const items = tasks.map(t => ({
         id: t.id,
@@ -752,6 +759,48 @@ export default function ChecklistExecution() {
 
   return (
     <div className="page-container" style={{ maxWidth: '600px' }}>
+      {isPreview && (
+        <div style={{
+          backgroundColor: '#2563eb',
+          color: 'white',
+          padding: '12px 18px',
+          borderRadius: '12px',
+          marginBottom: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+          fontWeight: 'bold',
+          fontSize: '0.88rem',
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '1.2rem' }}>👁️</span>
+            <span>Modo Preview — Visualizando como o funcionário vê este checklist</span>
+          </div>
+          <button
+            onClick={() => navigate('/admin')}
+            style={{
+              backgroundColor: '#ffffff',
+              color: '#2563eb',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontWeight: 'bold',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+            }}
+          >
+            <ArrowLeft size={16} color="#2563eb" /> Voltar ao Painel
+          </button>
+        </div>
+      )}
+
       {isImpersonating && (
         <div style={{
           backgroundColor: '#2563eb',
@@ -819,6 +868,7 @@ export default function ChecklistExecution() {
               className="input-field" 
               value={selectedVehicleId} 
               onChange={e => setSelectedVehicleId(e.target.value)}
+              disabled={isReadOnly}
               style={{ marginTop: '8px' }}
             >
               <option value="">-- Selecione o Veículo (Placa) --</option>
@@ -859,8 +909,8 @@ export default function ChecklistExecution() {
 
               {task.type === 'boolean' && (
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                  <button className="btn" style={{ flex: 1, backgroundColor: task.done === true ? 'var(--success)' : 'transparent', border: '1px solid var(--success)', color: task.done === true ? 'white' : 'var(--success)', boxShadow: 'none' }} onClick={() => handleBoolean(task.id, true)}>Sim</button>
-                  <button className="btn" style={{ flex: 1, backgroundColor: task.done === false ? 'var(--error)' : 'transparent', border: '1px solid var(--error)', color: task.done === false ? 'white' : 'var(--error)', boxShadow: 'none' }} onClick={() => handleBoolean(task.id, false)}>Não</button>
+                  <button className="btn" style={{ flex: 1, backgroundColor: task.done === true ? 'var(--success)' : 'transparent', border: '1px solid var(--success)', color: task.done === true ? 'white' : 'var(--success)', boxShadow: 'none' }} onClick={() => handleBoolean(task.id, true)} disabled={isReadOnly}>Sim</button>
+                  <button className="btn" style={{ flex: 1, backgroundColor: task.done === false ? 'var(--error)' : 'transparent', border: '1px solid var(--error)', color: task.done === false ? 'white' : 'var(--error)', boxShadow: 'none' }} onClick={() => handleBoolean(task.id, false)} disabled={isReadOnly}>Não</button>
                 </div>
               )}
 
@@ -882,6 +932,7 @@ export default function ChecklistExecution() {
                     gap: '8px'
                   }}
                   onClick={() => handleToggle(task.id)}
+                  disabled={isReadOnly}
                 >
                   <CheckCircle size={18} /> {task.done === true ? 'Feito' : 'Marcar como Feito'}
                 </button>
@@ -895,6 +946,7 @@ export default function ChecklistExecution() {
                       type="button"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
                       onClick={() => handleRating(task.id, stars)}
+                      disabled={isReadOnly}
                     >
                       <Star
                         size={32}
@@ -952,6 +1004,7 @@ export default function ChecklistExecution() {
                     value={task.done !== null && task.done !== undefined ? task.done : ''}
                     onChange={e => handleNumeric(task.id, e.target.value === '' ? '' : parseFloat(e.target.value))}
                     placeholder={`Digite a quantidade em ${task.unit || 'un'}...`}
+                    disabled={isReadOnly}
                   />
 
                   {/* Feedback dinâmico de Validação */}
@@ -1011,6 +1064,7 @@ export default function ChecklistExecution() {
                           boxShadow: 'none'
                         }}
                         onClick={() => handleMultiple(task.id, opt)}
+                        disabled={isReadOnly}
                       >
                         {opt}
                       </button>
@@ -1027,6 +1081,7 @@ export default function ChecklistExecution() {
                     value={task.done !== null && task.done !== undefined ? task.done : ''}
                     onChange={e => handleText(task.id, e.target.value)}
                     placeholder="Escreva sua resposta..."
+                    disabled={isReadOnly}
                   />
                 </div>
               )}
@@ -1043,7 +1098,7 @@ export default function ChecklistExecution() {
                       return (
                         <label
                           key={idx}
-                          onClick={() => handleItemList(task.id, idx, !isChecked)}
+                          onClick={() => !isReadOnly && handleItemList(task.id, idx, !isChecked)}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1125,6 +1180,7 @@ export default function ChecklistExecution() {
                                   return t;
                                 }));
                               }}
+                              disabled={isReadOnly}
                             >
                               <X size={12} />
                             </button>
@@ -1159,6 +1215,7 @@ export default function ChecklistExecution() {
                           capture="environment" 
                           onChange={(e) => handleFileUpload(task.id, e)} 
                           style={{ display: 'none' }} 
+                          disabled={isReadOnly}
                         />
                         
                         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
@@ -1166,6 +1223,7 @@ export default function ChecklistExecution() {
                             className="btn btn-pulse animate-fade" 
                             style={{ flex: 2, backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '14px', fontSize: '0.95rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease', fontWeight: '600' }} 
                             onClick={() => startCamera(task.id)}
+                            disabled={isReadOnly}
                           >
                             <Camera size={20} /> Câmera ao Vivo
                           </button>
@@ -1174,6 +1232,7 @@ export default function ChecklistExecution() {
                             className="btn-secondary" 
                             style={{ flex: 1, padding: '14px', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', borderRadius: '12px' }} 
                             onClick={() => document.getElementById(`file-input-${task.id}`)?.click()}
+                            disabled={isReadOnly}
                           >
                             <Camera size={16} /> Câmera Nativa
                           </button>
@@ -1241,28 +1300,28 @@ export default function ChecklistExecution() {
               width="500"
               height="150"
               style={{ width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'none' }}
-              onMouseDown={startDrawing}
-              onMouseMove={draw}
-              onMouseUp={stopDrawing}
-              onMouseLeave={stopDrawing}
-              onTouchStart={startDrawing}
-              onTouchMove={draw}
-              onTouchEnd={stopDrawing}
+              onMouseDown={!isReadOnly ? startDrawing : undefined}
+              onMouseMove={!isReadOnly ? draw : undefined}
+              onMouseUp={!isReadOnly ? stopDrawing : undefined}
+              onMouseLeave={!isReadOnly ? stopDrawing : undefined}
+              onTouchStart={!isReadOnly ? startDrawing : undefined}
+              onTouchMove={!isReadOnly ? draw : undefined}
+              onTouchEnd={!isReadOnly ? stopDrawing : undefined}
             />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '12px' }}>
-            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={clearSignature}>
+            <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.85rem' }} onClick={clearSignature} disabled={isReadOnly}>
               Limpar
             </button>
-            <button className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: signature ? 'var(--success)' : 'var(--primary)', color: 'white', border: 'none' }} onClick={saveSignature}>
+            <button className="btn" style={{ padding: '6px 12px', fontSize: '0.85rem', backgroundColor: signature ? 'var(--success)' : 'var(--primary)', color: 'white', border: 'none' }} onClick={saveSignature} disabled={isReadOnly}>
               {signature ? '✓ Assinatura Confirmada' : 'Confirmar Assinatura'}
             </button>
           </div>
         </div>
       )}
 
-      <button className="btn" style={{ width: '100%', marginTop: '32px', padding: '16px' }} onClick={handleFinish}>
-        {requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Finalizar</> : <><CheckCircle size={20} /> Finalizar e Enviar</>}
+      <button className="btn" style={{ width: '100%', marginTop: '32px', padding: '16px' }} onClick={handleFinish} disabled={isReadOnly}>
+        {isReadOnly ? '🔒 Somente visualização' : (requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Finalizar</> : <><CheckCircle size={20} /> Finalizar e Enviar</>)}
       </button>
 
     </div>

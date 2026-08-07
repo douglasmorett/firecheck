@@ -36,6 +36,39 @@ const RECURRENCE_LABEL = { daily: '📅 Diário', weekly: '📅 Semanal', monthl
 
 const ALERTAS_IA = [];
 
+const DEFAULT_GESTOR_PERMISSIONS = {
+  perm_checklists: true,
+  perm_equipe: true,
+  perm_ponto: true,
+  perm_alertas: true,
+  perm_ranking: true,
+  perm_compras: true,
+  perm_frota: true,
+  perm_notificacoes: true,
+};
+
+const PERMISSION_LABELS = {
+  perm_checklists: '📋 Criar e editar checklists',
+  perm_equipe: '👥 Gerenciar equipe',
+  perm_ponto: '⏰ Controle de ponto',
+  perm_alertas: '🤖 Alertas da IA',
+  perm_ranking: '🏆 Ranking',
+  perm_compras: '🛒 Compras e estoque',
+  perm_frota: '🚗 Frota e veículos',
+  perm_notificacoes: '🔔 Notificações',
+};
+
+const TAB_PERMISSION_MAP = {
+  checklists: 'perm_checklists',
+  equipe: 'perm_equipe', 
+  ponto: 'perm_ponto',
+  alertas: 'perm_alertas',
+  ranking: 'perm_ranking',
+  compras: 'perm_compras',
+  vehicles: 'perm_frota',
+  notificacoes: 'perm_notificacoes',
+};
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = {
@@ -1654,6 +1687,7 @@ export default function AdminDashboard() {
           name: editingUser.name,
           phone: editingUser.phone,
           role: editingUser.role,
+          permissions: editingUser.role === 'gestor' ? (editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS) : null,
           ponto_hora_entrada: editingUser.ponto_hora_entrada || undefined,
           ponto_hora_saida: editingUser.ponto_hora_saida || undefined,
           ponto_tolerancia: editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : undefined
@@ -2086,6 +2120,10 @@ export default function AdminDashboard() {
           ].filter(Boolean)).map(t => {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
             if (isGestor && t.key === 'perfil') return null;
+            if (isGestor && TAB_PERMISSION_MAP[t.key]) {
+              const perms = userProfile?.permissions || DEFAULT_GESTOR_PERMISSIONS;
+              if (!perms[TAB_PERMISSION_MAP[t.key]]) return null;
+            }
             const isActive = tab === t.key;
             return (
               <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }} title={isSidebarCollapsed ? t.label : ''}
@@ -3703,6 +3741,10 @@ export default function AdminDashboard() {
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => navigate(`/execucao/${cl.id}?preview=true`)}>
+                            <Eye size={15} /> Visualizar
+                          </button>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={() => navigate(`/admin/creator/${cl.id}`)}>
                             <Edit2 size={15} /> Editar
                           </button>
@@ -3738,6 +3780,10 @@ export default function AdminDashboard() {
                           </p>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => navigate(`/execucao/${cl.id}?preview=true`)}>
+                            <Eye size={15} /> Visualizar
+                          </button>
                           <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
                             onClick={() => navigate(`/admin/creator/${cl.id}`)}>
                             <Edit2 size={15} /> Editar
@@ -5083,12 +5129,19 @@ export default function AdminDashboard() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
                 <div>
                   <label className="input-label">Papel / Nível</label>
-                  <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}>
+                  <select className="input-field" style={{ padding: '10px' }} value={newUser.role} onChange={e => {
+                    const role = e.target.value;
+                    setNewUser({
+                      ...newUser, 
+                      role,
+                      permissions: role === 'gestor' ? (newUser.permissions || {...DEFAULT_GESTOR_PERMISSIONS}) : null
+                    });
+                  }}>
                     {isMaster && <option value="admin">Dono (Cliente)</option>}
                     {(isAdminOrGestor || isMaster) && (
                       <>
                         <option value="funcionario">Funcionário</option>
-                        <option value="gestor">Gestor / Gerente</option>
+                        {(isAdmin || isMaster) && <option value="gestor">Gestor / Gerente</option>}
                       </>
                     )}
                     {isMaster && <option value="master">Gestor Master</option>}
@@ -5127,6 +5180,23 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </div>
+
+              {newUser.role === 'gestor' && (
+                <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', marginBottom: '12px', fontWeight: 'bold' }}>
+                    🔐 Permissões do Gestor
+                  </label>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Marque as funções que este gestor poderá acessar:</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', backgroundColor: (newUser.permissions || DEFAULT_GESTOR_PERMISSIONS)[key] ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-color)', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <input type="checkbox" checked={(newUser.permissions || DEFAULT_GESTOR_PERMISSIONS)[key] || false} onChange={e => setNewUser({...newUser, permissions: {...(newUser.permissions || DEFAULT_GESTOR_PERMISSIONS), [key]: e.target.checked}})} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {isMaster && newUser.role === 'admin' && (
                 <div style={{ marginBottom: '24px' }}>
@@ -5344,17 +5414,41 @@ export default function AdminDashboard() {
               
               <div style={{ marginBottom: '24px' }}>
                 <label className="input-label">Papel / Nível</label>
-                <select className="input-field" style={{ padding: '10px' }} value={editingUser.role} onChange={e => setEditingUser({...editingUser, role: e.target.value})}>
+                <select className="input-field" style={{ padding: '10px' }} value={editingUser.role} onChange={e => {
+                  const role = e.target.value;
+                  setEditingUser({
+                    ...editingUser, 
+                    role,
+                    permissions: role === 'gestor' ? (editingUser.permissions || {...DEFAULT_GESTOR_PERMISSIONS}) : null
+                  });
+                }}>
                   {isMaster && <option value="admin">Dono (Cliente)</option>}
                   {(isAdminOrGestor || isMaster) && (
                     <>
                       <option value="funcionario">Funcionário</option>
-                      <option value="gestor">Gestor / Gerente</option>
+                      {(isAdmin || isMaster) && <option value="gestor">Gestor / Gerente</option>}
                     </>
                   )}
                   {isMaster && <option value="master">Gestor Master</option>}
                 </select>
               </div>
+
+              {editingUser.role === 'gestor' && (
+                <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
+                  <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', marginBottom: '12px', fontWeight: 'bold' }}>
+                    🔐 Permissões do Gestor
+                  </label>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Marque as funções que este gestor poderá acessar:</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {Object.entries(PERMISSION_LABELS).map(([key, label]) => (
+                      <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', borderRadius: '8px', cursor: 'pointer', backgroundColor: (editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS)[key] ? 'rgba(34, 197, 94, 0.1)' : 'var(--bg-color)', border: '1px solid var(--border-color)', fontSize: '0.85rem' }}>
+                        <input type="checkbox" checked={(editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS)[key] || false} onChange={e => setEditingUser({...editingUser, permissions: {...(editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS), [key]: e.target.checked}})} />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Escala de Trabalho Individual */}
               <div style={{ marginBottom: '24px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
