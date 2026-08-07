@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -72,6 +72,7 @@ export default function EmployeeDashboard() {
   const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+  const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
 
   const handleReturnToAdmin = () => {
     const backup = localStorage.getItem('firecheck_admin_backup');
@@ -360,8 +361,8 @@ export default function EmployeeDashboard() {
          </div>
       </div>
 
-      {/* BANNER APLICATIVO NATIVO — esconde se já está no app nativo */}
-      {!Capacitor.isNativePlatform() && (
+      {/* BANNER WEBAPP + WHATSAPP — esconde se já está no app nativo ou se o usuário dispensou */}
+      {!Capacitor.isNativePlatform() && !bannerWebAppDismissed && (
       <div style={{
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
@@ -369,26 +370,34 @@ export default function EmployeeDashboard() {
         padding: '16px 20px',
         marginBottom: '32px',
         display: 'flex',
-        flexDirection: 'column',
-        gap: '12px'
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px',
+        position: 'relative'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Smartphone size={20} color="var(--primary)" />
+        <button 
+          onClick={() => { setBannerWebAppDismissed(true); localStorage.setItem('firecheck_webapp_banner_dismissed', 'true'); }}
+          style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          title="Fechar"
+        >
+          <X size={16} />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+          <div style={{ backgroundColor: '#25D366', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Smartphone size={20} color="#fff" />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Use o Aplicativo Oficial</h4>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Tenha mais velocidade nas vistorias e fotos.</p>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Acesse pelo celular!</h4>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Notificações via WhatsApp. Instale o webapp para acesso rápido.</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <a href="https://storage.googleapis.com/fire-check-storage.firebasestorage.app/downloads/firecheck.apk" download className="btn" style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem', textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#10b981' }}>
-            📥 Android (.APK)
-          </a>
-          <a href="https://testflight.apple.com/join/5K9U9AF5" target="_blank" rel="noopener noreferrer" className="btn" style={{ flex: 1, padding: '10px 14px', fontSize: '0.82rem', textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: '#3b82f6' }}>
-            🍎 iPhone (iOS)
-          </a>
-        </div>
+        <button 
+          onClick={() => { const pwaBtn = document.querySelector('[data-pwa-install]'); if (pwaBtn) pwaBtn.click(); }}
+          className="btn" 
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0 }}
+        >
+          <Download size={16} /> WebApp
+        </button>
       </div>
       )}
 

@@ -152,6 +152,7 @@ export default function AdminDashboard() {
   const [videoPlays, setVideoPlays] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [quizStats, setQuizStats] = useState([]);
   const [quizOnline, setQuizOnline] = useState(0);
@@ -2193,8 +2194,8 @@ export default function AdminDashboard() {
           </div>
         )}
         
-        {/* BANNER APLICATIVO NATIVO */}
-        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && (
+        {/* BANNER WEBAPP + WHATSAPP */}
+        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && (
           <div style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
@@ -2205,24 +2206,33 @@ export default function AdminDashboard() {
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '16px'
+            gap: '16px',
+            position: 'relative'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ backgroundColor: 'var(--primary)', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button 
+              onClick={() => { setBannerWebAppDismissed(true); localStorage.setItem('firecheck_webapp_banner_dismissed', 'true'); }}
+              style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Fechar"
+            >
+              <X size={18} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+              <div style={{ backgroundColor: '#25D366', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Smartphone size={24} color="#fff" />
               </div>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Monitore sua loja pelo celular!</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Baixe nosso aplicativo oficial para Android ou iOS (TestFlight) e receba notificações push em tempo real.</p>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Acesse o FireCheck pelo celular!</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Notificações são enviadas pelo WhatsApp. Você também pode instalar o webapp no seu celular para acesso rápido.</p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <a href="https://storage.googleapis.com/fire-check-storage.firebasestorage.app/downloads/firecheck.apk" download className="btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#10b981' }}>
-                📥 Baixar Android (.APK)
-              </a>
-              <a href="https://testflight.apple.com/join/5K9U9AF5" target="_blank" rel="noopener noreferrer" className="btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#3b82f6' }}>
-                🍎 Baixar iPhone (iOS)
-              </a>
+              <button 
+                onClick={() => { const pwaBtn = document.querySelector('[data-pwa-install]'); if (pwaBtn) pwaBtn.click(); }}
+                className="btn" 
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--primary)' }}
+              >
+                📲 Instalar WebApp
+              </button>
             </div>
           </div>
         )}

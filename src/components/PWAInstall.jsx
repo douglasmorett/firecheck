@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Smartphone, X, Share, Plus, Download } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 
 export default function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
-  const [showSelection, setShowSelection] = useState(false);
-  const [step, setStep] = useState('choice'); // 'choice', 'android', 'ios'
+  const [showInstructions, setShowInstructions] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem('firecheck_pwa_banner_dismissed') === 'true');
 
   useEffect(() => {
     // Se é app nativo Capacitor, não mostrar banner de instalação
@@ -25,57 +25,67 @@ export default function PWAInstall() {
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
-  const resetModal = () => {
-    setShowSelection(false);
-    setStep('choice');
-  };
-
-  const handleAndroidInstall = async () => {
+  const handleInstall = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
       const { outcome } = await deferredPrompt.userChoice;
       if (outcome === 'accepted') {
         setDeferredPrompt(null);
         setIsInstalled(true);
-        resetModal();
       }
     } else {
-      setStep('android');
+      setShowInstructions(true);
     }
   };
 
-  if (isInstalled) return null;
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem('firecheck_pwa_banner_dismissed', 'true');
+  };
+
+  if (isInstalled || dismissed) return null;
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   return (
     <>
-      <button 
-        onClick={() => setShowSelection(true)}
+      <div 
+        data-pwa-install
         style={{
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           gap: '12px',
-          backgroundColor: 'rgba(255, 77, 0, 0.15)',
-          color: '#ff4d00',
-          border: '2px solid #ff4d00',
-          padding: '18px',
-          borderRadius: '14px',
-          cursor: 'pointer',
-          fontWeight: 'bold',
-          fontSize: '1.1rem',
+          backgroundColor: 'rgba(255, 77, 0, 0.08)',
+          color: 'var(--text-main)',
+          border: '1px solid rgba(255, 77, 0, 0.25)',
+          padding: '14px 18px',
+          borderRadius: '12px',
           marginBottom: '24px',
           width: '100%',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+          position: 'relative'
         }}
       >
-        <Smartphone size={24} />
-        <div style={{ textAlign: 'left' }}>
-          <div style={{ fontWeight: '900' }}>Baixar nosso aplicativo</div>
-          <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>Receba notificações de auditoria</div>
+        <div 
+          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1 }}
+          onClick={handleInstall}
+        >
+          <Download size={20} color="#ff4d00" />
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>Instalar WebApp no celular</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Acesso rápido direto da tela inicial</div>
+          </div>
         </div>
-      </button>
+        <button 
+          onClick={handleDismiss}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          title="Fechar"
+        >
+          <X size={18} />
+        </button>
+      </div>
 
-      {showSelection && (
+      {showInstructions && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -86,7 +96,7 @@ export default function PWAInstall() {
           zIndex: 99999,
           padding: '20px',
           backdropFilter: 'blur(4px)'
-        }} onClick={resetModal}>
+        }} onClick={() => setShowInstructions(false)}>
           <div 
             style={{
               width: '100%',
@@ -103,57 +113,25 @@ export default function PWAInstall() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ margin: 0, fontSize: '1.4rem', color: 'white' }}>
-                {step === 'choice' ? 'Qual seu celular?' : step === 'android' ? 'Instalar no Android' : 'Instalar no iPhone'}
+                Instalar WebApp
               </h3>
-              <button onClick={resetModal} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}><X size={28} /></button>
+              <button onClick={() => setShowInstructions(false)} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}><X size={28} /></button>
             </div>
 
-            {step === 'choice' && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <button 
-                  onClick={handleAndroidInstall}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid #444', color: 'white', cursor: 'pointer' }}
-                >
-                  <Smartphone size={32} color="#3ddc84" />
-                  <span style={{ fontWeight: 'bold' }}>Android</span>
-                </button>
-                <button 
-                  onClick={() => setStep('ios')}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '24px', borderRadius: '16px', backgroundColor: '#2D303E', border: '1px solid #444', color: 'white', cursor: 'pointer' }}
-                >
-                  <Smartphone size={32} color="#A2AAAD" />
-                  <span style={{ fontWeight: 'bold' }}>iPhone</span>
-                </button>
-              </div>
-            )}
-
-            {step === 'android' && (
-              <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
-                <p style={{ marginBottom: '12px' }}>1. Clique nos <b>três pontos (⋮)</b> lá no topo do Chrome.</p>
-                <p style={{ marginBottom: '20px' }}>2. Procure por <b>"Instalar aplicativo"</b> ou "Adicionar à tela inicial".</p>
-                <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={resetModal}>Entendi</button>
-              </div>
-            )}
-
-            {step === 'ios' && (
-              <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}>
-                     <span style={{ fontSize: '20px', fontWeight: 'bold' }}>...</span>
-                   </div>
-                   <span>1. Clique nos <b>3 pontinhos (...)</b> no canto inferior direito da tela.</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Share size={24} color="#007AFF" /></div>
-                   <span>2. No menu que abrir, clique em <b>"Compartilhar"</b>.</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-                   <div style={{ backgroundColor: '#333', padding: '10px', borderRadius: '10px' }}><Plus size={24} /></div>
-                   <span>3. Role para baixo e selecione <b>"Adicionar à Tela de Início"</b>.</span>
-                </div>
-                <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={resetModal}>Entendi</button>
-              </div>
-            )}
+            <div style={{ color: '#ccc', lineHeight: '1.6', fontSize: '1.05rem' }}>
+              {isIOS ? (
+                <>
+                  <p style={{ marginBottom: '12px' }}>1. Toque no botão <b>Compartilhar</b> (ícone de quadrado com seta) na barra do Safari.</p>
+                  <p style={{ marginBottom: '20px' }}>2. Role e selecione <b>"Adicionar à Tela de Início"</b>.</p>
+                </>
+              ) : (
+                <>
+                  <p style={{ marginBottom: '12px' }}>1. Clique nos <b>três pontos (⋮)</b> no topo do Chrome.</p>
+                  <p style={{ marginBottom: '20px' }}>2. Procure por <b>"Instalar aplicativo"</b> ou "Adicionar à tela inicial".</p>
+                </>
+              )}
+              <button className="btn" style={{ width: '100%', padding: '14px' }} onClick={() => setShowInstructions(false)}>Entendi</button>
+            </div>
           </div>
         </div>
       )}
