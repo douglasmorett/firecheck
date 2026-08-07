@@ -74,8 +74,7 @@ export default function Checkout() {
         if (plan === 'checklists_mensal' || plan === 'mensal' || plan === 'starter') {
           checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
         } else if (plan === 'checklists_anual' || plan === 'anual' || plan === 'business') {
-          // TODO: Substituir pelo link do Cakto: Só Checklist Anual (R$ 1.164 / 12x R$ 97)
-          checkoutLink = `https://pay.cakto.com.br/iy4399h?email=${userEmail}&name=${userName}`;
+          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
         } else if (plan === 'ponto_mensal' || plan === 'ponto_starter' || plan === 'ponto_pro') {
           checkoutLink = `https://pay.cakto.com.br/kfx3fri_869702?email=${userEmail}&name=${userName}`;
         } else if (plan === 'ponto_anual' || plan === 'ponto_business') {
