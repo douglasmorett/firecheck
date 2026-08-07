@@ -85,8 +85,15 @@ export default function Checkout() {
           checkoutLink = `https://pay.cakto.com.br/o2xichf?email=${userEmail}&name=${userName}`;
         } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
           checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
-        } else if (plan.includes('completo')) {
-          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'completo_starter') {
+          // TODO: Substituir pelo link real do Cakto para Pacote Completo Starter
+          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_STARTER?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'completo_pro' || plan === 'completo') {
+          // TODO: Substituir pelo link real do Cakto para Pacote Completo Pro
+          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_PRO?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'completo_business') {
+          // TODO: Substituir pelo link real do Cakto para Pacote Completo Business
+          checkoutLink = `https://pay.cakto.com.br/LINK_COMPLETO_BUSINESS?email=${userEmail}&name=${userName}`;
         }
 
         if (checkoutLink) {

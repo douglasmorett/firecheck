@@ -47,6 +47,7 @@ const AI_DEMO_DATA = {
 export default function LandingPage() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pricingTab, setPricingTab] = useState('completo');
   const [isVideoActive, setIsVideoActive] = useState(false);
   const videoRef = useRef(null);
 
@@ -1886,6 +1887,44 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Seção Controle de Ponto com IA */}
+      <section style={{ padding: '80px 5%', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)' }}>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(59, 130, 246, 0.15)', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', color: '#60a5fa', fontWeight: '600', marginBottom: '16px' }}>
+              ⏰ Módulo de Ponto Eletrônico
+            </div>
+            <h2 style={{ fontSize: 'clamp(1.5rem, 5vw, 2.5rem)', color: '#f8fafc', marginBottom: '16px' }}>
+              Controle de Ponto com <span style={{ color: '#3b82f6' }}>Inteligência Artificial</span>
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: 'clamp(0.9rem, 2vw, 1.1rem)', maxWidth: '700px', margin: '0 auto' }}>
+              Reconhecimento facial, GPS obrigatório e alertas automáticos no WhatsApp quando algo sai do normal.
+            </p>
+          </div>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '40px' }}>
+            {[
+              { icon: '📸', title: 'Selfie com Reconhecimento Facial', desc: 'O funcionário precisa tirar uma selfie para bater o ponto. A IA valida que é realmente ele.' },
+              { icon: '📍', title: 'Trava de GPS Obrigatória', desc: 'O ponto só é aceito se o funcionário estiver dentro da localização da empresa. Sem fraudes.' },
+              { icon: '⏰', title: 'Alerta de Atraso no WhatsApp', desc: 'Se o funcionário não bateu o ponto no horário, você recebe um alerta instantâneo no WhatsApp.' },
+              { icon: '🚪', title: 'Controle de Saída', desc: 'Saiu depois do horário? Não bateu saída? Você é notificado em tempo real via WhatsApp.' },
+              { icon: '📊', title: 'Relatório Diário Automático', desc: 'Todo dia você recebe no WhatsApp o resumo de quem entrou, saiu, atrasou ou faltou.' },
+              { icon: '📋', title: 'Folha de Ponto Digital', desc: 'Gere relatórios mensais de ponto com filtros por funcionário, data e tipo. Pronto para o contador.' },
+            ].map((feat, i) => (
+              <div key={i} style={{ backgroundColor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '24px' }}>
+                <div style={{ fontSize: '2rem', marginBottom: '12px' }}>{feat.icon}</div>
+                <h4 style={{ color: '#f1f5f9', marginBottom: '8px', fontSize: '1rem' }}>{feat.title}</h4>
+                <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: '1.5' }}>{feat.desc}</p>
+              </div>
+            ))}
+          </div>
+          
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: '#60a5fa', fontWeight: '600', fontSize: '0.95rem' }}>💡 Disponível como módulo separado ou junto com Checklists no Pacote Completo</p>
+          </div>
+        </div>
+      </section>
+
 
       {/* ── Seção: Depoimentos WhatsApp ── */}
       <section style={{ padding: '80px 5%', backgroundColor: 'var(--bg-card)', position: 'relative', overflow: 'hidden' }}>
@@ -2022,7 +2061,43 @@ export default function LandingPage() {
       <section id="pricing" className="section-mobile-padding" style={{ padding: '80px 5%', backgroundColor: 'var(--bg-color)' }}>
         <div style={{ textAlign: 'center', marginBottom: '40px' }}>
           <h2 style={{ fontSize: 'clamp(1.3rem, 5vw, 2.5rem)', marginBottom: '16px' }}>Escolha o plano ideal para a sua operação</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '32px', fontSize: 'clamp(0.85rem, 2vw, 1rem)' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', fontSize: 'clamp(0.85rem, 2vw, 1rem)' }}>Cancele a qualquer momento. Sem taxas ocultas.</p>
+          
+          {/* Tab Switcher */}
+          <div style={{ display: 'inline-flex', backgroundColor: 'var(--bg-card)', borderRadius: '12px', padding: '4px', border: '1px solid var(--border-color)', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {[
+              { key: 'checklists', label: '📋 Só Checklists', desc: 'Auditorias e vistorias' },
+              { key: 'ponto', label: '⏰ Só Ponto', desc: 'Controle de ponto IA' },
+              { key: 'completo', label: '🔥 Pacote Completo', desc: 'Tudo junto', badge: 'MELHOR CUSTO' },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setPricingTab(tab.key)}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  fontSize: '0.9rem',
+                  backgroundColor: pricingTab === tab.key ? 'var(--primary)' : 'transparent',
+                  color: pricingTab === tab.key ? 'white' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                }}
+              >
+                <span>{tab.label}</span>
+                <span style={{ fontSize: '0.7rem', fontWeight: '400', opacity: 0.8 }}>{tab.desc}</span>
+                {tab.badge && pricingTab === tab.key && (
+                  <span style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#10b981', color: 'white', fontSize: '0.6rem', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>{tab.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         <style>{`
@@ -2096,63 +2171,114 @@ export default function LandingPage() {
         <p className="hide-on-desktop" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>← Deslize para ver todos os planos →</p>
         <div className="pricing-grid-mobile">
           
-          {/* Plano Starter */}
+          {/* STARTER */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Starter</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Ideal para pequenas operações.</p>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
+              {pricingTab === 'checklists' ? 'Auditorias para pequenas operações.' : pricingTab === 'ponto' ? 'Ponto eletrônico essencial.' : 'Checklists + Ponto para começar.'}
+            </p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R${pricingTab === 'completo' ? '117' : '67'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>300 checklists/mês</div>
+            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$17/mês vs separado</div>}
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
+              {pricingTab === 'checklists' ? '300 checklists/mês' : pricingTab === 'ponto' ? 'Até 5 colaboradores' : '300 checklists + 5 colaboradores'}
+            </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 5 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com IA</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas no WhatsApp e Push</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
+              {pricingTab !== 'ponto' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 5 funcionários</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Auditoria com IA</strong></li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alertas no WhatsApp</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Bloqueio de fotos falsas</li>
+                </>
+              )}
+              {pricingTab !== 'checklists' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Reconhecimento facial</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Trava de GPS</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Alerta de atraso no WhatsApp</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatório diário de ponto</li>
+                </>
+              )}
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Starter', 'https://pay.cakto.com.br/3eph5ko_856837')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Starter ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/kfx3fri_869702' : pricingTab === 'completo' ? '/checkout?plan=completo_starter' : 'https://pay.cakto.com.br/3eph5ko_856837')}>
               Assinar Agora
             </button>
           </div>
 
-          {/* Plano Pro (Destacado) */}
+          {/* PRO (Highlighted) */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.05)', position: 'relative', zIndex: 1, pointerEvents: 'auto' }}>
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>MAIS POPULAR</div>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Para operações que precisam de controle total.</p>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
+              {pricingTab === 'checklists' ? 'Controle total de auditorias.' : pricingTab === 'ponto' ? 'Gestão completa de ponto.' : 'O combo mais escolhido.'}
+            </p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R${pricingTab === 'completo' ? '167' : '97'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>600 checklists/mês</div>
+            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$27/mês vs separado</div>}
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
+              {pricingTab === 'checklists' ? '600 checklists/mês' : pricingTab === 'ponto' ? 'Até 15 colaboradores' : '600 checklists + 15 colaboradores'}
+            </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 funcionários</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Starter</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Ranking de equipe</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatórios avançados</li>
+              {pricingTab !== 'ponto' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 funcionários</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Starter</strong></li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Ranking de equipe</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Relatórios avançados</li>
+                </>
+              )}
+              {pricingTab !== 'checklists' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 15 colaboradores</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Ponto Starter</strong></li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Automação de folhas</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Escalas e tolerâncias</li>
+                </>
+              )}
             </ul>
-            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Pro', 'https://pay.cakto.com.br/e7c88df')}>
+            <button className="btn btn-pulse" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Pro ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/otm7qgn' : pricingTab === 'completo' ? '/checkout?plan=completo_pro' : 'https://pay.cakto.com.br/e7c88df')}>
               Assinar Agora
             </button>
           </div>
 
-          {/* Plano Business */}
+          {/* BUSINESS */}
           <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Business</h3>
-            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Para operações de grande escala.</p>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>
+              {pricingTab === 'checklists' ? 'Operações de grande escala.' : pricingTab === 'ponto' ? 'Ponto para grandes equipes.' : 'A solução definitiva.'}
+            </p>
             <div className="price-text" style={{ fontSize: '3rem', fontWeight: 'bold', marginBottom: '8px' }}>
-              R$197<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
+              R${pricingTab === 'completo' ? '347' : '197'}<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>1.500 checklists/mês</div>
+            {pricingTab === 'completo' && <div style={{ color: '#10b981', fontSize: '0.85rem', fontWeight: '600', marginBottom: '8px' }}>🏷️ Economize R$47/mês vs separado</div>}
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>
+              {pricingTab === 'checklists' ? '1.500 checklists/mês' : pricingTab === 'ponto' ? 'Até 50 colaboradores' : '1.500 checklists + 50 colaboradores'}
+            </div>
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Funcionários ilimitados</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Pro</strong></li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Módulos extras</li>
+              {pricingTab !== 'ponto' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Funcionários ilimitados</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Pro</strong></li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Módulos extras</li>
+                </>
+              )}
+              {pricingTab !== 'checklists' && (
+                <>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Até 50 colaboradores</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> <strong>Tudo do Ponto Pro</strong></li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Suporte prioritário</li>
+                  <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}><CheckCircle size={18} color="var(--success)" /> Integração folha de pagamento</li>
+                </>
+              )}
             </ul>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate('Assinar Business', 'https://pay.cakto.com.br/iy4399h')}>
+            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => handleTrackAndNavigate(`Assinar Business ${pricingTab}`, pricingTab === 'ponto' ? 'https://pay.cakto.com.br/o2xichf' : pricingTab === 'completo' ? '/checkout?plan=completo_business' : 'https://pay.cakto.com.br/iy4399h')}>
               Assinar Agora
             </button>
           </div>
