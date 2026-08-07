@@ -2115,40 +2115,41 @@ export default function LandingPage() {
           }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
-                display: flex;
-                overflow-x: auto;
-                scroll-snap-type: x mandatory;
-                -webkit-overflow-scrolling: touch;
-                gap: 12px;
-                padding-bottom: 12px;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 6px;
                 max-width: 100%;
-                scrollbar-width: none;
-             }
-             .pricing-grid-mobile::-webkit-scrollbar {
-                display: none;
+                padding: 0 4px;
              }
              .pricing-grid-mobile .card {
-                min-width: 280px;
-                max-width: 300px;
-                flex-shrink: 0;
-                scroll-snap-align: center;
+                padding: 10px 6px !important;
                 transform: none !important;
-                padding: 24px 20px !important;
+                border-width: 1px !important;
+                box-shadow: none !important;
              }
-             .pricing-grid-mobile .card > h3 {
-                font-size: 1.2rem !important;
+             .pricing-grid-mobile .card h3 {
+                font-size: 0.82rem !important;
+                margin-bottom: 4px !important;
              }
-             .pricing-grid-mobile .card > .price-text {
-                font-size: 2.2rem !important;
+             .pricing-grid-mobile .card .price-text {
+                font-size: 1.4rem !important;
+             }
+             .pricing-grid-mobile .card p,
+             .pricing-grid-mobile .card div {
+                font-size: 0.65rem !important;
+                line-height: 1.3 !important;
+                margin-bottom: 4px !important;
+             }
+             .pricing-grid-mobile .card button {
+                padding: 8px 4px !important;
+                font-size: 0.7rem !important;
              }
           }
         `}</style>
-        <p className="hide-on-desktop" style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>← Deslize para ver todos os planos →</p>
         
         <div className="pricing-grid-mobile">
           
           {/* SÓ CHECKLISTS */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)' }}>
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', border: '1.5px solid #ff4500' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#ff4500', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px' }}>
               📋 MÓDULO CHECKLIST
             </div>
@@ -2182,7 +2183,7 @@ export default function LandingPage() {
           </div>
 
           {/* COMBO COMPLETO (Destacado) */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', zIndex: 2, backgroundColor: 'var(--bg-card)', boxShadow: '0 12px 30px rgba(255, 69, 0, 0.15)' }}>
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', border: '2.5px solid #f59e0b', transform: 'scale(1.04)', position: 'relative', zIndex: 2, backgroundColor: 'var(--bg-card)', boxShadow: '0 8px 32px rgba(245, 158, 11, 0.25), 0 0 0 1px rgba(245, 158, 11, 0.1)' }}>
             <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', color: 'white', padding: '4px 16px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 'bold', letterSpacing: '0.5px', whiteSpace: 'nowrap' }}>🔥 MAIS VENDIDO • MELHOR CUSTO</div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px', marginTop: '4px' }}>
               ⚡ PACOTE COMPLETO
@@ -2204,8 +2205,8 @@ export default function LandingPage() {
             )}
 
             <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px 0', flex: 1 }}>
-              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem', backgroundColor: 'rgba(34, 197, 94, 0.12)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#047857' }}>
-                <CheckCircle size={18} color="#10b981" /> 🎁 <strong>BÔNUS: Até 50 colaboradores</strong> (+20 grátis!)
+              <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem', backgroundColor: 'rgba(34, 197, 94, 0.12)', padding: '8px 12px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#047857', flexWrap: 'nowrap' }}>
+                <CheckCircle size={18} color="#10b981" style={{ flexShrink: 0 }} /> <strong style={{ whiteSpace: 'nowrap' }}>🎁 BÔNUS: Até 50 colaboradores</strong>
               </li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Checklist Ilimitado</strong></li>
               <li style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center', fontSize: '0.9rem' }}><CheckCircle size={18} color="var(--success)" /> <strong>TUDO do Módulo Controle de Ponto IA</strong></li>
@@ -2219,7 +2220,7 @@ export default function LandingPage() {
           </div>
 
           {/* SÓ PONTO IA */}
-          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)' }}>
+          <div className="card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-card)', border: '1.5px solid #3b82f6' }}>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#3b82f6', fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '8px' }}>
               ⏰ MÓDULO PONTO IA
             </div>
