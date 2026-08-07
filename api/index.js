@@ -414,6 +414,8 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_token TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_name TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_plan TEXT");
+      // ── Permissões do Gestor ──
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -1699,7 +1701,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id } = req.body;
+        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1756,6 +1758,7 @@ export default async function handler(req, res) {
         const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
         const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
         const finalRole = role !== undefined ? role : user.role;
+        const finalPermissions = permissions !== undefined ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : user.permissions;
 
         if (finalStatus === 'active' && user.status !== 'active') {
           const resetChecklists = user.status === 'trial' ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
@@ -1765,12 +1768,13 @@ export default async function handler(req, res) {
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
             name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25,
             expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
-            quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days')
+            quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days'),
+            permissions = $26
             ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions]);
         }
         // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
         const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
