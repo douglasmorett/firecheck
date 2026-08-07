@@ -81,12 +81,10 @@ export default function Checkout() {
         } else if (plan === 'ponto_anual' || plan === 'ponto_business') {
           // TODO: Substituir pelo link do Cakto: Só Ponto Anual (R$ 1.164 / 12x R$ 97)
           checkoutLink = `https://pay.cakto.com.br/o2xichf?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'combo_mensal') {
-          // TODO: Substituir pelo link do Cakto: Combo Mensal (R$ 197)
-          checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'combo_mensal' || plan.includes('completo')) {
+          checkoutLink = `https://pay.cakto.com.br/pavdwiz_869704?email=${userEmail}&name=${userName}`;
         } else if (plan === 'combo_anual') {
-          // TODO: Substituir pelo link do Cakto: Combo Anual (12x R$ 167)
-          checkoutLink = `https://pay.cakto.com.br/iy4399h?email=${userEmail}&name=${userName}`;
+          checkoutLink = `https://pay.cakto.com.br/36m7kzq?email=${userEmail}&name=${userName}`;
         } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
           checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
         }
