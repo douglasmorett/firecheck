@@ -870,3 +870,4 @@ body {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+\n\n.hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }\n.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; }

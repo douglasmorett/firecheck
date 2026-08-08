@@ -1537,8 +1537,7 @@ export default function AdminDashboard() {
         if (currentUser && currentUser.email) {
            const updatedMe = teamArray.find(u => u.email === currentUser.email);
            if (updatedMe) {
-              setUserProfile(updatedMe);
-              localStorage.setItem('user', JSON.stringify(updatedMe));
+              setUserProfile(prev => { if (!prev || JSON.stringify(prev) !== JSON.stringify(updatedMe)) { localStorage.setItem(\'user\', JSON.stringify(updatedMe)); return updatedMe; } return prev; });
            }
         }
         
@@ -1789,8 +1788,7 @@ export default function AdminDashboard() {
           store: companyName,
           phone: ownerPhone
         };
-        setUserProfile(updatedMe);
-        localStorage.setItem('user', JSON.stringify(updatedMe));
+        setUserProfile(prev => { if (!prev || JSON.stringify(prev) !== JSON.stringify(updatedMe)) { localStorage.setItem(\'user\', JSON.stringify(updatedMe)); return updatedMe; } return prev; });
         alert('Perfil da empresa atualizado com sucesso!');
         window.location.reload();
       } else {

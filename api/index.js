@@ -386,6 +386,7 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_active BOOLEAN DEFAULT FALSE");
@@ -1702,7 +1703,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions } = req.body;
+        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions, expiration_date } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -1759,7 +1760,15 @@ export default async function handler(req, res) {
         const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
         const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
         const finalRole = role !== undefined ? role : user.role;
+        
         const finalPermissions = permissions !== undefined ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : user.permissions;
+        let finalPhoto = user.photo;
+        if (req.body.photo && req.body.photo.startsWith('data:image')) {
+            finalPhoto = await uploadImage(req.body.photo, 'users/' + finalStore);
+        } else if (req.body.photo === null || req.body.photo === '') {
+            finalPhoto = null;
+        }
+
 
         if (finalStatus === 'active' && user.status !== 'active') {
           const resetChecklists = user.status === 'trial' ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
@@ -1767,15 +1776,15 @@ export default async function handler(req, res) {
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
-            name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25,
-            expiration_date = NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
+            name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, photo = $27,
+            expiration_date = COALESCE($28, NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END),
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days'),
             permissions = $26
             ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
         }
         // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
         const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
@@ -1945,7 +1954,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}

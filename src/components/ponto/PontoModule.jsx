@@ -65,17 +65,17 @@ export default function PontoModule({ userProfile }) {
     }
   };
 
-  const refreshAll = async () => {
-    setLoading(true);
+  const refreshAll = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     await Promise.all([fetchEmployees(), fetchSchedules(), fetchPontoRecords()]);
-    setLoading(false);
+    if (showLoading) setLoading(false);
   };
 
   useEffect(() => {
     if (userProfile?.store) {
-      refreshAll();
+      refreshAll(employees.length === 0);
     }
-  }, [userProfile, pontoMonth]);
+  }, [userProfile?.store, pontoMonth]);
 
   if (selectedEmployee) {
     return (
