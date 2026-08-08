@@ -47,21 +47,23 @@ export default function Checkout() {
         if (data.token) localStorage.setItem('firecheck_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
-        // Dispara os eventos do Meta Pixel para o Facebook (exclusivamente APÓS sucesso no banco de dados)
-        if (window.fbq) {
-          const eventId = `signup_${data.user.id}`;
+        // Dispara os eventos do Meta Pixel APENAS após sucesso real no banco de dados
+        // Usa eventID único baseado no ID do banco para deduplicação absoluta
+        if (window.fbq && data.user && data.user.id) {
+          const eventId = `signup_${data.user.id}_${Date.now()}`;
+          
+          // Enriquece o pixel com dados do usuário (sem re-inicializar)
           window.fbq('init', '1508278337585097', {
             em: formData.email.toLowerCase().trim(),
             ph: formData.phone.replace(/\D/g, ''),
-            fn: formData.name.trim().toLowerCase()
+            fn: formData.name.trim().toLowerCase(),
+            external_id: String(data.user.id)
           });
 
-          // Dispara StartTrial exclusivamente para cadastro de teste gratuito concluído com eventID único por ID do banco
           if (plan === 'trial' || !plan) {
-            window.fbq('track', 'StartTrial', { content_name: 'Teste Grátis 7 Dias', currency: 'BRL', value: 0 }, { eventID: `${eventId}_trial` });
+            window.fbq('trackSingle', '1508278337585097', 'StartTrial', { content_name: 'Teste Grátis 7 Dias', currency: 'BRL', value: 0 }, { eventID: eventId });
           } else {
-            // Dispara InitiateCheckout para qualquer outro plano que seja pago
-            window.fbq('track', 'InitiateCheckout', { content_name: plan, currency: 'BRL' }, { eventID: `${eventId}_checkout` });
+            window.fbq('trackSingle', '1508278337585097', 'InitiateCheckout', { content_name: plan, currency: 'BRL' }, { eventID: eventId });
           }
         }
 
