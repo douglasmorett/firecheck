@@ -397,6 +397,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ai_creations_used INTEGER DEFAULT 0");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS upgrade_alert_sent BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_limit INTEGER DEFAULT 5");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_last_worked_day TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_subscription_id VARCHAR(100)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_ponto_subscription_id VARCHAR(100)");
       // Migrar limites de ponto para planos existentes
@@ -1944,7 +1945,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.permissions, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
