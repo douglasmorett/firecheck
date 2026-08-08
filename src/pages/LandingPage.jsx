@@ -2149,78 +2149,24 @@ export default function LandingPage() {
           }
           @media (max-width: 960px) {
              .pricing-grid-mobile {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 6px;
-                max-width: 100%;
-                padding: 0 4px;
+                grid-template-columns: 1fr;
+                gap: 16px;
+                max-width: 500px;
+                padding: 0 8px;
              }
              .pricing-grid-mobile .card {
-                padding: 10px 6px !important;
+                padding: 24px !important;
                 transform: none !important;
-                border-width: 1px !important;
-                box-shadow: none !important;
              }
              .pricing-grid-mobile .card h3 {
-                font-size: 0.82rem !important;
-                margin-bottom: 4px !important;
+                font-size: 1.3rem !important;
              }
              .pricing-grid-mobile .card .price-text {
-                font-size: 1.4rem !important;
-             }
-             .pricing-grid-mobile .card p,
-             .pricing-grid-mobile .card div {
-                font-size: 0.65rem !important;
-                line-height: 1.3 !important;
-                margin-bottom: 4px !important;
+                font-size: 2.2rem !important;
              }
              .pricing-grid-mobile .card button {
-                padding: 8px 4px !important;
-                font-size: 0.7rem !important;
-             }
-          }
-          @media (max-width: 480px) {
-             .pricing-grid-mobile {
-                gap: 4px;
-             }
-             .pricing-grid-mobile .card {
-                padding: 8px 5px !important;
-                border-radius: 8px !important;
-             }
-             .pricing-grid-mobile .card h3 {
-                font-size: 0.7rem !important;
-                margin-bottom: 2px !important;
-             }
-             .pricing-grid-mobile .card .price-text {
-                font-size: 1.1rem !important;
-             }
-             .pricing-grid-mobile .card .price-text span {
-                font-size: 0.45rem !important;
-             }
-             .pricing-grid-mobile .card p,
-             .pricing-grid-mobile .card div {
-                font-size: 0.55rem !important;
-                line-height: 1.2 !important;
-                margin-bottom: 3px !important;
-             }
-             .pricing-grid-mobile .card ul li {
-                font-size: 0.55rem !important;
-                margin-bottom: 2px !important;
-                gap: 2px !important;
-             }
-             .pricing-grid-mobile .card ul li svg {
-                width: 9px !important;
-                height: 9px !important;
-                flex-shrink: 0;
-             }
-             .pricing-grid-mobile .card button {
-                padding: 6px 3px !important;
-                font-size: 0.55rem !important;
-                border-radius: 6px !important;
-             }
-             .pricing-grid-mobile .card > div[style*="absolute"] {
-                font-size: 0.45rem !important;
-                padding: 2px 5px !important;
-                top: -7px !important;
+                padding: 14px !important;
+                font-size: 1rem !important;
              }
           }
         `}</style>
