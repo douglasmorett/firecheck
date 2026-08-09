@@ -234,8 +234,17 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
 
-            // Filtrar apenas tarefas para "equipe toda" ou para este usuário específico
-            const myTasks = cl.tasks.filter(t => !t.assignee || t.assignee === 'pendente' || t.assignee === profile.email);
+            // Filtrar tarefas: se for admin/preview/impersonating, mostra todas. Se for funcionário, compara por e-mail ou nome (case-insensitive)
+            const userEmail = (profile.email || '').toLowerCase();
+            const userName = (profile.name || '').toLowerCase();
+            const isAdminView = isPreview || isImpersonating || profile.role === 'admin' || profile.role === 'master';
+
+            const myTasks = (cl.tasks || []).filter(t => {
+              if (isAdminView) return true;
+              if (!t.assignee || t.assignee === 'pendente' || t.assignee === 'todos' || t.assignee === '') return true;
+              const assign = String(t.assignee).toLowerCase();
+              return assign === userEmail || assign === userName;
+            });
 
             setTasks(myTasks.map((t, idx) => ({ 
               ...t, 

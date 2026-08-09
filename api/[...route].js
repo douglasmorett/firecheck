@@ -171,12 +171,28 @@ export default async function handler(req, res) {
     if (url.includes('/api/checklists')) {
        // Se for POST, cria um novo ou atualiza
        if (req.method === 'POST') {
-          const { title, store, tasks, recurrence, scheduledDate, requireSelfie } = req.body;
+          const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, category, requireSignature, assignedTo } = req.body;
+          if (id) {
+             try {
+                const { rows } = await pool.query(
+                  'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, category = $7, require_signature = $8, assigned_to = $9 WHERE id = $10 RETURNING *', 
+                  [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, category || 'geral', requireSignature || false, assignedTo ? JSON.stringify(assignedTo) : null, id]
+                );
+                return res.status(200).json(rows[0]);
+             } catch (dbErr) {
+                const { rows } = await pool.query(
+                  'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4 WHERE id = $5 RETURNING *', 
+                  [title, store, JSON.stringify(tasks), recurrence, id]
+                );
+                return res.status(200).json(rows[0]);
+             }
+          }
+
           // Tenta inserir. Se der erro de coluna, o catch vai capturar.
           try {
             const { rows } = await pool.query(
-              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', 
-              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false]
+              'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, category, require_signature, assigned_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *', 
+              [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, category || 'geral', requireSignature || false, assignedTo ? JSON.stringify(assignedTo) : null]
             );
             return res.status(200).json(rows[0]);
           } catch (dbErr) {
