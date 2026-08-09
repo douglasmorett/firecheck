@@ -2449,7 +2449,7 @@ export default function AdminDashboard() {
                 ⚡ Plano Anual com Desconto — 12x R$97/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
-                💬 Plano Custom (>50 funcionários no WhatsApp)
+                💬 Plano Custom (&gt;50 funcionários no WhatsApp)
               </button>
             </div>
             <button onClick={() => setShowQuotaUpgradeModal(false)} style={{ marginTop: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Fechar</button>
