@@ -235,14 +235,14 @@ export default function ChecklistExecution() {
             }
 
             // Filtrar tarefas: se for admin/preview/impersonating, mostra todas. Se for funcionário, compara por e-mail ou nome (case-insensitive)
-            const userEmail = (profile.email || '').toLowerCase();
-            const userName = (profile.name || '').toLowerCase();
+            const userEmail = (profile.email || '').toLowerCase().trim();
+            const userName = (profile.name || '').toLowerCase().trim();
             const isAdminView = isPreview || isImpersonating || profile.role === 'admin' || profile.role === 'master';
 
             const myTasks = (cl.tasks || []).filter(t => {
               if (isAdminView) return true;
-              if (!t.assignee || t.assignee === 'pendente' || t.assignee === 'todos' || t.assignee === '') return true;
-              const assign = String(t.assignee).toLowerCase();
+              const assign = t.assignee ? String(t.assignee).toLowerCase().trim() : '';
+              if (!assign || assign === 'pendente' || assign === 'todos' || assign === 'null' || assign === 'undefined') return true;
               return assign === userEmail || assign === userName;
             });
 
