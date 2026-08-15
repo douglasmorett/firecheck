@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download, ArrowDownAZ } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -266,8 +266,27 @@ export default function EmployeeDashboard() {
     navigate('/login');
   };
 
-  const pendingChecklists = checklists.filter(c => !c.completedToday);
-  const completedChecklists = checklists.filter(c => c.completedToday);
+  const [sortAlphabetical, setSortAlphabetical] = useState(() => {
+    try {
+      return localStorage.getItem('firecheck_sort_alphabetical') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const sortFn = (a, b) => {
+    return (a.title || '').localeCompare(b.title || '', 'pt-BR', { numeric: true, sensitivity: 'base' });
+  };
+
+  const pendingChecklists = useMemo(() => {
+    const list = checklists.filter(c => !c.completedToday);
+    return sortAlphabetical ? [...list].sort(sortFn) : list;
+  }, [checklists, sortAlphabetical]);
+
+  const completedChecklists = useMemo(() => {
+    const list = checklists.filter(c => c.completedToday);
+    return sortAlphabetical ? [...list].sort(sortFn) : list;
+  }, [checklists, sortAlphabetical]);
 
   if (loading) {
     return (
@@ -651,9 +670,41 @@ export default function EmployeeDashboard() {
       })()}
 
       <section style={{ marginBottom: '32px' }}>
-        <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
-        </h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
+          </h4>
+          {checklists.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const nextVal = !sortAlphabetical;
+                setSortAlphabetical(nextVal);
+                try {
+                  localStorage.setItem('firecheck_sort_alphabetical', String(nextVal));
+                } catch (e) {}
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                fontWeight: '600',
+                borderRadius: '8px',
+                border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              title={sortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar checklists por ordem alfabética (A-Z)"}
+            >
+              <ArrowDownAZ size={14} />
+              {sortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordem alfabética'}
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => (
             <div 
@@ -737,9 +788,41 @@ export default function EmployeeDashboard() {
 
       {completedChecklists.length > 0 && (
         <section>
-          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle size={16} /> Concluídos Hoje ({completedChecklists.length})
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle size={16} /> Concluídos Hoje ({completedChecklists.length})
+            </h4>
+            {pendingChecklists.length === 0 && checklists.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !sortAlphabetical;
+                  setSortAlphabetical(nextVal);
+                  try {
+                    localStorage.setItem('firecheck_sort_alphabetical', String(nextVal));
+                  } catch (e) {}
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                  color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title={sortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar checklists por ordem alfabética (A-Z)"}
+              >
+                <ArrowDownAZ size={14} />
+                {sortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordem alfabética'}
+              </button>
+            )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {completedChecklists.map(checklist => (
               <div 

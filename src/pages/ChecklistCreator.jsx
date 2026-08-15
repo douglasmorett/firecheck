@@ -1109,6 +1109,7 @@ export default function ChecklistCreator() {
               ) : (
                 availableChecklists
                   .filter(c => c.title?.toLowerCase().includes(copySearch.toLowerCase()))
+                  .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'pt-BR', { numeric: true, sensitivity: 'base' }))
                   .map(cl => (
                     <button
                       key={cl.id}
