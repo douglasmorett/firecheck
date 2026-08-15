@@ -406,7 +406,7 @@ export default function ChecklistCreator() {
         })
         .then(res => { handle401(res, navigate); return res.json(); })
         .then(data => {
-          const cl = data.find(c => String(c.id) === String(id));
+          const cl = Array.isArray(data) ? data.find(c => c && String(c.id) === String(id)) : null;
           if (cl) {
             setTitle(cl.title);
             setStore(cl.store);

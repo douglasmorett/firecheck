@@ -761,7 +761,7 @@ export default async function handler(req, res) {
           // Funcionários herdam o status do admin da loja
           if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
             const { rows: admins } = await pool.query(
-              "SELECT status, created_at, expiration_date FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+              "SELECT status, created_at, expiration_date FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
               [user.store]
             );
             if (admins.length > 0) {
@@ -925,10 +925,10 @@ export default async function handler(req, res) {
       let everSubsParams = [];
 
       if (store) {
-        checklistsQuery += ' WHERE LOWER(store) = LOWER($1)';
+        checklistsQuery += ' WHERE LOWER(TRIM(store)) = LOWER(TRIM($1))';
         checklistsParams.push(store);
         
-        todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE LOWER(store) = LOWER($1) AND created_at >= $2';
+        todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND created_at >= $2';
         todaySubsParams = [store, today + ' 00:00:00'];
         
         everSubsQuery = 'SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE LOWER(store) = LOWER($1) GROUP BY checklist_id';

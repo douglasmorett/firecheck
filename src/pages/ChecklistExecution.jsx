@@ -209,7 +209,7 @@ export default function ChecklistExecution() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           // Se houver um ID na URL, busca esse específico. Senão pega o primeiro.
-          const cl = id ? data.find(c => String(c.id) === String(id)) : data[0];
+          const cl = id ? data.find(c => c && String(c.id) === String(id)) : data.find(c => Boolean(c));
           
           if (cl) {
             setCurrentChecklistId(cl.id);
@@ -234,12 +234,13 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
 
-            // Filtrar tarefas: se for admin/preview/impersonating, mostra todas. Se for funcionário, compara por e-mail ou nome (case-insensitive)
+            // Filtrar tarefas: se for admin/gestor/preview/impersonating, mostra todas. Se for funcionário, compara por e-mail ou nome (case-insensitive)
             const userEmail = (profile.email || '').toLowerCase().trim();
             const userName = (profile.name || '').toLowerCase().trim();
-            const isAdminView = isPreview || isImpersonating || profile.role === 'admin' || profile.role === 'master';
+            const isAdminView = isPreview || isImpersonating || profile.role === 'admin' || profile.role === 'master' || profile.role === 'gestor';
 
             const myTasks = (cl.tasks || []).filter(t => {
+              if (!t) return false;
               if (isAdminView) return true;
               const assign = t.assignee ? String(t.assignee).toLowerCase().trim() : '';
               if (!assign || assign === 'pendente' || assign === 'todos' || assign === 'null' || assign === 'undefined') return true;
