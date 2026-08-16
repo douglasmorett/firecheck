@@ -418,7 +418,7 @@ export default function ChecklistCreator() {
             setAssetLinkType(cl.asset_link_type || '');
             setTasks(cl.tasks || []);
             setWeekdays(cl.weekdays || []);
-            setAssignedTo(cl.assigned_to || []);
+            setAssignedTo(Array.isArray(cl.assigned_to) ? cl.assigned_to : []);
           }
         });
     }
@@ -475,7 +475,7 @@ export default function ChecklistCreator() {
           id: id || null,
           title, store, recurrence, scheduledDate, tasks, requireSelfie, weekdays: recurrence === 'weekdays' ? weekdays : null,
           category, requireSignature, assetLinkType,
-          assignedTo: assignedTo.length > 0 ? assignedTo : null
+          assignedTo: (Array.isArray(assignedTo) && assignedTo.length > 0) ? assignedTo : null
         })
       });
 

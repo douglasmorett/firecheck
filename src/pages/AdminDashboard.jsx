@@ -2144,6 +2144,29 @@ export default function AdminDashboard() {
             );
           })}
 
+          {/* Botão para Acessar a Tela de Execução (Modo Operacional / Fazer Checklists) */}
+          <button 
+            onClick={() => {
+              navigate('/funcionario');
+              setIsSidebarOpen(false);
+            }} 
+            title="Ir para a Tela de Execução (Fazer Checklists com a Equipe)"
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
+              justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+              borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.4)', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', 
+              transition: 'all 0.2s', textAlign: 'left',
+              backgroundColor: 'rgba(37, 99, 235, 0.12)',
+              color: '#3b82f6',
+              marginTop: '10px'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.22)'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.12)'}
+          >
+            <span><Play size={18} fill="#3b82f6" color="#3b82f6" /></span>
+            {!isSidebarCollapsed && '📋 Tela de Execução'}
+          </button>
+
           {/* Botão para Acessar a Central de Tutoriais */}
           <button 
             onClick={() => {
@@ -2158,7 +2181,7 @@ export default function AdminDashboard() {
               transition: 'all 0.2s', textAlign: 'left',
               backgroundColor: 'rgba(255, 77, 0, 0.1)',
               color: 'var(--primary)',
-              marginTop: '10px'
+              marginTop: '8px'
             }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.2)'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.1)'}
@@ -2258,37 +2281,52 @@ export default function AdminDashboard() {
                 <Smartphone size={24} color="#fff" />
               </div>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: 'var(--text-main)' }}>Acesse o FireCheck pelo celular!</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Notificações são enviadas pelo WhatsApp. Você também pode instalar o webapp no seu celular para acesso rápido.</p>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: '#25D366' }}>Instale o WebApp &amp; Configure o Robô do WhatsApp</h3>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cadastre os contatos e ative as notificações automáticas do WhatsApp no menu "Perfil da Empresa". Para instalar na tela inicial, clique no menu do navegador (⋮ ou compartilhar) e selecione <strong>"Adicionar à Tela Inicial"</strong>.</p>
               </div>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button 
-                onClick={() => { const pwaBtn = document.querySelector('[data-pwa-install]'); if (pwaBtn) pwaBtn.click(); }}
-                className="btn" 
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--primary)' }}
-              >
-                📲 Instalar WebApp
-              </button>
             </div>
           </div>
         )}
 
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%', flexWrap: 'wrap' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
                 {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário'}
               </h1>
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
             </div>
-            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
-              <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Menu size={20} color="white" />
-              </div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
-            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                onClick={() => navigate('/funcionario')}
+                className="btn animate-scale"
+                style={{
+                  backgroundColor: '#2563eb',
+                  color: '#ffffff',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  fontWeight: 'bold',
+                  fontSize: '0.88rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <Play size={16} fill="white" /> Tela de Execução
+              </button>
+
+              <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
+                <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Menu size={20} color="white" />
+                </div>
+                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
+              </button>
+            </div>
           </div>
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
@@ -2449,7 +2487,7 @@ export default function AdminDashboard() {
                 ⚡ Plano Anual com Desconto — 12x R$97/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
-                💬 Plano Custom (>50 funcionários no WhatsApp)
+                💬 Plano Custom (&gt;50 funcionários no WhatsApp)
               </button>
             </div>
             <button onClick={() => setShowQuotaUpgradeModal(false)} style={{ marginTop: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Fechar</button>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download, Settings } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -266,6 +266,36 @@ export default function EmployeeDashboard() {
     navigate('/login');
   };
 
+  const getDraftProgress = (type, id) => {
+    if (!userProfile?.id || !id) return { percent: 0, doneCount: 0, totalCount: 0, isStarted: false };
+    const today = new Date().toISOString().split('T')[0];
+    const draftKey = `firecheck_draft_${type}_${userProfile.id}_${id}_${today}`;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return { percent: 0, doneCount: 0, totalCount: 0, isStarted: false };
+      const parsed = JSON.parse(raw);
+      const tasks = parsed.tasks;
+      if (!Array.isArray(tasks) || tasks.length === 0) return { percent: 0, doneCount: 0, totalCount: 0, isStarted: false };
+
+      let doneCount = 0;
+      tasks.forEach(t => {
+        if (t.type === 'itemlist') {
+          if (Array.isArray(t.done) && t.done.length > 0) doneCount++;
+        } else if (t.type === 'stock') {
+          if (t.done !== '' && t.done !== null && t.done !== undefined) doneCount++;
+        } else {
+          if (t.done !== null && t.done !== undefined && t.done !== '' && t.done !== false) doneCount++;
+          else if (t.photo || (Array.isArray(t.photos) && t.photos.length > 0)) doneCount++;
+        }
+      });
+
+      const percent = Math.min(100, Math.round((doneCount / tasks.length) * 100));
+      return { percent, doneCount, totalCount: tasks.length, isStarted: doneCount > 0 };
+    } catch(e) {
+      return { percent: 0, doneCount: 0, totalCount: 0, isStarted: false };
+    }
+  };
+
   const pendingChecklists = checklists.filter(c => !c.completedToday);
   const completedChecklists = checklists.filter(c => c.completedToday);
 
@@ -343,7 +373,29 @@ export default function EmployeeDashboard() {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{userProfile?.store}</p>
            </div>
         </div>
-        <div style={{ display: 'flex', gap: '32px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+           {(userProfile?.role === 'admin' || userProfile?.role === 'gestor' || userProfile?.role === 'master' || isImpersonating) && (
+             <button 
+               onClick={() => navigate('/admin')} 
+               className="btn animate-scale"
+               style={{ 
+                 backgroundColor: '#2563eb', 
+                 padding: '8px 16px', 
+                 borderRadius: '20px', 
+                 border: 'none', 
+                 color: '#ffffff', 
+                 cursor: 'pointer', 
+                 display: 'flex', 
+                 alignItems: 'center', 
+                 gap: '6px', 
+                 fontSize: '0.85rem', 
+                 fontWeight: 'bold',
+                 boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+               }}
+             >
+               <Settings size={16} /> Painel de Gestão
+             </button>
+           )}
            <button onClick={() => fetchChecklists(userProfile, true)} style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid #3b82f6', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold' }}>
               {isRefreshing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               Atualizar
@@ -496,9 +548,10 @@ export default function EmployeeDashboard() {
               };
               
               const pending = isPending();
+              const { percent, isStarted } = getDraftProgress('vehicle', vehicle.id);
               
               return (
-                <div key={vehicle.id} className="card animate-scale" style={{ padding: '16px 20px', borderLeft: completed ? '4px solid var(--success)' : (pending ? '4px solid var(--primary)' : '4px solid var(--border-color)') }}>
+                <div key={vehicle.id} className="card animate-scale" style={{ padding: '16px 20px', borderLeft: completed ? '4px solid var(--success)' : (isStarted ? '4px solid #3b82f6' : (pending ? '4px solid var(--primary)' : '4px solid var(--border-color)')) }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -518,6 +571,10 @@ export default function EmployeeDashboard() {
                             <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 'bold' }}>
                               ✓ Concluído hoje por {vehicle.completed_by || 'você'}
                             </span>
+                          ) : isStarted ? (
+                            <span style={{ fontSize: '0.78rem', color: '#3b82f6', fontWeight: 'bold' }}>
+                              🕒 Vistoria em andamento ({percent}%)
+                            </span>
                           ) : pending ? (
                             <span style={{ fontSize: '0.78rem', color: 'var(--primary)', fontWeight: 'bold' }}>
                               ⚠️ Vistoria Pendente
@@ -533,8 +590,8 @@ export default function EmployeeDashboard() {
                     
                     {!completed && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }} onClick={() => { if(!isImpersonating) navigate(`/execucao/veiculo/${vehicle.id}`); }}>
-                          Iniciar Vistoria <ArrowRight size={14} />
+                        <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : 'var(--primary)', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }} onClick={() => { if(!isImpersonating) navigate(`/execucao/veiculo/${vehicle.id}`); }}>
+                          {isStarted ? 'Continuar Vistoria' : 'Iniciar Vistoria'} <ArrowRight size={14} />
                         </button>
                         {isImpersonating && <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
                       </div>
@@ -577,60 +634,72 @@ export default function EmployeeDashboard() {
               <ShoppingCart size={18} color="var(--primary)" /> Listas de Compras ({pendingShopping.length})
             </h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {pendingShopping.map(list => (
-                <div
-                  key={`shopping-${list.id}`}
-                  className="card animate-scale"
-                  style={{
-                    padding: '18px 20px',
-                    cursor: isImpersonating ? 'not-allowed' : 'pointer',
-                    borderLeft: '4px solid #06b6d4',
-                    backgroundColor: '#ffffff',
-                    borderRadius: '16px',
-                    boxShadow: '0 4px 12px rgba(6, 182, 212, 0.08)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '16px',
-                    transition: 'all 0.2s ease',
-                    position: 'relative',
-                    opacity: isImpersonating ? 0.7 : 1
-                  }}
-                  onClick={() => { if(!isImpersonating) navigate(`/execucao/compras/${list.id}`); }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0891b2' }}>COMPRA</span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                      {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : 'Mensal'}
-                    </span>
-                  </div>
-
-                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {list.title}
-                    </h3>
-                    
-                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        <Package size={14} color="#0891b2" />
-                        {list.item_count || 0} itens para conferir estoque
+              {pendingShopping.map(list => {
+                const { percent, doneCount, totalCount, isStarted } = getDraftProgress('shopping', list.id);
+                return (
+                  <div
+                    key={`shopping-${list.id}`}
+                    className="card animate-scale"
+                    style={{
+                      padding: '18px 20px',
+                      cursor: isImpersonating ? 'not-allowed' : 'pointer',
+                      borderLeft: isStarted ? '4px solid #3b82f6' : '4px solid #06b6d4',
+                      backgroundColor: '#ffffff',
+                      borderRadius: '16px',
+                      boxShadow: '0 4px 12px rgba(6, 182, 212, 0.08)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      transition: 'all 0.2s ease',
+                      position: 'relative',
+                      opacity: isImpersonating ? 0.7 : 1
+                    }}
+                    onClick={() => { if(!isImpersonating) navigate(`/execucao/compras/${list.id}`); }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : '#0891b2' }}>
+                        {isStarted ? `${percent}%` : 'COMPRA'}
                       </span>
-                      {parseInt(list.below_min_count) > 0 && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#ef4444', fontWeight: 'bold' }}>
-                          <AlertCircle size={14} />
-                          {list.below_min_count} abaixo do mínimo
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                        {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : 'Mensal'}
+                      </span>
+                    </div>
+
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
+                          {list.title}
+                        </h3>
+                        {isStarted && (
+                          <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                            🕒 Em andamento
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          <Package size={14} color="#0891b2" />
+                          {isStarted ? `${doneCount} de ${totalCount} conferidos` : `${list.item_count || 0} itens para conferir estoque`}
                         </span>
-                      )}
+                        {parseInt(list.below_min_count) > 0 && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: '#ef4444', fontWeight: 'bold' }}>
+                            <AlertCircle size={14} />
+                            {list.below_min_count} abaixo do mínimo
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : '#0891b2', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
+                        <Play size={12} fill="white" /> {isStarted ? 'Continuar' : 'Preencher'}
+                      </button>
+                      {isImpersonating && <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                    <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0891b2', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
-                      <Play size={12} fill="white" /> Preencher
-                    </button>
-                    {isImpersonating && <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         );
@@ -641,79 +710,93 @@ export default function EmployeeDashboard() {
           <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
         </h4>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => (
-            <div 
-              key={checklist.id} 
-              className="card animate-scale" 
-              style={{ 
-                padding: '16px 20px', 
-                cursor: isImpersonating ? 'not-allowed' : 'pointer', 
-                borderLeft: '4px solid #f97316', 
-                backgroundColor: '#ffffff',
-                borderRadius: '16px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-                transition: 'all 0.2s ease',
-                position: 'relative',
-                overflow: 'hidden',
-                opacity: isImpersonating ? 0.7 : 1
-              }}
-              onClick={() => { if(!isImpersonating) navigate(`/execucao/${checklist.id}`); }}
-              onMouseEnter={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(-2px)' }}
-              onMouseLeave={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(0)' }}
-            >
-              {isImpersonating && (
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <div style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    🔒 Somente visualização
+          {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => {
+            const { percent, doneCount, totalCount, isStarted } = getDraftProgress('checklist', checklist.id);
+            return (
+              <div 
+                key={checklist.id} 
+                className="card animate-scale" 
+                style={{ 
+                  padding: '16px 20px', 
+                  cursor: isImpersonating ? 'not-allowed' : 'pointer', 
+                  borderLeft: isStarted ? '4px solid #3b82f6' : '4px solid #f97316', 
+                  backgroundColor: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  transition: 'all 0.2s ease',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  opacity: isImpersonating ? 0.7 : 1
+                }}
+                onClick={() => { if(!isImpersonating) navigate(`/execucao/${checklist.id}`); }}
+                onMouseEnter={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                {isImpersonating && (
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🔒 Somente visualização
+                    </div>
                   </div>
-                </div>
-              )}
-              {/* Left Indicator - Recurrence/Time */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>HOJE</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                  {checklist.recurrence === 'weekdays' ? 'Semanal' : (checklist.recurrence === 'unico' ? 'Único' : 'Diário')}
-                </span>
-              </div>
-
-              {/* Middle Info */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
-                  {checklist.title}
-                </h3>
-                
-                {/* Progress Bar (0% for pending) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: '0%', height: '100%', backgroundColor: '#f97316' }}></div>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-muted)' }}>0%</span>
-                </div>
-
-                {/* Badges */}
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <Folder size={12} />
-                    {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'compras' ? '🛒 Lista de Compras' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional')))}
+                )}
+                {/* Left Indicator - Recurrence/Time */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : '#0f172a' }}>
+                    {isStarted ? `${percent}%` : 'HOJE'}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <MapPin size={12} />
-                    {checklist.store || userProfile?.store || 'Matriz'}
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    {checklist.recurrence === 'weekdays' ? 'Semanal' : (checklist.recurrence === 'unico' ? 'Único' : 'Diário')}
                   </span>
                 </div>
-              </div>
 
-              {/* Right Action */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
-                  <Play size={12} fill="white" /> Iniciar
-                </button>
+                {/* Middle Info */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
+                      {checklist.title}
+                    </h3>
+                    {isStarted && (
+                      <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                        🕒 Em andamento
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Progress Bar (Dynamic %) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${percent}%`, height: '100%', backgroundColor: isStarted ? '#3b82f6' : '#f97316', transition: 'width 0.3s ease' }}></div>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : 'var(--text-muted)' }}>
+                      {isStarted ? `${percent}% (${doneCount}/${totalCount})` : '0%'}
+                    </span>
+                  </div>
+
+                  {/* Badges */}
+                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <Folder size={12} />
+                      {checklist.category === 'veiculo' ? 'Frota / Veículo' : (checklist.category === 'compras' ? '🛒 Lista de Compras' : (checklist.category === 'cozinha' ? 'Cozinha' : (checklist.category === 'limpeza' ? 'Limpeza' : 'Operacional')))}
+                    </span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <MapPin size={12} />
+                      {checklist.store || userProfile?.store || 'Matriz'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Action */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                  <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : '#0f172a', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
+                    <Play size={12} fill="white" /> {isStarted ? 'Continuar' : 'Iniciar'}
+                  </button>
+                </div>
               </div>
-            </div>
-          )) : (
+            );
+          }) : (
             <div style={{ textAlign: 'center', padding: '40px', backgroundColor: 'var(--bg-card)', borderRadius: '12px', border: '1px dashed var(--border-color)' }}>
               <CheckCircle size={32} color="var(--success)" style={{ marginBottom: '12px' }} />
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Tudo em dia! Nenhuma tarefa pendente.</p>

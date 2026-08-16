@@ -599,6 +599,9 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE checklists ADD COLUMN IF NOT EXISTS asset_link_type VARCHAR(100)");
       await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS vehicle_id INTEGER");
       await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS signature TEXT");
+      // ── Normalização de Atribuição de Checklists/Listas de Compras ──
+      await pool.query("UPDATE checklists SET assigned_to = NULL WHERE assigned_to = 'todos' OR assigned_to = '\"todos\"' OR assigned_to = 'pendente' OR assigned_to = '[]' OR assigned_to = 'null' OR assigned_to = '\"null\"' OR assigned_to = ''");
+      await pool.query("UPDATE shopping_lists SET assigned_to = NULL WHERE assigned_to = 'todos' OR assigned_to = '\"todos\"' OR assigned_to = 'pendente' OR assigned_to = '[]' OR assigned_to = 'null' OR assigned_to = '\"null\"' OR assigned_to = ''");
       // ── Tabela de Conversas WhatsApp (Chatbot) ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS wa_conversations (
@@ -896,16 +899,31 @@ export default async function handler(req, res) {
 
       if (method === 'POST') {
         const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays, category, requireSignature, assetLinkType, assignedTo } = req.body;
+        
+        let assignedToVal = null;
+        if (assignedTo && assignedTo !== 'todos' && assignedTo !== 'pendente') {
+          if (Array.isArray(assignedTo) && assignedTo.length > 0) {
+            assignedToVal = JSON.stringify(assignedTo);
+          } else if (typeof assignedTo === 'string' && assignedTo.trim().length > 0) {
+            try {
+              const parsed = JSON.parse(assignedTo);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                assignedToVal = JSON.stringify(parsed);
+              }
+            } catch(e) {}
+          }
+        }
+
         if (id) {
           const { rows } = await pool.query(
             'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7, category = $8, require_signature = $9, asset_link_type = $10, assigned_to = $12 WHERE id = $11 RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id, assignedTo ? JSON.stringify(assignedTo) : null]
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id, assignedToVal]
           );
           return res.status(200).json(rows[0]);
         } else {
           const { rows } = await pool.query(
             'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays, category, require_signature, asset_link_type, assigned_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, assignedTo ? JSON.stringify(assignedTo) : null]
+            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, assignedToVal]
           );
           return res.status(200).json(rows[0]);
         }
@@ -947,18 +965,41 @@ export default async function handler(req, res) {
 
       return res.status(200).json(checklists.map(r => {
         if (filterToday && r.recurrence === 'weekdays') {
-          const dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
-          if (dias.length > 0 && !dias.includes(todayWeekday)) return null;
+          let dias = [];
+          try {
+            dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
+          } catch(e) { dias = []; }
+          if (Array.isArray(dias) && dias.length > 0 && !dias.includes(todayWeekday)) return null;
+        }
+
+        // Safe parse assigned_to
+        let assignedList = null;
+        if (r.assigned_to) {
+          if (typeof r.assigned_to === 'string') {
+            try {
+              assignedList = JSON.parse(r.assigned_to);
+            } catch(e) {
+              assignedList = null;
+            }
+          } else {
+            assignedList = r.assigned_to;
+          }
         }
 
         // Filtrar por assigned_to: se o usuário é funcionário/gestor, só mostrar checklists atribuídos a ele ou a todos
-        if (filterToday && r.assigned_to) {
-          const assignedList = typeof r.assigned_to === 'string' ? JSON.parse(r.assigned_to) : r.assigned_to;
-          if (Array.isArray(assignedList) && assignedList.length > 0) {
-            const userEmail = authUser.email?.toLowerCase();
-            if (!assignedList.some(email => email.toLowerCase() === userEmail)) {
-              return null; // Não atribuído a este funcionário
-            }
+        if (filterToday && assignedList && Array.isArray(assignedList) && assignedList.length > 0) {
+          const userEmail = (authUser.email || '').toLowerCase().trim();
+          const userName = (authUser.name || '').toLowerCase().trim();
+          const userId = String(authUser.id || '');
+
+          const matchesUser = assignedList.some(item => {
+            if (!item) return false;
+            const str = String(item).toLowerCase().trim();
+            return (userEmail && str === userEmail) || (userName && str === userName) || (userId && str === userId);
+          });
+
+          if (!matchesUser) {
+            return null; // Não atribuído a este funcionário
           }
         }
 
@@ -971,8 +1012,25 @@ export default async function handler(req, res) {
           const sub = todaySubs.find(s => s.checklist_id === r.id);
           if (sub) { isCompleted = true; completedBy = sub.employee_name; }
         }
-        const wk = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
-        return { ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []), weekdays: wk, completedToday: isCompleted, completedBy, assigned_to: r.assigned_to ? (typeof r.assigned_to === 'string' ? JSON.parse(r.assigned_to) : r.assigned_to) : null };
+
+        let wk = [];
+        try {
+          wk = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
+        } catch(e) { wk = []; }
+
+        let tasksParsed = [];
+        try {
+          tasksParsed = typeof r.tasks === 'string' ? JSON.parse(r.tasks) : (r.tasks || []);
+        } catch(e) { tasksParsed = []; }
+
+        return { 
+          ...r, 
+          tasks: tasksParsed, 
+          weekdays: wk, 
+          completedToday: isCompleted, 
+          completedBy, 
+          assigned_to: assignedList 
+        };
       }).filter(Boolean));
     }
 
@@ -1945,6 +2003,30 @@ export default async function handler(req, res) {
         
         const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions) : null;
         const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, phone, status, permissions', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus, permissionsJson]);
+        
+        // Se for novo colaborador/gestor, incluir e-mail em checklists atribuídos a equipes pré-existentes da mesma loja
+        if (role === 'funcionario' || role === 'gestor' || role === 'employee') {
+          try {
+            const { rows: storeChecklists } = await pool.query(
+              "SELECT id, assigned_to FROM checklists WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND assigned_to IS NOT NULL AND assigned_to != ''",
+              [store]
+            );
+            for (const cl of storeChecklists) {
+              let list = null;
+              try { list = JSON.parse(cl.assigned_to); } catch(e) {}
+              if (Array.isArray(list) && list.length > 0) {
+                const newEmailLower = email.toLowerCase().trim();
+                if (!list.some(e => String(e).toLowerCase().trim() === newEmailLower)) {
+                  list.push(email);
+                  await pool.query("UPDATE checklists SET assigned_to = $1 WHERE id = $2", [JSON.stringify(list), cl.id]);
+                }
+              }
+            }
+          } catch(err) {
+            console.error('Erro ao atualizar atribuições de checklist para novo funcionário:', err);
+          }
+        }
+
         return res.status(200).json(rows[0]);
       }
       // GET users: admin vê só da sua loja, master vê tudo

@@ -56,6 +56,7 @@ export default function ChecklistExecution() {
   const [userProfile, setUserProfile] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
   const [startedAt] = useState(() => new Date().toISOString());
+  const [draftSavedStatus, setDraftSavedStatus] = useState(false);
 
   // Estados novos: Assinatura e Veículos
   const [category, setCategory] = useState('geral');
@@ -123,15 +124,29 @@ export default function ChecklistExecution() {
           setCategory('compras');
           setRequireSelfie(false);
           setRequireSignature(false);
-          setTasks(items.map(item => ({
-            id: item.id,
-            text: item.name,
-            unit: item.unit || 'un',
-            minStock: parseFloat(item.min_stock || 0),
-            done: item.current_stock !== null && item.current_stock !== undefined ? parseFloat(item.current_stock) : '',
-            type: 'stock',
-            category: item.category || 'geral'
-          })));
+
+          const today = new Date().toISOString().split('T')[0];
+          const draftKey = profile.id ? `firecheck_draft_shopping_${profile.id}_${shoppingListId}_${today}` : null;
+          let savedDraft = null;
+          if (draftKey) {
+            try {
+              const raw = localStorage.getItem(draftKey);
+              if (raw) savedDraft = JSON.parse(raw);
+            } catch(e) {}
+          }
+
+          setTasks(items.map(item => {
+            const savedItem = savedDraft?.tasks?.find(dt => String(dt.id) === String(item.id) || dt.text === item.name);
+            return {
+              id: item.id,
+              text: item.name,
+              unit: item.unit || 'un',
+              minStock: parseFloat(item.min_stock || 0),
+              done: savedItem && savedItem.done !== undefined && savedItem.done !== '' ? savedItem.done : (item.current_stock !== null && item.current_stock !== undefined ? parseFloat(item.current_stock) : ''),
+              type: 'stock',
+              category: item.category || 'geral'
+            };
+          }));
         }
         setLoading(false);
       })
@@ -162,15 +177,30 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
             
+            const today = new Date().toISOString().split('T')[0];
+            const draftKey = profile.id ? `firecheck_draft_vehicle_${profile.id}_${vehicleId}_${today}` : null;
+            let savedDraft = null;
+            if (draftKey && !vehicle.completed_today) {
+              try {
+                const raw = localStorage.getItem(draftKey);
+                if (raw) savedDraft = JSON.parse(raw);
+              } catch(e) {}
+            }
+
             const myTasks = vehicle.tasks || [];
-            setTasks(myTasks.map((t, idx) => ({
-              ...t,
-              id: t.id || `vtask-${idx}`,
-              done: null,
-              photo: null,
-              photos: [],
-              forceOverride: false
-            })));
+            setTasks(myTasks.map((t, idx) => {
+              const tid = t.id || `vtask-${idx}`;
+              const savedItem = savedDraft?.tasks?.find(dt => dt.id === tid || dt.text === t.text);
+              return {
+                ...t,
+                id: tid,
+                done: savedItem && savedItem.done !== undefined ? savedItem.done : null,
+                photo: savedItem ? savedItem.photo : null,
+                photos: savedItem ? (Array.isArray(savedItem.photos) ? savedItem.photos : (savedItem.photo ? [savedItem.photo] : [])) : [],
+                forceOverride: savedItem ? savedItem.forceOverride : false
+              };
+            }));
+            if (savedDraft?.signature) setSignature(savedDraft.signature);
             
             // Buscar os detalhes da submissão se já estiver concluído
             if (vehicle.completed_today) {
@@ -234,17 +264,33 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
 
+            const today = new Date().toISOString().split('T')[0];
+            const draftKey = profile.id ? `firecheck_draft_checklist_${profile.id}_${cl.id}_${today}` : null;
+            let savedDraft = null;
+            if (draftKey && !cl.completedToday) {
+              try {
+                const raw = localStorage.getItem(draftKey);
+                if (raw) savedDraft = JSON.parse(raw);
+              } catch(e) {}
+            }
+
             // Filtrar apenas tarefas para "equipe toda" ou para este usuário específico
             const myTasks = cl.tasks.filter(t => !t.assignee || t.assignee === 'pendente' || t.assignee === profile.email);
 
-            setTasks(myTasks.map((t, idx) => ({ 
-              ...t, 
-              id: t.id || `task-${idx}`, 
-              done: null, 
-              photo: null, 
-              photos: [],
-              forceOverride: false 
-            })));
+            setTasks(myTasks.map((t, idx) => {
+              const tid = t.id || `task-${idx}`;
+              const savedItem = savedDraft?.tasks?.find(dt => dt.id === tid || dt.text === t.text);
+              return {
+                ...t,
+                id: tid,
+                done: savedItem && savedItem.done !== undefined ? savedItem.done : null,
+                photo: savedItem ? savedItem.photo : null,
+                photos: savedItem ? (Array.isArray(savedItem.photos) ? savedItem.photos : (savedItem.photo ? [savedItem.photo] : [])) : [],
+                forceOverride: savedItem ? savedItem.forceOverride : false
+              };
+            }));
+            if (savedDraft?.selfie) setSelfie(savedDraft.selfie);
+            if (savedDraft?.signature) setSignature(savedDraft.signature);
 
             // Buscar os detalhes da submissão se já estiver concluído
             if (cl.completedToday) {
@@ -271,6 +317,56 @@ export default function ChecklistExecution() {
         setLoading(false);
       });
   }, [id, navigate]);
+
+  // ─── Auto-salvamento de Rascunho no localStorage ────────
+  useEffect(() => {
+    if (loading || submitted || isReadOnly || !userProfile?.id) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    let key = null;
+    if (shoppingListId) {
+      key = `firecheck_draft_shopping_${userProfile.id}_${shoppingListId}_${today}`;
+    } else if (vehicleId) {
+      key = `firecheck_draft_vehicle_${userProfile.id}_${vehicleId}_${today}`;
+    } else if (currentChecklistId) {
+      key = `firecheck_draft_checklist_${userProfile.id}_${currentChecklistId}_${today}`;
+    }
+
+    if (!key) return;
+
+    const hasProgress = tasks.some(t => {
+      if (t.type === 'itemlist') return Array.isArray(t.done) && t.done.length > 0;
+      if (t.type === 'stock') return t.done !== '' && t.done !== null && t.done !== undefined;
+      return t.done !== null && t.done !== undefined && t.done !== '' && t.done !== false;
+    }) || Boolean(selfie) || Boolean(signature);
+
+    if (hasProgress) {
+      const draftData = {
+        tasks,
+        selfie,
+        signature,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem(key, JSON.stringify(draftData));
+      setDraftSavedStatus(true);
+      const timer = setTimeout(() => setDraftSavedStatus(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [tasks, selfie, signature, loading, submitted, isReadOnly, userProfile, shoppingListId, vehicleId, currentChecklistId]);
+
+  // Helper para limpar rascunho ao finalizar
+  const clearCurrentDraft = () => {
+    const today = new Date().toISOString().split('T')[0];
+    if (userProfile?.id) {
+      if (shoppingListId) {
+        localStorage.removeItem(`firecheck_draft_shopping_${userProfile.id}_${shoppingListId}_${today}`);
+      } else if (vehicleId) {
+        localStorage.removeItem(`firecheck_draft_vehicle_${userProfile.id}_${vehicleId}_${today}`);
+      } else if (currentChecklistId) {
+        localStorage.removeItem(`firecheck_draft_checklist_${userProfile.id}_${currentChecklistId}_${today}`);
+      }
+    }
+  };
 
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -636,6 +732,7 @@ export default function ChecklistExecution() {
       });
       if (res.ok) {
         const data = await res.json();
+        clearCurrentDraft();
         setSubmitted(true);
         // Dispara a IA em background com retry resiliente (fire and forget)
         if (data.id) {
@@ -681,6 +778,7 @@ export default function ChecklistExecution() {
         createdAt: new Date().toISOString()
       });
       localStorage.setItem('firecheck_offline_queue', JSON.stringify(offlineQueue));
+      clearCurrentDraft();
       setSubmitted(true);
       alert('📡 Checklist salvo localmente! Você está sem internet. Os dados serão enviados automaticamente assim que você se reconectar.');
     }
@@ -882,7 +980,14 @@ export default function ChecklistExecution() {
         <div style={{ backgroundColor: '#1A1C23', borderRadius: '100px', height: '8px', overflow: 'hidden' }}>
           <div style={{ width: `${progress}%`, height: '100%', backgroundColor: progress === 100 ? 'var(--success)' : 'var(--primary)', transition: 'width 0.4s ease' }} />
         </div>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '6px' }}>{completedCount}/{tasks.length} tarefas concluídas ({progress}%)</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>{completedCount}/{tasks.length} tarefas concluídas ({progress}%)</p>
+          {draftSavedStatus && (
+            <span className="animate-fade" style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              💾 Rascunho salvo
+            </span>
+          )}
+        </div>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
