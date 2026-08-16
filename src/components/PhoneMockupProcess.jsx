@@ -1,3 +1,8 @@
+import React from 'react';
+import { Bot, AlertTriangle, Flame, ArrowLeft } from 'lucide-react';
+
+export default function PhoneMockupProcess() {
+  return (
         {/* Right Column: Animated Dual Phones */}
         <div className="hero-mockups" style={{ flex: '1 1 500px', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', position: 'relative', minHeight: '450px' }}>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
@@ -244,3 +249,6 @@
           </div>
         </div>
       </div>
+  );
+}
+

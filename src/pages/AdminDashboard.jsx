@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -46,6 +46,22 @@ const DEFAULT_GESTOR_PERMISSIONS = {
   perm_compras: true,
   perm_frota: true,
   perm_notificacoes: true,
+};
+
+const getSafeGestorPermissions = (perms) => {
+  if (!perms) return { ...DEFAULT_GESTOR_PERMISSIONS };
+  if (typeof perms === 'string') {
+    try {
+      perms = JSON.parse(perms);
+      if (typeof perms === 'string') perms = JSON.parse(perms);
+    } catch {
+      return { ...DEFAULT_GESTOR_PERMISSIONS };
+    }
+  }
+  if (!perms || typeof perms !== 'object' || Array.isArray(perms)) {
+    return { ...DEFAULT_GESTOR_PERMISSIONS };
+  }
+  return { ...DEFAULT_GESTOR_PERMISSIONS, ...perms };
 };
 
 const PERMISSION_LABELS = {
@@ -134,9 +150,15 @@ const isBlocked = (user) => {
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState(() => {
-    const saved = localStorage.getItem('admin_active_tab');
-    const userStr = localStorage.getItem('user');
-    const user = userStr ? JSON.parse(userStr) : null;
+    let saved = null;
+    let user = null;
+    try {
+      saved = localStorage.getItem('admin_active_tab');
+      const userStr = localStorage.getItem('user');
+      user = userStr ? JSON.parse(userStr) : null;
+    } catch (e) {
+      console.error("Erro ao ler localStorage:", e);
+    }
     const isMaster = user && (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com' || user.email?.toLowerCase() === 'contatohakim@gmail.com');
     if (isMaster) {
       return ['equipe'].includes(saved) ? saved : 'equipe';
@@ -575,7 +597,20 @@ export default function AdminDashboard() {
       return;
     }
     
-    const user = JSON.parse(savedUser);
+    let user = null;
+    try {
+      user = JSON.parse(savedUser);
+    } catch (e) {
+      console.error("Erro ao ler dados do usuário:", e);
+      localStorage.removeItem('user');
+      localStorage.removeItem('firecheck_token');
+      navigate('/login');
+      return;
+    }
+    if (!user) {
+      navigate('/login');
+      return;
+    }
     setUserProfile(user);
     if (user.timezone) setPontoTimezone(user.timezone);
     if (user.contador_email) setContadorEmail(user.contador_email);
@@ -2136,7 +2171,7 @@ export default function AdminDashboard() {
             if (isFuncionario && (t.key === 'equipe' || t.key === 'checklists')) return null;
             if (isGestor && t.key === 'perfil') return null;
             if (isGestor && TAB_PERMISSION_MAP[t.key]) {
-              const perms = userProfile?.permissions || DEFAULT_GESTOR_PERMISSIONS;
+              const perms = getSafeGestorPermissions(userProfile?.permissions);
               if (!perms[TAB_PERMISSION_MAP[t.key]]) return null;
             }
             const isActive = tab === t.key;

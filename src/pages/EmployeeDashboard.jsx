@@ -145,7 +145,20 @@ export default function EmployeeDashboard() {
       navigate('/login');
       return;
     }
-    const profile = JSON.parse(savedUser);
+    let profile = null;
+    try {
+      profile = JSON.parse(savedUser);
+    } catch (e) {
+      console.error('Erro ao ler usuário:', e);
+      localStorage.removeItem('user');
+      localStorage.removeItem('firecheck_token');
+      navigate('/login');
+      return;
+    }
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
     setUserProfile(profile);
     
     // Configura Push Notifications para o Funcionário
@@ -158,7 +171,7 @@ export default function EmployeeDashboard() {
         })
         .then(r => { handle401(r, navigate); return r.json(); })
         .then(users => {
-          const admin = users.find(u => u.role === 'admin' || u.role === 'master');
+          const admin = Array.isArray(users) ? users.find(u => u.role === 'admin' || u.role === 'master') : null;
           if (admin && (admin.ponto_active || admin.status === 'trial')) {
              setHasPonto(true);
              // Busca dados reais do ponto de hoje
@@ -166,7 +179,7 @@ export default function EmployeeDashboard() {
                  headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
                })
                .then(r => { handle401(r, navigate); return r.json(); })
-               .then(data => setPontoData(data))
+               .then(data => setPontoData(data || { entrada: null, saida: null }))
                .catch(console.error);
 
              if (profile.schedule_id) {
@@ -175,7 +188,7 @@ export default function EmployeeDashboard() {
                  })
                  .then(r => { handle401(r, navigate); return r.json(); })
                  .then(schedules => {
-                   const sch = schedules.find(s => String(s.id) === String(profile.schedule_id));
+                   const sch = Array.isArray(schedules) ? schedules.find(s => String(s.id) === String(profile.schedule_id)) : null;
                    if (sch) setMySchedule(sch);
                  })
                  .catch(console.error);

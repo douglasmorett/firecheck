@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2 } from 'lucide-react';
+import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert } from 'lucide-react';
 import API_URL from '../../api';
 
 export default function EmployeeProfile({ employee, onBack, schedules, userProfile, pontoRecords, onUpdateEmployee }) {
@@ -31,7 +31,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
   const [selectedSchedule, setSelectedSchedule] = useState(employee.schedule_id || '');
   const [lastWorkedDay, setLastWorkedDay] = useState(employee.ponto_last_worked_day ? employee.ponto_last_worked_day.split('T')[0] : '');
 
-  const scheduleObj = schedules.find(s => s.id === (selectedSchedule ? Number(selectedSchedule) : null));
+  const scheduleObj = Array.isArray(schedules) ? schedules.find(s => s.id === (selectedSchedule ? Number(selectedSchedule) : null)) : null;
   const is12x36 = scheduleObj?.type === '12x36';
 
   const handleSaveScheduleConfig = async () => {
@@ -142,8 +142,11 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
     
     // Parse weekdays if fixed
     let wds = [];
-    if (scheduleObj.type === 'fixed') {
-      try { wds = typeof scheduleObj.weekdays === 'string' ? JSON.parse(scheduleObj.weekdays) : scheduleObj.weekdays; } catch(e){}
+    if (scheduleObj && scheduleObj.type === 'fixed') {
+      try { 
+        const parsed = typeof scheduleObj.weekdays === 'string' ? JSON.parse(scheduleObj.weekdays) : scheduleObj.weekdays;
+        wds = Array.isArray(parsed) ? parsed : [];
+      } catch(e){}
     }
     
     let lastWorkedDateObj = null;
@@ -164,8 +167,8 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         const diffTime = Math.abs(currentDate - lastWorkedDateObj);
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         isProjectedWorkday = diffDays % 2 === 0;
-      } else if (scheduleObj.type === 'fixed') {
-        const wdInfo = wds.find(w => w.weekday === currentDate.getDay());
+      } else if (scheduleObj && scheduleObj.type === 'fixed') {
+        const wdInfo = Array.isArray(wds) ? wds.find(w => w.weekday === currentDate.getDay()) : null;
         if (wdInfo) isProjectedWorkday = wdInfo.is_workday;
       }
       
@@ -173,11 +176,11 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         faltasProjetadas++;
       }
       
-      if (isProjectedWorkday && workedThatDay && scheduleObj.type === 'fixed') {
-        const wdInfo = wds.find(w => w.weekday === currentDate.getDay());
+      if (isProjectedWorkday && workedThatDay && scheduleObj && scheduleObj.type === 'fixed') {
+        const wdInfo = Array.isArray(wds) ? wds.find(w => w.weekday === currentDate.getDay()) : null;
         if (wdInfo && wdInfo.hora_entrada) {
            const dayRecords = filteredRecords.filter(r => r.timestamp.split('T')[0] === currentDateStr);
-           const entrada = dayRecords.find(r => r.type === 'entrada');
+           const entrada = Array.isArray(dayRecords) ? dayRecords.find(r => r.type === 'entrada') : null;
            if (entrada) {
              const entDate = new Date(entrada.timestamp);
              const [h, m] = wdInfo.hora_entrada.split(':').map(Number);
