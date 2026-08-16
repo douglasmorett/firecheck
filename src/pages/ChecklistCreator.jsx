@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList, Mic, MicOff, Send, MessageCircle, ArrowRight, CheckCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList, Mic, MicOff, Send, MessageCircle, ArrowRight, CheckCircle, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 
@@ -406,7 +406,7 @@ export default function ChecklistCreator() {
         })
         .then(res => { handle401(res, navigate); return res.json(); })
         .then(data => {
-          const cl = data.find(c => String(c.id) === String(id));
+          const cl = Array.isArray(data) ? data.find(c => c && String(c.id) === String(id)) : null;
           if (cl) {
             setTitle(cl.title);
             setStore(cl.store);
@@ -426,6 +426,46 @@ export default function ChecklistCreator() {
 
   const addTask = () => setTasks([...tasks, newTask()]);
   const removeTask = (tid) => setTasks(tasks.filter(t => t.id !== tid));
+
+  const moveTaskUp = (index) => {
+    if (index === 0) return;
+    const newTasks = [...tasks];
+    const temp = newTasks[index - 1];
+    newTasks[index - 1] = newTasks[index];
+    newTasks[index] = temp;
+    setTasks(newTasks);
+  };
+
+  const moveTaskDown = (index) => {
+    if (index === tasks.length - 1) return;
+    const newTasks = [...tasks];
+    const temp = newTasks[index + 1];
+    newTasks[index + 1] = newTasks[index];
+    newTasks[index] = temp;
+    setTasks(newTasks);
+  };
+
+  const insertTaskAfter = (index) => {
+    const newTasks = [...tasks];
+    const freshTask = { ...newTask(), id: Date.now() + Math.floor(Math.random() * 1000) };
+    if (newTasks[index]?.section) {
+      freshTask.section = newTasks[index].section;
+    }
+    newTasks.splice(index + 1, 0, freshTask);
+    setTasks(newTasks);
+  };
+
+  const duplicateTask = (index) => {
+    const newTasks = [...tasks];
+    const taskToDup = newTasks[index];
+    const duplicated = {
+      ...JSON.parse(JSON.stringify(taskToDup)),
+      id: Date.now() + Math.floor(Math.random() * 1000),
+      text: `${taskToDup.text} (Cópia)`
+    };
+    newTasks.splice(index + 1, 0, duplicated);
+    setTasks(newTasks);
+  };
   const updateTask = (tid, field, value) =>
     setTasks(tasks.map(t => t.id === tid ? { ...t, [field]: value } : t));
   const addOption = (tid) =>
@@ -761,13 +801,70 @@ export default function ChecklistCreator() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {tasks.map((task, index) => (
-              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <span className="badge" style={{ backgroundColor: 'var(--bg-card)' }}>Tarefa {index + 1}</span>
-                  <button onClick={() => removeTask(task.id)}
-                    style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }}>
-                    <Trash2 size={20} />
-                  </button>
+              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="badge" style={{ backgroundColor: 'var(--bg-card)', padding: '4px 10px', fontSize: '0.85rem' }}>Tarefa {index + 1} de {tasks.length}</span>
+                    {task.section && (
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'rgba(255, 69, 0, 0.1)', color: 'var(--primary)', fontWeight: 'bold' }}>
+                        📁 {task.section}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Controles de Reordenação e Ações da Tarefa */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      disabled={index === 0}
+                      onClick={() => moveTaskUp(index)}
+                      className="btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', opacity: index === 0 ? 0.3 : 1, cursor: index === 0 ? 'not-allowed' : 'pointer' }}
+                      title="Mover tarefa para cima"
+                    >
+                      <ArrowUp size={14} /> Subir
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={index === tasks.length - 1}
+                      onClick={() => moveTaskDown(index)}
+                      className="btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', opacity: index === tasks.length - 1 ? 0.3 : 1, cursor: index === tasks.length - 1 ? 'not-allowed' : 'pointer' }}
+                      title="Mover tarefa para baixo"
+                    >
+                      <ArrowDown size={14} /> Descer
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => insertTaskAfter(index)}
+                      className="btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'rgba(255, 69, 0, 0.3)' }}
+                      title="Inserir nova tarefa logo abaixo desta"
+                    >
+                      <Plus size={14} /> Inserir Abaixo
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => duplicateTask(index)}
+                      className="btn-secondary"
+                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      title="Duplicar esta tarefa"
+                    >
+                      <Copy size={14} /> Duplicar
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => removeTask(task.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center' }}
+                      title="Excluir tarefa"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
                 </div>
 
                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px', marginBottom: '12px' }}>
@@ -1012,6 +1109,7 @@ export default function ChecklistCreator() {
               ) : (
                 availableChecklists
                   .filter(c => c.title?.toLowerCase().includes(copySearch.toLowerCase()))
+                  .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'pt-BR', { numeric: true, sensitivity: 'base' }))
                   .map(cl => (
                     <button
                       key={cl.id}

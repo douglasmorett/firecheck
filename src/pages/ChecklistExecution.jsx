@@ -27,7 +27,8 @@ export default function ChecklistExecution() {
   const [isShoppingMode, setIsShoppingMode] = useState(false);
   
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
-  const isReadOnly = isPreview || isImpersonating;
+  const isReadOnly = isPreview;
+  const [isSimulationFinished, setIsSimulationFinished] = useState(false);
 
   const handleReturnToAdmin = () => {
     const backup = localStorage.getItem('firecheck_admin_backup');
@@ -239,7 +240,7 @@ export default function ChecklistExecution() {
       .then(data => {
         if (Array.isArray(data) && data.length > 0) {
           // Se houver um ID na URL, busca esse específico. Senão pega o primeiro.
-          const cl = id ? data.find(c => String(c.id) === String(id)) : data[0];
+          const cl = id ? data.find(c => c && String(c.id) === String(id)) : data.find(c => Boolean(c));
           
           if (cl) {
             setCurrentChecklistId(cl.id);
@@ -274,8 +275,18 @@ export default function ChecklistExecution() {
               } catch(e) {}
             }
 
-            // Filtrar apenas tarefas para "equipe toda" ou para este usuário específico
-            const myTasks = cl.tasks.filter(t => !t.assignee || t.assignee === 'pendente' || t.assignee === profile.email);
+            // Filtrar tarefas: se for admin/gestor/preview/impersonating, mostra todas. Se for funcionário, compara por e-mail ou nome (case-insensitive)
+            const userEmail = (profile.email || '').toLowerCase().trim();
+            const userName = (profile.name || '').toLowerCase().trim();
+            const isAdminView = isPreview || isImpersonating || profile.role === 'admin' || profile.role === 'master' || profile.role === 'gestor';
+
+            const myTasks = (cl.tasks || []).filter(t => {
+              if (!t) return false;
+              if (isAdminView) return true;
+              const assign = t.assignee ? String(t.assignee).toLowerCase().trim() : '';
+              if (!assign || assign === 'pendente' || assign === 'todos' || assign === 'null' || assign === 'undefined') return true;
+              return assign === userEmail || assign === userName;
+            });
 
             setTasks(myTasks.map((t, idx) => {
               const tid = t.id || `task-${idx}`;
@@ -698,20 +709,34 @@ export default function ChecklistExecution() {
       return;
     }
 
-    const pendingPhoto = tasks.filter(t => t.requirePhoto && (!t.photo && (!t.photos || t.photos.length === 0)));
-    if (pendingPhoto.length > 0) {
-      alert('Envie a foto de todas as tarefas obrigatórias antes de finalizar.'); return;
+    if (isImpersonating) {
+      if (shoppingListId) {
+        setIsSimulationFinished(true);
+        setSubmitted(true);
+        return;
+      }
+      const pendingPhoto = tasks.filter(t => t.requirePhoto && (!t.photo && (!t.photos || t.photos.length === 0)));
+      if (pendingPhoto.length > 0) {
+        alert('⚠️ Validação de Simulação: É obrigatório enviar a foto das tarefas exigidas antes de finalizar.');
+        return;
+      }
+      if (category === 'veiculo' && !selectedVehicleId) {
+        alert('⚠️ Validação de Simulação: Selecione o veículo inspecionado antes de finalizar.');
+        return;
+      }
+      if (requireSignature && !signature) {
+        alert('⚠️ Validação de Simulação: Assine digitalmente e confirme a assinatura antes de finalizar.');
+        return;
+      }
+      if (requireSelfie && !selfie) {
+        startSelfieCamera();
+        return;
+      }
+      setIsSimulationFinished(true);
+      setSubmitted(true);
+      return;
     }
-    if (category === 'veiculo' && !selectedVehicleId) {
-      alert('Selecione o veículo inspecionado antes de finalizar.'); return;
-    }
-    if (requireSignature && !signature) {
-      alert('Por favor, assine digitalmente e confirme antes de finalizar.'); return;
-    }
-    if (requireSelfie && !selfie) {
-      startSelfieCamera(); return;
-    }
-    
+
     const payload = { 
       employeeName: EMPLOYEE.name, 
       store: EMPLOYEE.store, 
@@ -801,57 +826,91 @@ export default function ChecklistExecution() {
   }, [submitted, completedTodayInfo, navigate]);
 
   if (submitted) return (
-    <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '80px' }}>
-      <Trophy size={80} color="var(--primary)" style={{ marginBottom: '24px' }} />
-      <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>
-        {completedTodayInfo ? 'Checklist Concluído!' : 'Checklist Enviado!'}
-      </h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
-        {completedTodayInfo 
-          ? `Este checklist já foi realizado hoje por ${completedTodayInfo}.` 
-          : `Parabéns, ${EMPLOYEE.name}! O seu checklist foi registrado com sucesso.`
-        }
-      </p>
-      {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
-      
-      <div style={{ marginBottom: '24px' }}>
-        <button 
-          className="btn-secondary" 
-          style={{ width: '100%', marginBottom: '12px', padding: '12px' }}
-          onClick={() => setShowSummary(!showSummary)}
-        >
-          {showSummary ? 'Ocultar Detalhes' : 'Ver Detalhes do Envio'}
-        </button>
-
-        {showSummary && (
-          <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: 'var(--bg-color)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
-            {tasks.map((task, idx) => (
-              <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
-                <p style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 'bold' }}>{idx + 1}. {task.text}</p>
-                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', backgroundColor: task.done === true ? 'var(--success)' : 'var(--error)', color: 'var(--text-main)', padding: '2px 8px', borderRadius: '4px' }}>
-                    {task.done === true ? 'Sim' : task.done === false ? 'Não' : task.done || 'Não respondido'}
-                  </span>
-                  {aiFeedback[task.id] && (
-                    <span style={{ fontSize: '0.75rem', color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)' }}>
-                      {aiFeedback[task.id].status === 'success' ? '✓ Auditado' : '⚠ Atenção'}
-                    </span>
-                  )}
-                </div>
-                {task.photo && <img src={task.photo} alt="Evidência" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '6px', marginTop: '8px', border: '1px solid var(--border-color)' }} />}
-              </div>
-            ))}
+    <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: isSimulationFinished ? '30px' : '80px' }}>
+      {isSimulationFinished ? (
+        <div className="card animate-scale" style={{ padding: '36px 24px', borderRadius: '20px', borderTop: '6px solid #f59e0b', backgroundColor: '#ffffff', boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}>
+          <div style={{ width: '72px', height: '72px', borderRadius: '50%', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <span style={{ fontSize: '2.4rem' }}>🧪</span>
           </div>
-        )}
-      </div>
+          <h1 style={{ fontSize: '1.6rem', marginBottom: '8px', color: '#92400e' }}>
+            Simulação de Teste Concluída!
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '24px' }}>
+            Você testou e validou o fluxo do checklist <strong>"{title}"</strong> com sucesso!
+          </p>
 
-      <div style={{ padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px' }}>
-        <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
-        {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
-      </div>
-      <button className="btn" style={{ marginTop: '24px', width: '100%', padding: '16px' }} onClick={() => navigate('/funcionario')}>
-         Voltar para a Lista
-      </button>
+          <div style={{ backgroundColor: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '12px', padding: '16px', marginBottom: '24px', textAlign: 'left' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#92400e', fontWeight: 'bold', marginBottom: '6px', fontSize: '0.9rem' }}>
+              <span>ℹ️</span> <span>Aviso de Simulação (Não entra no sistema)</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.82rem', color: '#78350f', lineHeight: '1.4' }}>
+              Esta foi uma simulação para você conferir a ordem das tarefas, perguntas e regras. <strong>Ela NÃO foi gravada no banco de dados e NÃO consumiu cotas.</strong> Para uma auditoria oficial válida no dia a dia, cada colaborador deve fazer login com seu próprio usuário e senha.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button className="btn" style={{ width: '100%', padding: '14px', backgroundColor: '#f59e0b', border: 'none', color: 'white', fontWeight: 'bold', fontSize: '0.95rem' }} onClick={() => navigate('/funcionario')}>
+              🧪 Testar Outro Checklist (Simulação)
+            </button>
+            <button className="btn-secondary" style={{ width: '100%', padding: '14px', fontWeight: 'bold', fontSize: '0.95rem' }} onClick={handleReturnToAdmin}>
+              🛡️ Voltar ao Painel do Administrador
+            </button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <Trophy size={80} color="var(--primary)" style={{ marginBottom: '24px' }} />
+          <h1 style={{ fontSize: '2rem', marginBottom: '12px' }}>
+            {completedTodayInfo ? 'Checklist Concluído!' : 'Checklist Enviado!'}
+          </h1>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>
+            {completedTodayInfo 
+              ? `Este checklist já foi realizado hoje por ${completedTodayInfo}.` 
+              : `Parabéns, ${EMPLOYEE.name}! O seu checklist foi registrado com sucesso.`
+            }
+          </p>
+          {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
+          
+          <div style={{ marginBottom: '24px' }}>
+            <button 
+              className="btn-secondary" 
+              style={{ width: '100%', marginBottom: '12px', padding: '12px' }}
+              onClick={() => setShowSummary(!showSummary)}
+            >
+              {showSummary ? 'Ocultar Detalhes' : 'Ver Detalhes do Envio'}
+            </button>
+
+            {showSummary && (
+              <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: 'var(--bg-color)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
+                {tasks.map((task, idx) => (
+                  <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
+                    <p style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 'bold' }}>{idx + 1}. {task.text}</p>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.8rem', backgroundColor: task.done === true ? 'var(--success)' : 'var(--error)', color: 'var(--text-main)', padding: '2px 8px', borderRadius: '4px' }}>
+                        {task.done === true ? 'Sim' : task.done === false ? 'Não' : task.done || 'Não respondido'}
+                      </span>
+                      {aiFeedback[task.id] && (
+                        <span style={{ fontSize: '0.75rem', color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)' }}>
+                          {aiFeedback[task.id].status === 'success' ? '✓ Auditado' : '⚠ Atenção'}
+                        </span>
+                      )}
+                    </div>
+                    {task.photo && <img src={task.photo} alt="Evidência" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '6px', marginTop: '8px', border: '1px solid var(--border-color)' }} />}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px' }}>
+            <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
+            {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
+          </div>
+          <button className="btn" style={{ marginTop: '24px', width: '100%', padding: '16px' }} onClick={() => navigate('/funcionario')}>
+             Voltar para a Lista
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -901,34 +960,40 @@ export default function ChecklistExecution() {
 
       {isImpersonating && (
         <div style={{
-          backgroundColor: '#2563eb',
-          color: 'white',
-          padding: '12px 18px',
-          borderRadius: '12px',
+          backgroundColor: '#fef3c7',
+          border: '2px solid #f59e0b',
+          color: '#78350f',
+          padding: '14px 18px',
+          borderRadius: '14px',
           marginBottom: '20px',
           display: 'flex',
           alignItems: 'center',
-          justify: 'space-between',
+          justifyContent: 'space-between',
           fontWeight: 'bold',
           fontSize: '0.88rem',
-          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.15)',
           flexWrap: 'wrap',
           gap: '10px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.2rem' }}>👁️</span>
-            <span>Acessando como: <strong>{EMPLOYEE.name}</strong></span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
+            <span style={{ fontSize: '1.4rem' }}>🧪</span>
+            <div>
+              <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: '800', color: '#92400e' }}>Modo Simulação & Testes</span>
+              <span style={{ fontWeight: 'normal', fontSize: '0.8rem', color: '#78350f' }}>
+                Preencha e teste as respostas e fotos livremente. Nenhuma auditoria oficial será gravada.
+              </span>
+            </div>
           </div>
           <button
             onClick={handleReturnToAdmin}
             style={{
-              backgroundColor: '#ffffff',
-              color: '#2563eb',
+              backgroundColor: '#b45309',
+              color: '#ffffff',
               border: 'none',
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '8px',
               fontWeight: 'bold',
-              fontSize: '0.82rem',
+              fontSize: '0.8rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -936,7 +1001,7 @@ export default function ChecklistExecution() {
               boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
             }}
           >
-            <ShieldAlert size={16} color="#2563eb" /> Voltar ao Painel do Administrador
+            <ShieldAlert size={16} color="#ffffff" /> Voltar ao Painel
           </button>
         </div>
       )}
@@ -1425,8 +1490,30 @@ export default function ChecklistExecution() {
         </div>
       )}
 
-      <button className="btn" style={{ width: '100%', marginTop: '32px', padding: '16px' }} onClick={handleFinish} disabled={isReadOnly}>
-        {isReadOnly ? '🔒 Somente visualização' : (requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Finalizar</> : <><CheckCircle size={20} /> Finalizar e Enviar</>)}
+      <button 
+        className="btn" 
+        style={{ 
+          width: '100%', 
+          marginTop: '32px', 
+          padding: '16px',
+          backgroundColor: isImpersonating ? '#f59e0b' : 'var(--primary)',
+          fontSize: '1rem',
+          fontWeight: 'bold',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '8px'
+        }} 
+        onClick={handleFinish} 
+        disabled={isReadOnly}
+      >
+        {isReadOnly ? '🔒 Somente visualização' : (
+          isImpersonating ? (
+            requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Validar Simulação</> : <>🧪 Finalizar e Validar Simulação</>
+          ) : (
+            requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Finalizar</> : <><CheckCircle size={20} /> Finalizar e Enviar</>
+          )
+        )}
       </button>
 
     </div>

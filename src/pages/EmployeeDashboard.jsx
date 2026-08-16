@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download, Settings } from 'lucide-react';
+import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download, Settings, ArrowDownAZ } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -296,8 +296,27 @@ export default function EmployeeDashboard() {
     }
   };
 
-  const pendingChecklists = checklists.filter(c => !c.completedToday);
-  const completedChecklists = checklists.filter(c => c.completedToday);
+  const [sortAlphabetical, setSortAlphabetical] = useState(() => {
+    try {
+      return localStorage.getItem('firecheck_sort_alphabetical') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const sortFn = (a, b) => {
+    return (a.title || '').localeCompare(b.title || '', 'pt-BR', { numeric: true, sensitivity: 'base' });
+  };
+
+  const pendingChecklists = useMemo(() => {
+    const list = checklists.filter(c => !c.completedToday);
+    return sortAlphabetical ? [...list].sort(sortFn) : list;
+  }, [checklists, sortAlphabetical]);
+
+  const completedChecklists = useMemo(() => {
+    const list = checklists.filter(c => c.completedToday);
+    return sortAlphabetical ? [...list].sort(sortFn) : list;
+  }, [checklists, sortAlphabetical]);
 
   if (loading) {
     return (
@@ -311,45 +330,55 @@ export default function EmployeeDashboard() {
     <div className="page-container" style={{ maxWidth: '600px' }}>
       {isImpersonating && (
         <div style={{
-          backgroundColor: '#f59e0b',
+          backgroundColor: '#fef3c7',
+          border: '2px solid #f59e0b',
           color: '#78350f',
-          padding: '12px 18px',
-          borderRadius: '12px',
+          padding: '16px 20px',
+          borderRadius: '16px',
           marginBottom: '24px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           fontWeight: 'bold',
-          fontSize: '0.88rem',
-          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.25)',
+          fontSize: '0.9rem',
+          boxShadow: '0 4px 14px rgba(245, 158, 11, 0.15)',
           flexWrap: 'wrap',
-          gap: '10px'
+          gap: '12px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '1.2rem' }}>🔒</span>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: '260px' }}>
+            <span style={{ fontSize: '1.8rem', lineHeight: '1' }}>🧪</span>
             <div>
-              <span style={{ display: 'block', fontSize: '1rem', marginBottom: '2px' }}>Modo Simulação</span>
-              <span style={{ fontWeight: 'normal', fontSize: '0.8rem' }}>Esta é uma visualização da conta de {userProfile?.name}. Para executar checklists ou registrar ponto, o funcionário deve logar com seu próprio login e senha.</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '1.05rem', fontWeight: '800', color: '#92400e' }}>Modo Simulação & Testes</span>
+                <span style={{ backgroundColor: '#f59e0b', color: 'white', fontSize: '0.72rem', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>Simulação Ativa</span>
+              </div>
+              <span style={{ fontWeight: 'normal', fontSize: '0.84rem', color: '#78350f', lineHeight: '1.4', display: 'block' }}>
+                Você está visualizando a plataforma como um funcionário. <strong>Você pode iniciar, preencher e testar o passo a passo de qualquer checklist livremente!</strong>
+              </span>
+              <span style={{ fontWeight: '600', fontSize: '0.78rem', color: '#b45309', marginTop: '6px', display: 'block' }}>
+                ℹ️ <em>Nenhum teste feito aqui entra para as estatísticas oficiais nem consome cotas. Para auditorias e execuções oficiais diárias válidas, cada colaborador deve fazer login com seu próprio usuário e senha.</em>
+              </span>
             </div>
           </div>
           <button
             onClick={handleReturnToAdmin}
             style={{
-              backgroundColor: '#ffffff',
-              color: '#f59e0b',
+              backgroundColor: '#b45309',
+              color: '#ffffff',
               border: 'none',
-              padding: '8px 16px',
-              borderRadius: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
               fontWeight: 'bold',
-              fontSize: '0.82rem',
+              fontSize: '0.85rem',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              flexShrink: 0
             }}
           >
-            <ShieldAlert size={16} color="#f59e0b" /> Voltar ao Painel do Administrador
+            <ShieldAlert size={18} color="#ffffff" /> Voltar ao Painel do Administrador
           </button>
         </div>
       )}
@@ -590,10 +619,9 @@ export default function EmployeeDashboard() {
                     
                     {!completed && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : 'var(--primary)', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }} onClick={() => { if(!isImpersonating) navigate(`/execucao/veiculo/${vehicle.id}`); }}>
-                          {isStarted ? 'Continuar Vistoria' : 'Iniciar Vistoria'} <ArrowRight size={14} />
+                        <button className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : 'var(--primary)'), cursor: 'pointer' }} onClick={() => navigate(`/execucao/veiculo/${vehicle.id}`)}>
+                          {isStarted ? 'Continuar Vistoria' : (isImpersonating ? '🧪 Testar Vistoria' : 'Iniciar Vistoria')} <ArrowRight size={14} />
                         </button>
-                        {isImpersonating && <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
                       </div>
                     )}
                   </div>
@@ -642,7 +670,7 @@ export default function EmployeeDashboard() {
                     className="card animate-scale"
                     style={{
                       padding: '18px 20px',
-                      cursor: isImpersonating ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
                       borderLeft: isStarted ? '4px solid #3b82f6' : '4px solid #06b6d4',
                       backgroundColor: '#ffffff',
                       borderRadius: '16px',
@@ -651,10 +679,9 @@ export default function EmployeeDashboard() {
                       alignItems: 'center',
                       gap: '16px',
                       transition: 'all 0.2s ease',
-                      position: 'relative',
-                      opacity: isImpersonating ? 0.7 : 1
+                      position: 'relative'
                     }}
-                    onClick={() => { if(!isImpersonating) navigate(`/execucao/compras/${list.id}`); }}
+                    onClick={() => navigate(`/execucao/compras/${list.id}`)}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
                       <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : '#0891b2' }}>
@@ -666,13 +693,18 @@ export default function EmployeeDashboard() {
                     </div>
 
                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                         <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
                           {list.title}
                         </h3>
                         {isStarted && (
                           <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
                             🕒 Em andamento
+                          </span>
+                        )}
+                        {isImpersonating && (
+                          <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '1px 6px', borderRadius: '6px', fontWeight: 'bold' }}>
+                            🧪 Simulação
                           </span>
                         )}
                       </div>
@@ -692,10 +724,9 @@ export default function EmployeeDashboard() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : '#0891b2', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
-                        <Play size={12} fill="white" /> {isStarted ? 'Continuar' : 'Preencher'}
+                      <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#0891b2'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
+                        <Play size={12} fill="white" /> {isStarted ? 'Continuar' : (isImpersonating ? 'Testar' : 'Preencher')}
                       </button>
-                      {isImpersonating && <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</span>}
                     </div>
                   </div>
                 );
@@ -706,9 +737,41 @@ export default function EmployeeDashboard() {
       })()}
 
       <section style={{ marginBottom: '32px' }}>
-        <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
-        </h4>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
+          </h4>
+          {checklists.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const nextVal = !sortAlphabetical;
+                setSortAlphabetical(nextVal);
+                try {
+                  localStorage.setItem('firecheck_sort_alphabetical', String(nextVal));
+                } catch (e) {}
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                fontSize: '0.78rem',
+                fontWeight: '600',
+                borderRadius: '8px',
+                border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              title={sortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar checklists por ordem alfabética (A-Z)"}
+            >
+              <ArrowDownAZ size={14} />
+              {sortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordem alfabética'}
+            </button>
+          )}
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {pendingChecklists.length > 0 ? pendingChecklists.map(checklist => {
             const { percent, doneCount, totalCount, isStarted } = getDraftProgress('checklist', checklist.id);
@@ -718,8 +781,8 @@ export default function EmployeeDashboard() {
                 className="card animate-scale" 
                 style={{ 
                   padding: '16px 20px', 
-                  cursor: isImpersonating ? 'not-allowed' : 'pointer', 
-                  borderLeft: isStarted ? '4px solid #3b82f6' : '4px solid #f97316', 
+                  cursor: 'pointer', 
+                  borderLeft: isStarted ? '4px solid #3b82f6' : (isImpersonating ? '4px solid #f59e0b' : '4px solid #f97316'), 
                   backgroundColor: '#ffffff',
                   borderRadius: '16px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
@@ -728,23 +791,15 @@ export default function EmployeeDashboard() {
                   gap: '16px',
                   transition: 'all 0.2s ease',
                   position: 'relative',
-                  overflow: 'hidden',
-                  opacity: isImpersonating ? 0.7 : 1
+                  overflow: 'hidden'
                 }}
-                onClick={() => { if(!isImpersonating) navigate(`/execucao/${checklist.id}`); }}
-                onMouseEnter={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={(e) => { if(!isImpersonating) e.currentTarget.style.transform = 'translateY(0)' }}
+                onClick={() => navigate(`/execucao/${checklist.id}`)}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                {isImpersonating && (
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 5, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <div style={{ backgroundColor: '#f59e0b', color: 'white', padding: '4px 12px', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      🔒 Somente visualização
-                    </div>
-                  </div>
-                )}
                 {/* Left Indicator - Recurrence/Time */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : '#0f172a' }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : (isImpersonating ? '#d97706' : '#0f172a') }}>
                     {isStarted ? `${percent}%` : 'HOJE'}
                   </span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
@@ -754,7 +809,7 @@ export default function EmployeeDashboard() {
 
                 {/* Middle Info */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <h3 style={{ fontSize: '1rem', margin: 0, fontWeight: '700', color: '#0f172a' }}>
                       {checklist.title}
                     </h3>
@@ -763,12 +818,17 @@ export default function EmployeeDashboard() {
                         🕒 Em andamento
                       </span>
                     )}
+                    {isImpersonating && (
+                      <span style={{ fontSize: '0.7rem', backgroundColor: '#fef3c7', color: '#92400e', border: '1px solid #fcd34d', padding: '1px 6px', borderRadius: '6px', fontWeight: 'bold' }}>
+                        🧪 Simulação
+                      </span>
+                    )}
                   </div>
                   
                   {/* Progress Bar (Dynamic %) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ width: `${percent}%`, height: '100%', backgroundColor: isStarted ? '#3b82f6' : '#f97316', transition: 'width 0.3s ease' }}></div>
+                      <div style={{ width: `${percent}%`, height: '100%', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#f97316'), transition: 'width 0.3s ease' }}></div>
                     </div>
                     <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : 'var(--text-muted)' }}>
                       {isStarted ? `${percent}% (${doneCount}/${totalCount})` : '0%'}
@@ -790,8 +850,8 @@ export default function EmployeeDashboard() {
 
                 {/* Right Action */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <button disabled={isImpersonating} className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : '#0f172a', border: 'none', color: 'white', borderRadius: '20px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}>
-                    <Play size={12} fill="white" /> {isStarted ? 'Continuar' : 'Iniciar'}
+                  <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#0f172a'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
+                    <Play size={12} fill="white" /> {isStarted ? 'Continuar' : (isImpersonating ? 'Testar' : 'Iniciar')}
                   </button>
                 </div>
               </div>
@@ -807,9 +867,41 @@ export default function EmployeeDashboard() {
 
       {completedChecklists.length > 0 && (
         <section>
-          <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <CheckCircle size={16} /> Concluídos Hoje ({completedChecklists.length})
-          </h4>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
+            <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle size={16} /> Concluídos Hoje ({completedChecklists.length})
+            </h4>
+            {pendingChecklists.length === 0 && checklists.length > 1 && (
+              <button
+                type="button"
+                onClick={() => {
+                  const nextVal = !sortAlphabetical;
+                  setSortAlphabetical(nextVal);
+                  try {
+                    localStorage.setItem('firecheck_sort_alphabetical', String(nextVal));
+                  } catch (e) {}
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: '600',
+                  borderRadius: '8px',
+                  border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                  color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title={sortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar checklists por ordem alfabética (A-Z)"}
+              >
+                <ArrowDownAZ size={14} />
+                {sortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordem alfabética'}
+              </button>
+            )}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {completedChecklists.map(checklist => (
               <div 

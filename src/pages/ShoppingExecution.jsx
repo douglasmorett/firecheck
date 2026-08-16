@@ -16,6 +16,7 @@ export default function ShoppingExecution() {
   const [submitted, setSubmitted] = useState(false);
   const [resultData, setResultData] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
 
   const fetchItems = useCallback(async (user) => {
     if (!targetId) return;
@@ -84,6 +85,14 @@ export default function ShoppingExecution() {
           currentStock: numVal
         };
       });
+
+      if (isImpersonating) {
+        setResultData({
+          belowMinimum: formattedItems.filter(i => i.currentStock < i.minStock)
+        });
+        setSubmitted(true);
+        return;
+      }
 
       const res = await fetch(`${API_URL}/api/shopping/submit`, {
         method: 'POST',

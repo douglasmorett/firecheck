@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye } from 'lucide-react';
+import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -155,6 +155,22 @@ export default function AdminDashboard() {
   
   // Estados Reais
   const [checklists, setChecklists] = useState([]);
+  const [checklistSortAlphabetical, setChecklistSortAlphabetical] = useState(() => {
+    try {
+      return localStorage.getItem('firecheck_admin_sort_alphabetical') === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  const sortedAdminChecklists = useMemo(() => {
+    if (!checklists || checklists.length === 0) return [];
+    if (!checklistSortAlphabetical) return checklists;
+    return [...checklists].sort((a, b) =>
+      (a.title || '').localeCompare(b.title || '', 'pt-BR', { numeric: true, sensitivity: 'base' })
+    );
+  }, [checklists, checklistSortAlphabetical]);
+
   const [team, setTeam] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
@@ -3409,13 +3425,45 @@ export default function AdminDashboard() {
       {/* ── Tab: Gerenciar Checklists ──────────────────────────────────── */}
       {tab === 'checklists' && (
         <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
               <ClipboardList size={20} color="var(--primary)" /> Status dos Checklists (Hoje)
             </h3>
-            <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => navigate('/admin/creator')}>
-              <Plus size={16} /> Novo Checklist
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {(checklists || []).length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextVal = !checklistSortAlphabetical;
+                    setChecklistSortAlphabetical(nextVal);
+                    try {
+                      localStorage.setItem('firecheck_admin_sort_alphabetical', String(nextVal));
+                    } catch (e) {}
+                  }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    fontSize: '0.82rem',
+                    fontWeight: '600',
+                    borderRadius: '8px',
+                    border: checklistSortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                    backgroundColor: checklistSortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-color)',
+                    color: checklistSortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  title={checklistSortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar por ordem alfabética (A-Z)"}
+                >
+                  <ArrowDownAZ size={15} />
+                  {checklistSortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordenar por ordem alfabética'}
+                </button>
+              )}
+              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => navigate('/admin/creator')}>
+                <Plus size={16} /> Novo Checklist
+              </button>
+            </div>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {(checklists || []).length > 0 ? (
@@ -3425,7 +3473,7 @@ export default function AdminDashboard() {
                     <Clock size={16} /> ⏳ Pendentes de Execução
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {checklists.filter(cl => !cl.completedToday).map(cl => (
+                    {sortedAdminChecklists.filter(cl => !cl.completedToday).map(cl => (
                       <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -3454,7 +3502,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ))}
-                    {checklists.filter(cl => !cl.completedToday).length === 0 && (
+                    {sortedAdminChecklists.filter(cl => !cl.completedToday).length === 0 && (
                       <p style={{ color: 'var(--success)', fontSize: '0.85rem', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px' }}>🎉 Todos os checklists pendentes já foram executados hoje!</p>
                     )}
                   </div>
@@ -3465,7 +3513,7 @@ export default function AdminDashboard() {
                     <CheckCircle size={16} /> ✅ Concluídos
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {checklists.filter(cl => cl.completedToday).map(cl => (
+                    {sortedAdminChecklists.filter(cl => cl.completedToday).map(cl => (
                       <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
@@ -3494,7 +3542,7 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                     ))}
-                    {checklists.filter(cl => cl.completedToday).length === 0 && (
+                    {sortedAdminChecklists.filter(cl => cl.completedToday).length === 0 && (
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px' }}>Nenhum checklist foi concluído hoje ainda.</p>
                     )}
                   </div>
