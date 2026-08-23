@@ -64,6 +64,22 @@ const getSafeGestorPermissions = (perms) => {
   return { ...DEFAULT_GESTOR_PERMISSIONS, ...perms };
 };
 
+// Espelha trialExpirado() do backend: trial_ends_at manda quando existe; sem ele,
+// vale a regra original de 7 dias contados da criação da conta.
+const trialInfo = (conta) => {
+  const fim = conta?.trial_ends_at
+    ? new Date(conta.trial_ends_at)
+    : conta?.created_at
+      ? new Date(new Date(conta.created_at).getTime() + 7 * 24 * 60 * 60 * 1000)
+      : null;
+  if (!fim || Number.isNaN(fim.getTime())) return 'Sem data de término registrada.';
+  const dias = Math.ceil((fim - new Date()) / (24 * 60 * 60 * 1000));
+  const data = fim.toLocaleDateString('pt-BR');
+  if (dias < 0) return `Expirou em ${data}, há ${Math.abs(dias)} dia(s). O cliente está sem acesso.`;
+  if (dias === 0) return `Termina hoje (${data}).`;
+  return `Termina em ${data}, daqui a ${dias} dia(s).`;
+};
+
 const PERMISSION_LABELS = {
   perm_checklists: '📋 Criar e editar checklists',
   perm_equipe: '👥 Gerenciar equipe',
@@ -203,6 +219,8 @@ export default function AdminDashboard() {
   // Nome da nova unidade fica separado de newUser.store: escrevê-lo lá faria a
   // condição que renderiza o campo virar falsa e o input sumir ao primeiro caractere.
   const [novaUnidadeNome, setNovaUnidadeNome] = useState('');
+  // Dias de teste a conceder ao salvar o modal de plano (null = não alterar).
+  const [trialDays, setTrialDays] = useState(null);
   const [editingUser, setEditingUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
@@ -4099,7 +4117,7 @@ export default function AdminDashboard() {
                   )}
                   {isMaster && member.role === 'admin' && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                       setEditingPlan({ ...member });
+                       setTrialDays(null); setEditingPlan({ ...member });
                     }}>
                       Alterar Plano
                     </button>
@@ -5157,18 +5175,51 @@ export default function AdminDashboard() {
 
       {editingPlan && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '400px', position: 'relative', border: '1px solid var(--primary)', pointerEvents: 'auto' }}>
-            <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
-            <h3 style={{ marginBottom: '24px' }}>Alterar Plano de {editingPlan.name}</h3>
+          {/* maxHeight + overflow: o conteúdo rola DENTRO da janela. Sem isso, num
+              monitor menor a caixa passava da tela e era preciso rolar a página
+              atrás dela para alcançar os campos de plano. */}
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '440px', maxHeight: '88vh', overflowY: 'auto', position: 'relative', border: '1px solid var(--primary)', pointerEvents: 'auto' }}>
+            <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', zIndex: 2 }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
+            <h3 style={{ marginBottom: '20px', paddingRight: '32px' }}>Alterar Plano de {editingPlan.name}</h3>
             
             <div style={{ marginBottom: '16px' }}>
               <label className="input-label">Status da Conta</label>
               <select className="input-field" value={editingPlan.status || 'trial'} onChange={e => setEditingPlan({...editingPlan, status: e.target.value})}>
-                <option value="trial">Trial (7 Dias)</option>
+                <option value="trial">Teste gratuito</option>
                 <option value="active">Ativo (Pago)</option>
                 <option value="blocked">Bloqueado</option>
+                <option value="pending">Pagamento pendente</option>
               </select>
             </div>
+
+            {/* Extensão do teste. Antes não havia como dar mais prazo a um cliente:
+                o teste era sempre 7 dias contados da criação da conta. */}
+            {(editingPlan.status || 'trial') === 'trial' && (
+              <div style={{ marginBottom: '16px', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
+                <label className="input-label" style={{ display: 'block', marginBottom: '6px' }}>Período de teste</label>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.45 }}>
+                  {trialInfo(editingPlan)}
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {[7, 15, 30].map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={trialDays === d ? 'btn' : 'btn-secondary'}
+                      style={{ flex: '1 1 0', minWidth: '90px', padding: '8px 10px', fontSize: '0.82rem' }}
+                      onClick={() => setTrialDays(trialDays === d ? null : d)}
+                    >
+                      + {d} dias
+                    </button>
+                  ))}
+                </div>
+                {trialDays !== null && (
+                  <p style={{ fontSize: '0.78rem', color: 'var(--primary)', marginTop: '10px', fontWeight: 600 }}>
+                    Ao salvar, o teste passa a valer por mais {trialDays} dias a partir de hoje.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div style={{ marginBottom: '16px' }}>
               <label className="input-label">Telefone / WhatsApp</label>
@@ -5184,16 +5235,38 @@ export default function AdminDashboard() {
               <label className="input-label">Plano de Checklist</label>
               <select className="input-field" value={editingPlan.plan || 'starter'} onChange={e => {
                 const newPlan = e.target.value;
-                const limitMap = { starter: 300, pro: 600, business: 1000, enterprise: 999999, mensal: 600, anual: 1000 };
+                // Espelha PLAN_LIMITS do backend (api/index.js). Os planos atuais
+                // vendem checklists ilimitados; o teto comercial é de colaboradores.
+                const limitMap = {
+                  checklists_mensal: 999999, checklists_anual: 999999,
+                  combo_mensal: 999999, combo_anual: 999999,
+                  ponto_mensal: 999999, ponto_anual: 999999,
+                  enterprise: 999999,
+                  starter: 300, pro: 600, business: 1500, mensal: 600, anual: 1500,
+                };
                 setEditingPlan({...editingPlan, plan: newPlan, checklist_limit: limitMap[newPlan] || 300 });
               }}>
-                <option value="starter">Starter (300 checklists/mês — R$67)</option>
-                <option value="pro">Pro (600 checklists/mês — R$97)</option>
-                <option value="business">Business (1000 checklists/mês — R$197)</option>
-                <option value="enterprise">Enterprise (Ilimitado)</option>
-                <option value="mensal">Mensal (Legado)</option>
-                <option value="anual">Anual (Legado)</option>
+                <optgroup label="Planos atuais">
+                  <option value="checklists_mensal">Só Checklists — mensal (R$ 149/mês · até 30 colaboradores)</option>
+                  <option value="checklists_anual">Só Checklists — anual (12x R$ 97 · até 30 colaboradores)</option>
+                  <option value="combo_mensal">Combo Tudo em 1 — mensal (R$ 197/mês · até 50 colaboradores)</option>
+                  <option value="combo_anual">Combo Tudo em 1 — anual (12x R$ 167 · até 50 colaboradores)</option>
+                  <option value="ponto_mensal">Só Ponto Eletrônico — mensal (R$ 149/mês · até 30 colaboradores)</option>
+                  <option value="ponto_anual">Só Ponto Eletrônico — anual (12x R$ 97 · até 30 colaboradores)</option>
+                  <option value="enterprise">Enterprise — acima de 50 colaboradores (a combinar)</option>
+                </optgroup>
+                <optgroup label="Legado (contas antigas)">
+                  <option value="starter">Starter — 300 checklists/mês</option>
+                  <option value="pro">Pro — 600 checklists/mês</option>
+                  <option value="business">Business — 1.500 checklists/mês</option>
+                  <option value="mensal">Mensal — 600 checklists/mês</option>
+                  <option value="anual">Anual — 1.500 checklists/mês</option>
+                </optgroup>
               </select>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                Cota atual desta conta: {Number(editingPlan.checklist_limit || 0) >= 999999 ? 'ilimitada' : `${Number(editingPlan.checklist_limit || 0).toLocaleString('pt-BR')} checklists/mês`}
+                {editingPlan.checklists_used !== undefined && ` · usados neste ciclo: ${editingPlan.checklists_used}`}
+              </p>
 
               <label className="input-label" style={{ marginTop: '16px' }}>Plano de Ponto</label>
               <select className="input-field" value={editingPlan.ponto_limit !== undefined ? editingPlan.ponto_limit : (editingPlan.ponto_active ? 15 : 0)} onChange={e => {
@@ -5210,14 +5283,27 @@ export default function AdminDashboard() {
 
             <button className="btn" style={{ width: '100%' }} onClick={async () => {
               try {
-                await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
+                const corpo = { plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, ponto_limit: editingPlan.ponto_limit, checklist_limit: editingPlan.checklist_limit, phone: editingPlan.phone };
+                // Só envia quando o admin escolheu estender: o backend ignora o campo ausente.
+                if (trialDays !== null) corpo.trialDays = trialDays;
+
+                const res = await fetch(`${API_URL}/api/users/${editingPlan.id}`, {
                   method: 'PUT',
                   headers: getAuthHeaders(),
-                  body: JSON.stringify({ plan: editingPlan.plan, status: editingPlan.status, ponto_active: editingPlan.ponto_active, ponto_limit: editingPlan.ponto_limit, checklist_limit: editingPlan.checklist_limit, phone: editingPlan.phone })
+                  body: JSON.stringify(corpo)
                 });
+                // Antes a resposta era ignorada: uma falha fechava o modal como se
+                // tivesse salvo, e o admin só descobria ao ver que nada mudou.
+                if (!res.ok) {
+                  const erro = await res.json().catch(() => null);
+                  alert(erro?.error || erro?.message || `Não foi possível salvar (erro ${res.status}).`);
+                  return;
+                }
+                if (trialDays !== null) alert(`Teste liberado por mais ${trialDays} dias para ${editingPlan.name}.`);
                 setEditingPlan(null);
+                setTrialDays(null);
                 fetchData();
-              } catch (e) { alert('Erro ao salvar plano.'); }
+              } catch (e) { alert('Erro de conexão ao salvar plano.'); }
             }}>Salvar Alterações</button>
           </div>
         </div>

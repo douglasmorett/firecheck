@@ -104,6 +104,19 @@ function cleanJsonString(str) {
 }
 
 // ── Middleware de Autenticação JWT ──
+// Fim do período de teste de uma conta.
+// Quando trial_ends_at está preenchido, ele manda — é assim que o painel estende
+// o teste de um cliente sem mexer na data de criação da conta. Sem ele, vale a
+// regra original de 7 dias contados a partir de created_at.
+function trialExpirado(conta) {
+  if (!conta) return false;
+  if (conta.trial_ends_at) return new Date(conta.trial_ends_at) < new Date();
+  if (!conta.created_at) return false;
+  const fim = new Date(conta.created_at);
+  fim.setDate(fim.getDate() + 7);
+  return fim < new Date();
+}
+
 function authenticateToken(req) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -132,13 +145,26 @@ const ALLOWED_ORIGINS = [
 let migrationsRun = false;
 
 // ── Mapeamento de Planos → Limites de Checklists ────────────────
+const ILIMITADO = 999999;
+
 const PLAN_LIMITS = {
+  // ── Planos comerciais atuais (os mesmos da landing page e do checkout) ──
+  // Todos vendem "Checklists ILIMITADOS"; o teto é de colaboradores, não de
+  // checklists. Sem estas chaves, uma conta nesses planos caía no padrão de 300
+  // e o cliente batia num limite que nunca lhe foi anunciado.
+  'checklists_mensal': ILIMITADO, 'checklists_anual': ILIMITADO,
+  'combo_mensal': ILIMITADO, 'combo_anual': ILIMITADO,
+  'ponto_mensal': ILIMITADO, 'ponto_anual': ILIMITADO,
+
+  // ── Legado: cotas da tabela antiga, mantidas para contas já existentes ──
   'starter': 300, 'starter_mensal': 300,
   'pro': 600, 'pro_mensal': 600, 'mensal': 600,
   'business': 1500, 'business_mensal': 1500, 'anual': 1500,
-  'enterprise': 999999, 'master': 999999,
-  'trial': 999999, // Trial = ilimitado nos 7 dias
-  'start': 300,    // Legado
+  'start': 300,
+  'ponto_starter': 300, 'ponto_pro': 600, 'ponto_business': 1500,
+
+  'enterprise': ILIMITADO, 'master': ILIMITADO,
+  'trial': ILIMITADO, // Teste = sem limite de checklists
 };
 
 function getPlanLimit(plan) {
@@ -470,6 +496,10 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS bill_plan TEXT");
       // ── Permissões do Gestor ──
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions TEXT");
+      // Fim do período de teste. Quando nulo, vale a regra antiga de 7 dias a
+      // partir de created_at. Preenchido, permite estender o teste de um cliente
+      // sem falsificar a data de criação da conta.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMP");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS video_plays (
           id SERIAL PRIMARY KEY,
@@ -820,7 +850,7 @@ export default async function handler(req, res) {
           // Funcionários herdam o status do admin da loja
           if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
             const { rows: admins } = await pool.query(
-              "SELECT status, created_at, expiration_date FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
+              "SELECT status, created_at, expiration_date, trial_ends_at FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
               [user.store]
             );
             if (admins.length > 0) {
@@ -831,11 +861,8 @@ export default async function handler(req, res) {
               if (adm.status === 'pending') {
                 return res.status(403).json({ status: 'error', error: 'O pagamento da sua empresa está pendente. Solicite ao administrador que regularize.' });
               }
-              if (adm.status === 'trial') {
-                const diffDays = Math.ceil(Math.abs(new Date() - new Date(adm.created_at)) / (1000 * 60 * 60 * 24));
-                if ((7 - diffDays) < 0) {
-                  return res.status(403).json({ status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' });
-                }
+              if (adm.status === 'trial' && trialExpirado(adm)) {
+                return res.status(403).json({ status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' });
               }
               if (adm.status === 'active' && adm.expiration_date) {
                 if (new Date(adm.expiration_date) < new Date()) {
@@ -850,11 +877,8 @@ export default async function handler(req, res) {
             if (user.status === 'pending') {
               return res.status(403).json({ status: 'error', error: 'Seu pagamento está pendente. Finalize o pagamento para acessar o sistema.' });
             }
-            if (user.status === 'trial') {
-              const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at)) / (1000 * 60 * 60 * 24));
-              if ((7 - diffDays) < 0) {
-                return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu período de teste de 7 dias expirou. Assine um plano para continuar usando o FireCheck.' });
-              }
+            if (user.status === 'trial' && trialExpirado(user)) {
+              return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu período de teste expirou. Assine um plano para continuar usando o FireCheck.' });
             }
             if (user.status === 'active' && user.expiration_date) {
               if (new Date(user.expiration_date) < new Date()) {
@@ -1970,6 +1994,30 @@ export default async function handler(req, res) {
         } else {
           await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
         }
+
+        // ── Extensão do período de teste ─────────────────────────────────────
+        // Atualização própria, fora das consultas gigantes acima, para manter a
+        // mudança pequena e auditável. Aceita um número de dias a partir de agora
+        // (trialDays) ou uma data final explícita (trialEndsAt); null limpa o
+        // campo e devolve a conta à regra padrão de 7 dias desde a criação.
+        if (req.body.trialDays !== undefined || req.body.trialEndsAt !== undefined) {
+          if (!['admin', 'master'].includes(authUser.role)) {
+            return res.status(403).json({ error: 'Somente o administrador pode alterar o período de teste.' });
+          }
+          if (req.body.trialDays !== undefined) {
+            const dias = parseInt(req.body.trialDays, 10);
+            if (Number.isNaN(dias) || dias < 0 || dias > 365) {
+              return res.status(400).json({ error: 'Informe entre 0 e 365 dias de teste.' });
+            }
+            await pool.query(
+              `UPDATE users SET trial_ends_at = NOW() + ($1 || ' days')::interval WHERE id = $2`,
+              [String(dias), id]
+            );
+          } else {
+            await pool.query('UPDATE users SET trial_ends_at = $1 WHERE id = $2', [req.body.trialEndsAt || null, id]);
+          }
+        }
+
         // ── Enviar mensagem de confirmação via WhatsApp quando ativar notificações ──
         const wasWhatsappOff = !user.whatsapp_active || !user.whatsapp_phone;
         const isWhatsappNowOn = finalWhatsappActive && finalWhatsappPhone;
@@ -2145,7 +2193,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
