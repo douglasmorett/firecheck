@@ -30,3 +30,7 @@ setup_ios_certs.ps1
 scripts/monitor_build.cjs
 scripts/check_cert_match.cjs
 
+
+# Assinatura Android — nunca versionar
+android/keystore.properties
+android/app/*.jks

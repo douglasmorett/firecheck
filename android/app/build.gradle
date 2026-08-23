@@ -16,12 +16,29 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // As senhas saem de variáveis de ambiente ou de android/keystore.properties,
+    // que está fora do versionamento. Antes ficavam em texto puro aqui, num
+    // repositório público — qualquer pessoa assinava um APK aceito como
+    // atualização legítima do FireCheck.
+    //
+    // Para compilar localmente, crie android/keystore.properties com:
+    //   storeFile=firecheck.jks
+    //   storePassword=...
+    //   keyAlias=firecheck
+    //   keyPassword=...
+    // No CI, defina ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS e ANDROID_KEY_PASSWORD.
+    def propsAssinatura = new Properties()
+    def arquivoAssinatura = rootProject.file('keystore.properties')
+    if (arquivoAssinatura.exists()) {
+        propsAssinatura.load(new FileInputStream(arquivoAssinatura))
+    }
+
     signingConfigs {
         release {
-            storeFile file('firecheck.jks')
-            storePassword 'firecheck123'
-            keyAlias 'firecheck'
-            keyPassword 'firecheck123'
+            storeFile file(propsAssinatura.getProperty('storeFile') ?: System.getenv('ANDROID_KEYSTORE_FILE') ?: 'firecheck.jks')
+            storePassword propsAssinatura.getProperty('storePassword') ?: System.getenv('ANDROID_KEYSTORE_PASSWORD') ?: ''
+            keyAlias propsAssinatura.getProperty('keyAlias') ?: System.getenv('ANDROID_KEY_ALIAS') ?: 'firecheck'
+            keyPassword propsAssinatura.getProperty('keyPassword') ?: System.getenv('ANDROID_KEY_PASSWORD') ?: ''
         }
     }
     buildTypes {
