@@ -276,6 +276,11 @@ export default function EmployeeDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('firecheck_token');
+    // Sem isto, o modo simulação sobrevive ao logout: o próximo a entrar neste
+    // aparelho é tratado como administrador testando, e os checklists dele não
+    // são gravados — em silêncio, sem nenhum aviso na tela.
+    localStorage.removeItem('firecheck_admin_backup');
+    localStorage.removeItem('firecheck_impersonated');
     navigate('/login');
   };
 

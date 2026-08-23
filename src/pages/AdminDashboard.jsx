@@ -92,7 +92,9 @@ const StatusBadge = ({ status }) => {
     aprovado:  { label: '✅ Aprovado pela IA',   bg: 'rgba(0,200,83,0.15)',   color: 'var(--success)' },
     reprovado: { label: '❌ Reprovado pela IA',  bg: 'rgba(255,23,68,0.15)',  color: 'var(--error)'   },
     pendente:  { label: '⏳ Aguardando',         bg: 'rgba(255,160,0,0.15)', color: '#FFA000'         },
-    ignorado:  { label: '⚠️ IA Ignorada',        bg: 'rgba(255,77,0,0.15)',  color: 'var(--primary)' },
+    // Checklist sem nenhuma foto: a IA não tem o que analisar. É operação normal,
+    // não falha — por isso um rótulo neutro, e não um alerta.
+    ignorado:  { label: '📋 Sem fotos para auditar', bg: 'rgba(120,130,145,0.15)', color: 'var(--text-muted)' },
     falha:     { label: '🤖 Falha na IA',        bg: 'rgba(255,23,68,0.25)',  color: 'var(--error)'   },
   };
   const s = map[status] || map.pendente;
@@ -1856,6 +1858,11 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     localStorage.removeItem('user');
     localStorage.removeItem('firecheck_token');
+    // O modo simulação não pode sobreviver ao logout: quem entrar depois neste
+    // aparelho seria tratado como administrador testando, e seus checklists
+    // deixariam de ser gravados sem nenhum aviso.
+    localStorage.removeItem('firecheck_admin_backup');
+    localStorage.removeItem('firecheck_impersonated');
     navigate('/login');
   };
 

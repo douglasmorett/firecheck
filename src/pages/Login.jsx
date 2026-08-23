@@ -54,6 +54,10 @@ export default function Login() {
       if (data.status === 'success') {
         localStorage.setItem('firecheck_token', data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        // Cinto de segurança: toda autenticação nova começa fora do modo simulação,
+        // mesmo que a sessão anterior tenha terminado de forma anormal.
+        localStorage.removeItem('firecheck_admin_backup');
+        localStorage.removeItem('firecheck_impersonated');
         
         if (rememberMe) {
           localStorage.setItem('firecheck_email', email);

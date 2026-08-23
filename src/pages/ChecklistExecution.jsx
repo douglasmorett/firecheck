@@ -8,6 +8,11 @@ const getAuthHeaders = () => ({
   'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
 });
 
+// O editor grava minQuantity/maxQuantity como string vazia em TODA tarefa criada.
+// Testar apenas `!== undefined` faria o campo numérico aparecer em todas elas e
+// sobrescrever a resposta real do funcionário. Vazio significa "sem limite".
+const temLimite = (v) => v !== undefined && v !== null && v !== '';
+
 const handle401 = (res, navigate) => {
   if (res.status === 401) {
     localStorage.removeItem('user');
@@ -29,6 +34,10 @@ export default function ChecklistExecution() {
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
   const isReadOnly = isPreview;
   const [isSimulationFinished, setIsSimulationFinished] = useState(false);
+  // Trava de envio: sem ela, um duplo toque no botão Finalizar grava o checklist
+  // duas vezes (a checagem de duplicidade do backend não pega vistoria de veículo,
+  // porque nela checklist_id é NULL e em SQL NULL nunca casa com NULL).
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleReturnToAdmin = () => {
     const backup = localStorage.getItem('firecheck_admin_backup');
@@ -675,6 +684,39 @@ export default function ChecklistExecution() {
       alert('Modo de visualização. Não é possível submeter.');
       return;
     }
+    if (isSubmitting) return;
+
+    // ── Validações obrigatórias ──────────────────────────────────────────
+    // Valem para o funcionário real, não apenas na simulação. Antes elas viviam
+    // dentro do bloco isImpersonating, então "Exigir assinatura" e "Exigir selfie"
+    // não tinham efeito nenhum em uso de verdade.
+    if (!shoppingListId) {
+      const semFoto = tasks.filter(t => t.requirePhoto && !t.photo && (!t.photos || t.photos.length === 0));
+      if (semFoto.length > 0) {
+        alert('É obrigatório enviar a foto das tarefas exigidas antes de finalizar.');
+        return;
+      }
+      if (category === 'veiculo' && !selectedVehicleId) {
+        alert('Selecione o veículo inspecionado antes de finalizar.');
+        return;
+      }
+      if (requireSignature && !signature) {
+        alert('Assine digitalmente e confirme a assinatura antes de finalizar.');
+        return;
+      }
+      if (requireSelfie && !selfie) {
+        startSelfieCamera();
+        return;
+      }
+    }
+
+    // Simulação: passa pelas mesmas validações acima, mas não grava nada.
+    if (isImpersonating) {
+      setIsSimulationFinished(true);
+      setSubmitted(true);
+      return;
+    }
+
     if (shoppingListId) {
       const items = tasks.map(t => ({
         id: t.id,
@@ -709,35 +751,7 @@ export default function ChecklistExecution() {
       return;
     }
 
-    if (isImpersonating) {
-      if (shoppingListId) {
-        setIsSimulationFinished(true);
-        setSubmitted(true);
-        return;
-      }
-      const pendingPhoto = tasks.filter(t => t.requirePhoto && (!t.photo && (!t.photos || t.photos.length === 0)));
-      if (pendingPhoto.length > 0) {
-        alert('⚠️ Validação de Simulação: É obrigatório enviar a foto das tarefas exigidas antes de finalizar.');
-        return;
-      }
-      if (category === 'veiculo' && !selectedVehicleId) {
-        alert('⚠️ Validação de Simulação: Selecione o veículo inspecionado antes de finalizar.');
-        return;
-      }
-      if (requireSignature && !signature) {
-        alert('⚠️ Validação de Simulação: Assine digitalmente e confirme a assinatura antes de finalizar.');
-        return;
-      }
-      if (requireSelfie && !selfie) {
-        startSelfieCamera();
-        return;
-      }
-      setIsSimulationFinished(true);
-      setSubmitted(true);
-      return;
-    }
-
-    const payload = { 
+    const payload = {
       employeeName: EMPLOYEE.name, 
       store: EMPLOYEE.store, 
       tasks, 
@@ -749,18 +763,49 @@ export default function ChecklistExecution() {
       startedAt
     };
 
+    // Só falha de rede genuína cai no modo offline. Antes, qualquer exceção dentro
+    // do bloco — inclusive um res.json() sobre resposta não-JSON — era interpretada
+    // como "sem internet": o checklist ia para a fila local e o funcionário via
+    // "salvo, será enviado depois" mesmo quando o servidor o havia recusado.
+    const salvarOffline = () => {
+      try {
+        const fila = JSON.parse(localStorage.getItem('firecheck_offline_queue') || '[]');
+        fila.push({ ...payload, offline: true, createdAt: new Date().toISOString() });
+        localStorage.setItem('firecheck_offline_queue', JSON.stringify(fila));
+        clearCurrentDraft();
+        setSubmitted(true);
+        alert('📡 Checklist salvo localmente! Você está sem internet. Os dados serão enviados automaticamente assim que você se reconectar.');
+      } catch (err) {
+        // localStorage cheio (fotos em base64 ocupam muito espaço).
+        console.error('Falha ao salvar offline:', err);
+        alert('Não foi possível enviar nem salvar o checklist neste aparelho: o armazenamento local está cheio. Libere espaço ou conecte-se à internet antes de finalizar.');
+      }
+    };
+
+    setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_URL}/api/finalize`, {
-        method: 'POST', 
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload)
-      });
+      let res;
+      try {
+        res = await fetch(`${API_URL}/api/finalize`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(payload)
+        });
+      } catch {
+        salvarOffline();
+        return;
+      }
+
+      // A partir daqui o servidor respondeu: qualquer problema é dele, não da rede.
+      const corpo = await res.text().catch(() => '');
+      let data = null;
+      try { data = corpo ? JSON.parse(corpo) : null; } catch { data = null; }
+
       if (res.ok) {
-        const data = await res.json();
         clearCurrentDraft();
         setSubmitted(true);
         // Dispara a IA em background com retry resiliente (fire and forget)
-        if (data.id) {
+        if (data?.id) {
           const auditWithRetry = async (attempt = 1) => {
             try {
               const res2 = await fetch(`${API_URL}/api/process-audit-background`, {
@@ -786,26 +831,15 @@ export default function ChecklistExecution() {
             }).catch(() => {});
           }, 30000);
         }
+      } else if (data?.quota_exceeded) {
+        alert('⚠️ Sua empresa atingiu o limite de checklists do plano deste mês. Fale com o seu gerente para fazer upgrade.');
       } else {
-        const errData = await res.json();
-        if (errData.quota_exceeded) {
-          alert('⚠️ Sua empresa atingiu o limite de checklists do plano deste mês. Fale com o seu gerente para fazer upgrade.');
-        } else {
-          alert(errData.message || errData.error || 'Erro ao enviar.');
-        }
+        // O servidor recusou. O checklist continua aberto para nova tentativa —
+        // não vai para a fila offline, senão seria reenviado e recusado sem fim.
+        alert(data?.message || data?.error || `Não foi possível enviar (erro ${res.status}). O checklist continua aqui — tente novamente.`);
       }
-    } catch (e) { 
-      // MODO OFFLINE
-      const offlineQueue = JSON.parse(localStorage.getItem('firecheck_offline_queue') || '[]');
-      offlineQueue.push({
-        ...payload,
-        offline: true,
-        createdAt: new Date().toISOString()
-      });
-      localStorage.setItem('firecheck_offline_queue', JSON.stringify(offlineQueue));
-      clearCurrentDraft();
-      setSubmitted(true);
-      alert('📡 Checklist salvo localmente! Você está sem internet. Os dados serão enviados automaticamente assim que você se reconectar.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1128,10 +1162,10 @@ export default function ChecklistExecution() {
                 </div>
               )}
 
-              {(task.type === 'stock' || task.type === 'numeric' || task.minStock !== undefined || task.minQuantity !== undefined || task.maxQuantity !== undefined) && (
+              {(task.type === 'stock' || task.type === 'numeric' || temLimite(task.minStock) || temLimite(task.minQuantity) || temLimite(task.maxQuantity)) && (
                 <div style={{ marginBottom: '12px' }}>
                   {/* Banner de Limites Mínimo/Máximo TRAVADOS */}
-                  {(task.minStock !== undefined || task.minQuantity !== undefined || task.maxQuantity !== undefined) && (
+                  {(temLimite(task.minStock) || temLimite(task.minQuantity) || temLimite(task.maxQuantity)) && (
                     <div style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -1504,10 +1538,10 @@ export default function ChecklistExecution() {
           alignItems: 'center',
           gap: '8px'
         }} 
-        onClick={handleFinish} 
-        disabled={isReadOnly}
+        onClick={handleFinish}
+        disabled={isReadOnly || isSubmitting}
       >
-        {isReadOnly ? '🔒 Somente visualização' : (
+        {isReadOnly ? '🔒 Somente visualização' : isSubmitting ? 'Enviando…' : (
           isImpersonating ? (
             requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Validar Simulação</> : <>🧪 Finalizar e Validar Simulação</>
           ) : (

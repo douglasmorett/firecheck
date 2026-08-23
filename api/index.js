@@ -20,18 +20,38 @@ const JWT_EXPIRY = '7d'; // Token válido por 7 dias
 // ── Rate Limiting em Memória ──
 const loginAttempts = new Map();
 const RATE_LIMIT_WINDOW = 60000; // 1 minuto
-const RATE_LIMIT_MAX = 7; // Máx 7 tentativas por minuto
+const RATE_LIMIT_MAX = 10; // Máx 10 FALHAS por minuto, por e-mail e origem
 
-function checkRateLimit(ip) {
-  const now = Date.now();
-  const record = loginAttempts.get(ip);
-  if (!record || (now - record.firstAttempt > RATE_LIMIT_WINDOW)) {
-    loginAttempts.set(ip, { count: 1, firstAttempt: now });
+// A chave combina origem e e-mail. Só por IP, uma loja inteira atrás da mesma
+// conexão dividiria um contador: o colega que erra a senha bloquearia todo mundo.
+function rateLimitKey(ip, email) {
+  return `${ip}|${String(email || '').toLowerCase().trim()}`;
+}
+
+// Só consulta. Login bem-sucedido não consome cota — quem acerta a senha nunca
+// é bloqueado, por mais gente que esteja entrando ao mesmo tempo.
+function checkRateLimit(key) {
+  const record = loginAttempts.get(key);
+  if (!record) return true;
+  if (Date.now() - record.firstAttempt > RATE_LIMIT_WINDOW) {
+    loginAttempts.delete(key);
     return true;
   }
-  record.count++;
-  if (record.count > RATE_LIMIT_MAX) return false;
-  return true;
+  return record.count <= RATE_LIMIT_MAX;
+}
+
+function registerLoginFailure(key) {
+  const now = Date.now();
+  const record = loginAttempts.get(key);
+  if (!record || (now - record.firstAttempt > RATE_LIMIT_WINDOW)) {
+    loginAttempts.set(key, { count: 1, firstAttempt: now });
+  } else {
+    record.count++;
+  }
+}
+
+function clearLoginFailures(key) {
+  loginAttempts.delete(key);
 }
 
 // Limpar rate limit cache a cada 5 min para evitar memory leak
@@ -259,6 +279,24 @@ async function processAuditForSubmission(pool, submissionId) {
   delete feedbackInfo._meta;
   delete feedbackInfo.global_error;
   let hasErrors = false;
+
+  // Nada para auditar: o loop abaixo pula toda tarefa sem foto, então uma submissão
+  // sem nenhuma foto termina sem gravar feedback. Como a busca de pendentes usa
+  // feedback_info vazio como sinal de "não processado", ela seria repescada a cada
+  // rodada até esgotar as 15 tentativas — e só então seria rotulada "IA indisponível",
+  // que é falso: a IA nunca foi chamada. Encerra aqui, sem consumir tentativa.
+  const auditaveis = (Array.isArray(tasks) ? tasks : []).filter(
+    t => t && t.photo && !t.forceOverride && !feedbackInfo[t.id]
+  );
+  if (auditaveis.length === 0) {
+    if (Object.keys(feedbackInfo).length === 0) {
+      await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [
+        JSON.stringify({ _meta: { status: 'sem_fotos', reason: 'Nenhuma tarefa com foto para auditar.' } }),
+        submissionId,
+      ]);
+    }
+    return { success: true, processed: 0, nothingToAudit: true, retryCount: submission.retry_count || 0 };
+  }
 
   await pool.query('UPDATE checklist_submissions SET retry_count = $1 WHERE id = $2', [retryCount, submissionId]);
 
@@ -727,14 +765,17 @@ export default async function handler(req, res) {
     // --- LOGIN / AUTH (SEGURO: bcrypt + JWT + Rate Limiting) ---
     if (url.includes('/api/auth')) {
       if (method === 'POST') {
-        // Rate limiting
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
-        if (!checkRateLimit(clientIp)) {
-          return res.status(429).json({ status: 'error', error: 'Muitas tentativas de login. Aguarde 1 minuto e tente novamente.' });
-        }
-
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ status: 'error', error: 'E-mail e senha são obrigatórios.' });
+
+        // Rate limiting por origem + e-mail, contando apenas falhas.
+        // x-forwarded-for pode vir como "cliente, proxy1, proxy2": o primeiro é o cliente.
+        const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+        const clientIp = forwarded || req.socket.remoteAddress || 'unknown';
+        const rlKey = rateLimitKey(clientIp, email);
+        if (!checkRateLimit(rlKey)) {
+          return res.status(429).json({ status: 'error', error: 'Muitas tentativas de login. Aguarde 1 minuto e tente novamente.' });
+        }
 
         // Buscar usuário SEM comparar senha na query (bcrypt faz isso em memória)
         const { rows } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -757,6 +798,7 @@ export default async function handler(req, res) {
           }
 
           if (!passwordMatch) {
+            registerLoginFailure(rlKey);
             return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
           }
 
@@ -807,6 +849,9 @@ export default async function handler(req, res) {
             }
           }
 
+          // Autenticou: zera o histórico de falhas dessa origem para este e-mail.
+          clearLoginFailures(rlKey);
+
           // ── Gerar JWT Token ──
           const tokenPayload = { id: user.id, email: user.email, role: user.role, store: user.store };
           const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
@@ -815,6 +860,8 @@ export default async function handler(req, res) {
           const { password: _, ...safeUser } = user;
           return res.status(200).json({ status: 'success', token, user: safeUser });
         }
+        // E-mail não existe: conta como falha, senão a enumeração de e-mails fica ilimitada.
+        registerLoginFailure(rlKey);
         return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
       }
     }
@@ -1703,48 +1750,53 @@ export default async function handler(req, res) {
     if (url.includes('/api/forgot-password')) {
       if (method === 'POST') {
         const { email } = req.body;
-        const { rows } = await pool.query('SELECT id, name FROM users WHERE LOWER(email) = LOWER($1)', [email]);
-        if (rows.length === 0) {
-          // Retornar sucesso genérico para não revelar se o email existe
-          return res.status(200).json({ status: 'success', message: 'Se o e-mail estiver cadastrado, uma nova senha temporária será gerada. Verifique seu e-mail ou entre em contato pelo WhatsApp.' });
+
+        // A resposta é sempre a mesma, exista o e-mail ou não: revelar a diferença
+        // permitiria descobrir quem tem conta no sistema.
+        const RESPOSTA_GENERICA = {
+          status: 'success',
+          message: 'Se o e-mail estiver cadastrado e houver um WhatsApp no cadastro, enviaremos uma senha temporária para lá. Se não receber em alguns minutos, fale com o administrador da sua loja.',
+        };
+
+        if (!email) return res.status(400).json({ status: 'error', error: 'Informe o e-mail.' });
+
+        // Sem limite, esta rota redefine senhas em massa e vira negação de serviço.
+        const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+        const ipRecup = fwd || req.socket.remoteAddress || 'unknown';
+        const chaveRecup = rateLimitKey(ipRecup, `recuperacao:${email}`);
+        if (!checkRateLimit(chaveRecup)) {
+          return res.status(429).json({ status: 'error', error: 'Muitas solicitações. Aguarde 1 minuto e tente novamente.' });
         }
-        // Gera senha temporária segura de 8 caracteres
-        const tempPass = crypto.randomBytes(4).toString('hex').toUpperCase();
-        // Hash da senha temporária antes de salvar
-        const hashedTemp = await bcrypt.hash(tempPass, 12);
-        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedTemp, rows[0].id]);
-        
-        // Tentar enviar por WhatsApp se disponível
+        registerLoginFailure(chaveRecup);
+
+        const { rows } = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (rows.length === 0) return res.status(200).json(RESPOSTA_GENERICA);
+
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
         const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
-        
-        if (evoUrl && evoKey) {
-          // Buscar telefone do usuário
-          const { rows: userPhone } = await pool.query('SELECT phone FROM users WHERE id = $1', [rows[0].id]);
-          if (userPhone[0]?.phone) {
-            const cleanPhone = userPhone[0].phone.replace(/\D/g, '');
-            const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
-            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-              body: JSON.stringify({ number: fullPhone, text: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.` })
-            }).catch(e => console.error('[WhatsApp] Erro ao enviar senha:', e.message));
-          }
+        const telefone = (rows[0].phone || '').replace(/\D/g, '');
+
+        // Só redefine a senha se existir canal para entregá-la ao dono da conta.
+        // Redefinir sem conseguir entregar apenas tranca o usuário para fora — e
+        // devolver a senha na resposta HTTP entregaria a conta a quem pediu.
+        if (!evoUrl || !evoKey || !telefone) {
+          return res.status(200).json(RESPOSTA_GENERICA);
         }
-        
-        // Se não tem WhatsApp configurado, retorna a senha (fallback temporário)
-        if (!evoUrl || !evoKey) {
-          return res.status(200).json({ 
-            status: 'success', 
-            message: `Sua nova senha temporária é: ${tempPass} — Use ela para fazer login e depois altere sua senha.` 
-          });
-        }
-        
-        return res.status(200).json({ 
-          status: 'success', 
-          message: `Sua nova senha temporária é: ${tempPass} — Use ela para fazer login e depois altere sua senha.` 
-        });
+
+        const tempPass = crypto.randomBytes(4).toString('hex').toUpperCase();
+        const hashedTemp = await bcrypt.hash(tempPass, 12);
+        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedTemp, rows[0].id]);
+
+        const fullPhone = telefone.startsWith('55') ? telefone : '55' + telefone;
+        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+          body: JSON.stringify({ number: fullPhone, text: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.` }),
+        }).catch(e => console.error('[WhatsApp] Erro ao enviar senha:', e.message));
+
+        // A senha nunca volta no corpo da resposta.
+        return res.status(200).json(RESPOSTA_GENERICA);
       }
     }
 
