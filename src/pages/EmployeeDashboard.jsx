@@ -17,6 +17,14 @@ const handle401 = (res, navigate) => {
 
 const setupPushNotifications = async (email) => {
   try {
+    // Em simulação, o aparelho é o do administrador. Registrá-lo aqui gravava o
+    // token dele no cadastro do funcionário simulado, e as notificações daquele
+    // colaborador passavam a chegar no celular do administrador — o funcionário
+    // deixava de receber os próprios alertas sem nunca saber por quê.
+    if (localStorage.getItem('firecheck_admin_backup')) {
+      console.log('[Push] Modo simulação: registro de notificações ignorado.');
+      return;
+    }
     if (Capacitor.isNativePlatform()) {
       console.log('[Push] App nativo detectado, solicitando permissão...');
       PushNotifications.addListener('registration', async (token) => {
@@ -243,6 +251,7 @@ export default function EmployeeDashboard() {
       
       console.log(`[Offline Sync] Sincronizando ${queue.length} checklists pendentes...`);
       const newQueue = [];
+      const recusados = [];
       
       for (const item of queue) {
         try {
@@ -266,14 +275,27 @@ export default function EmployeeDashboard() {
                 body: JSON.stringify({ submissionId: data.id })
               }).catch(() => {});
             }
+          } else if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
+            // Recusa definitiva do servidor (checklist já enviado hoje, cota
+            // estourada, dados inválidos). Reenviar isso para sempre nunca daria
+            // certo, e o funcionário nunca ficava sabendo — o item apenas voltava
+            // à fila em silêncio, a cada abertura da tela.
+            const corpo = await res.json().catch(() => null);
+            recusados.push({ item, motivo: corpo?.message || corpo?.error || `erro ${res.status}` });
           } else {
+            // 5xx ou limite temporário: vale tentar de novo mais tarde.
             newQueue.push(item);
           }
         } catch (err) {
           newQueue.push(item);
         }
       }
-      
+
+      if (recusados.length > 0) {
+        const lista = recusados.map(r => `• ${r.motivo}`).join('\n');
+        alert(`⚠️ ${recusados.length} checklist(s) offline não puderam ser enviados e foram descartados da fila:\n\n${lista}\n\nSe algum deles ainda precisa ser feito, preencha novamente.`);
+      }
+
       localStorage.setItem('firecheck_offline_queue', JSON.stringify(newQueue));
       if (newQueue.length < queue.length && userProfile) {
         fetchChecklists(userProfile);
@@ -519,7 +541,22 @@ export default function EmployeeDashboard() {
           </div>
         </div>
         <button 
-          onClick={() => { const pwaBtn = document.querySelector('[data-pwa-install]'); if (pwaBtn) pwaBtn.click(); }}
+          // Antes procurava [data-pwa-install] e chamava .click() nele — mas o
+          // atributo está numa <div>, não num botão, e o componente nem renderiza
+          // quando o banner foi dispensado. O clique não fazia absolutamente nada.
+          onClick={async () => {
+            const prompt = window.__firecheckPwaPrompt;
+            if (prompt) {
+              prompt.prompt();
+              const { outcome } = await prompt.userChoice;
+              if (outcome === 'accepted') window.__firecheckPwaPrompt = null;
+              return;
+            }
+            const ehIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            alert(ehIOS
+              ? 'Para instalar no iPhone: toque no botão Compartilhar do Safari e escolha "Adicionar à Tela de Início".'
+              : 'Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial". Se a opção não aparecer, o app já está instalado neste aparelho.');
+          }}
           className="btn" 
           style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0 }}
         >

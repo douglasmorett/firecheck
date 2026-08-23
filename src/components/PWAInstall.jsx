@@ -21,6 +21,9 @@ export default function PWAInstall() {
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
+      // Guarda o evento fora do React para que outras telas possam oferecer a
+      // instalação mesmo quando este banner estiver dispensado ou não renderizado.
+      window.__firecheckPwaPrompt = e;
     };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);

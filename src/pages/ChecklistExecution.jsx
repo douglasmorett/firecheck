@@ -374,8 +374,28 @@ export default function ChecklistExecution() {
         signature,
         updatedAt: new Date().toISOString()
       };
-      localStorage.setItem(key, JSON.stringify(draftData));
-      setDraftSavedStatus(true);
+      // O rascunho guarda as fotos em base64 e enche o armazenamento do navegador.
+      // Sem try/catch, o QuotaExceededError estourava dentro do efeito e derrubava
+      // a tela — o funcionário perdia o checklist que estava preenchendo.
+      try {
+        localStorage.setItem(key, JSON.stringify(draftData));
+        setDraftSavedStatus(true);
+      } catch (err) {
+        console.warn('Não foi possível salvar o rascunho:', err?.name || err);
+        setDraftSavedStatus(false);
+        // Libera espaço descartando rascunhos de outros dias e tenta uma vez mais.
+        try {
+          const hoje = new Date().toISOString().split('T')[0];
+          for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('firecheck_draft_') && !k.endsWith(hoje)) localStorage.removeItem(k);
+          }
+          localStorage.setItem(key, JSON.stringify(draftData));
+          setDraftSavedStatus(true);
+        } catch {
+          // Segue sem rascunho: o preenchimento continua na tela e o envio funciona.
+        }
+      }
       const timer = setTimeout(() => setDraftSavedStatus(false), 2000);
       return () => clearTimeout(timer);
     }

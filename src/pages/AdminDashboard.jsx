@@ -229,6 +229,18 @@ export default function AdminDashboard() {
   const [novaUnidadeNome, setNovaUnidadeNome] = useState('');
   // Dias de teste a conceder ao salvar o modal de plano (null = não alterar).
   const [trialDays, setTrialDays] = useState(null);
+  // Submissões com reprocessamento de IA em andamento, para travar o botão.
+  const [reprocessando, setReprocessando] = useState(new Set());
+  // Foto exibida em tela cheia (null = nenhuma).
+  const [fotoAmpliada, setFotoAmpliada] = useState(null);
+
+  // Abrir uma data URI com window.open é bloqueado pelos navegadores e resultava
+  // em aba em branco. URL normal abre em nova aba; base64 abre aqui mesmo.
+  const ampliarFoto = (src) => {
+    if (!src) return;
+    if (typeof src === 'string' && src.startsWith('http')) window.open(src, '_blank', 'noopener');
+    else setFotoAmpliada(src);
+  };
   const [editingUser, setEditingUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
@@ -1765,6 +1777,10 @@ export default function AdminDashboard() {
 
   const handleReprocessAudit = async (e, submissionId) => {
     if (e) e.stopPropagation();
+    // Sem trava, cliques repetidos consumiam as 15 tentativas da submissão em
+    // segundos e ela era abandonada como "revisão manual".
+    if (reprocessando.has(submissionId)) return;
+    setReprocessando(prev => new Set(prev).add(submissionId));
     try {
       const res = await fetch(`${API_URL}/api/process-audit-background`, {
         method: 'POST',
@@ -1773,8 +1789,16 @@ export default function AdminDashboard() {
       });
       if (res.ok) {
         fetchData();
+      } else {
+        const erro = await res.json().catch(() => null);
+        alert(`⚠️ ${erro?.error || erro?.message || `Não foi possível reprocessar (erro ${res.status}).`}`);
       }
-    } catch (e) { console.error('Erro ao reprocessar:', e); }
+    } catch (e) {
+      console.error('Erro ao reprocessar:', e);
+      alert('Erro de conexão ao reprocessar a auditoria.');
+    } finally {
+      setReprocessando(prev => { const n = new Set(prev); n.delete(submissionId); return n; });
+    }
   };
 
   const handleAddUser = async (e) => {
@@ -3062,9 +3086,10 @@ export default function AdminDashboard() {
                         {(status === 'pendente' || status === 'falha') && (
                           <button 
                             onClick={(e) => handleReprocessAudit(e, s.id)}
+                            disabled={reprocessando.has(s.id)}
                             style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
                           >
-                            Tentar Novamente
+                            {reprocessando.has(s.id) ? 'Reprocessando…' : 'Tentar Novamente'}
                           </button>
                         )}
                       </div>
@@ -5176,7 +5201,10 @@ export default function AdminDashboard() {
                         {task.photo && (
                           <div>
                             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</p>
-                            <img src={task.photo} alt="Evidência" onClick={() => window.open(task.photo, '_blank')} title="Clique para ampliar" style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'zoom-in', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
+                            {/* window.open com uma data URI é bloqueado pelo navegador e
+                                abria aba em branco. Com URL do Firebase, abre normal;
+                                com base64, mostra a imagem numa janela própria. */}
+                            <img src={task.photo} alt="Evidência" onClick={() => ampliarFoto(task.photo)} title="Clique para ampliar" style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'zoom-in', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
                             <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>👆 Clique para ampliar foto</p>
                           </div>
                         )}
@@ -5224,6 +5252,23 @@ export default function AdminDashboard() {
                )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Visualizador de foto em tela cheia, para evidências gravadas em base64. */}
+      {fotoAmpliada && (
+        <div
+          onClick={() => setFotoAmpliada(null)}
+          style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.92)', zIndex: 1000000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', cursor: 'zoom-out' }}
+        >
+          <img src={fotoAmpliada} alt="Evidência ampliada" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+          <button
+            onClick={() => setFotoAmpliada(null)}
+            style={{ position: 'absolute', top: '20px', right: '24px', background: 'rgba(255,255,255,0.12)', border: 'none', color: 'white', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}
+            aria-label="Fechar"
+          >
+            &times;
+          </button>
         </div>
       )}
 
