@@ -1811,6 +1811,12 @@ export default async function handler(req, res) {
       const match = url.match(/\/api\/users\/([^\/?]+)/);
       const id = match[1];
       if (method === 'DELETE') {
+        // Ninguém apaga a própria conta por aqui, nem o master. Sem esta guarda,
+        // o master ficava a um clique de excluir a conta que administra o sistema,
+        // sem nenhuma forma de recriá-la pela aplicação.
+        if (String(id) === String(authUser.id)) {
+          return res.status(403).json({ error: 'Você não pode excluir a sua própria conta.' });
+        }
         // Admin/Gestor só pode deletar usuários da própria loja (master pode deletar qualquer)
         if (authUser.role !== 'master') {
           const { rows: target } = await pool.query('SELECT store, role FROM users WHERE id = $1', [id]);
@@ -1848,16 +1854,37 @@ export default async function handler(req, res) {
           }
         }
 
-        // Renomear loja em todas as tabelas se necessário
+        // Renomear loja em TODAS as tabelas que guardam o nome dela.
+        //
+        // Duas correções aqui. Primeira: faltavam seis tabelas (vehicles,
+        // work_schedules, ponto_config, cameras, checklist_executions,
+        // wa_conversations) — a frota, as escalas e a configuração de ponto ficavam
+        // órfãs com o nome antigo e sumiam do painel após a renomeação.
+        //
+        // Segunda: a comparação era por igualdade exata, mas o mesmo nome aparece no
+        // banco com variações de espaço e caixa (há lojas gravadas como "Pet Nature"
+        // e "Pet Nature "). As consultas de leitura normalizam com LOWER(TRIM()), e o
+        // rename não normalizava — as linhas divergentes ficavam para trás.
         if (storeName !== undefined && storeName !== user.store) {
           const oldStore = user.store;
-          await pool.query('UPDATE users SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE checklists SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE checklist_submissions SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE store_cameras SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE ponto_records SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE shopping_lists SET store = $1 WHERE store = $2', [storeName, oldStore]);
-          await pool.query('UPDATE shopping_submissions SET store = $1 WHERE store = $2', [storeName, oldStore]);
+          const TABELAS_COM_LOJA = [
+            'users', 'checklists', 'checklist_submissions', 'checklist_executions',
+            'store_cameras', 'cameras', 'ponto_records', 'ponto_config',
+            'shopping_lists', 'shopping_submissions', 'vehicles', 'work_schedules',
+            'wa_conversations',
+          ];
+          for (const tabela of TABELAS_COM_LOJA) {
+            try {
+              // Nome de tabela vem da lista fixa acima, nunca da requisição.
+              await pool.query(
+                `UPDATE ${tabela} SET store = $1 WHERE LOWER(TRIM(store)) = LOWER(TRIM($2))`,
+                [storeName, oldStore]
+              );
+            } catch (err) {
+              // Uma tabela ausente neste ambiente não pode abortar a renomeação das demais.
+              console.error(`[Rename loja] Falha ao atualizar ${tabela}:`, err.message);
+            }
+          }
         }
 
         const finalName = name !== undefined ? name : user.name;

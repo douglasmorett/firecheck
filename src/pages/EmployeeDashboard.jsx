@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, RefreshCw, Smartphone, ShieldCheck, Car, Folder, MapPin, Play, ShoppingCart, AlertCircle, Package, ShieldAlert, X, Download, Settings, ArrowDownAZ } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
@@ -71,6 +71,8 @@ export default function EmployeeDashboard() {
   const [mySchedule, setMySchedule] = useState(null);
   const [myVehicles, setMyVehicles] = useState([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Impede duas sincronizações da fila offline ao mesmo tempo (ver syncOfflineQueue).
+  const syncingRef = useRef(false);
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
   const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
 
@@ -221,6 +223,13 @@ export default function EmployeeDashboard() {
 
     const syncOfflineQueue = async () => {
       if (!navigator.onLine) return;
+      // Trava de concorrência. Este efeito depende de userProfile: ele roda uma vez
+      // na montagem (userProfile ainda null) e de novo quando o perfil carrega. Sem
+      // a trava, as duas execuções liam a MESMA fila do localStorage e enviavam os
+      // mesmos checklists em paralelo, gravando cada um duas vezes.
+      if (syncingRef.current) return;
+      syncingRef.current = true;
+      try {
       const queue = JSON.parse(localStorage.getItem('firecheck_offline_queue') || '[]');
       if (queue.length === 0) return;
       
@@ -260,6 +269,9 @@ export default function EmployeeDashboard() {
       localStorage.setItem('firecheck_offline_queue', JSON.stringify(newQueue));
       if (newQueue.length < queue.length && userProfile) {
         fetchChecklists(userProfile);
+      }
+      } finally {
+        syncingRef.current = false;
       }
     };
 

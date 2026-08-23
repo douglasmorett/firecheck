@@ -1612,9 +1612,12 @@ export default function AdminDashboard() {
             const nextSet = new Set(prev);
             subData.forEach(s => {
               if (!nextSet.has(s.id)) {
-                const feedbacks = Object.values(s.feedback_info || {});
-                const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
-                
+                // Ignora metadados: só pareceres reais da IA sobre tarefas contam.
+                const feedbacks = Object.entries(s.feedback_info || {})
+                  .filter(([k]) => !k.startsWith('_') && k !== 'global_error')
+                  .map(([, v]) => v);
+                const hasWarnings = feedbacks.some(f => f?.status === 'warning' || f?.status === 'error');
+
                 if (feedbacks.length > 0) {
                   // Se tem feedback, foi reprovado, e NÃO é a primeira carga da página
                   if (!isFirstFetch.current && hasWarnings && 'Notification' in window && Notification.permission === 'granted') {
@@ -2919,17 +2922,26 @@ export default function AdminDashboard() {
                 const totalTasks = s.tasks?.length || 1;
                 const pct = Math.round((completedTasks / totalTasks) * 100);
                 
-                const feedbacks = Object.values(s.feedback_info || {});
-                const hasWarnings = feedbacks.some(f => f.status === 'warning' || f.status === 'error');
-                const hasPhotos = (s.tasks || []).some(t => t.photo);
+                // _meta e global_error são metadados do processamento, não pareceres da
+                // IA sobre tarefas. Contá-los fazia uma submissão que a IA nunca analisou
+                // ser exibida como "Aprovado pela IA".
+                const feedbacks = Object.entries(s.feedback_info || {})
+                  .filter(([k]) => !k.startsWith('_') && k !== 'global_error')
+                  .map(([, v]) => v);
+                const hasWarnings = feedbacks.some(f => f?.status === 'warning' || f?.status === 'error');
+                const tarefasComFoto = (s.tasks || []).filter(t => t.photo && !t.forceOverride);
+                const hasPhotos = tarefasComFoto.length > 0;
                 const globalError = s.feedback_info?.global_error;
-                
+                const revisaoManual = s.feedback_info?._meta?.status === 'revisao_manual';
+
                 let status = 'pendente';
-                if (globalError) status = 'falha';
+                if (globalError || revisaoManual) status = 'falha';
                 else if (hasPhotos) {
-                  if (feedbacks.length === 0) status = 'pendente';
-                  else if (hasWarnings) status = 'reprovado';
-                  else status = 'aprovado';
+                  if (hasWarnings) status = 'reprovado';
+                  // Só é aprovado quando TODAS as fotos foram analisadas. Antes,
+                  // uma análise parcial (1 de 8 fotos) já virava aprovação.
+                  else if (feedbacks.length >= tarefasComFoto.length) status = 'aprovado';
+                  else status = 'pendente';
                 } else {
                   status = 'ignorado';
                 }
@@ -4075,13 +4087,21 @@ export default function AdminDashboard() {
                   )}
                   {(isMaster || member.id !== userProfile?.id) && (
                     <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                      setEditingUser({ ...member });
+                      // A coluna permissions é TEXT, então a API devolve uma string JSON.
+                      // Sem normalizar aqui, as caixas do modal liam string[chave] (sempre
+                      // undefined, todas apareciam desmarcadas) e o onChange espalhava a
+                      // string, gravando um objeto de caracteres soltos. Como o merge usa
+                      // defaults todos verdadeiros, os acessos revogados voltavam sozinhos.
+                      setEditingUser({ ...member, permissions: getSafeGestorPermissions(member.permissions) });
                       setShowEditModal(true);
                     }}>
                       Editar
                     </button>
                   )}
-                  {(isMaster || member.id !== userProfile?.id) && (
+                  {/* Nunca na própria linha: com `isMaster ||` o curto-circuito fazia a
+                      lixeira aparecer para o master em si mesmo, e o backend não impede.
+                      Um clique apagaria a conta que administra o sistema inteiro. */}
+                  {member.id !== userProfile?.id && (
                     <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
                       <Trash2 size={15} />
                     </button>
