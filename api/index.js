@@ -984,7 +984,34 @@ export default async function handler(req, res) {
 
       if (method === 'POST') {
         const { id, title, store, tasks, recurrence, scheduledDate, requireSelfie, weekdays, category, requireSignature, assetLinkType, assignedTo } = req.body;
-        
+
+        // Criar e editar checklist é ação de quem administra. Antes bastava um
+        // token válido de qualquer papel — um funcionário podia reescrever
+        // checklists, inclusive removendo a própria restrição de acesso.
+        if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
+          return res.status(403).json({ error: 'Somente o administrador ou gestor pode criar ou editar checklists.' });
+        }
+
+        // A loja vem do token, nunca do corpo — exceto para master, que opera
+        // qualquer loja. Sem isto, dava para criar checklist dentro de outro cliente.
+        const lojaDono = authUser.role === 'master' ? (store || authUser.store) : authUser.store;
+
+        // Ao editar, confirma que o checklist é mesmo da loja de quem está editando.
+        // O UPDATE abaixo filtra apenas por id, e os ids são sequenciais: sem esta
+        // checagem dava para alterar o checklist de qualquer outro cliente.
+        if (id) {
+          const { rows: dono } = await pool.query('SELECT store FROM checklists WHERE id = $1', [id]);
+          if (dono.length === 0) {
+            return res.status(404).json({ error: 'Checklist não encontrado.' });
+          }
+          if (authUser.role !== 'master') {
+            const mesmaLoja = String(dono[0].store || '').trim().toLowerCase() === String(authUser.store || '').trim().toLowerCase();
+            if (!mesmaLoja) {
+              return res.status(403).json({ error: 'Você só pode editar checklists da sua própria loja.' });
+            }
+          }
+        }
+
         let assignedToVal = null;
         if (assignedTo && assignedTo !== 'todos' && assignedTo !== 'pendente') {
           if (Array.isArray(assignedTo) && assignedTo.length > 0) {
@@ -1002,13 +1029,13 @@ export default async function handler(req, res) {
         if (id) {
           const { rows } = await pool.query(
             'UPDATE checklists SET title = $1, store = $2, tasks = $3, recurrence = $4, scheduled_date = $5, require_selfie = $6, weekdays = $7, category = $8, require_signature = $9, asset_link_type = $10, assigned_to = $12 WHERE id = $11 RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id, assignedToVal]
+            [title, lojaDono, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, id, assignedToVal]
           );
           return res.status(200).json(rows[0]);
         } else {
           const { rows } = await pool.query(
             'INSERT INTO checklists (title, store, tasks, recurrence, scheduled_date, require_selfie, weekdays, category, require_signature, asset_link_type, assigned_to) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-            [title, store, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, assignedToVal]
+            [title, lojaDono, JSON.stringify(tasks), recurrence, scheduledDate, requireSelfie || false, weekdays ? JSON.stringify(weekdays) : null, category || 'geral', requireSignature || false, assetLinkType || null, assignedToVal]
           );
           return res.status(200).json(rows[0]);
         }
@@ -1994,7 +2021,17 @@ export default async function handler(req, res) {
         const finalWaChecklistAtrasado = wa_checklist_atrasado !== undefined ? wa_checklist_atrasado : user.wa_checklist_atrasado;
         const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
         const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
-        const finalRole = role !== undefined ? role : user.role;
+        // Promoção a 'master' nunca vem do corpo da requisição: só um master
+        // concede esse papel. Sem esta trava, qualquer admin ou gestor se
+        // promovia a master editando o próprio cadastro.
+        let finalRole = role !== undefined ? role : user.role;
+        if (finalRole === 'master' && authUser.role !== 'master') {
+          return res.status(403).json({ error: 'Somente um usuário master pode conceder o papel de master.' });
+        }
+        // E ninguém rebaixa um master, exceto outro master.
+        if (user.role === 'master' && finalRole !== 'master' && authUser.role !== 'master') {
+          return res.status(403).json({ error: 'Somente um usuário master pode alterar o papel de outro master.' });
+        }
         
         const finalPermissions = permissions !== undefined ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : user.permissions;
         let finalPhoto = user.photo;
@@ -2164,7 +2201,19 @@ export default async function handler(req, res) {
         if (authUser.role !== 'admin' && authUser.role !== 'master' && authUser.role !== 'gestor') {
           return res.status(403).json({ error: 'Sem permissão para criar usuários.' });
         }
-        const { name, email, password, role, store, plan, phone, permissions } = req.body;
+        const { name, email, password, role: roleBruto, store: storeBruta, plan, phone, permissions } = req.body;
+
+        // Papel e loja não são aceitos como vieram. Sem estas travas, um gestor
+        // criava um master, ou cadastrava alguém dentro da loja de outro cliente.
+        const role = roleBruto === 'master' && authUser.role !== 'master' ? 'funcionario' : roleBruto;
+        if (roleBruto === 'master' && authUser.role !== 'master') {
+          return res.status(403).json({ error: 'Somente um usuário master pode criar outro master.' });
+        }
+        if (roleBruto === 'admin' && !['admin', 'master'].includes(authUser.role)) {
+          return res.status(403).json({ error: 'Somente o proprietário ou o master pode criar outro administrador.' });
+        }
+        // Master pode escolher a loja; os demais criam sempre dentro da sua.
+        const store = authUser.role === 'master' ? (storeBruta || authUser.store) : authUser.store;
 
         // Verificar email duplicado antes de inserir
         const { rows: existingEmail } = await pool.query('SELECT id, name, store FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -2268,7 +2317,16 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/finalize')) {
       if (method === 'POST') {
-        const { employeeName, store, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature, startedAt } = req.body;
+        // Sem token, qualquer um na internet gravava submissões em qualquer loja e
+        // em nome de qualquer funcionário. O app já envia Authorization aqui,
+        // inclusive na sincronização da fila offline.
+        const autorFinalize = authenticateToken(req);
+        if (!autorFinalize) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+
+        const { employeeName, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature, startedAt } = req.body;
+        // A loja sai do token. Antes vinha do corpo, então dava para lançar
+        // submissão dentro da loja de outro cliente.
+        const store = autorFinalize.role === 'master' ? (req.body.store || autorFinalize.store) : autorFinalize.store;
 
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
@@ -3967,10 +4025,17 @@ Responda APENAS com JSON válido.`;
     // ── Registrar FCM Token para Push ─────────────────────────────
     if (url.includes('/api/register-token')) {
       if (method === 'POST') {
-        const { userId, token, email, fcmToken } = req.body;
+        // Sem autenticação, bastava registrar o próprio aparelho no cadastro de
+        // outra pessoa para passar a receber as notificações dela.
+        const donoToken = authenticateToken(req);
+        if (!donoToken) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+
+        const { token, fcmToken } = req.body;
         const finalToken = token || fcmToken;
-        const finalUserId = userId;
-        const finalEmail = email;
+        // O dispositivo é sempre associado a quem está autenticado, nunca ao id
+        // ou e-mail vindos do corpo da requisição.
+        const finalUserId = donoToken.id;
+        const finalEmail = donoToken.email;
         if (finalToken && (finalUserId || finalEmail)) {
           if (finalUserId) {
             await pool.query('UPDATE users SET fcm_token = $1 WHERE id = $2', [finalToken, finalUserId]);
