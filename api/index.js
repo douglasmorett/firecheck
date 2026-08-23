@@ -10,7 +10,21 @@ import crypto from 'crypto';
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 1
+  // Numa função serverless cada invocação é isolada e uma conexão basta. Num
+  // container de longa duração, max:1 serializaria todas as requisições atrás
+  // de uma única conexão.
+  max: process.env.VERCEL ? 1 : 10,
+  // O compute da Neon suspende quando fica ocioso. Sem estes limites, uma
+  // conexão que ficou para trás pendura a requisição indefinidamente em vez de
+  // falhar e ser recriada — a tela fica carregando para sempre.
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+});
+
+// Sem este ouvinte, um erro numa conexão ociosa derruba o processo inteiro,
+// porque 'error' sem tratamento é exceção não capturada no Node.
+pool.on('error', (err) => {
+  console.error('[pg] erro em conexão ociosa:', err.message);
 });
 
 // ── JWT Secret ──
