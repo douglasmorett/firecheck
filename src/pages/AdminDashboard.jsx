@@ -64,8 +64,19 @@ const getSafeGestorPermissions = (perms) => {
   return { ...DEFAULT_GESTOR_PERMISSIONS, ...perms };
 };
 
-// Espelha trialExpirado() do backend: trial_ends_at manda quando existe; sem ele,
-// vale a regra original de 7 dias contados da criação da conta.
+// Fonte única da regra de teste no painel, espelhando trialExpirado() do backend:
+// trial_ends_at manda quando existe; sem ele, valem 7 dias desde a criação.
+// Devolve os dias restantes (negativo = expirado) ou null quando não há data.
+const diasRestantesDeTeste = (conta) => {
+  const fim = conta?.trial_ends_at
+    ? new Date(conta.trial_ends_at)
+    : conta?.created_at
+      ? new Date(new Date(conta.created_at).getTime() + 7 * 24 * 60 * 60 * 1000)
+      : null;
+  if (!fim || Number.isNaN(fim.getTime())) return null;
+  return Math.ceil((fim - new Date()) / (24 * 60 * 60 * 1000));
+};
+
 const trialInfo = (conta) => {
   const fim = conta?.trial_ends_at
     ? new Date(conta.trial_ends_at)
@@ -144,12 +155,9 @@ const getUserStatus = (user) => {
      }
   }
   
-  // Trial
-  const createdDate = new Date(user.created_at || Date.now());
-  const now = new Date();
-  const diffDays = Math.ceil(Math.abs(now - createdDate) / (1000 * 60 * 60 * 24)); 
-  const diasRestantes = 7 - diffDays;
-  
+  // Trial — respeita a extensão concedida no painel (trial_ends_at).
+  const diasRestantes = diasRestantesDeTeste(user);
+  if (diasRestantes === null) return { text: '⏳ Teste Ativo', color: '#FFA000' };
   if (diasRestantes < 0) return { text: '🔴 Trial Expirado (Bloqueado)', color: 'var(--error)' };
   if (diasRestantes === 0) return { text: '⏳ Último dia de Teste', color: '#FFA000' };
   return { text: `⏳ Teste Ativo (${diasRestantes} dias restantes)`, color: '#FFA000' };
@@ -158,8 +166,8 @@ const getUserStatus = (user) => {
 const isBlocked = (user) => {
   if (user.status === 'blocked' || user.status === 'pending') return true;
   if (user.status === 'trial') {
-    const diffDays = Math.ceil(Math.abs(new Date() - new Date(user.created_at || Date.now())) / (1000 * 60 * 60 * 24)); 
-    return (7 - diffDays) < 0;
+    const dias = diasRestantesDeTeste(user);
+    return dias !== null && dias < 0;
   }
   return false;
 };
