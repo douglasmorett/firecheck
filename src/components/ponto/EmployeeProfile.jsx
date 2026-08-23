@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert } from 'lucide-react';
 import API_URL from '../../api';
 
-export default function EmployeeProfile({ employee, onBack, schedules, userProfile, pontoRecords, onUpdateEmployee }) {
+export default function EmployeeProfile({ employee, onBack, schedules, userProfile, pontoRecords, onUpdateEmployee, mesSelecionado, onMesChange }) {
   const [viewMode, setViewMode] = useState('list');
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
@@ -26,7 +26,11 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
 
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
-  const [filterMonth, setFilterMonth] = useState(`${currentYear}-${String(currentMonth).padStart(2, '0')}`);
+  // O mês vem do módulo pai quando ele o controla: assim, trocar o período aqui
+  // recarrega os registros daquele mês em vez de filtrar dados que nunca foram
+  // buscados — antes, só o mês corrente tinha conteúdo e os demais saíam vazios.
+  const filterMonth = mesSelecionado || `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+  const setFilterMonth = (m) => { if (onMesChange) onMesChange(m); };
 
   const [selectedSchedule, setSelectedSchedule] = useState(employee.schedule_id || '');
   const [lastWorkedDay, setLastWorkedDay] = useState(employee.ponto_last_worked_day ? employee.ponto_last_worked_day.split('T')[0] : '');
@@ -508,9 +512,11 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                           
                           <div style={{ display: 'flex', alignItems: 'center', gap: '20px', paddingLeft: '8px' }}>
                             <div style={{ position: 'relative' }}>
-                              <img 
-                                src={rec.selfie} 
-                                alt="Selfie" 
+                              {/* A coluna no banco é selfie_url; rec.selfie era sempre
+                                  indefinido e TODA selfie do extrato aparecia quebrada. */}
+                              <img
+                                src={rec.selfie_url || rec.selfie}
+                                alt="Selfie"
                                 style={{ width: '70px', height: '70px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} 
                               />
                               <div style={{ 

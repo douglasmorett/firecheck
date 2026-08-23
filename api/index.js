@@ -2239,6 +2239,18 @@ export default async function handler(req, res) {
           await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
         }
 
+        // ── Último dia trabalhado (escala 12x36) ─────────────────────────────
+        // A tela enviava este campo e a coluna existe, mas ela não estava em
+        // nenhuma das consultas de UPDATE acima: o valor era descartado em
+        // silêncio e o app confirmava que havia salvo. A escala 12x36 ficava sem
+        // referência para calcular os dias de folga.
+        if (req.body.ponto_last_worked_day !== undefined) {
+          await pool.query('UPDATE users SET ponto_last_worked_day = $1 WHERE id = $2', [
+            req.body.ponto_last_worked_day || null,
+            id,
+          ]);
+        }
+
         // ── Extensão do período de teste ─────────────────────────────────────
         // Atualização própria, fora das consultas gigantes acima, para manter a
         // mudança pequena e auditável. Aceita um número de dias a partir de agora

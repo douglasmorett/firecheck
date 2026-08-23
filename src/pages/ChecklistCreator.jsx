@@ -1233,7 +1233,11 @@ export default function ChecklistCreator() {
 
                   {msg.type === 'upgrade_offer' && (
                     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      {(!userPlan || userPlan === 'starter' || userPlan === 'start') && (
+                      {/* As condições listavam só as chaves antigas: quem estava em
+                          'trial' ou nos planos atuais (checklists_mensal, combo_...)
+                          batia no limite e não via nenhuma oferta de upgrade. */}
+                      {!['pro', 'mensal', 'business', 'anual', 'enterprise', 'master'].includes(String(userPlan || '').toLowerCase())
+                        && !String(userPlan || '').toLowerCase().startsWith('combo') && (
                         <button
                           className="btn"
                           style={{
@@ -1250,7 +1254,8 @@ export default function ChecklistCreator() {
                           Upgrade Pro — R$97/mês (100 criações por IA)
                         </button>
                       )}
-                      {(userPlan === 'pro' || userPlan === 'mensal' || userPlan === 'starter' || userPlan === 'start') && (
+                      {!['business', 'anual', 'enterprise', 'master'].includes(String(userPlan || '').toLowerCase())
+                        && !String(userPlan || '').toLowerCase().startsWith('combo') && (
                         <button
                           className="btn"
                           style={{

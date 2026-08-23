@@ -86,6 +86,10 @@ export default function PontoModule({ userProfile }) {
         userProfile={userProfile}
         pontoRecords={pontoRecords.filter(r => r.user_id === selectedEmployee.id)}
         onUpdateEmployee={refreshAll}
+        /* O filtro "Período" da ficha filtrava dados que nunca eram buscados: este
+           módulo só carregava o mês corrente. Trocar o mês lá agora recarrega aqui. */
+        mesSelecionado={pontoMonth}
+        onMesChange={setPontoMonth}
       />
     );
   }

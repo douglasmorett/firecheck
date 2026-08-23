@@ -1846,7 +1846,13 @@ export default function AdminDashboard() {
           permissions: editingUser.role === 'gestor' ? (editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS) : null,
           ponto_hora_entrada: editingUser.ponto_hora_entrada || undefined,
           ponto_hora_saida: editingUser.ponto_hora_saida || undefined,
-          ponto_tolerancia: editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : undefined
+          ponto_tolerancia: editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : undefined,
+          // A escala escolhida no modal nunca era enviada: o admin selecionava,
+          // salvava, e o colaborador continuava sem escala. O backend já aceitava
+          // este campo — faltava mandá-lo.
+          schedule_id: editingUser.schedule_id !== undefined
+            ? (editingUser.schedule_id === '' ? null : editingUser.schedule_id)
+            : undefined
         })
       });
       const data = await res.json();
@@ -2058,7 +2064,28 @@ export default function AdminDashboard() {
     try {
       const reader = new FileReader();
       reader.onloadend = async () => {
-        const base64 = reader.result;
+        // Foto de celular em resolução cheia passa de 10 MB depois de codificada em
+        // base64 e estoura o limite de tamanho da requisição — o lojista via apenas
+        // "erro ao processar". Reduzida para 1200px de largura, o suficiente para a
+        // IA ler a nota, como já é feito com as fotos de checklist.
+        const base64 = await new Promise((resolve) => {
+          const img = new window.Image();
+          img.onload = () => {
+            const larguraMax = 1200;
+            let { width, height } = img;
+            if (width > larguraMax) {
+              height = Math.round((larguraMax / width) * height);
+              width = larguraMax;
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.75));
+          };
+          img.onerror = () => resolve(reader.result); // não conseguiu decodificar: envia como veio
+          img.src = reader.result;
+        });
         try {
           const res = await fetch(`${API_URL}/api/scan-purchase`, {
             method: 'POST',
