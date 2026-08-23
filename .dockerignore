@@ -1,0 +1,43 @@
+node_modules
+dist
+.git
+.github
+.vercel
+
+# Nunca entram na imagem — as variáveis vêm do Coolify.
+.env
+.env.*
+api/serviceAccount.json
+
+# Builds nativos e certificados
+android
+android_old
+ios
+ios-certificates
+build-artifacts
+*.jks
+*.p12
+*.mobileprovision
+*.keystore
+
+# Ruído de desenvolvimento
+scratch
+screenshots
+icons
+assets
+*.log
+build_*.txt
+debug_output.txt
+test_*.mjs
+test_*.js
+test-db.cjs
+*_demo.js
+debug_stuck.js
+get_user.mjs
+queryHakim.js
+move_section.cjs
+replace_colors.cjs
+ATUALIZAR_SITE.bat
+build_ios.bat
+setup_ios_certs.ps1
+server/firecheck.db
