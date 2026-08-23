@@ -1551,6 +1551,37 @@ export default async function handler(req, res) {
       if (method === 'POST') {
         try {
           const payload = req.body;
+
+          // ── Autenticação do webhook ────────────────────────────────────────
+          // Sem isto, qualquer POST da internet ativa um plano pago para si ou
+          // cancela o de um cliente. Aceita o segredo por cabeçalho ou por query,
+          // porque cada gateway envia de um jeito.
+          //
+          // Enquanto CAKTO_WEBHOOK_SECRET não estiver definido, a rota continua
+          // aberta e apenas registra o aviso — desligá-la sem aviso interromperia
+          // o processamento de pagamentos em produção. Configure o segredo na
+          // Cakto e na Vercel para fechar de vez.
+          const segredoWebhook = process.env.CAKTO_WEBHOOK_SECRET;
+          if (segredoWebhook) {
+            const enviado =
+              req.headers['x-cakto-signature'] ||
+              req.headers['x-webhook-secret'] ||
+              req.headers['x-hub-signature'] ||
+              String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
+              searchParams.get('secret') ||
+              payload?.secret;
+            const a = Buffer.from(String(enviado || ''));
+            const b = Buffer.from(String(segredoWebhook));
+            // Comparação de tempo constante: um === simples vaza o segredo aos poucos.
+            const confere = a.length === b.length && crypto.timingSafeEqual(a, b);
+            if (!confere) {
+              console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
+              return res.status(401).json({ error: 'Assinatura inválida.' });
+            }
+          } else {
+            console.warn('[CAKTO WEBHOOK] CAKTO_WEBHOOK_SECRET não configurado — a rota aceita qualquer requisição. Configure o segredo para fechar esta porta.');
+          }
+
           console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
 
           // A Cakto envia dados de diferentes formas dependendo do evento.
@@ -1602,7 +1633,11 @@ export default async function handler(req, res) {
                 
                 const isAnnual = lowerProduct.includes('anual');
                 
-                const defaultPasswordHash = await bcrypt.hash('123456', 12);
+                // Senha aleatória por conta. Antes toda conta criada pelo webhook
+                // nascia com '123456' — uma senha pública, igual para todos os
+                // clientes, que dava acesso a qualquer conta recém-comprada.
+                const senhaInicial = crypto.randomBytes(4).toString('hex').toUpperCase();
+                const defaultPasswordHash = await bcrypt.hash(senhaInicial, 12);
                 
                 await pool.query(`
                   INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date, cakto_subscription_id)
@@ -1619,7 +1654,27 @@ export default async function handler(req, res) {
                   isAnnual,
                   subscriptionId
                 ]);
-                console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente com a senha padrão 123456.`);
+                console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente.`);
+
+                // Entrega a senha ao dono da conta. Sem isto ele não conseguiria
+                // entrar, já que a senha agora é aleatória e não mais fixa.
+                const evoUrlNovo = process.env.EVOLUTION_API_URL;
+                const evoKeyNovo = process.env.EVOLUTION_API_KEY;
+                const evoInstNovo = process.env.EVOLUTION_INSTANCE || 'firecheck';
+                const foneNovo = String(customerPhone || '').replace(/\D/g, '');
+                if (evoUrlNovo && evoKeyNovo && foneNovo) {
+                  const foneCompleto = foneNovo.startsWith('55') ? foneNovo : '55' + foneNovo;
+                  fetch(`${evoUrlNovo}/message/sendText/${evoInstNovo}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'apikey': evoKeyNovo },
+                    body: JSON.stringify({
+                      number: foneCompleto,
+                      text: `🔥 *Bem-vindo ao FireCheck!*\n\nSua conta já está ativa.\n\n📧 E-mail: *${customerEmail}*\n🔑 Senha: *${senhaInicial}*\n\nEntre em https://www.firecheckapp.com.br e altere sua senha no primeiro acesso.`,
+                    }),
+                  }).catch(e => console.error('[CAKTO] Falha ao enviar a senha por WhatsApp:', e.message));
+                } else {
+                  console.warn(`[CAKTO] Conta ${customerEmail} criada, mas sem canal para entregar a senha (telefone ou Evolution ausentes). O cliente precisará usar "Esqueci minha senha".`);
+                }
               } else {
                 console.log(`[CAKTO] Usuário ${customerEmail} comprou o módulo de câmera, mas a conta principal não existe.`);
               }
@@ -1779,9 +1834,38 @@ export default async function handler(req, res) {
               }
             }
           } else if (newStatus) {
-            // Se for bloqueio, bloqueia a conta principal (que indiretamente bloqueia tudo)
-            await pool.query('UPDATE users SET status = $1 WHERE email = $2', [newStatus, customerEmail]);
-            console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para: ${newStatus}`);
+            // ── Cancelamento / bloqueio ────────────────────────────────────────
+            // Bloquear direto por e-mail derrubava a conta inteira mesmo quando o
+            // cancelamento era de OUTRA assinatura. Quem tem dois planos
+            // (checklists e ponto) perdia o acesso ao cancelar apenas um.
+            const { rows: contaAlvo } = await pool.query(
+              'SELECT id, cakto_subscription_id, cakto_ponto_subscription_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+              [customerEmail]
+            );
+
+            if (contaAlvo.length === 0) {
+              console.warn(`[CAKTO] Cancelamento recebido para ${customerEmail}, mas a conta não existe.`);
+            } else {
+              const conta = contaAlvo[0];
+              const idChecklists = conta.cakto_subscription_id;
+              const idPonto = conta.cakto_ponto_subscription_id;
+
+              if (subscriptionId && idPonto && String(subscriptionId) === String(idPonto)) {
+                // Cancelou só o módulo de ponto: desliga o módulo, mantém a conta.
+                await pool.query(
+                  'UPDATE users SET ponto_active = FALSE, cakto_ponto_subscription_id = NULL WHERE id = $1',
+                  [conta.id]
+                );
+                console.log(`[CAKTO] ${customerEmail}: módulo de Ponto cancelado. A conta segue ativa.`);
+              } else if (subscriptionId && idChecklists && String(subscriptionId) !== String(idChecklists)) {
+                // O id veio, mas não é nenhuma assinatura registrada nesta conta.
+                // Bloquear aqui seria punir o cliente por um evento que não é dele.
+                console.warn(`[CAKTO] ${customerEmail}: cancelamento da assinatura ${subscriptionId}, que não corresponde à registrada (${idChecklists}). Nada foi alterado.`);
+              } else {
+                await pool.query('UPDATE users SET status = $1 WHERE id = $2', [newStatus, conta.id]);
+                console.log(`[CAKTO] Usuário ${customerEmail} teve status atualizado para: ${newStatus}`);
+              }
+            }
           }
 
           return res.status(200).json({ received: true });
