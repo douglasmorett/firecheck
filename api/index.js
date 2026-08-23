@@ -1110,7 +1110,15 @@ export default async function handler(req, res) {
     if (url.includes('/api/vehicles')) {
       const authUser = authenticateToken(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
-      
+
+      // Funcionário consulta a frota (precisa escolher o veículo na vistoria), mas
+      // não cadastra, edita nem exclui. Antes bastava um token válido de qualquer
+      // papel, e a única checagem era a loja — nunca o cargo.
+      // /api/vehicles/solicit é a solicitação de uso, tratada em rota própria acima.
+      if (method !== 'GET' && !['admin', 'master', 'gestor'].includes(authUser.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode alterar a frota.' });
+      }
+
       const match = url.match(/\/api\/vehicles\/([^\/?]+)/);
       if (match) {
         const vehicleId = match[1];
@@ -1540,6 +1548,11 @@ export default async function handler(req, res) {
                 else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
                 else if (lowerProduct.includes('business')) detectedPlan = 'business';
 
+                // Sem isto, o ramo de usuário existente não detectava compra anual:
+                // o CASE do UPDATE comparava detectedPlan com 'anual', valor que ele
+                // nunca assume, então quem renovava por um ano recebia 30 dias.
+                const isAnnual = lowerProduct.includes('anual');
+
                 const limitMap = {
                   starter: 300,
                   pro: 600,
@@ -1567,35 +1580,41 @@ export default async function handler(req, res) {
                   const isTrialTransition = oldStatus === 'trial';
                   const checklistsResetQuery = isTrialTransition ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : '';
 
+                  // O nome da coluna sai de um booleano interno, nunca da requisição.
                   const subscriptionIdColumn = isPontoPlan ? 'cakto_ponto_subscription_id' : 'cakto_subscription_id';
-                  const subscriptionIdUpdate = subscriptionId ? `, ${subscriptionIdColumn} = '${subscriptionId}'` : '';
 
                   let updateQuery = '';
                   let updateParams = [];
+                  // O id da assinatura vem do corpo do webhook e por isso entra como
+                  // parâmetro, nunca interpolado no texto do SQL.
                   if (isPontoPlan) {
                     updateQuery = `
-                      UPDATE users 
+                      UPDATE users
                       SET status = 'active',
                           ponto_limit = $2,
                           ponto_active = TRUE,
-                          expiration_date = NOW() + INTERVAL '30 days'
+                          expiration_date = NOW() + CASE WHEN $3 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
                           ${checklistsResetQuery}
-                          ${subscriptionIdUpdate}
+                          ${subscriptionId ? `, ${subscriptionIdColumn} = $4` : ''}
                       WHERE email = $1
                     `;
-                    updateParams = [customerEmail, newPontoLimit];
+                    updateParams = subscriptionId
+                      ? [customerEmail, newPontoLimit, isAnnual, subscriptionId]
+                      : [customerEmail, newPontoLimit, isAnnual];
                   } else {
                     updateQuery = `
-                      UPDATE users 
+                      UPDATE users
                       SET status = 'active',
                           plan = $2,
                           checklist_limit = $3,
-                          expiration_date = NOW() + CASE WHEN $2 = 'anual' OR $2 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                          expiration_date = NOW() + CASE WHEN $4 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
                           ${checklistsResetQuery}
-                          ${subscriptionIdUpdate}
+                          ${subscriptionId ? `, ${subscriptionIdColumn} = $5` : ''}
                       WHERE email = $1
                     `;
-                    updateParams = [customerEmail, detectedPlan, newChecklistLimit];
+                    updateParams = subscriptionId
+                      ? [customerEmail, detectedPlan, newChecklistLimit, isAnnual, subscriptionId]
+                      : [customerEmail, detectedPlan, newChecklistLimit, isAnnual];
                   }
                   await pool.query(updateQuery, updateParams);
 
@@ -3543,6 +3562,22 @@ Responda APENAS com JSON válido.`;
     }
 
     // ── CONTROLE DE PONTO ────────────────────────────────────────────
+    // Todo este bloco estava sem verificação de token: qualquer um batia ponto
+    // por qualquer funcionário, lia o espelho de qualquer loja e exportava o
+    // relatório inteiro. O front já enviava Authorization em todas as chamadas,
+    // então exigir o token aqui não muda nada para quem usa o app.
+    if (url.includes('/api/ponto')) {
+      const authPonto = authenticateToken(req);
+      if (!authPonto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+      // A loja vem do token, não do cliente. Só o master consulta outras lojas.
+      if (authPonto.role !== 'master') {
+        const lojaPedida = searchParams.get('store') || (req.body && req.body.store);
+        if (lojaPedida && String(lojaPedida).trim().toLowerCase() !== String(authPonto.store || '').trim().toLowerCase()) {
+          return res.status(403).json({ error: 'Você só pode acessar dados de ponto da sua própria loja.' });
+        }
+      }
+    }
+
     if (url.includes('/api/ponto/today')) {
       const userId = searchParams.get('userId');
       const store = searchParams.get('store');

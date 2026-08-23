@@ -200,6 +200,9 @@ export default function AdminDashboard() {
   const [dashBillingCycle, setDashBillingCycle] = useState('mensal');
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
+  // Nome da nova unidade fica separado de newUser.store: escrevê-lo lá faria a
+  // condição que renderiza o campo virar falsa e o input sumir ao primeiro caractere.
+  const [novaUnidadeNome, setNovaUnidadeNome] = useState('');
   const [editingUser, setEditingUser] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
@@ -1716,10 +1719,19 @@ export default function AdminDashboard() {
   const handleAddUser = async (e) => {
     e.preventDefault();
     try {
+      // 'nova_unidade' é só o marcador do select. O nome digitado vive em estado
+      // próprio, senão escrevê-lo em newUser.store desmontaria o campo de texto.
+      const ehNovaUnidade = newUser.store === 'nova_unidade';
+      if (ehNovaUnidade && !novaUnidadeNome.trim()) {
+        alert('Digite o nome da nova unidade.');
+        return;
+      }
+      const payload = ehNovaUnidade ? { ...newUser, store: novaUnidadeNome.trim() } : newUser;
+
       const res = await fetch(`${API_URL}/api/users`, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify(newUser)
+        body: JSON.stringify(payload)
       });
       
       const data = await res.json();
@@ -1731,6 +1743,7 @@ export default function AdminDashboard() {
 
       setShowUserModal(false);
       setNewUser({ name: '', email: '', password: '', store: isMaster ? '' : userProfile?.store || '' });
+      setNovaUnidadeNome('');
       fetchData();
     } catch (e) { alert('Erro de conexão com o servidor.'); }
   };
@@ -3622,13 +3635,17 @@ export default function AdminDashboard() {
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Car size={20} color="var(--primary)" /> Gerenciamento de Frota e Veículos
             </h3>
-            <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-              setEditingVehicle(null);
-              setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
-              setShowVehicleModal(true);
-            }}>
-              <Plus size={16} /> Cadastrar Veículo
-            </button>
+            {/* Funcionário consulta a frota para escolher o veículo na vistoria,
+                mas não a administra — mesma trava já usada na aba de compras. */}
+            {!isFuncionario && (
+              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
+                setEditingVehicle(null);
+                setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
+                setShowVehicleModal(true);
+              }}>
+                <Plus size={16} /> Cadastrar Veículo
+              </button>
+            )}
           </div>
           <div style={{ padding: '24px' }}>
             {vehicles.length > 0 ? (
@@ -3669,11 +3686,12 @@ export default function AdminDashboard() {
                             🚀 Solicitar
                           </button>
                         )}
+                        {!isFuncionario && (<>
                         <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
                           setEditingVehicle(v);
-                          setNewVehicle({ 
-                            id: v.id, 
-                            plate: v.plate, 
+                          setNewVehicle({
+                            id: v.id,
+                            plate: v.plate,
                             model: v.model, 
                             brand: v.brand, 
                             color: v.color || '', 
@@ -3693,6 +3711,7 @@ export default function AdminDashboard() {
                         <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteVehicle(v.id)}>
                           Excluir
                         </button>
+                        </>)}
                       </div>
                     </div>
                   </div>
@@ -4981,12 +5000,13 @@ export default function AdminDashboard() {
                   )}
                   
                   {isMaster && newUser.store === 'nova_unidade' && (
-                    <input 
-                      type="text" 
-                      className="input-field" 
+                    <input
+                      type="text"
+                      className="input-field"
                       style={{ marginTop: '8px' }}
                       placeholder="Digite o nome da nova unidade"
-                      onChange={e => setNewUser({...newUser, store: e.target.value})}
+                      value={novaUnidadeNome}
+                      onChange={e => setNovaUnidadeNome(e.target.value)}
                     />
                   )}
                 </div>

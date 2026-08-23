@@ -425,7 +425,7 @@ export default function ChecklistCreator() {
   }, [id, isEditing, navigate]);
 
   const addTask = () => setTasks([...tasks, newTask()]);
-  const removeTask = (tid) => setTasks(tasks.filter(t => t.id !== tid));
+  const removeTask = (tid) => setTasks(prev => prev.filter(t => t.id !== tid));
 
   const moveTaskUp = (index) => {
     if (index === 0) return;
@@ -466,18 +466,22 @@ export default function ChecklistCreator() {
     newTasks.splice(index + 1, 0, duplicated);
     setTasks(newTasks);
   };
+  // Atualização funcional: duas chamadas seguidas (ex.: gravar minQuantity e
+  // minStock no mesmo onChange) precisam enxergar o resultado uma da outra. Com
+  // setTasks(tasks.map(...)) ambas partiam do array capturado no render e a
+  // segunda descartava a primeira, apagando o que o usuário digitava.
   const updateTask = (tid, field, value) =>
-    setTasks(tasks.map(t => t.id === tid ? { ...t, [field]: value } : t));
+    setTasks(prev => prev.map(t => t.id === tid ? { ...t, [field]: value } : t));
   const addOption = (tid) =>
-    setTasks(tasks.map(t => t.id === tid ? { ...t, options: [...(t.options || []), ''] } : t));
+    setTasks(prev => prev.map(t => t.id === tid ? { ...t, options: [...(t.options || []), ''] } : t));
   const updateOption = (taskId, idx, value) =>
-    setTasks(tasks.map(t => {
+    setTasks(prev => prev.map(t => {
       if (t.id !== taskId) return t;
       const opts = [...(t.options || [])]; opts[idx] = value;
       return { ...t, options: opts };
     }));
   const removeOption = (taskId, idx) =>
-    setTasks(tasks.map(t => t.id !== taskId ? t :
+    setTasks(prev => prev.map(t => t.id !== taskId ? t :
       { ...t, options: (t.options || []).filter((_, i) => i !== idx) }));
 
   const handleSave = async () => {
