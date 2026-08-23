@@ -5254,6 +5254,14 @@ export default function AdminDashboard() {
                 };
                 setEditingPlan({...editingPlan, plan: newPlan, checklist_limit: limitMap[newPlan] || 300 });
               }}>
+                {/* Conta cujo plano não está na lista (ex.: 'trial') mostraria a
+                    primeira opção por padrão, e um Salvar sem querer trocaria o
+                    plano dela. Esta opção preserva o valor atual até haver escolha. */}
+                {!['checklists_mensal','checklists_anual','combo_mensal','combo_anual','ponto_mensal','ponto_anual','enterprise','starter','pro','business','mensal','anual'].includes(editingPlan.plan) && (
+                  <option value={editingPlan.plan || ''}>
+                    {editingPlan.plan === 'trial' || !editingPlan.plan ? 'Em teste — sem plano contratado' : `Plano atual: ${editingPlan.plan}`}
+                  </option>
+                )}
                 <optgroup label="Planos atuais">
                   <option value="checklists_mensal">Só Checklists — mensal (R$ 149/mês · até 30 colaboradores)</option>
                   <option value="checklists_anual">Só Checklists — anual (12x R$ 97 · até 30 colaboradores)</option>
