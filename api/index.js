@@ -3098,10 +3098,52 @@ export default async function handler(req, res) {
         queryStr += ' WHERE LOWER(cs.store) = LOWER($1)';
         queryParams.push(store);
       }
+      // Detalhe de uma submissão: devolve o registro completo, com as imagens.
+      const idPedido = searchParams.get('id');
+      if (idPedido) {
+        const { rows: um } = await pool.query(
+          `SELECT cs.*, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color
+           FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id
+           WHERE cs.id = $1${store ? ' AND LOWER(cs.store) = LOWER($2)' : ''}`,
+          store ? [idPedido, store] : [idPedido]
+        );
+        if (um.length === 0) return res.status(404).json({ error: 'Submissão não encontrada.' });
+        const r = um[0];
+        return res.status(200).json({
+          ...r,
+          tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks,
+          feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info,
+        });
+      }
+
       queryStr += ' ORDER BY cs.created_at DESC LIMIT 50';
 
       const { rows } = await pool.query(queryStr, queryParams);
-      return res.status(200).json(rows.map(r => ({ ...r, tasks: typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks, feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info })));
+
+      // Quando o envio ao Firebase falha, a imagem inteira em base64 acaba gravada
+      // no banco. Esta lista é recarregada a cada 10 segundos pelo painel, e sem
+      // enxugar aqui o lojista baixava dezenas de MB a cada atualização.
+      // O marcador continua sendo um valor "verdadeiro", então toda a lógica de
+      // tela que só verifica a existência da foto segue funcionando; a imagem real
+      // é buscada por ?id= quando o detalhe é aberto.
+      const MARCADOR = '[imagem]';
+      const enxugar = (v) => (typeof v === 'string' && v.startsWith('data:image') ? MARCADOR : v);
+
+      return res.status(200).json(rows.map(r => {
+        const tasks = typeof r.tasks === 'string' ? JSON.parse(r.tasks) : r.tasks;
+        const tasksLeves = Array.isArray(tasks)
+          ? tasks.map(t => (t && typeof t === 'object'
+              ? { ...t, photo: enxugar(t.photo), photos: Array.isArray(t.photos) ? t.photos.map(enxugar) : t.photos }
+              : t))
+          : tasks;
+        return {
+          ...r,
+          tasks: tasksLeves,
+          selfie: enxugar(r.selfie),
+          signature: enxugar(r.signature),
+          feedback_info: typeof r.feedback_info === 'string' ? JSON.parse(r.feedback_info) : r.feedback_info,
+        };
+      }));
     }
 
     if (url.includes('/api/cameras')) {

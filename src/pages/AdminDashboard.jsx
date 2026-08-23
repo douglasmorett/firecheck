@@ -243,6 +243,21 @@ export default function AdminDashboard() {
   const [newCamera, setNewCamera] = useState({ name: '', url: '', username: '', password: '', ai_commands: [] });
   const [newCommand, setNewCommand] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+
+  // A listagem vem sem as imagens, para não baixar dezenas de MB a cada
+  // atualização automática. O registro completo é buscado ao abrir o detalhe.
+  const abrirDetalheSubmissao = async (s) => {
+    setSelectedSubmission(s);
+    setShowSubmissionModal(true);
+    try {
+      const res = await fetch(`${API_URL}/api/submissions?id=${s.id}`, { headers: getAuthHeaders() });
+      if (!res.ok) return; // mantém o resumo já exibido
+      const completo = await res.json();
+      if (completo && completo.id) setSelectedSubmission(completo);
+    } catch (e) {
+      console.error('Erro ao carregar detalhe da submissão:', e);
+    }
+  };
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const [dateFilter, setDateFilter] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // Início do mês
@@ -3018,7 +3033,7 @@ export default function AdminDashboard() {
 
                 return (
                   <div key={s.id} 
-                    onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}
+                    onClick={() => abrirDetalheSubmissao(s)}
                     style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
                     onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                     onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
@@ -3531,7 +3546,7 @@ export default function AdminDashboard() {
                         🤖 IA: "{feedback.message}"
                       </p>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button className="btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '0.85rem' }} onClick={() => { setSelectedSubmission(s); setShowSubmissionModal(true); }}>
+                        <button className="btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '0.85rem' }} onClick={() => abrirDetalheSubmissao(s)}>
                           {s.resolved ? 'Ver Evidência Salva' : 'Analisar Evidência e Resolver'}
                         </button>
                       </div>
