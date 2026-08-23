@@ -1251,7 +1251,7 @@ export default function ChecklistCreator() {
                             window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
                           }}
                         >
-                          Upgrade Pro — R$97/mês (100 criações por IA)
+                          Só Checklists anual — 12x R$ 97 (mais criações por IA)
                         </button>
                       )}
                       {!['business', 'anual', 'enterprise', 'master'].includes(String(userPlan || '').toLowerCase())
@@ -1266,10 +1266,10 @@ export default function ChecklistCreator() {
                           }}
                           onClick={() => {
                             const profile = JSON.parse(localStorage.getItem('user') || '{}');
-                            window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
+                            window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(profile?.email || '')}`, '_blank');
                           }}
                         >
-                          Upgrade Business — R$197/mês (250 criações por IA)
+                          Combo Tudo em 1 — R$ 197/mês (checklists e IA sem limite)
                         </button>
                       )}
                       <button

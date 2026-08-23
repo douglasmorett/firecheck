@@ -91,6 +91,43 @@ const trialInfo = (conta) => {
   return `Termina em ${data}, daqui a ${dias} dia(s).`;
 };
 
+// ── Planos comerciais ────────────────────────────────────────────────────────
+// Fonte única de preço e link de pagamento dentro do painel, espelhando a landing
+// page. Antes cada tela repetia os valores e eles divergiram: o paywall anunciava
+// "Starter R$67" apontando para o checkout de R$149, e "Pro R$97/mês" apontando
+// para o plano ANUAL de R$1.164 à vista.
+const CAKTO = 'https://pay.cakto.com.br';
+const PLANOS_COMERCIAIS = [
+  {
+    id: 'checklists',
+    nome: 'Só Checklists',
+    resumo: 'Auditoria, fotos e vistorias ilimitadas com IA.',
+    itens: ['Checklists ilimitados', 'Até 30 colaboradores', 'Auditoria visual por IA', 'Alertas de irregularidade no WhatsApp', 'Relatórios em PDF e Excel'],
+    mensal: { valor: 'R$ 149', periodo: '/mês', nota: null, link: `${CAKTO}/3eph5ko_856837` },
+    anual: { valor: '12x R$ 97', periodo: '/mês', nota: 'R$ 1.164 por ano — economia de R$ 624', link: `${CAKTO}/e7c88df` },
+  },
+  {
+    id: 'combo',
+    nome: 'Combo Tudo em 1',
+    resumo: 'Checklists ilimitados + Ponto IA com biometria no mesmo lugar.',
+    destaque: true,
+    itens: ['Tudo do módulo Checklist', 'Tudo do módulo Ponto IA', 'Até 50 colaboradores', 'Reconhecimento facial + trava por GPS', 'Suporte VIP com gerente de conta'],
+    mensal: { valor: 'R$ 197', periodo: '/mês', nota: null, link: `${CAKTO}/pavdwiz_869704` },
+    anual: { valor: '12x R$ 167', periodo: '/mês', nota: 'R$ 2.004 por ano — economia de R$ 360', link: `${CAKTO}/36m7kzq` },
+  },
+  {
+    id: 'ponto',
+    nome: 'Só Ponto Eletrônico',
+    resumo: 'Ponto com biometria facial, trava de GPS e alertas no WhatsApp.',
+    itens: ['Até 30 colaboradores', 'Reconhecimento facial com IA', 'Trava de geolocalização', 'Alerta de atraso e saída no WhatsApp', 'Folha de ponto pronta para o contador'],
+    mensal: { valor: 'R$ 149', periodo: '/mês', nota: null, link: `${CAKTO}/kfx3fri_869702` },
+    anual: { valor: '12x R$ 97', periodo: '/mês', nota: 'R$ 1.164 por ano — economia de R$ 624', link: `${CAKTO}/o2xichf` },
+  },
+];
+
+const linkComDados = (link, perfil) =>
+  `${link}?email=${encodeURIComponent(perfil?.email || '')}&name=${encodeURIComponent(perfil?.name || '')}`;
+
 const PERMISSION_LABELS = {
   perm_checklists: '📋 Criar e editar checklists',
   perm_equipe: '👥 Gerenciar equipe',
@@ -233,6 +270,8 @@ export default function AdminDashboard() {
   const [reprocessando, setReprocessando] = useState(new Set());
   // Foto exibida em tela cheia (null = nenhuma).
   const [fotoAmpliada, setFotoAmpliada] = useState(null);
+  // Ciclo escolhido na tela de conta sem plano. Anual primeiro, como na landing.
+  const [cicloPaywall, setCicloPaywall] = useState('anual');
 
   // Abrir uma data URI com window.open é bloqueado pelos navegadores e resultava
   // em aba em branco. URL normal abre em nova aba; base64 abre aqui mesmo.
@@ -2213,28 +2252,82 @@ export default function AdminDashboard() {
           Seu período de teste expirou ou não identificamos o seu pagamento. Escolha um plano abaixo para continuar usando o FireCheck na sua operação.
         </p>
 
-        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center' }}>
-          <div className="card" style={{ width: '300px', padding: '32px' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px' }}>Starter Mensal</h3>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '24px' }}>R$67<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-            <button className="btn-secondary" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/3eph5ko_856837?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-              Assinar Mensal
+        {/* Alternador mensal/anual e os três planos, vindos de PLANOS_COMERCIAIS —
+            a mesma tabela que alimenta o resto do painel, para preço e link nunca
+            mais divergirem do checkout. */}
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px', borderRadius: '30px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', marginBottom: '28px' }}>
+          {[['mensal', 'Pagamento Mensal'], ['anual', 'Plano Anual · economize até 35%']].map(([chave, rotulo]) => (
+            <button
+              key={chave}
+              type="button"
+              onClick={() => setCicloPaywall(chave)}
+              style={{
+                padding: '8px 18px', borderRadius: '20px', border: 'none', cursor: 'pointer',
+                fontWeight: 600, fontSize: '0.86rem',
+                backgroundColor: cicloPaywall === chave ? 'var(--primary)' : 'transparent',
+                color: cicloPaywall === chave ? 'white' : 'var(--text-muted)',
+              }}
+            >
+              {rotulo}
             </button>
-          </div>
-
-          <div className="card" style={{ width: '300px', padding: '32px', border: '2px solid var(--primary)', transform: 'scale(1.05)' }}>
-            <div style={{ backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', width: 'fit-content', margin: '0 auto 12px auto' }}>MAIS POPULAR</div>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Pro Mensal</h3>
-            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', marginBottom: '8px' }}>R$97<span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>/mês</span></div>
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ color: 'var(--success)', fontSize: '0.9rem', fontWeight: 'bold' }}>600 checklists/mês</div>
-              <div style={{ color: 'rgba(0, 200, 83, 0.6)', fontSize: '0.8rem' }}>Melhor custo-benefício</div>
-            </div>
-            <button className="btn" style={{ width: '100%', padding: '12px' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-              Assinar Pro
-            </button>
-          </div>
+          ))}
         </div>
+
+        <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'stretch' }}>
+          {PLANOS_COMERCIAIS.map(plano => {
+            const preco = plano[cicloPaywall];
+            return (
+              <div
+                key={plano.id}
+                className="card"
+                style={{
+                  width: '300px', padding: '28px', textAlign: 'left', display: 'flex', flexDirection: 'column',
+                  border: plano.destaque ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                }}
+              >
+                {plano.destaque && (
+                  <div style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '0.72rem', fontWeight: 'bold', width: 'fit-content', marginBottom: '12px' }}>
+                    MAIS VENDIDO
+                  </div>
+                )}
+                <h3 style={{ fontSize: '1.3rem', marginBottom: '6px' }}>{plano.nome}</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '16px', lineHeight: 1.45 }}>{plano.resumo}</p>
+
+                <div style={{ fontSize: '2rem', fontWeight: 'bold', lineHeight: 1.1 }}>
+                  {preco.valor}<span style={{ fontSize: '0.95rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>{preco.periodo}</span>
+                </div>
+                <div style={{ minHeight: '20px', marginBottom: '16px' }}>
+                  {preco.nota && <span style={{ color: 'var(--success)', fontSize: '0.76rem', fontWeight: 600 }}>{preco.nota}</span>}
+                </div>
+
+                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px 0', flex: 1 }}>
+                  {plano.itens.map(item => (
+                    <li key={item} style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', marginBottom: '9px', fontSize: '0.84rem', color: 'var(--text-main)' }}>
+                      <CheckCircle size={16} color="var(--success)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  className={plano.destaque ? 'btn' : 'btn-secondary'}
+                  style={{ width: '100%', padding: '12px' }}
+                  onClick={() => window.open(linkComDados(preco.link, userProfile), '_blank')}
+                >
+                  Assinar {plano.nome}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '20px' }}>
+          Precisa de mais de 50 colaboradores?{' '}
+          <a href="https://wa.me/5522998851680?text=Ol%C3%A1,%20preciso%20de%20um%20plano%20para%20mais%20de%2050%20colaboradores%20no%20FireCheck." target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+            Fale com um consultor
+          </a>
+        </p>
+
 
         <button onClick={handleLogout} style={{ marginTop: '40px', background: 'transparent', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>
           Sair do Sistema
@@ -2433,12 +2526,22 @@ export default function AdminDashboard() {
                 <Clock size={24} color="#fff" />
               </div>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: '#FFA000' }}>Seu período de teste acaba em {7 - Math.ceil(Math.abs(new Date() - new Date(userProfile.created_at || Date.now())) / (1000 * 60 * 60 * 24))} dias!</h3>
+                {/* Contava sempre 7 dias desde a criação e ignorava a extensão
+                    concedida no painel: quem ganhava mais prazo continuava vendo a
+                    contagem antiga. Usa a mesma regra do backend. */}
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', color: '#FFA000' }}>Seu período de teste acaba em {Math.max(0, diasRestantesDeTeste(userProfile) ?? 0)} dias!</h3>
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Após esse período, o sistema será bloqueado. Não perca seus checklists e dados.</p>
               </div>
             </div>
-            <button className="btn" onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile.email)}&name=${encodeURIComponent(userProfile.name)}`, '_blank')} style={{ whiteSpace: 'nowrap' }}>
-              Assinar Plano Agora
+            {/* Dizia apenas "Assinar Plano Agora" e levava ao checkout anual de
+                Só Checklists, sem informar plano nem valor. Agora o botão diz para
+                onde leva, com preço e link vindos de PLANOS_COMERCIAIS. */}
+            <button
+              className="btn"
+              onClick={() => navigate('/renovar')}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              Ver planos e assinar
             </button>
           </div>
         )}
@@ -2673,7 +2776,10 @@ export default function AdminDashboard() {
                 🔥 Combo Completo (Checklist + Ponto IA) — R$197/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', fontWeight: 'bold' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                ⚡ Plano Anual com Desconto — 12x R$97/mês
+                {/* Dizia só "Plano Anual com Desconto" logo abaixo do Combo, e o
+                    link é o de Só Checklists anual: dava para entender que era o
+                    Combo anual, que custa 12x R$167, não 12x R$97. */}
+                ⚡ Só Checklists anual — 12x R$ 97/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
                 💬 Plano Custom (&gt;50 funcionários no WhatsApp)
@@ -4302,12 +4408,20 @@ export default function AdminDashboard() {
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Deseja fazer um Upgrade de Plano?</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <button className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
-                      Upgrade para Plano Pro (R$97/mês)
-                    </button>
-                    <button className="btn" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(`https://pay.cakto.com.br/iy4399h?email=${encodeURIComponent(userProfile?.email || '')}`, '_blank')}>
-                      Upgrade para Plano Business (R$197/mês)
-                    </button>
+                    {/* Antes havia "Plano Pro (R$97/mês)" apontando para o checkout
+                        ANUAL de R$1.164 à vista, e um "Plano Business" cujo link não
+                        corresponde a nenhum produto vendido. Agora sai de
+                        PLANOS_COMERCIAIS, com preço e link sempre coerentes. */}
+                    {PLANOS_COMERCIAIS.filter(pl => pl.id === 'combo').map(pl => (
+                      <div key={pl.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <button className="btn" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(linkComDados(pl.anual.link, userProfile), '_blank')}>
+                          {pl.nome} anual — {pl.anual.valor}{pl.anual.periodo}
+                        </button>
+                        <button className="btn-secondary" style={{ width: '100%', padding: '10px', fontSize: '0.85rem' }} onClick={() => window.open(linkComDados(pl.mensal.link, userProfile), '_blank')}>
+                          {pl.nome} mensal — {pl.mensal.valor}{pl.mensal.periodo}
+                        </button>
+                      </div>
+                    ))}
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     ⚠️ Lembre-se de cancelar o plano anterior na Cakto após o upgrade para evitar cobranças duplicadas.
