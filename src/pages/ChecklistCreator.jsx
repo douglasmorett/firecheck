@@ -698,7 +698,8 @@ export default function ChecklistCreator() {
               <Users size={16} color="var(--primary)" /> Funcionários Responsáveis
             </label>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px', display: 'block', lineHeight: '1.4' }}>
-              Selecione quais funcionários devem executar este checklist. Se nenhum for selecionado, todos da loja terão acesso.
+              Escolha "Toda a Equipe" para que o checklist alcance qualquer colaborador, hoje e no futuro.
+              Ou selecione pessoas específicas para restringir — nesse caso apenas elas verão o checklist.
             </span>
             
             {/* Botão Todos */}
@@ -713,7 +714,12 @@ export default function ChecklistCreator() {
                 display: 'flex', alignItems: 'center', gap: '8px'
               }}
             >
-              ✅ Todos os Funcionários
+              <div>
+                <div>✅ Toda a Equipe</div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 'normal', opacity: 0.85, marginTop: '2px' }}>
+                  Vale para todos, inclusive quem for contratado depois
+                </div>
+              </div>
             </div>
 
             {/* Lista de funcionários com checkbox */}
@@ -750,11 +756,33 @@ export default function ChecklistCreator() {
               })}
             </div>
             
-            {assignedTo.length > 0 && (
-              <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '8px', display: 'block', fontWeight: 'bold' }}>
-                📌 {assignedTo.length} funcionário(s) selecionado(s)
-              </span>
-            )}
+            {assignedTo.length > 0 && (() => {
+              const elegiveis = team.filter(m => m.email);
+              const todosMarcados = elegiveis.length > 0 && elegiveis.every(m => assignedTo.includes(m.email));
+              return (
+                <>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '8px', display: 'block', fontWeight: 'bold' }}>
+                    📌 Restrito a {assignedTo.length} pessoa(s). Novos contratados não verão este checklist.
+                  </span>
+
+                  {/* Marcar todos um a um congela a equipe no estado atual — é diferente de "Toda a Equipe". */}
+                  {todosMarcados && (
+                    <div style={{ marginTop: '10px', padding: '12px', borderRadius: '8px', border: '1px solid var(--warning)', backgroundColor: 'rgba(255, 165, 0, 0.08)' }}>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-color)', lineHeight: '1.5' }}>
+                        Você marcou as {elegiveis.length} pessoas atuais uma a uma. Isso <strong>não</strong> é o mesmo que
+                        "Toda a Equipe": a lista fica congelada e quem for contratado depois não verá este checklist.
+                      </div>
+                      <div
+                        onClick={() => setAssignedTo([])}
+                        style={{ marginTop: '10px', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', textAlign: 'center', backgroundColor: 'var(--primary)', color: 'white', fontSize: '0.8rem', fontWeight: 'bold' }}
+                      >
+                        Aplicar a toda a equipe, incluindo futuros contratados
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
             
             {team.length === 0 && (
               <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginTop: '4px', display: 'block' }}>

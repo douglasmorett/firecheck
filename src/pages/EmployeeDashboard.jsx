@@ -368,6 +368,12 @@ export default function EmployeeDashboard() {
               <span style={{ fontWeight: 'normal', fontSize: '0.84rem', color: '#78350f', lineHeight: '1.4', display: 'block' }}>
                 Você está visualizando a plataforma como um funcionário. <strong>Você pode iniciar, preencher e testar o passo a passo de qualquer checklist livremente!</strong>
               </span>
+              <span style={{ fontWeight: '700', fontSize: '0.8rem', color: '#92400e', marginTop: '8px', display: 'block', lineHeight: '1.45', backgroundColor: 'rgba(146, 64, 14, 0.09)', padding: '8px 10px', borderRadius: '6px' }}>
+                ⚠️ Esta tela mostra <u>todos</u> os checklists da loja, porque seu acesso é de administração.
+                Ela <strong>não</strong> reflete o que cada funcionário enxerga: cada um vê apenas os checklists
+                atribuídos a ele. Para conferir as permissões, use "Funcionários Responsáveis" na edição do
+                checklist, ou entre com o login do próprio colaborador.
+              </span>
               <span style={{ fontWeight: '600', fontSize: '0.78rem', color: '#b45309', marginTop: '6px', display: 'block' }}>
                 ℹ️ <em>Nenhum teste feito aqui entra para as estatísticas oficiais nem consome cotas. Para auditorias e execuções oficiais diárias válidas, cada colaborador deve fazer login com seu próprio usuário e senha.</em>
               </span>

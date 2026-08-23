@@ -963,6 +963,18 @@ export default async function handler(req, res) {
       const todayWeekday = dayMap[new Date().getDay()];
       const filterToday = searchParams.get('todayOnly') === 'true' || authUser.role === 'funcionario' || authUser.role === 'employee';
 
+      // O JWT carrega apenas { id, email, role, store }. Atribuições antigas foram gravadas
+      // pelo nome do colaborador, então buscamos o nome para que elas continuem casando.
+      let authUserName = '';
+      if (filterToday) {
+        try {
+          const { rows: me } = await pool.query('SELECT name FROM users WHERE id = $1', [authUser.id]);
+          if (me.length > 0 && me[0].name) authUserName = String(me[0].name).toLowerCase().trim();
+        } catch (e) {
+          console.error('Falha ao obter nome do usuário para filtro de atribuição:', e);
+        }
+      }
+
       return res.status(200).json(checklists.map(r => {
         if (filterToday && r.recurrence === 'weekdays') {
           let dias = [];
@@ -986,10 +998,12 @@ export default async function handler(req, res) {
           }
         }
 
-        // Filtrar por assigned_to: se o usuário é funcionário/gestor, só mostrar checklists atribuídos a ele ou a todos
+        // Filtrar por assigned_to: apenas funcionários são restringidos.
+        // 'gestor' é intencionalmente isento — ele administra a equipe e enxerga a loja inteira.
+        // assigned_to nulo ou vazio significa "toda a equipe" e alcança qualquer colaborador.
         if (filterToday && assignedList && Array.isArray(assignedList) && assignedList.length > 0) {
           const userEmail = (authUser.email || '').toLowerCase().trim();
-          const userName = (authUser.name || '').toLowerCase().trim();
+          const userName = authUserName;
           const userId = String(authUser.id || '');
 
           const matchesUser = assignedList.some(item => {
@@ -2004,28 +2018,11 @@ export default async function handler(req, res) {
         const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions) : null;
         const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, phone, status, permissions', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus, permissionsJson]);
         
-        // Se for novo colaborador/gestor, incluir e-mail em checklists atribuídos a equipes pré-existentes da mesma loja
-        if (role === 'funcionario' || role === 'gestor' || role === 'employee') {
-          try {
-            const { rows: storeChecklists } = await pool.query(
-              "SELECT id, assigned_to FROM checklists WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND assigned_to IS NOT NULL AND assigned_to != ''",
-              [store]
-            );
-            for (const cl of storeChecklists) {
-              let list = null;
-              try { list = JSON.parse(cl.assigned_to); } catch(e) {}
-              if (Array.isArray(list) && list.length > 0) {
-                const newEmailLower = email.toLowerCase().trim();
-                if (!list.some(e => String(e).toLowerCase().trim() === newEmailLower)) {
-                  list.push(email);
-                  await pool.query("UPDATE checklists SET assigned_to = $1 WHERE id = $2", [JSON.stringify(list), cl.id]);
-                }
-              }
-            }
-          } catch(err) {
-            console.error('Erro ao atualizar atribuições de checklist para novo funcionário:', err);
-          }
-        }
+        // NÃO propagar o novo colaborador para checklists restritos.
+        // Um checklist com assigned_to preenchido é uma restrição explícita do lojista;
+        // injetar o novo e-mail nela dissolveria a restrição a cada contratação.
+        // Checklists destinados à equipe inteira têm assigned_to = NULL e já alcançam
+        // qualquer colaborador futuro sem nenhuma escrita adicional.
 
         return res.status(200).json(rows[0]);
       }

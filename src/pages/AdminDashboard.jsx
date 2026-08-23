@@ -194,6 +194,8 @@ export default function AdminDashboard() {
   }, [checklists, checklistSortAlphabetical]);
 
   const [team, setTeam] = useState([]);
+  // Alternador mensal/anual da vitrine de planos do Ponto (aba Ponto do admin).
+  const [dashBillingCycle, setDashBillingCycle] = useState('mensal');
   const [showUserModal, setShowUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', store: 'Filial Centro' });
   const [editingUser, setEditingUser] = useState(null);
@@ -940,7 +942,7 @@ export default function AdminDashboard() {
     }
     try {
       setPontoSubmitting(true);
-      const selectedEmp = (users || []).find(u => String(u.id) === String(pontoManualForm.userId));
+      const selectedEmp = (team || []).find(u => String(u.id) === String(pontoManualForm.userId));
       const empName = selectedEmp ? selectedEmp.name : 'Funcionário';
       const timestamp = `${pontoManualForm.date}T${pontoManualForm.time}:00`;
       
