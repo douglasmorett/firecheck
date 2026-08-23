@@ -1501,7 +1501,21 @@ export default async function handler(req, res) {
         const weekdaysStr = weekdays ? (typeof weekdays === 'string' ? weekdays : JSON.stringify(weekdays)) : null;
 
         let listId;
+        // Estoque já conferido pelos funcionários, guardado antes de recriar os itens.
+        // Editar a lista apaga e reinsere tudo, e a tela de edição não reenvia esses
+        // valores — sem isto, um simples ajuste no nome de um item jogava fora a
+        // contagem que a equipe tinha acabado de fazer.
+        const estoqueAnterior = new Map();
         if (id) {
+          const { rows: antigos } = await pool.query(
+            'SELECT name, current_stock FROM shopping_items WHERE shopping_list_id = $1',
+            [id]
+          );
+          for (const a of antigos) {
+            if (a.current_stock !== null && a.current_stock !== undefined) {
+              estoqueAnterior.set(String(a.name || '').trim().toLowerCase(), a.current_stock);
+            }
+          }
           await pool.query(
             'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
             [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
@@ -1521,9 +1535,17 @@ export default async function handler(req, res) {
         if (items && items.length > 0) {
           for (let i = 0; i < items.length; i++) {
             const item = items[i];
+            // Mantém o estoque conferido quando o item já existia e a tela não o enviou.
+            const enviado = item.currentStock;
+            const temEnviado = enviado !== undefined && enviado !== null && enviado !== '';
+            const estoqueFinal = temEnviado
+              ? enviado
+              : (estoqueAnterior.has(String(item.name || '').trim().toLowerCase())
+                  ? estoqueAnterior.get(String(item.name || '').trim().toLowerCase())
+                  : null);
             await pool.query(
               'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-              [listId, item.name, item.unit || 'un', item.minStock || 0, item.currentStock || null, item.category || 'geral', i]
+              [listId, item.name, item.unit || 'un', item.minStock || 0, estoqueFinal, item.category || 'geral', i]
             );
           }
         }
@@ -1963,7 +1985,18 @@ export default async function handler(req, res) {
           sendTrialWelcomeMessage(phone, name, store).catch(e => console.error('[WhatsApp Signup Error]', e));
         }
 
-        return res.status(200).json({ status: 'success', user: rows[0] });
+        // Devolve o token junto com a conta: sem ele o cliente recém-cadastrado
+        // chegava ao painel sem credencial, toda requisição respondia 401 e ele era
+        // jogado de volta para a tela de login logo após pagar. O Checkout já
+        // guarda este campo quando ele existe.
+        const novaConta = rows[0];
+        const tokenNovaConta = jwt.sign(
+          { id: novaConta.id, email: novaConta.email, role: novaConta.role, store: novaConta.store },
+          JWT_SECRET,
+          { expiresIn: JWT_EXPIRY }
+        );
+
+        return res.status(200).json({ status: 'success', user: novaConta, token: tokenNovaConta });
       }
     }
 

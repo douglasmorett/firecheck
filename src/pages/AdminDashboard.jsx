@@ -1130,25 +1130,45 @@ export default function AdminDashboard() {
         })),
         store: user.store
       };
-      await fetch(`${API_URL}/api/shopping`, {
+      const res = await fetch(`${API_URL}/api/shopping`, {
         method: 'POST',
         headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
+      // A resposta era ignorada: uma falha fechava o modal como se tivesse salvo,
+      // e o lojista perdia a lista inteira que acabara de montar.
+      if (!res.ok) {
+        const erro = await res.json().catch(() => null);
+        alert(`⚠️ ${erro?.error || erro?.message || `Não foi possível salvar a lista (erro ${res.status}).`} O conteúdo continua aqui — tente novamente.`);
+        return;
+      }
       setShowShoppingModal(false);
       setEditingShopping(null);
       setNewShopping({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
       fetchShoppingLists();
-    } catch (e) { console.error('Erro ao salvar lista:', e); }
+    } catch (e) {
+      console.error('Erro ao salvar lista:', e);
+      alert('Erro de conexão ao salvar a lista. O conteúdo continua aqui — tente novamente.');
+    }
     setIsSavingShopping(false);
   };
 
   const handleDeleteShopping = async (id) => {
     if (!confirm('Tem certeza que deseja excluir esta lista de compras?')) return;
     try {
-      await fetch(`${API_URL}/api/shopping/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      const res = await fetch(`${API_URL}/api/shopping/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+      // Sem checar a resposta, uma falha sumia sem aviso e o lojista achava que
+      // havia excluído — até a lista reaparecer na próxima atualização da tela.
+      if (!res.ok) {
+        const erro = await res.json().catch(() => null);
+        alert(`⚠️ ${erro?.error || erro?.message || `Não foi possível excluir a lista (erro ${res.status}).`}`);
+        return;
+      }
       fetchShoppingLists();
-    } catch (e) { console.error('Erro ao deletar lista:', e); }
+    } catch (e) {
+      console.error('Erro ao deletar lista:', e);
+      alert('Erro de conexão ao excluir a lista. Tente novamente.');
+    }
   };
 
   const handleEditShopping = async (list) => {
@@ -2104,11 +2124,12 @@ export default function AdminDashboard() {
     if (!userProfile) return false;
     if (userProfile.status === 'blocked' || userProfile.status === 'pending') return true;
     if (userProfile.status === 'trial') {
-      const createdDate = new Date(userProfile.created_at || Date.now());
-      const now = new Date();
-      const diffTime = Math.abs(now - createdDate);
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-      return diffDays > 7;
+      // Usa a mesma regra do backend: quando há trial_ends_at, é ele que vale.
+      // Antes esta tela contava sempre 7 dias desde a criação e ignorava a
+      // extensão concedida no painel — o cliente com teste estendido continuava
+      // preso na tela de pagamento.
+      const dias = diasRestantesDeTeste(userProfile);
+      return dias !== null && dias < 0;
     }
     return false;
   };
@@ -2912,7 +2933,17 @@ export default function AdminDashboard() {
            <Clock size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }}/>
            <h2 style={{ margin: '0 0 12px 0' }}>Controle de Ponto Bloqueado</h2>
            <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto 24px' }}>Seu plano atual não inclui o módulo de Ponto Inteligente com reconhecimento facial e GPS.</p>
-           <button className="btn-primary" onClick={() => setTab('assinatura')} style={{ padding: '12px 24px', borderRadius: '12px', fontSize: '1.05rem' }}>Fazer Upgrade Agora</button>
+           {/* Levava para setTab('assinatura'), aba que não existe: a tela ficava em
+               branco. Quem está aqui não tem o módulo de Ponto, então o produto certo
+               é o Combo — o mesmo destino do botão "Combo Completo" usado na tela de
+               limite de cota. */}
+           <button
+             className="btn"
+             onClick={() => window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}
+             style={{ padding: '12px 24px', borderRadius: '12px', fontSize: '1.05rem' }}
+           >
+             Fazer Upgrade Agora
+           </button>
         </div>
       )}
 

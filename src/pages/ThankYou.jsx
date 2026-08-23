@@ -92,13 +92,18 @@ export default function ThankYou() {
               }}>
                 <Lock size={18} />
               </div>
+              {/* A senha fixa "123456" era mostrada a todo mundo, inclusive a quem
+                  veio do Checkout e escolheu a própria senha — que então tentava
+                  entrar com a errada. Contas criadas pela compra recebem uma senha
+                  aleatória por WhatsApp; ninguém mais tem senha previsível. */}
               <div>
-                <h4 style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 4px 0' }}>Sua senha temporária:</h4>
-                <p style={{ fontSize: '1.15rem', fontWeight: '800', color: '#06b6d4', margin: 0, letterSpacing: '2px' }}>
-                  123456
+                <h4 style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 4px 0' }}>Como acessar</h4>
+                <p style={{ fontSize: '0.95rem', color: '#e2e8f0', margin: 0, lineHeight: 1.5 }}>
+                  Use a <strong>senha que você escolheu no cadastro</strong>.
                 </p>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '6px 0 0 0' }}>
-                  🔒 Você poderá alterar essa senha nas configurações do painel após realizar o login.
+                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '8px 0 0 0', lineHeight: 1.5 }}>
+                  Se a conta foi criada pela compra, enviamos sua senha por WhatsApp.
+                  Não recebeu? Use <strong>&ldquo;Esqueci minha senha&rdquo;</strong> na tela de login.
                 </p>
               </div>
             </div>
