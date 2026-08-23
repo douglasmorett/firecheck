@@ -455,9 +455,22 @@ export default function PontoPage() {
     return 'Baixa';
   };
 
-  const formatTime = (dateStr) => {
-    if (!dateStr) return '--:--';
-    const d = new Date(dateStr);
+  // Aceita tanto o registro inteiro quanto um valor solto.
+  // A API devolve hora_local já formatada no fuso da loja; usá-la evita a segunda
+  // conversão, que era o que fazia 08:00 aparecer como 05:00.
+  const formatTime = (valor) => {
+    if (!valor) return '--:--';
+    if (typeof valor === 'object' && valor.hora_local) return valor.hora_local;
+    if (typeof valor === 'string') {
+      // Já formatado como HH:MM pela API.
+      if (/^\d{2}:\d{2}$/.test(valor)) return valor;
+      // Timestamp sem fuso ("2026-08-06 16:20:28" ou com T): a hora de parede está
+      // no próprio texto. Lê-la direto evita que o navegador a desloque.
+      const m = valor.match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/);
+      if (m) return m[1];
+    }
+    const d = new Date(valor);
+    if (Number.isNaN(d.getTime())) return '--:--';
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 

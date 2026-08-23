@@ -241,9 +241,28 @@ async function getEmployeeScheduleForDay(pool, userId, date) {
     const { rows: schedules } = await pool.query('SELECT * FROM work_schedules WHERE id = $1', [user.schedule_id]);
     if (schedules.length > 0) {
       const schedule = schedules[0];
-      const jsDay = new Date(date).getDay();
+      // O parâmetro chega ora como Date, ora como texto 'YYYY-MM-DD'.
+      // Para o texto, lê as partes direto: new Date('2026-08-23') é meia-noite UTC
+      // e em UTC-3 getDay() devolveria o dia anterior.
+      let jsDay; // 0 = domingo
+      if (date instanceof Date) {
+        jsDay = date.getDay();
+      } else {
+        const [aa, mm, dd] = String(date).slice(0, 10).split('-').map(Number);
+        jsDay = (aa && mm && dd)
+          ? new Date(Date.UTC(aa, mm - 1, dd)).getUTCDay()
+          : new Date(date).getDay();
+      }
       const weekdayIndex = jsDay === 0 ? 7 : jsDay;
-      const { rows: weekdays } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1 AND weekday = $2', [schedule.id, weekdayIndex]);
+      // A tela grava domingo como 0 (convenção do JavaScript), mas esta consulta
+      // procurava só por 7: a linha de domingo nunca era encontrada e o dia caía
+      // no tratamento de folga, mesmo quando o gestor o marcava como trabalho.
+      // Aceita os dois índices para funcionar com o que já está gravado.
+      const indicesDoDia = jsDay === 0 ? [0, 7] : [jsDay];
+      const { rows: weekdays } = await pool.query(
+        'SELECT * FROM schedule_weekdays WHERE schedule_id = $1 AND weekday = ANY($2::int[]) ORDER BY weekday DESC LIMIT 1',
+        [schedule.id, indicesDoDia]
+      );
       
       if (weekdays.length > 0) {
         const wd = weekdays[0];
@@ -3820,15 +3839,22 @@ Responda APENAS com JSON válido.`;
         if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
       }
       const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+      // hora_local vem formatada pelo próprio Postgres. A coluna timestamp é
+      // "without time zone" e já guarda a hora de parede da loja
+      // (padrão CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'). Ao ler esse
+      // valor, o driver o interpreta no fuso do processo Node — que na Vercel é
+      // UTC — e converter de novo tirava 3 horas: 08:00 virava 05:00. Formatando
+      // no banco, o fuso do processo deixa de influenciar.
       const { rows } = await pool.query(
-        "SELECT * FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 ORDER BY timestamp ASC",
+        `SELECT *, to_char(timestamp, 'HH24:MI') AS hora_local
+         FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 ORDER BY timestamp ASC`,
         [userId, today]
       );
       const entrada = rows.find(r => r.type === 'entrada');
       const saida = rows.find(r => r.type === 'saida');
       return res.status(200).json({
-        entrada: entrada ? new Date(entrada.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz }) : null,
-        saida: saida ? new Date(saida.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz }) : null,
+        entrada: entrada ? entrada.hora_local : null,
+        saida: saida ? saida.hora_local : null,
         entradaRecord: entrada || null,
         saidaRecord: saida || null,
         records: rows,
@@ -3846,18 +3872,21 @@ Responda APENAS com JSON válido.`;
       if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = tzAdmins[0].timezone;
       const startDate = `${month}-01`;
       const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
+      // Data e hora formatadas no banco: o valor guardado já é a hora de parede da
+      // loja, e reconvertê-lo no Node deslocava a folha inteira em 3 horas.
+      // Esta planilha vai para a contabilidade — o horário precisa ser o real.
       const { rows } = await pool.query(
-        "SELECT * FROM ponto_records WHERE store = $1 AND timestamp::date BETWEEN $2 AND $3 ORDER BY timestamp ASC",
+        `SELECT *, to_char(timestamp, 'DD/MM/YYYY') AS data_local, to_char(timestamp, 'HH24:MI') AS hora_local
+         FROM ponto_records WHERE store = $1 AND timestamp::date BETWEEN $2 AND $3 ORDER BY timestamp ASC`,
         [store, startDate, endDate]
       );
       // Gerar CSV
       let csv = 'Funcionário,Tipo,Data,Horário,Origem,Justificativa/Observação,Latitude,Longitude,Endereço\n';
       rows.forEach(r => {
-        const dt = new Date(r.timestamp);
         const tipoStr = r.type === 'entrada' ? 'Entrada' : (r.type === 'saida' ? 'Saída' : r.type);
         const origemStr = r.is_manual ? 'Ajuste Manual (Gestor)' : 'Aplicativo (Selfie/GPS)';
         const notesStr = (r.notes || '').replace(/"/g, "'");
-        csv += `"${r.user_name}","${tipoStr}","${dt.toLocaleDateString('pt-BR', { timeZone: tz })}","${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz })}","${origemStr}","${notesStr}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
+        csv += `"${r.user_name}","${tipoStr}","${r.data_local}","${r.hora_local}","${origemStr}","${notesStr}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
         csv += '\n';
       });
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -4090,7 +4119,10 @@ Responda APENAS com JSON válido.`;
       const date = searchParams.get('date');
       const month = searchParams.get('month');
       if (!store) return res.status(400).json({ error: 'store obrigatória' });
-      let query = 'SELECT * FROM ponto_records WHERE store = $1';
+      // hora_local e data_local vêm prontas do banco: o timestamp guardado já é a
+      // hora de parede da loja, e reconvertê-lo no Node ou no navegador deslocava
+      // tudo em 3 horas. O frontend deve exibir estes campos como estão.
+      let query = `SELECT *, to_char(timestamp, 'HH24:MI') AS hora_local, to_char(timestamp, 'DD/MM/YYYY') AS data_local FROM ponto_records WHERE store = $1`;
       let qParams = [store];
       if (date) {
         query += ' AND timestamp::date = $2';

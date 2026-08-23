@@ -488,9 +488,14 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                     </div>
                   ) : (
                     filteredRecords.map((rec) => {
+                      // A API entrega data_local e hora_local já no fuso da loja.
+                      // Reconverter aqui com new Date() deslocava o extrato em 3
+                      // horas, porque o timestamp guardado não carrega fuso.
                       const dt = new Date(rec.timestamp);
-                      const dataStr = dt.toLocaleDateString('pt-BR');
-                      const horaStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                      const dataStr = rec.data_local || dt.toLocaleDateString('pt-BR');
+                      const horaStr = rec.hora_local
+                        || (String(rec.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1])
+                        || dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
                       const isEntrada = rec.type === 'entrada';
                       
                       return (
