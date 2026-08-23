@@ -130,7 +130,14 @@ body {
 /* Animations */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  /* Termina em `none`, e não em translateY(0). Com animation-fill-mode: forwards,
+     um translateY(0) deixa um transform permanente no elemento, e qualquer
+     transform — mesmo o identidade — faz o elemento virar bloco de contenção dos
+     descendentes com position: fixed. O <main class="animate-fade"> envolve o
+     painel inteiro, então TODOS os modais deixavam de se posicionar pela tela e
+     passavam a se posicionar pela página: abriam fora da área visível e o usuário
+     precisava rolar para encontrá-los. */
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes pulse {
@@ -620,7 +627,9 @@ body {
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  /* Mesma razão de fadeIn: terminar em `none` evita deixar um transform residual
+     que quebraria o position: fixed de qualquer modal aninhado. */
+  to { opacity: 1; transform: none; }
 }
 
 @keyframes scan {
