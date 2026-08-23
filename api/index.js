@@ -1132,6 +1132,20 @@ export default async function handler(req, res) {
         }
       }
 
+      // Data de hoje no fuso da loja, para comparar com as âncoras de recorrência.
+      const hojeISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      const [hAno, hMes, hDia] = hojeISO.split('-').map(Number);
+      const ultimoDiaDoMes = new Date(Date.UTC(hAno, hMes, 0)).getUTCDate();
+
+      // Data de referência de um checklist: a de execução escolhida pelo lojista
+      // ou, na falta dela, a de criação.
+      const ancoraDe = (r) => {
+        const bruta = r.scheduled_date || r.scheduleddate || r.created_at;
+        if (!bruta) return null;
+        const iso = String(bruta).slice(0, 10);
+        return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+      };
+
       return res.status(200).json(checklists.map(r => {
         if (filterToday && r.recurrence === 'weekdays') {
           let dias = [];
@@ -1139,6 +1153,36 @@ export default async function handler(req, res) {
             dias = typeof r.weekdays === 'string' ? JSON.parse(r.weekdays || '[]') : (r.weekdays || []);
           } catch(e) { dias = []; }
           if (Array.isArray(dias) && dias.length > 0 && !dias.includes(todayWeekday)) return null;
+        }
+
+        // ── Recorrências que antes não tinham efeito nenhum ──────────────────
+        // 'weekly' e 'monthly' eram aceitos no editor mas nunca filtrados: os três
+        // se comportavam como 'daily', e o lojista via todo dia um checklist que
+        // configurou como semanal ou mensal. O mesmo valia para a "Data de
+        // Execução", que era obrigatória e ignorada.
+        if (filterToday && (r.recurrence === 'weekly' || r.recurrence === 'monthly')) {
+          const ancora = ancoraDe(r);
+          if (ancora) {
+            const [aAno, aMes, aDia] = ancora.split('-').map(Number);
+            if (r.recurrence === 'weekly') {
+              const diaSemanaAncora = new Date(Date.UTC(aAno, aMes - 1, aDia)).getUTCDay();
+              const diaSemanaHoje = new Date(Date.UTC(hAno, hMes - 1, hDia)).getUTCDay();
+              if (diaSemanaAncora !== diaSemanaHoje) return null;
+            } else {
+              // Mensal: mesmo dia do mês. Em mês mais curto (dia 31 em fevereiro),
+              // cai no último dia, para o checklist não sumir naquele mês.
+              const diaEsperado = Math.min(aDia, ultimoDiaDoMes);
+              if (hDia !== diaEsperado) return null;
+            }
+          }
+        }
+
+        // Único com data marcada: aparece a partir dela, e não antes. Continua
+        // visível nos dias seguintes até ser concluído, para não se perder caso
+        // o funcionário não abra o app naquele dia exato.
+        if (filterToday && (r.recurrence === 'unico' || !r.recurrence)) {
+          const marcada = String(r.scheduled_date || r.scheduleddate || '').slice(0, 10);
+          if (/^\d{4}-\d{2}-\d{2}$/.test(marcada) && marcada > hojeISO) return null;
         }
 
         // Safe parse assigned_to

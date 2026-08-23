@@ -622,23 +622,33 @@ export default function ChecklistCreator() {
             <select className="input-field" value={recurrence} onChange={e => { setRecurrence(e.target.value); setScheduledDate(''); }}>
               {RECURRENCE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            {recurrence === '' && (
+            {/* A data também aparece em Semanal e Mensal: é ela que define em qual
+                dia da semana ou dia do mês o checklist se repete. Sem informá-la, a
+                referência vira a data de criação, o que o lojista não tem como adivinhar. */}
+            {(recurrence === '' || recurrence === 'weekly' || recurrence === 'monthly') && (
               <div style={{ marginTop: '10px' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📅 Data de Execução
+                  📅 {recurrence === '' ? 'Data de Execução' : 'A partir de qual data'}
                 </label>
                 <input
                   type="date"
                   className="input-field"
                   value={scheduledDate}
-                  min={new Date().toISOString().split('T')[0]}
+                  min={recurrence === '' ? new Date().toISOString().split('T')[0] : undefined}
                   onChange={e => setScheduledDate(e.target.value)}
                   onClick={(e) => e.target.showPicker?.()}
                   style={{ cursor: 'pointer' }}
                 />
                 {scheduledDate && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '4px', display: 'block' }}>
-                    📌 Checklist agendado para {new Date(scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                    {recurrence === '' && `📌 Aparece a partir de ${new Date(scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}, até ser concluído.`}
+                    {recurrence === 'weekly' && `🔁 Repete toda ${new Date(scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}.`}
+                    {recurrence === 'monthly' && `🔁 Repete todo dia ${new Date(scheduledDate + 'T12:00:00').getDate()} de cada mês (em meses mais curtos, no último dia).`}
+                  </span>
+                )}
+                {!scheduledDate && recurrence !== '' && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                    Sem data escolhida, a referência será o dia em que este checklist foi criado.
                   </span>
                 )}
               </div>
