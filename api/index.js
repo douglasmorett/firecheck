@@ -1046,14 +1046,40 @@ export default async function handler(req, res) {
 
       const dayMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
       const todayWeekday = dayMap[new Date().getDay()];
-      const filterToday = searchParams.get('todayOnly') === 'true' || authUser.role === 'funcionario' || authUser.role === 'employee';
+      // ── Identidade usada para filtrar ────────────────────────────────────
+      // No "Modo Simulação" o painel troca o perfil guardado no navegador, mas a
+      // requisição continua levando o token de quem administra — e por isso a
+      // simulação mostrava TODOS os checklists da loja, não a visão real do
+      // colaborador. Com verComo, o administrador pede explicitamente a visão de
+      // alguém da sua própria loja, e o filtro passa a valer como se fosse ele.
+      let identidade = { id: authUser.id, email: authUser.email, role: authUser.role };
+      const verComo = searchParams.get('verComo');
+      if (verComo && ['admin', 'master', 'gestor'].includes(authUser.role)) {
+        try {
+          const { rows: alvo } = await pool.query(
+            'SELECT id, name, email, role, store FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+            [verComo]
+          );
+          if (alvo.length > 0) {
+            const mesmaLoja = String(alvo[0].store || '').trim().toLowerCase() === String(authUser.store || '').trim().toLowerCase();
+            // Master enxerga qualquer loja; os demais, apenas a própria.
+            if (authUser.role === 'master' || mesmaLoja) {
+              identidade = { id: alvo[0].id, email: alvo[0].email, role: alvo[0].role, nome: alvo[0].name };
+            }
+          }
+        } catch (e) {
+          console.error('Falha ao resolver verComo:', e);
+        }
+      }
+
+      const filterToday = searchParams.get('todayOnly') === 'true' || identidade.role === 'funcionario' || identidade.role === 'employee';
 
       // O JWT carrega apenas { id, email, role, store }. Atribuições antigas foram gravadas
       // pelo nome do colaborador, então buscamos o nome para que elas continuem casando.
-      let authUserName = '';
-      if (filterToday) {
+      let authUserName = identidade.nome ? String(identidade.nome).toLowerCase().trim() : '';
+      if (filterToday && !authUserName) {
         try {
-          const { rows: me } = await pool.query('SELECT name FROM users WHERE id = $1', [authUser.id]);
+          const { rows: me } = await pool.query('SELECT name FROM users WHERE id = $1', [identidade.id]);
           if (me.length > 0 && me[0].name) authUserName = String(me[0].name).toLowerCase().trim();
         } catch (e) {
           console.error('Falha ao obter nome do usuário para filtro de atribuição:', e);
@@ -1087,9 +1113,10 @@ export default async function handler(req, res) {
         // 'gestor' é intencionalmente isento — ele administra a equipe e enxerga a loja inteira.
         // assigned_to nulo ou vazio significa "toda a equipe" e alcança qualquer colaborador.
         if (filterToday && assignedList && Array.isArray(assignedList) && assignedList.length > 0) {
-          const userEmail = (authUser.email || '').toLowerCase().trim();
+          // Usa a identidade resolvida acima: em simulação, é a do colaborador.
+          const userEmail = (identidade.email || '').toLowerCase().trim();
           const userName = authUserName;
-          const userId = String(authUser.id || '');
+          const userId = String(identidade.id || '');
 
           const matchesUser = assignedList.some(item => {
             if (!item) return false;

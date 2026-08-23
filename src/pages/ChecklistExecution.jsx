@@ -240,7 +240,14 @@ export default function ChecklistExecution() {
       return;
     }
 
-    const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+    const paramsBusca = new URLSearchParams();
+    if (profile.store) paramsBusca.set('store', profile.store);
+    // Em simulação o token é o de quem administra; sem verComo, esta tela abriria
+    // checklists que o colaborador simulado não enxerga de verdade.
+    if (localStorage.getItem('firecheck_admin_backup') && profile.email) {
+      paramsBusca.set('verComo', profile.email);
+    }
+    const storeParam = paramsBusca.toString() ? `?${paramsBusca.toString()}` : '';
 
     fetch(`${API_URL}/api/checklists${storeParam}`, {
         headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }

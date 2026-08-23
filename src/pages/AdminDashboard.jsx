@@ -3762,7 +3762,7 @@ export default function AdminDashboard() {
 
       {showVehicleModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card animate-scale modal-janela" style={{ width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', maxHeight: '90vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
               <h3 style={{ margin: 0 }}>{editingVehicle ? '📝 Editar Veículo' : '🚗 Cadastrar Veículo'}</h3>
               <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }} onClick={() => setShowVehicleModal(false)}>
@@ -4844,7 +4844,7 @@ export default function AdminDashboard() {
       {/* Modal de Histórico de Incidentes */}
       {showHistoryModal !== null && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px' }}>
-          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border-color)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
                 <Clock color="var(--primary)" /> Histórico de Eventos IA
@@ -4868,7 +4868,7 @@ export default function AdminDashboard() {
       {/* Modal de Nova Câmera / Editar Câmera */}
       {showCameraModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, padding: '20px' }}>
-          <div className="card animate-scale" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--primary)' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '500px', width: '100%', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Camera color="var(--primary)" /> {editingCamera ? 'Editar Configuração da IA' : 'Configurar Nova Câmera IP'}
             </h3>
@@ -5086,7 +5086,7 @@ export default function AdminDashboard() {
       {/* Modal de Detalhes da Submissão */}
       {showSubmissionModal && selectedSubmission && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 10000, padding: '5vh 20px 20px 20px', backdropFilter: 'blur(10px)' }}>
-          <div className="card animate-scale" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', padding: '0', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', padding: '0', position: 'relative', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <button onClick={() => setShowSubmissionModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'var(--text-main)', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', zIndex: 1 }}>
               <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
             </button>
@@ -5186,7 +5186,7 @@ export default function AdminDashboard() {
           {/* maxHeight + overflow: o conteúdo rola DENTRO da janela. Sem isso, num
               monitor menor a caixa passava da tela e era preciso rolar a página
               atrás dela para alcançar os campos de plano. */}
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '440px', maxHeight: '88vh', overflowY: 'auto', position: 'relative', border: '1px solid var(--primary)', pointerEvents: 'auto' }}>
+          <div className="card animate-scale modal-janela" style={{ width: '100%', maxWidth: '440px', maxHeight: '88vh', overflowY: 'auto', position: 'relative', border: '1px solid var(--primary)', pointerEvents: 'auto' }}>
             <button style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer', zIndex: 2 }} onClick={() => setEditingPlan(null)}><X size={24} /></button>
             <h3 style={{ marginBottom: '20px', paddingRight: '32px' }}>Alterar Plano de {editingPlan.name}</h3>
             
@@ -5330,7 +5330,7 @@ export default function AdminDashboard() {
           backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', 
           zIndex: 99999, padding: '20px', backdropFilter: 'blur(5px)' 
         }}>
-          <div className="card animate-scale" style={{ maxWidth: '400px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '400px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px' }}>
             <button onClick={() => setShowEditModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>&times;</button>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Edit2 color="var(--primary)" /> Editar Colaborador
@@ -5456,7 +5456,7 @@ export default function AdminDashboard() {
 
       {isPurchasesOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ width: '100%', maxWidth: '800px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: '0', overflow: 'hidden', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+          <div className="card animate-scale modal-janela" style={{ width: '100%', maxWidth: '800px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: '0', overflow: 'hidden', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
                  <Plus size={24} color="white" /> Registrar Compras
@@ -5591,7 +5591,7 @@ export default function AdminDashboard() {
 
       {viewingPhotoUrl && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999999, padding: '20px', pointerEvents: 'auto' }}>
-          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', padding: '20px', textAlign: 'center', position: 'relative', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '600px', width: '100%', padding: '20px', textAlign: 'center', position: 'relative', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
             <button style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setViewingPhotoUrl(null)}><X size={24} /></button>
             <h3 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Comprovante / Nota Fiscal</h3>
             <img src={viewingPhotoUrl} alt="Comprovante" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />
@@ -5822,7 +5822,7 @@ export default function AdminDashboard() {
 
       {showScheduleModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale" style={{ maxWidth: '600px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '600px', width: '100%', position: 'relative', border: '1px solid var(--primary)', padding: '24px', maxHeight: '90vh', overflowY: 'auto' }}>
             <button onClick={() => setShowScheduleModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>&times;</button>
             <h3 style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
               <Calendar color="var(--primary)" /> {editingSchedule ? 'Editar Escala' : 'Nova Escala'}

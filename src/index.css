@@ -887,3 +887,25 @@ body {
   to { transform: rotate(360deg); }
 }
 \n\n.hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease; }\n.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1) !important; }
+/* ── Janelas de modal ──────────────────────────────────────────────────────
+   A janela nunca passa da altura visível e o conteúdo rola POR DENTRO dela,
+   com overscroll-behavior impedindo a rolagem de vazar para a página atrás.
+   Sem isto, um modal mais alto que a tela cortava o topo (onde fica o X de
+   fechar) e o rodapé (onde fica o botão de salvar), e rolar movia a página
+   em vez do conteúdo — o usuário ficava preso na janela.
+   dvh vem depois de vh de propósito: onde houver suporte ele ganha, e no
+   celular acompanha a barra do navegador aparecendo e sumindo. */
+.modal-janela {
+  max-height: 90vh;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* O X de fechar acompanha a rolagem interna em vez de sumir ao rolar. */
+.modal-janela > button:first-child {
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 3;
+}

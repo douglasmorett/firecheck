@@ -198,7 +198,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
       {/* Modal de Escala (mesmo do AdminDashboard, mas aqui) */}
       {showScheduleModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div className="card animate-fade-up" style={{ width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
+          <div className="card animate-fade-up modal-janela" style={{ width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Calendar color="var(--primary)" /> {editingSchedule ? 'Editar Escala' : 'Nova Escala'}

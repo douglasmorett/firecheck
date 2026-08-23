@@ -559,7 +559,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
       {/* Modal de Nova Escala */}
       {showScheduleModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
-          <div className="card animate-fade-up" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '24px' }}>
+          <div className="card animate-fade-up modal-janela" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <h3 style={{ margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700' }}>
                 <CalendarIcon color="var(--primary)" size={24} /> Criar Nova Escala

@@ -123,7 +123,15 @@ export default function EmployeeDashboard() {
 
   const fetchChecklists = useCallback(async (profile, isManual = false) => {
     if (isManual) setIsRefreshing(true);
-    const storeParam = profile.store ? `?store=${encodeURIComponent(profile.store)}` : '';
+    const params = new URLSearchParams();
+    if (profile.store) params.set('store', profile.store);
+    // Em simulação a requisição leva o token de quem administra, então sem este
+    // parâmetro a API devolveria a loja inteira e a tela mostraria todos os
+    // checklists — e não a visão real do colaborador que se quer conferir.
+    if (localStorage.getItem('firecheck_admin_backup') && profile.email) {
+      params.set('verComo', profile.email);
+    }
+    const storeParam = params.toString() ? `?${params.toString()}` : '';
     try {
       const res = await fetch(`${API_URL}/api/checklists${storeParam}`, {
         headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
@@ -386,10 +394,9 @@ export default function EmployeeDashboard() {
                 Você está visualizando a plataforma como um funcionário. <strong>Você pode iniciar, preencher e testar o passo a passo de qualquer checklist livremente!</strong>
               </span>
               <span style={{ fontWeight: '700', fontSize: '0.8rem', color: '#92400e', marginTop: '8px', display: 'block', lineHeight: '1.45', backgroundColor: 'rgba(146, 64, 14, 0.09)', padding: '8px 10px', borderRadius: '6px' }}>
-                ⚠️ Esta tela mostra <u>todos</u> os checklists da loja, porque seu acesso é de administração.
-                Ela <strong>não</strong> reflete o que cada funcionário enxerga: cada um vê apenas os checklists
-                atribuídos a ele. Para conferir as permissões, use "Funcionários Responsáveis" na edição do
-                checklist, ou entre com o login do próprio colaborador.
+                👁️ Você está vendo <u>exatamente</u> os checklists deste colaborador — os atribuídos a ele e os
+                de toda a equipe. É a mesma lista que ele vê ao entrar com o próprio login.
+                Nada preenchido aqui entra para o histórico oficial.
               </span>
               <span style={{ fontWeight: '600', fontSize: '0.78rem', color: '#b45309', marginTop: '6px', display: 'block' }}>
                 ℹ️ <em>Nenhum teste feito aqui entra para as estatísticas oficiais nem consome cotas. Para auditorias e execuções oficiais diárias válidas, cada colaborador deve fazer login com seu próprio usuário e senha.</em>
