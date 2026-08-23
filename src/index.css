@@ -157,7 +157,14 @@ body {
 }
 
 .animate-fade {
-  animation: fadeIn 0.4s ease-out forwards;
+  /* Sem `forwards`. Um elemento cuja animação de transform continua preenchendo
+     mantém um valor usado de transform — ainda que seja a identidade — e vira
+     bloco de contenção de todo descendente com position: fixed. Como <main> usa
+     esta classe, era isso que fazia os modais abrirem fora da tela.
+     O estado final da animação já é o natural (opacidade 1, sem transform), então
+     descartar o preenchimento não muda nada visualmente e devolve o elemento ao
+     comportamento normal assim que a animação acaba. */
+  animation: fadeIn 0.4s ease-out;
   pointer-events: auto !important;
 }
 
