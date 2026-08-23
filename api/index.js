@@ -154,7 +154,9 @@ const PLAN_LIMITS = {
   // e o cliente batia num limite que nunca lhe foi anunciado.
   'checklists_mensal': ILIMITADO, 'checklists_anual': ILIMITADO,
   'combo_mensal': ILIMITADO, 'combo_anual': ILIMITADO,
-  'ponto_mensal': ILIMITADO, 'ponto_anual': ILIMITADO,
+  // "Só Ponto Eletrônico" não vende checklists ilimitados: o cliente compra o
+  // módulo de ponto. Mantém a cota básica, que é o que o webhook de fato concede.
+  'ponto_mensal': 300, 'ponto_anual': 300,
 
   // ── Legado: cotas da tabela antiga, mantidas para contas já existentes ──
   'starter': 300, 'starter_mensal': 300,
@@ -1710,7 +1712,21 @@ export default async function handler(req, res) {
                 
                 let detectedPlan = 'pro';
                 const lowerProduct = productName.toLowerCase();
-                if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
+                // Reconhece PRIMEIRO os produtos vendidos hoje na landing page.
+                // Sem isto, "Combo Tudo em 1" e "Só Ponto Eletrônico" nao casavam com
+                // nenhuma regra e caiam no padrao 'pro': quem comprava o Combo ficava
+                // sem o modulo de Ponto, e quem comprava So Ponto recebia um plano de
+                // checklist sem Ponto nenhum.
+                const ehAnual = lowerProduct.includes('anual');
+                const ehCombo = lowerProduct.includes('combo') || lowerProduct.includes('tudo em 1') || lowerProduct.includes('completo');
+                const ehSoPonto = !ehCombo && (lowerProduct.includes('ponto eletr') || lowerProduct.includes('so ponto') || lowerProduct.includes('só ponto') || lowerProduct.includes('ponto ia'));
+                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist'));
+
+                if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
+                else if (ehSoPonto) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
+                else if (ehSoChecklist) detectedPlan = ehAnual ? 'checklists_anual' : 'checklists_mensal';
+                // ── Chaves legadas, para produtos antigos ainda ativos na Cakto ──
+                else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
                 else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
                 else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
                 else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
@@ -1774,7 +1790,21 @@ export default async function handler(req, res) {
               } else {
                 let detectedPlan = 'pro';
                 const lowerProduct = productName.toLowerCase();
-                if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
+                // Reconhece PRIMEIRO os produtos vendidos hoje na landing page.
+                // Sem isto, "Combo Tudo em 1" e "Só Ponto Eletrônico" nao casavam com
+                // nenhuma regra e caiam no padrao 'pro': quem comprava o Combo ficava
+                // sem o modulo de Ponto, e quem comprava So Ponto recebia um plano de
+                // checklist sem Ponto nenhum.
+                const ehAnual = lowerProduct.includes('anual');
+                const ehCombo = lowerProduct.includes('combo') || lowerProduct.includes('tudo em 1') || lowerProduct.includes('completo');
+                const ehSoPonto = !ehCombo && (lowerProduct.includes('ponto eletr') || lowerProduct.includes('so ponto') || lowerProduct.includes('só ponto') || lowerProduct.includes('ponto ia'));
+                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist'));
+
+                if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
+                else if (ehSoPonto) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
+                else if (ehSoChecklist) detectedPlan = ehAnual ? 'checklists_anual' : 'checklists_mensal';
+                // ── Chaves legadas, para produtos antigos ainda ativos na Cakto ──
+                else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
                 else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
                 else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
                 else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
@@ -1785,22 +1815,23 @@ export default async function handler(req, res) {
                 // nunca assume, então quem renovava por um ano recebia 30 dias.
                 const isAnnual = lowerProduct.includes('anual');
 
-                const limitMap = {
-                  starter: 300,
-                  pro: 600,
-                  business: 1500,
-                  ponto_starter: 300,
-                  ponto_pro: 600,
-                  ponto_business: 1500
-                };
-                const newChecklistLimit = limitMap[detectedPlan] || 300;
+                // Usa a mesma tabela do resto do sistema, que já conhece os planos
+                // atuais como ilimitados. O limitMap local ignorava essas chaves e
+                // devolvia 300 checklists a quem comprou "ilimitado".
+                const newChecklistLimit = getPlanLimit(detectedPlan);
 
+                // Teto de colaboradores: 50 no Combo, 30 nos planos individuais.
                 let newPontoLimit = 5;
-                if (detectedPlan === 'ponto_starter') newPontoLimit = 5;
+                if (detectedPlan.startsWith('combo')) newPontoLimit = 50;
+                else if (detectedPlan === 'ponto_mensal' || detectedPlan === 'ponto_anual' || detectedPlan === 'checklists_mensal' || detectedPlan === 'checklists_anual') newPontoLimit = 30;
+                else if (detectedPlan === 'ponto_starter') newPontoLimit = 5;
                 else if (detectedPlan === 'ponto_pro' || detectedPlan === 'pro') newPontoLimit = 15;
                 else if (detectedPlan === 'ponto_business' || detectedPlan === 'business') newPontoLimit = 50;
 
-                const isPontoPlan = detectedPlan.startsWith('ponto_');
+                // O Combo dá checklists E ponto. O código só sabia tratar um ou
+                // outro, então quem comprava o pacote completo ficava sem o Ponto.
+                const ehPlanoCombo = detectedPlan.startsWith('combo');
+                const isPontoPlan = !ehPlanoCombo && (detectedPlan.startsWith('ponto_') || detectedPlan === 'ponto_mensal' || detectedPlan === 'ponto_anual');
 
                 const { rows: existingDetails } = await pool.query('SELECT name, store, plan, status, phone, whatsapp_phone, checklist_limit, ponto_limit, ponto_active, cakto_subscription_id, cakto_ponto_subscription_id FROM users WHERE email = $1', [customerEmail]);
                 if (existingDetails.length > 0) {
@@ -1819,7 +1850,24 @@ export default async function handler(req, res) {
                   let updateParams = [];
                   // O id da assinatura vem do corpo do webhook e por isso entra como
                   // parâmetro, nunca interpolado no texto do SQL.
-                  if (isPontoPlan) {
+                  if (ehPlanoCombo) {
+                    // Pacote completo: libera checklists E ponto na mesma gravação.
+                    updateQuery = `
+                      UPDATE users
+                      SET status = 'active',
+                          plan = $2,
+                          checklist_limit = $3,
+                          ponto_limit = $4,
+                          ponto_active = TRUE,
+                          expiration_date = NOW() + CASE WHEN $5 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                          ${checklistsResetQuery}
+                          ${subscriptionId ? `, ${subscriptionIdColumn} = $6` : ''}
+                      WHERE email = $1
+                    `;
+                    updateParams = subscriptionId
+                      ? [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual, subscriptionId]
+                      : [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual];
+                  } else if (isPontoPlan) {
                     updateQuery = `
                       UPDATE users
                       SET status = 'active',
@@ -1971,7 +2019,18 @@ export default async function handler(req, res) {
           return res.status(400).json({ status: 'error', error: 'Este e-mail já está cadastrado. Faça login ou use outro e-mail.' });
         }
 
-        const initialStatus = (plan === 'mensal' || plan === 'anual') ? 'pending' : 'trial';
+        // Teste grátis SÓ quando o cliente pediu teste grátis. Qualquer outro plano
+        // é uma intenção de compra e nasce aguardando pagamento — o webhook da
+        // Cakto ativa a conta quando o pagamento entra.
+        //
+        // A regra anterior listava apenas 'mensal' e 'anual', chaves antigas: todos
+        // os planos atuais (combo_anual, checklists_mensal, ponto_anual...) caíam no
+        // else e viravam teste grátis. Quem clicava em "Quero o Combo Completo"
+        // ganhava 7 dias de graça e, se abandonasse o checkout, ficava com acesso
+        // sem nunca ter pago.
+        const planoEscolhido = String(plan || 'trial').toLowerCase();
+        const querTesteGratis = planoEscolhido === 'trial' || planoEscolhido === '';
+        const initialStatus = querTesteGratis ? 'trial' : 'pending';
 
         // Hash da senha com bcrypt
         const hashedPassword = await bcrypt.hash(password, 12);
@@ -1990,11 +2049,18 @@ export default async function handler(req, res) {
         // jogado de volta para a tela de login logo após pagar. O Checkout já
         // guarda este campo quando ele existe.
         const novaConta = rows[0];
-        const tokenNovaConta = jwt.sign(
-          { id: novaConta.id, email: novaConta.email, role: novaConta.role, store: novaConta.store },
-          JWT_SECRET,
-          { expiresIn: JWT_EXPIRY }
-        );
+
+        // Token só para quem já pode usar o sistema. Conta aguardando pagamento não
+        // recebe credencial: ela seria uma porta de entrada sem passar pelo caixa.
+        // Quem escolheu um plano pago é levado ao checkout logo em seguida e entra
+        // depois, com o próprio login, quando o pagamento for confirmado.
+        const tokenNovaConta = querTesteGratis
+          ? jwt.sign(
+              { id: novaConta.id, email: novaConta.email, role: novaConta.role, store: novaConta.store },
+              JWT_SECRET,
+              { expiresIn: JWT_EXPIRY }
+            )
+          : undefined;
 
         return res.status(200).json({ status: 'success', user: novaConta, token: tokenNovaConta });
       }
