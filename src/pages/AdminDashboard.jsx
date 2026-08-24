@@ -5,6 +5,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import PWAInstall from '../components/PWAInstall';
+import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
 
 const getAuthHeaders = () => ({
@@ -1907,6 +1908,27 @@ export default function AdminDashboard() {
     }
   };
 
+  /**
+   * Entra na conta de outro usuário para dar suporte.
+   *
+   * Dois defeitos moravam aqui, e os dois faziam a tela mostrar algo que não
+   * era a conta da pessoa:
+   *
+   * 1. Ia SEMPRE para /funcionario. O papel do alvo era gravado certo, mas a
+   *    navegação era fixa — então acessar a conta de um cliente admin caía no
+   *    painel de funcionário, e não havia como ver o painel dele. A regra
+   *    correta é a mesma do login: só 'funcionario' vai para /funcionario.
+   *
+   * 2. O objeto era montado à mão com `plan: userProfile?.plan` e
+   *    `status: 'active'` fixo — ou seja, o plano e o status de QUEM ESTÁ
+   *    ACESSANDO, não os do alvo. Entrar na conta de um cliente em teste de 7
+   *    dias mostrava o plano da matriz e status ativo, escondendo justamente o
+   *    que se quer enxergar no suporte: trial vencido, conta bloqueada, limite
+   *    de checklists estourado.
+   *
+   * Agora a conta do alvo é copiada inteira. Só o `store` mantém queda para a
+   * loja de quem acessa, porque funcionário sem loja definida herda a do dono.
+   */
   const handleImpersonateUser = (member) => {
     const currentAdmin = localStorage.getItem('user');
     if (currentAdmin) {
@@ -1914,17 +1936,14 @@ export default function AdminDashboard() {
       localStorage.setItem('firecheck_impersonated', 'true');
     }
 
-    const employeeUser = {
-      id: member.id,
-      name: member.name,
-      email: member.email,
+    const contaAlvo = {
+      ...member,
       role: member.role || 'funcionario',
       store: member.store || userProfile?.store,
-      plan: userProfile?.plan || 'pro',
-      status: 'active'
     };
-    localStorage.setItem('user', JSON.stringify(employeeUser));
-    navigate('/funcionario');
+    localStorage.setItem('user', JSON.stringify(contaAlvo));
+
+    navigate(contaAlvo.role === 'funcionario' ? '/funcionario' : '/admin');
   };
 
   const handleDeleteUser = async (id) => {
@@ -2338,7 +2357,15 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)', width: '100vw', overflowX: 'hidden' }}>
-      
+
+      {/* Aviso de que este painel é de OUTRA conta.
+          O painel do funcionário já tinha o dele; aqui não havia nada, porque
+          até agora era impossível chegar nesta tela acessando a conta de
+          alguém — a impersonação levava sempre para /funcionario. Sem esta
+          faixa, você veria um painel de administrador idêntico ao seu, com os
+          dados de outra empresa, e sem saída a não ser o logout. */}
+      <BarraDeAcessoRemoto />
+
       {/* Overlay Mobile */}
       <div className={`sidebar-overlay ${isSidebarOpen ? 'open' : ''}`} onClick={() => setIsSidebarOpen(false)}></div>
 
