@@ -85,9 +85,11 @@ export default function Checkout() {
           checkoutLink = `https://pay.cakto.com.br/pavdwiz_869704?email=${userEmail}&name=${userName}`;
         } else if (plan === 'combo_anual') {
           checkoutLink = `https://pay.cakto.com.br/36m7kzq?email=${userEmail}&name=${userName}`;
-        } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
-          checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
         }
+        // Módulo Financeiro fora de venda no momento. A rota continua no código,
+        // desativada, para ser reativada quando o módulo voltar — basta descomentar:
+        // } else if (plan === 'finance_mensal' || plan === 'finance_anual') {
+        //   checkoutLink = `https://pay.cakto.com.br/desa99m_869700?email=${userEmail}&name=${userName}`;
 
         if (checkoutLink) {
           if (Capacitor.isNativePlatform()) {

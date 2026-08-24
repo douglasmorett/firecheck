@@ -13,7 +13,7 @@ export default function TermsOfUse() {
     {
       icon: <Shield size={20} color="#ff4d00" />,
       title: '2. Descrição do Serviço',
-      content: `O FireCheck é uma plataforma SaaS (Software como Serviço) de gestão operacional e auditoria inteligente para empresas. Nossos serviços incluem:\n\n• Criação e gestão de checklists operacionais\n• Auditoria automatizada por Inteligência Artificial\n• Monitoramento em tempo real de equipes\n• Notificações push e alertas automáticos\n• Relatórios gerenciais e dashboards\n• Módulo de ponto eletrônico e financeiro\n\nO FireCheck reserva o direito de modificar, suspender ou descontinuar qualquer parte do serviço a qualquer momento.`
+      content: `O FireCheck é uma plataforma SaaS (Software como Serviço) de gestão operacional e auditoria inteligente para empresas. Nossos serviços incluem:\n\n• Criação e gestão de checklists operacionais\n• Auditoria automatizada por Inteligência Artificial\n• Monitoramento em tempo real de equipes\n• Notificações push e alertas automáticos\n• Relatórios gerenciais e dashboards\n• Módulo de ponto eletrônico\n\nO FireCheck reserva o direito de modificar, suspender ou descontinuar qualquer parte do serviço a qualquer momento.`
     },
     {
       icon: <Users size={20} color="#ff4d00" />,

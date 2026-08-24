@@ -4403,7 +4403,12 @@ export default function AdminDashboard() {
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                   <p style={{ margin: '4px 0' }}>• Limite de Checklists: <strong>{userProfile?.checklist_limit >= 999999 ? 'Ilimitado' : (userProfile?.checklist_limit || 300)}</strong>/mês</p>
                   <p style={{ margin: '4px 0' }}>• Limite de Ponto: <strong>{userProfile?.ponto_limit >= 999999 ? 'Ilimitado' : (userProfile?.ponto_limit || 5)}</strong> colaboradores</p>
-                  <p style={{ margin: '4px 0' }}>• Módulo Financeiro: <strong>{userProfile?.finance_active ? 'Ativo' : 'Inativo'}</strong></p>
+                  {/* Módulo Financeiro não é oferecido no momento. A linha só aparece
+                      para quem já o tem ativo — para os demais dizia sempre "Inativo",
+                      anunciando um recurso que o cliente não consegue contratar. */}
+                  {userProfile?.finance_active && (
+                    <p style={{ margin: '4px 0' }}>• Módulo Financeiro: <strong>Ativo</strong></p>
+                  )}
                 </div>
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Deseja fazer um Upgrade de Plano?</h4>
