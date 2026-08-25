@@ -59,13 +59,13 @@ const JWT_EXPIRY = '7d'; // Token válido por 7 dias
 // mais folgado — uma loja inteira atrás da mesma conexão divide um IP, e
 // apertar ali bloquearia gente inocente.
 //
-// A espera cresce com a insistência: quem errou cinco vezes espera um minuto;
-// quem insiste vai para cinco, quinze e trinta. O funcionário distraído mal
+// A espera cresce com a insistência: na quarta falha seguida já espera um
+// minuto, e quem insiste vai para cinco, quinze e trinta. O funcionário mal
 // percebe, e o robô trava.
 const loginAttempts = new Map();
 
 const RATE_LIMIT_WINDOW = 15 * 60000;  // esquece o contador após 15 min sem falha
-const LIMITE_POR_CONTA = 5;            // falhas antes da primeira espera
+const LIMITE_POR_CONTA = 3;            // 3 falhas passam; a 4ª já manda esperar
 const LIMITE_POR_ORIGEM = 30;          // idem, por endereço de origem
 
 // Quanto esperar, conforme a insistência acumulada além do limite.
