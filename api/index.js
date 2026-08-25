@@ -538,6 +538,78 @@ async function processAuditForSubmission(pool, submissionId) {
 }
 
 
+// ── Aviso ao chefe: alguém enviou sabendo que a foto estava reprovada ──────
+//
+// Isto não é o alerta de irregularidade que já existe. A diferença é a ciência:
+// o funcionário leu na tela o que estava errado, teve a opção de refazer, e
+// escolheu enviar assim mesmo. É a única coisa nova que o chefe precisa saber.
+//
+// Vai por push e por WhatsApp, respeitando a mesma chave que o lojista já usa
+// para desligar avisos de reprovação (wa_checklist_reprovado). Nunca derruba o
+// envio: o checklist do funcionário já está gravado quando isto roda.
+async function avisarEnvioConsciente(store, employeeName, itens) {
+  if (!Array.isArray(itens) || itens.length === 0) return;
+
+  const quantos = itens.length;
+  const resumo = itens.slice(0, 3).map(i => `• ${i.texto}: ${i.motivo}`).join('\n');
+  const sobra = quantos > 3 ? `\n• e mais ${quantos - 3}...` : '';
+  const justificativas = itens.filter(i => i.justificativa).map(i => `"${i.justificativa}"`);
+
+  try {
+    const { rows: chefes } = await pool.query(
+      `SELECT id, name, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_checklist_reprovado
+         FROM users
+        WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master' OR role = 'gestor')`,
+      [store]
+    );
+
+    for (const chefe of chefes) {
+      if (chefe.fcm_token) {
+        try {
+          await admin.messaging().send({
+            token: chefe.fcm_token,
+            notification: {
+              title: '🚨 Enviado mesmo reprovado',
+              body: `${employeeName} viu o que a IA apontou em ${quantos} ${quantos === 1 ? 'foto' : 'fotos'} e enviou assim mesmo.`,
+            },
+            data: { url: '/admin' },
+            apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+          });
+        } catch (pushErr) {
+          console.error('[Envio consciente] Falha no push:', pushErr.message);
+        }
+      }
+
+      const telefone = chefe.whatsapp_phone || chefe.phone;
+      const querWhats = chefe.whatsapp_active !== false && chefe.wa_checklist_reprovado !== false;
+      const evoUrl = process.env.EVOLUTION_API_URL;
+      const evoKey = process.env.EVOLUTION_API_KEY;
+      const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+      if (telefone && querWhats && evoUrl && evoKey) {
+        const limpo = String(telefone).replace(/\D/g, '');
+        const numero = limpo.startsWith('55') ? limpo : '55' + limpo;
+        const texto =
+          `🚨 *ENVIO CIENTE DA REPROVAÇÃO*\n\n` +
+          `*${employeeName}* finalizou um checklist na *${store}* depois de a conferência apontar problema em ` +
+          `${quantos} ${quantos === 1 ? 'foto' : 'fotos'}. Ele viu o motivo na tela e confirmou o envio.\n\n` +
+          `${resumo}${sobra}\n` +
+          (justificativas.length ? `\n_Justificativa dele:_ ${justificativas.join(' / ')}\n` : '') +
+          `\nConfira no painel: https://www.firecheckapp.com.br/admin`;
+
+        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: evoKey },
+          body: JSON.stringify({ number: numero, text: texto }),
+        }).catch(err => console.error('[Envio consciente] Falha no WhatsApp:', err.message));
+      }
+    }
+  } catch (e) {
+    console.error('[Envio consciente] Falha ao avisar os responsáveis:', e.message);
+  }
+}
+
+
 export default async function handler(req, res) {
   // ── CORS Restrito ──
   const origin = req.headers.origin || '';
@@ -567,6 +639,10 @@ export default async function handler(req, res) {
       await pool.query('ALTER TABLE checklists ADD COLUMN IF NOT EXISTS weekdays TEXT');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS checklist_id INTEGER');
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0');
+      // Envio feito depois de a IA ter apontado o erro na tela do funcionário.
+      // Fica em coluna própria, e não só dentro do JSON de feedback, porque o
+      // painel precisa filtrar e contar isso sem abrir cada submissão.
+      await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS enviado_ciente BOOLEAN DEFAULT FALSE');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
@@ -2859,6 +2935,38 @@ export default async function handler(req, res) {
           ]
         );
 
+        // ── Envio feito com ciência da reprovação ───────────────────────────
+        // O funcionário leu o motivo na tela, pôde refazer e confirmou mesmo
+        // assim. Marca em coluna própria e avisa quem manda na loja.
+        //
+        // A marca é derivada do próprio feedback recebido, e não de um campo
+        // solto que o aplicativo mande à parte: quem descreve o que aconteceu é
+        // o veredito de cada tarefa, e ele já vem aqui.
+        try {
+          const fb = feedbackInfo && typeof feedbackInfo === 'object' ? feedbackInfo : {};
+          const conscientes = Object.entries(fb)
+            .filter(([chave, v]) => !String(chave).startsWith('_') && v && v.enviado_ciente === true)
+            .map(([chave, v]) => {
+              const tarefa = (Array.isArray(tasks) ? tasks : []).find(t => String(t.id) === String(chave));
+              return {
+                taskId: chave,
+                texto: (tarefa?.text || 'Tarefa').slice(0, 80),
+                motivo: String(v.message || v.mensagem || 'sem detalhe').slice(0, 120),
+                justificativa: v.justificativa ? String(v.justificativa).slice(0, 200) : '',
+              };
+            });
+
+          if (conscientes.length > 0) {
+            await pool.query('UPDATE checklist_submissions SET enviado_ciente = TRUE WHERE id = $1', [rows[0].id]);
+            // Sem await: o checklist já está gravado, e um WhatsApp lento não
+            // pode segurar a tela de quem está terminando o turno.
+            avisarEnvioConsciente(store, employeeName, conscientes)
+              .catch(e => console.error('[Envio consciente] falhou:', e.message));
+          }
+        } catch (cienciaErr) {
+          console.error('[Envio consciente] Falha ao registrar:', cienciaErr.message);
+        }
+
         // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
         try {
           const ninetyDaysAgo = new Date();
@@ -4043,14 +4151,42 @@ Responda APENAS com JSON válido.`;
     }
     if (url.includes('/api/audit')) {
       if (method === 'POST') {
-        const { taskId, taskText, photoBase64 } = req.body;
+        // ── Conferência de UMA foto, na hora ────────────────────────────────
+        // Esta rota existia pronta e nenhuma tela a chamava. Agora ela é o que o
+        // funcionário vê enquanto preenche o checklist, então mudam três coisas:
+        //
+        // 1. Passa a exigir login. Analisar imagem custa dinheiro e a chave já
+        //    vazou uma vez neste projeto; aberta, era um moedor de cota grátis.
+        //
+        // 2. Aceita o critério escrito pelo gestor. Sem ele a IA só tem a frase
+        //    da tarefa — "Limpar a bancada" — e julga por conta própria o que
+        //    conta como limpo. Reprovação assim é chute, e aqui o chute vai
+        //    aparecer na cara de quem fez o trabalho.
+        //
+        // 3. Deixa de responder no vocabulário aprovado/reprovado. Errar
+        //    aprovando deixa passar uma sujeira; errar reprovando acusa alguém
+        //    que fez o serviço certo, e neste fluxo ainda registra para o chefe
+        //    que a pessoa "enviou sabendo". Os custos não são simétricos, então
+        //    a dúvida tem nome próprio: `nao_conferido` não acusa ninguém, não
+        //    trava o envio e cai na auditoria de fundo que já existe.
+        const autorAudit = await autenticarComLojaAtual(req);
+        if (!autorAudit) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+
+        const { taskId, taskText, photoBase64, criteria } = req.body;
+
+        if (!photoBase64 || typeof photoBase64 !== 'string') {
+          return res.status(200).json({ resultado: 'nao_conferido', mensagem: 'Sem foto para conferir.', approved: true });
+        }
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
         if (!apiKey) {
+          // Sem chave, a conferência não existe — e não existir nunca pode virar
+          // acusação. Segue como não conferido.
           return res.status(200).json({
-            approved: false,
-            message: 'ERRO DE CONFIGURAÇÃO: Chave da IA (GEMINI_API_KEY) não encontrada. A auditoria não pôde ser realizada.'
+            resultado: 'nao_conferido',
+            mensagem: 'A conferência automática está indisponível no momento.',
+            approved: true,
           });
         }
 
@@ -4071,12 +4207,25 @@ Responda APENAS com JSON válido.`;
             });
 
             const base64Data = photoBase64.split(',')[1] || photoBase64;
-            const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${taskText}" está presente na imagem.
-            Regras:
-            1. Foque APENAS em verificar se a instrução principal foi cumprida. Ignore bagunça de fundo, itens irrelevantes, qualidade do enquadramento ou iluminação.
-            2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
-            3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
-            Responda ESTRITAMENTE em JSON no formato: {"approved": boolean, "message": "string"}.`;
+            const criterioLimpo = typeof criteria === 'string' ? criteria.trim().slice(0, 600) : '';
+            const prompt = `Você confere a foto que um funcionário acabou de tirar como prova de uma tarefa.
+
+TAREFA: "${taskText}"
+${criterioLimpo ? `O QUE O GESTOR EXIGE NESTA FOTO: "${criterioLimpo}"` : 'O gestor não escreveu um critério específico: julgue apenas pelo texto da tarefa, e seja generoso.'}
+
+Como julgar:
+- Verifique somente se a tarefa foi cumprida${criterioLimpo ? ' segundo o critério acima' : ''}. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
+- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que a tarefa não foi cumprida.
+- Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
+- Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
+
+Responda ESTRITAMENTE em JSON:
+{"resultado": "aprovado" | "reprovado" | "incerto", "mensagem": "string", "confianca": "alta" | "media" | "baixa"}
+
+A mensagem é lida pelo próprio funcionário, no celular:
+- aprovado: um elogio de até 8 palavras.
+- reprovado: diga em uma frase curta e concreta O QUE FALTA para ele refazer a foto certa. Sem rodeio, sem julgar a pessoa. Exemplo: "A lixeira ao lado da pia ainda está cheia."
+- incerto: diga o que atrapalhou de ver. Exemplo: "A foto ficou escura demais para conferir."`;
 
             const result = await model.generateContent([
               prompt,
@@ -4090,19 +4239,45 @@ Responda APENAS com JSON válido.`;
             const jsonMatch = text.match(/\{[\s\S]*\}/);
             const cleanJson = jsonMatch ? jsonMatch[0] : text;
 
-            const aiResponse = JSON.parse(cleanJson);
-            return res.status(200).json(aiResponse);
+            const bruto = JSON.parse(cleanJson);
+
+            // Normaliza para o vocabulário da tela. Só vira reprovação o que veio
+            // reprovado E com confiança alta — o resto não acusa ninguém.
+            const r = String(bruto.resultado || (bruto.approved === false ? 'reprovado' : 'aprovado')).toLowerCase();
+            const confianca = String(bruto.confianca || '').toLowerCase();
+            let resultado;
+            if (r === 'reprovado') resultado = confianca === 'alta' ? 'reprovado' : 'nao_conferido';
+            else if (r === 'aprovado') resultado = 'aprovado';
+            else resultado = 'nao_conferido';
+
+            const mensagem = String(bruto.mensagem || bruto.message || '').slice(0, 300)
+              || (resultado === 'aprovado' ? 'Foto conferida.' : 'Não foi possível conferir esta foto.');
+
+            return res.status(200).json({
+              taskId,
+              resultado,
+              mensagem,
+              confianca: confianca || 'media',
+              // Mantido para quem ainda leia o formato antigo.
+              approved: resultado !== 'reprovado',
+              message: mensagem,
+            });
 
           } catch (error) {
             lastError = error.message || 'Erro desconhecido';
             retries--;
             if (retries === 0) {
               console.error('Falha definitiva na auditoria SDK:', error);
-              // Limpar a mensagem para remover a URL longa e mostrar apenas o erro real
-              const cleanError = lastError.includes('[') ? lastError.split(': [')[1] || lastError : lastError;
+              // Falha de infraestrutura não é falha do funcionário: antes isto
+              // voltava como approved:false, ou seja, a tela diria que ele errou
+              // porque o Gemini estava fora do ar.
               return res.status(200).json({
-                approved: false,
-                message: `Falha: [${cleanError}`
+                taskId,
+                resultado: 'nao_conferido',
+                mensagem: 'Não deu para conferir agora. Sua foto foi mantida.',
+                confianca: 'baixa',
+                approved: true,
+                message: 'Não deu para conferir agora.',
               });
             }
           }

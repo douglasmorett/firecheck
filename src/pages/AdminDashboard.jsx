@@ -3238,6 +3238,14 @@ export default function AdminDashboard() {
                           )}
                         </h4>
                         <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
+                        {/* Enviado depois de a conferência ter apontado o erro na
+                            tela do funcionário. Não é o mesmo que "reprovado": aqui
+                            ele leu o motivo, pôde refazer e escolheu enviar assim. */}
+                        {s.enviado_ciente && (
+                          <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', fontSize: '0.75rem', color: '#b91c1c', fontWeight: 'bold' }}>
+                            🚨 Enviou ciente da reprovação
+                          </div>
+                        )}
                         <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
@@ -5373,6 +5381,24 @@ export default function AdminDashboard() {
                           {task.done === true ? 'Sim' : task.done === false ? 'Não' : (task.done || 'N/A')}
                         </span>
                       </div>
+
+                      {/* O funcionário viu esta reprovação na tela e enviou assim
+                          mesmo. A justificativa dele vem junto, quando escreveu. */}
+                      {feedback?.enviado_ciente && (
+                        <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '10px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                          <strong style={{ display: 'block', fontSize: '0.82rem', color: '#b91c1c', marginBottom: '4px' }}>
+                            🚨 Enviado ciente da reprovação
+                          </strong>
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block' }}>
+                            A IA apontou: {feedback.message || feedback.mensagem || '—'}
+                          </span>
+                          {feedback.justificativa && (
+                            <span style={{ fontSize: '0.82rem', color: 'var(--text-main)', display: 'block', marginTop: '6px' }}>
+                              Justificativa do funcionário: <em>“{feedback.justificativa}”</em>
+                            </span>
+                          )}
+                        </div>
+                      )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: task.photo ? '1fr 1fr' : '1fr', gap: '20px' }}>
                         {task.photo && (

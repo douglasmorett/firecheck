@@ -63,6 +63,16 @@ export default function ChecklistExecution() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [aiFeedback, setAIFeedback] = useState({});
+  // Fotos em conferência agora, e o gate que aparece ao finalizar com reprovação.
+  const [conferindo, setConferindo] = useState({});
+  const [aguardandoConferencia, setAguardandoConferencia] = useState(false);
+  const [gateReprovacao, setGateReprovacao] = useState(null);
+  const [justificativa, setJustificativa] = useState('');
+  // O envio precisa ler o estado NO momento do clique. Dentro de uma função
+  // assíncrona, o valor capturado pelo closure é o do render em que ela nasceu —
+  // e é justamente durante a espera que os vereditos chegam.
+  const conferindoRef = useRef({});
+  const aiFeedbackRef = useRef({});
   const [userProfile, setUserProfile] = useState(null);
   const [showSummary, setShowSummary] = useState(false);
   const [startedAt] = useState(() => new Date().toISOString());
@@ -487,14 +497,17 @@ export default function ChecklistExecution() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
+        let alvo = null;
         setTasks(prev => prev.map(t => {
           if (t.id === taskId) {
             const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
             currentPhotos.push(photoUrl);
+            alvo = t;
             return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
           }
           return t;
         }));
+        if (alvo) { esquecerVeredito(taskId); conferirFoto(alvo, photoUrl); }
       };
       img.src = event.target.result;
     };
@@ -521,19 +534,88 @@ export default function ChecklistExecution() {
     canvas.height = height;
     canvas.getContext('2d').drawImage(video, 0, 0, width, height);
     const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
+    let alvo = null;
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
         const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
         currentPhotos.push(photoUrl);
+        alvo = t;
         return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
       }
       return t;
     }));
+    if (alvo) { esquecerVeredito(taskId); conferirFoto({ ...alvo, text: alvo.text || taskText }, photoUrl); }
     stopCamera();
   };
 
   const forceAcceptPhoto = (taskId) =>
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, forceOverride: true } : t));
+
+  // ── Conferência da foto pela IA, na hora ────────────────────────────────
+  //
+  // Roda em segundo plano: quem tirou a foto continua respondendo o checklist
+  // enquanto o veredito não chega. Travar a tela aqui seria trocar um problema
+  // de qualidade por um problema de espera, e a foto seguinte já estaria sendo
+  // tirada quando a resposta viesse.
+  //
+  // Nada aqui pode impedir o envio. Se a IA não responde, se a chave acabou, se
+  // a loja está sem sinal — o resultado é "não conferido", que não acusa
+  // ninguém e cai na auditoria de fundo que já existia.
+  const conferirFoto = useCallback(async (task, photoUrl) => {
+    if (!photoUrl) return;
+    setConferindo(prev => ({ ...prev, [task.id]: true }));
+    try {
+      const res = await fetch(`${API_URL}/api/audit`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          taskId: task.id,
+          taskText: task.text,
+          criteria: task.aiCriteria || task.criteria || '',
+          photoBase64: photoUrl,
+        }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      const resultado = data.resultado || (data.approved === false ? 'reprovado' : 'aprovado');
+      setAIFeedback(prev => ({
+        ...prev,
+        [task.id]: {
+          status: resultado === 'aprovado' ? 'success' : resultado === 'reprovado' ? 'warning' : 'neutro',
+          resultado,
+          message: data.mensagem || data.message || '',
+          conferidoEm: new Date().toISOString(),
+        },
+      }));
+    } catch {
+      // Falha de rede não vira acusação, e nem sequer aparece como aviso: a
+      // foto continua valendo e a auditoria de fundo confere depois.
+      setAIFeedback(prev => ({
+        ...prev,
+        [task.id]: { status: 'neutro', resultado: 'nao_conferido', message: 'Não deu para conferir agora.' },
+      }));
+    } finally {
+      setConferindo(prev => {
+        const copia = { ...prev };
+        delete copia[task.id];
+        return copia;
+      });
+    }
+  }, []);
+
+  useEffect(() => { conferindoRef.current = conferindo; }, [conferindo]);
+  useEffect(() => { aiFeedbackRef.current = aiFeedback; }, [aiFeedback]);
+
+  // Foto trocada ou apagada invalida o veredito anterior — senão o funcionário
+  // refaz a foto e continua vendo na tela a reprovação da foto antiga.
+  const esquecerVeredito = useCallback((taskId) => {
+    setAIFeedback(prev => {
+      if (!prev[taskId]) return prev;
+      const copia = { ...prev };
+      delete copia[taskId];
+      return copia;
+    });
+  }, []);
 
   const handleBoolean = (id, value) =>
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: value } : t));
@@ -706,7 +788,10 @@ export default function ChecklistExecution() {
     alert('🖋️ Assinatura capturada com sucesso!');
   };
 
-  const handleFinish = async () => {
+  // `opcoes` chega como evento de clique no uso normal; só o modal de confirmação
+  // passa um objeto de verdade, e um evento nunca tem esta chave.
+  const handleFinish = async (opcoes) => {
+    const cienteConfirmado = !!(opcoes && opcoes.cienteConfirmado === true);
     if (isReadOnly) {
       alert('Modo de visualização. Não é possível submeter.');
       return;
@@ -778,11 +863,52 @@ export default function ChecklistExecution() {
       return;
     }
 
+    // ── Porta de saída: nada reprovado passa sem ele saber ──────────────────
+    //
+    // Espera pelas conferências que ainda estão voltando. Sem isto, quem termina
+    // o checklist três segundos depois da última foto escapa do aviso — e o
+    // veredito chegaria quando a tela já tivesse fechado. A espera é curta e tem
+    // fim: passou de seis segundos, o que não voltou vira "não conferido" e
+    // segue para a auditoria de fundo, como já era antes desta tela existir.
+    if (Object.keys(conferindoRef.current).length > 0) {
+      setAguardandoConferencia(true);
+      const limite = Date.now() + 6000;
+      while (Object.keys(conferindoRef.current).length > 0 && Date.now() < limite) {
+        await new Promise(r => setTimeout(r, 250));
+      }
+      setAguardandoConferencia(false);
+    }
+
+    const reprovadas = tasks.filter(t => aiFeedbackRef.current[t.id]?.resultado === 'reprovado');
+    if (reprovadas.length > 0 && !cienteConfirmado) {
+      setJustificativa('');
+      setGateReprovacao(reprovadas.map(t => ({
+        id: t.id,
+        texto: t.text,
+        motivo: aiFeedbackRef.current[t.id]?.message || '',
+      })));
+      return;
+    }
+
+    // Confirmou mesmo com reprovação: a ciência vai carimbada em cada tarefa
+    // reprovada, e é dela que o servidor tira o aviso para o responsável.
+    const feedbackParaEnviar = { ...aiFeedback };
+    if (cienteConfirmado) {
+      for (const t of reprovadas) {
+        feedbackParaEnviar[t.id] = {
+          ...(feedbackParaEnviar[t.id] || {}),
+          enviado_ciente: true,
+          justificativa: justificativa.trim().slice(0, 200),
+          cienteEm: new Date().toISOString(),
+        };
+      }
+    }
+
     const payload = {
-      employeeName: EMPLOYEE.name, 
-      store: EMPLOYEE.store, 
-      tasks, 
-      feedbackInfo: aiFeedback, 
+      employeeName: EMPLOYEE.name,
+      store: EMPLOYEE.store,
+      tasks,
+      feedbackInfo: feedbackParaEnviar, 
       selfie,
       checklistId: currentChecklistId,
       vehicleId: vehicleId ? parseInt(vehicleId) : (selectedVehicleId ? parseInt(selectedVehicleId) : null),
@@ -1123,7 +1249,7 @@ export default function ChecklistExecution() {
           const showSectionHeader = task.section && (!prevTask || prevTask.section !== task.section);
           
           return (
-            <div key={task.id}>
+            <div key={task.id} id={`tarefa-${task.id}`}>
               {showSectionHeader && (
                 <div style={{ margin: '24px 0 12px 0', padding: '10px 14px', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1rem' }}>📁</span>
@@ -1410,6 +1536,7 @@ export default function ChecklistExecution() {
                                   }
                                   return t;
                                 }));
+                                esquecerVeredito(task.id);
                               }}
                               disabled={isReadOnly}
                             >
@@ -1418,6 +1545,60 @@ export default function ChecklistExecution() {
                           )}
                         </div>
                       ))}
+                    </div>
+                  )}
+
+                  {/* ── Veredito da conferência automática ──────────────────
+                      Fica colado nas fotos, e não num resumo no fim, porque o
+                      objetivo é que ele refaça a foto agora — com o problema à
+                      vista e a câmera a um toque. */}
+                  {conferindo[task.id] && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', marginBottom: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                      <span className="animate-pulse">🤖</span> Conferindo a foto...
+                    </div>
+                  )}
+                  {!conferindo[task.id] && aiFeedback[task.id] && (
+                    <div style={{
+                      padding: '12px', marginBottom: '12px', borderRadius: '8px', fontSize: '0.85rem',
+                      backgroundColor: aiFeedback[task.id].resultado === 'reprovado' ? 'rgba(239, 68, 68, 0.08)'
+                        : aiFeedback[task.id].resultado === 'aprovado' ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-color)',
+                      border: `1px solid ${aiFeedback[task.id].resultado === 'reprovado' ? 'rgba(239, 68, 68, 0.35)'
+                        : aiFeedback[task.id].resultado === 'aprovado' ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)'}`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                        <span style={{ fontSize: '1rem', lineHeight: 1.2 }}>
+                          {aiFeedback[task.id].resultado === 'reprovado' ? '⚠️' : aiFeedback[task.id].resultado === 'aprovado' ? '✅' : 'ℹ️'}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ display: 'block', marginBottom: '2px', color: aiFeedback[task.id].resultado === 'reprovado' ? '#b91c1c' : 'var(--text-main)' }}>
+                            {aiFeedback[task.id].resultado === 'reprovado' ? 'A foto não passou na conferência'
+                              : aiFeedback[task.id].resultado === 'aprovado' ? 'Foto conferida' : 'Não deu para conferir'}
+                          </strong>
+                          <span style={{ color: 'var(--text-muted)' }}>{aiFeedback[task.id].message}</span>
+                          {aiFeedback[task.id].resultado === 'reprovado' && (
+                            <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn"
+                                style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                                onClick={() => {
+                                  // Tira a última foto e devolve a câmera: refazer
+                                  // tem que ser mais fácil do que insistir.
+                                  setTasks(prev => prev.map(t => {
+                                    if (t.id !== task.id) return t;
+                                    const restantes = (t.photos || []).slice(0, -1);
+                                    return { ...t, photos: restantes, photo: restantes[restantes.length - 1] || null };
+                                  }));
+                                  esquecerVeredito(task.id);
+                                  startCamera(task.id);
+                                }}
+                                disabled={isReadOnly}
+                              >
+                                <Camera size={15} /> Refazer a foto
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
 
@@ -1568,7 +1749,7 @@ export default function ChecklistExecution() {
         onClick={handleFinish}
         disabled={isReadOnly || isSubmitting}
       >
-        {isReadOnly ? '🔒 Somente visualização' : isSubmitting ? 'Enviando…' : (
+        {isReadOnly ? '🔒 Somente visualização' : aguardandoConferencia ? 'Conferindo as fotos…' : isSubmitting ? 'Enviando…' : (
           isImpersonating ? (
             requireSelfie && !selfie ? <><Camera size={20} /> Tirar Selfie e Validar Simulação</> : <>🧪 Finalizar e Validar Simulação</>
           ) : (
@@ -1576,6 +1757,77 @@ export default function ChecklistExecution() {
           )
         )}
       </button>
+
+      {/* ── Pergunta final: enviar mesmo com a foto reprovada? ────────────────
+          Aparece só quando há reprovação, e o caminho de menor esforço é voltar
+          e refazer. Enviar assim mesmo continua possível — uma falha da IA nunca
+          pode impedir alguém de fechar o turno —, mas é uma escolha consciente,
+          e quem manda na loja fica sabendo que ela foi feita. */}
+      {gateReprovacao && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000, backgroundColor: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px',
+          overflowY: 'auto',
+        }}>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '460px', padding: '24px', borderRadius: '16px', borderTop: '6px solid var(--error, #ef4444)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: '1.2rem', margin: '0 0 6px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldAlert size={22} color="#ef4444" />
+              {gateReprovacao.length === 1 ? 'Uma foto não passou' : `${gateReprovacao.length} fotos não passaram`}
+            </h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.88rem', margin: '0 0 16px 0' }}>
+              Dá para voltar e refazer agora. Se enviar assim mesmo, seu gestor será avisado de que você viu o aviso e enviou.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+              {gateReprovacao.map(item => (
+                <div key={item.id} style={{ padding: '12px', borderRadius: '10px', backgroundColor: 'rgba(239, 68, 68, 0.07)', border: '1px solid rgba(239, 68, 68, 0.25)' }}>
+                  <strong style={{ display: 'block', fontSize: '0.88rem', marginBottom: '4px' }}>{item.texto}</strong>
+                  <span style={{ fontSize: '0.83rem', color: 'var(--text-muted)' }}>{item.motivo}</span>
+                </div>
+              ))}
+            </div>
+
+            <label className="input-label" style={{ fontSize: '0.82rem' }}>
+              Quer explicar por quê? (opcional — vai junto para o gestor)
+            </label>
+            <textarea
+              className="input-field"
+              rows={2}
+              maxLength={200}
+              value={justificativa}
+              onChange={e => setJustificativa(e.target.value)}
+              placeholder="Ex.: a lâmpada queimou e escureceu a foto"
+              style={{ resize: 'vertical', marginBottom: '18px' }}
+            />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                className="btn"
+                style={{ width: '100%', padding: '14px', fontWeight: 'bold' }}
+                onClick={() => {
+                  const primeira = gateReprovacao[0];
+                  setGateReprovacao(null);
+                  const alvo = document.getElementById(`tarefa-${primeira.id}`);
+                  if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }}
+              >
+                <Camera size={18} /> Voltar e refazer
+              </button>
+              <button
+                className="btn-secondary"
+                style={{ width: '100%', padding: '13px', fontSize: '0.9rem' }}
+                onClick={() => {
+                  setGateReprovacao(null);
+                  handleFinish({ cienteConfirmado: true });
+                }}
+                disabled={isSubmitting}
+              >
+                Enviar mesmo assim e avisar o gestor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

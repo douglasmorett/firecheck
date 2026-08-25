@@ -1080,6 +1080,33 @@ export default function ChecklistCreator() {
                        onChange={e => updateTask(task.id, 'timeLimit', e.target.value)} />
                    </div>
                  </div>
+
+                 {/* ── O que a IA deve procurar na foto ──────────────────────
+                     Sem isto, a conferência tem apenas o título da tarefa —
+                     "Limpar a bancada" — e decide sozinha o que conta como
+                     limpo. Escrever aqui é o que separa um aviso útil de uma
+                     reprovação injusta, porque é este texto que o funcionário
+                     vai ler quando a foto dele não passar. */}
+                 {task.requirePhoto && (
+                   <div style={{ marginTop: '12px' }}>
+                     <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                       <ShieldCheck size={14} /> O que a foto precisa mostrar (opcional)
+                     </label>
+                     <textarea
+                       className="input-field"
+                       rows={2}
+                       maxLength={300}
+                       value={task.aiCriteria || ''}
+                       onChange={e => updateTask(task.id, 'aiCriteria', e.target.value)}
+                       placeholder="Ex.: a bancada sem louça e sem restos de comida, com o pano dobrado ao lado"
+                       style={{ resize: 'vertical' }}
+                     />
+                     <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '4px' }}>
+                       A IA confere a foto por esta descrição e avisa o funcionário na hora se algo faltar.
+                       Em branco, ela só olha pelo título da tarefa e evita reprovar na dúvida.
+                     </span>
+                   </div>
+                 )}
               </div>
             ))}
           </div>
