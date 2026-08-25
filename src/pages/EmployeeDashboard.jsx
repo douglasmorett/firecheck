@@ -464,7 +464,7 @@ export default function EmployeeDashboard() {
            </div>
            <div>
               <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{userProfile?.store}</p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{userProfile?.store_name || userProfile?.store}</p>
            </div>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>

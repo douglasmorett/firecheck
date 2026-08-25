@@ -726,7 +726,8 @@ export default function AdminDashboard() {
       setFechamentoDia(fd);
     }
 
-    if (user.store) setCompanyName(user.store);
+    // O campo do Perfil edita o rótulo, não a chave da conta.
+    if (user.store_name || user.store) setCompanyName(user.store_name || user.store);
     if (user.name) setOwnerName(user.name);
     if (user.phone) setOwnerPhone(user.phone);
 
@@ -2002,10 +2003,13 @@ export default function AdminDashboard() {
         })
       });
       if (res.ok) {
+        // `store` é a chave da conta e NÃO muda ao renomear a empresa. Gravá-la
+        // aqui com o texto digitado era o bastante para o painel passar a pedir
+        // os dados de uma loja que não existe — tudo sumia da tela até relogar.
         const updatedMe = {
           ...userProfile,
           name: ownerName,
-          store: companyName,
+          store_name: companyName,
           phone: ownerPhone
         };
         setUserProfile(prev => { if (!prev || JSON.stringify(prev) !== JSON.stringify(updatedMe)) { localStorage.setItem('user', JSON.stringify(updatedMe)); return updatedMe; } return prev; });
@@ -2505,7 +2509,7 @@ export default function AdminDashboard() {
            {!isSidebarCollapsed && (
              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>
                 👤 {userProfile?.name}<br/>
-                🏬 {userProfile?.store || 'Sistema Central'}
+                🏬 {userProfile?.store_name || userProfile?.store || 'Sistema Central'}
              </p>
            )}
            <button onClick={handleLogout} title="Sair do Sistema" style={{ 
@@ -2741,7 +2745,7 @@ export default function AdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store || 'Filial Centro'}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store_name || userProfile?.store || 'Filial Centro'}</span>
                 </div>
                 <Users color="var(--success)" size={28} />
               </div>
@@ -5265,7 +5269,7 @@ export default function AdminDashboard() {
                     </select>
                   ) : (
                     <select className="input-field" value={newUser.store} disabled style={{ backgroundColor: 'var(--bg-card)', cursor: 'not-allowed' }}>
-                      <option value={userProfile?.store}>{userProfile?.store}</option>
+                      <option value={userProfile?.store}>{userProfile?.store_name || userProfile?.store}</option>
                     </select>
                   )}
                   

@@ -570,7 +570,7 @@ export default function PontoPage() {
             </div>
             <div>
               <h2 style={{ fontSize: '1.15rem', margin: 0 }}>Ponto Digital</h2>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>{user.store}</p>
+              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>{user.store_name || user.store}</p>
             </div>
           </div>
         </div>
@@ -601,7 +601,7 @@ export default function PontoPage() {
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: 0, fontSize: '1.05rem' }}>{user.name}</h3>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-            {user.role === 'admin' ? 'Administrador' : 'Funcionário'} • {user.store}
+            {user.role === 'admin' ? 'Administrador' : 'Funcionário'} • {user.store_name || user.store}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>

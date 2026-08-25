@@ -86,6 +86,8 @@ export default function ChecklistCreator() {
   const [userPlan, setUserPlan] = useState('pro');
   const [title, setTitle] = useState('');
   const [store, setStore] = useState('Centro');
+  // `store` é a chave da conta e vai no envio; este é só o nome que se mostra.
+  const [storeLabel, setStoreLabel] = useState('');
   const [recurrence, setRecurrence] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [tasks, setTasks] = useState([newTask()]);
@@ -388,6 +390,7 @@ export default function ChecklistCreator() {
       if (profile.store && !isEditing) {
         setStore(profile.store);
       }
+      if (profile.store_name || profile.store) setStoreLabel(profile.store_name || profile.store);
       if (profile.store) {
         fetch(`${API_URL}/api/users?store=${encodeURIComponent(profile.store)}`, {
             headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
@@ -603,7 +606,7 @@ export default function ChecklistCreator() {
                 <input 
                   type="text" 
                   className="input-field" 
-                  value={store} 
+                  value={storeLabel || store}
                   readOnly
                   style={{ backgroundColor: 'var(--bg-card)', cursor: 'not-allowed', color: 'var(--text-muted)' }}
                   placeholder="Nome da sua loja"

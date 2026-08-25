@@ -169,6 +169,34 @@ async function lojaCanonica(nome) {
   return nome;
 }
 
+// Chave de loja livre, a partir do nome que o cliente digitou no cadastro.
+//
+// A chave é o que separa uma empresa da outra no banco, então não pode repetir:
+// dois cadastros com o mesmo nome — e "Teste", "Loja", "Bomba" se repetem — cairiam
+// dentro da mesma loja e passariam a enxergar os checklists um do outro.
+//
+// O cliente não vê nada disto: o nome que ele escolheu fica em store_name, do jeito
+// que ele digitou. O desempate mora só na chave.
+async function gerarChaveDeLoja(nome) {
+  const base = String(nome || '').trim() || 'Loja';
+  for (let n = 1; n <= 50; n++) {
+    const tentativa = n === 1 ? base : `${base} (${n})`;
+    try {
+      const { rows } = await pool.query(
+        'SELECT 1 FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) LIMIT 1',
+        [tentativa]
+      );
+      if (rows.length === 0) return tentativa;
+    } catch (e) {
+      // Sem conseguir consultar, é melhor uma chave garantidamente livre do que
+      // arriscar entregar a conta nova para dentro de uma loja que já existe.
+      console.error('[loja] falha ao procurar chave livre:', e.message);
+      return `${base} (${Date.now()})`;
+    }
+  }
+  return `${base} (${Date.now()})`;
+}
+
 async function autenticarComLojaAtual(req) {
   const authUser = authenticateToken(req);
   if (!authUser || !authUser.id) return authUser;
@@ -545,6 +573,22 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_active BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS finance_active BOOLEAN DEFAULT FALSE");
+      // ── O nome da loja deixa de ser duas coisas ao mesmo tempo ──
+      // `store` é o que separa um cliente do outro: aparece em treze tabelas e em
+      // setenta e oito consultas. Só que era também o nome que o lojista digita e
+      // reedita no Perfil da Empresa — ou seja, a identidade da conta mudava toda
+      // vez que ele resolvia caprichar no nome, e cada mudança tinha que ser
+      // perseguida por todas as tabelas antes que algo ficasse para trás.
+      //
+      // Pior: como identidade, o nome não é confiável. Duas contas que digitem
+      // "Teste" viram, para o banco, a mesma loja — uma passa a enxergar os
+      // checklists da outra sem nunca ter feito nada de errado.
+      //
+      // A partir daqui `store` é chave e não muda mais; `store_name` é o rótulo
+      // que o cliente vê e edita à vontade, inclusive repetido. Renomear a empresa
+      // deixa de mexer em dado nenhum.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS store_name TEXT");
+      await pool.query("UPDATE users SET store_name = store WHERE store_name IS NULL AND store IS NOT NULL");
       // ── Cota de Checklists ──
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklist_limit INTEGER DEFAULT 300");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
@@ -2089,9 +2133,13 @@ export default async function handler(req, res) {
 
         // Hash da senha com bcrypt
         const hashedPassword = await bcrypt.hash(password, 12);
+        // A chave da conta nasce aqui e não muda mais. O nome que o cliente
+        // digitou vai inteiro para store_name; se outra empresa já ocupa essa
+        // chave, o desempate fica só na chave e ele nunca vê a diferença.
+        const chaveDaLoja = await gerarChaveDeLoja(store);
         const { rows } = await pool.query(
-          'INSERT INTO users (name, email, password, role, store, status, phone, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role, store, status, phone, created_at',
-          [name, email, hashedPassword, 'admin', store, initialStatus, phone, plan || 'trial']
+          'INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, store_name, status, phone, created_at',
+          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, plan || 'trial']
         );
 
         // ── WhatsApp de Boas-Vindas do Suporte no Trial (fire and forget) ──
@@ -2245,7 +2293,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { name, store: storeName, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions, expiration_date } = req.body;
+        const { name, store: storeName, storeKey, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions, expiration_date } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -2266,7 +2314,25 @@ export default async function handler(req, res) {
           }
         }
 
-        // Renomear loja em TODAS as tabelas que guardam o nome dela.
+        // ── Renomear a empresa não mexe em dado nenhum ──────────────────────
+        // O nome que o lojista edita no Perfil é rótulo, e rótulo mora em
+        // store_name. A chave da conta (`store`) fica onde está: é ela que aparece
+        // nas treze tabelas e nas setenta e oito consultas, e mudá-la era o que
+        // fazia checklists sumirem do painel quando o cliente caprichava no nome.
+        //
+        // O rótulo vale para a loja inteira, não só para quem clicou em salvar —
+        // o funcionário também vê o nome da empresa na tela dele.
+        if (storeName !== undefined && storeName !== (user.store_name || user.store) && user.store) {
+          await pool.query(
+            'UPDATE users SET store_name = $1 WHERE LOWER(TRIM(store)) = LOWER(TRIM($2))',
+            [storeName, user.store]
+          );
+        }
+
+        // ── Trocar a CHAVE da loja: manutenção, nunca fluxo normal ──────────
+        // Só o master, e só mandando `storeKey` de propósito. Serve para consolidar
+        // dados que ficaram numa chave antiga — foi o que aconteceu com um cliente
+        // cujos checklists nasceram sob o nome anterior da empresa.
         //
         // Correções acumuladas aqui. Primeira: faltavam seis tabelas (vehicles,
         // work_schedules, ponto_config, cameras, checklist_executions,
@@ -2281,15 +2347,17 @@ export default async function handler(req, res) {
         // Terceira, e a razão de este bloco não ter mais uma lista escrita à mão: a
         // lista só está certa enquanto alguém lembrar de acrescentar cada tabela nova
         // que ganhar uma coluna `store`. Esquecer uma não dá erro nem aviso — os dados
-        // dela só somem do painel do cliente na próxima vez que ele renomear a loja, e
+        // dela só somem do painel do cliente na próxima vez que a chave mudar, e
         // ninguém liga uma coisa à outra. Quem sabe quais tabelas têm a coluna é o
         // banco, então é a ele que se pergunta.
         //
-        // Vai tudo numa transação: um rename pela metade deixa parte da empresa com o
-        // nome novo e parte com o antigo, que é exatamente o estado que se quer evitar.
-        // Se falhar, nada muda e a requisição devolve erro — o cadastro NÃO pode ser
-        // atualizado sozinho, senão a divergência nasce aqui mesmo.
-        if (storeName !== undefined && storeName !== user.store && user.store) {
+        // Vai tudo numa transação: uma troca pela metade deixa parte da empresa com a
+        // chave nova e parte com a antiga, que é exatamente o estado que se quer
+        // evitar. Se falhar, nada muda e a requisição devolve erro.
+        if (storeKey !== undefined && storeKey !== user.store && user.store) {
+          if (authUser.role !== 'master') {
+            return res.status(403).json({ error: 'Somente o suporte pode trocar a chave de uma loja.' });
+          }
           const oldStore = user.store;
           // Rede de segurança para o caso de o catálogo não responder.
           const TABELAS_CONHECIDAS = [
@@ -2325,16 +2393,16 @@ export default async function handler(req, res) {
             for (const tabela of seguras) {
               await cliente.query(
                 `UPDATE "${tabela}" SET store = $1 WHERE LOWER(TRIM(store)) = LOWER(TRIM($2))`,
-                [storeName, oldStore]
+                [storeKey, oldStore]
               );
             }
             await cliente.query('COMMIT');
-            console.log(`[Rename loja] "${oldStore}" → "${storeName}" em ${seguras.length} tabelas.`);
+            console.log(`[Chave da loja] "${oldStore}" → "${storeKey}" em ${seguras.length} tabelas.`);
           } catch (err) {
             try { await cliente.query('ROLLBACK'); } catch { /* a conexão já pode ter caído */ }
-            console.error('[Rename loja] Falhou, nada foi alterado:', err.message);
+            console.error('[Chave da loja] Falhou, nada foi alterado:', err.message);
             return res.status(500).json({
-              error: 'Não foi possível renomear a loja agora. Nada foi alterado — tente novamente em instantes.',
+              error: 'Não foi possível trocar a chave da loja agora. Nada foi alterado — tente novamente em instantes.',
             });
           } finally {
             cliente.release();
@@ -2342,7 +2410,10 @@ export default async function handler(req, res) {
         }
 
         const finalName = name !== undefined ? name : user.name;
-        const finalStore = storeName !== undefined ? storeName : user.store;
+        // A chave só muda pelo caminho de manutenção acima; o campo que o Perfil
+        // envia é rótulo e vai para store_name.
+        const finalStore = storeKey !== undefined ? storeKey : user.store;
+        const finalStoreName = storeName !== undefined ? storeName : (user.store_name || user.store);
         const finalPlan = plan !== undefined ? plan : user.plan;
         const finalStatus = status !== undefined ? status : user.status;
         const finalPonto = ponto_active !== undefined ? ponto_active : user.ponto_active;
@@ -2391,15 +2462,15 @@ export default async function handler(req, res) {
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
-            name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, photo = $27,
+            name = $21, store = $22, store_name = $29, ponto_limit = $23, role = $24, schedule_id = $25, photo = $27,
             expiration_date = COALESCE($28, NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END),
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days'),
             permissions = $26
             ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, store_name = $29, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName]);
         }
 
         // ── Último dia trabalhado (escala 12x36) ─────────────────────────────
@@ -2570,6 +2641,26 @@ export default async function handler(req, res) {
         // Master pode escolher a loja; os demais criam sempre dentro da sua.
         const store = authUser.role === 'master' ? await lojaCanonica(storeBruta || authUser.store) : authUser.store;
 
+        // Empresa nova com nome já ocupado: recusa em vez de adivinhar.
+        //
+        // A chave da loja é o que separa um cliente do outro. Se o suporte cadastra
+        // um cliente novo com um nome que já existe, ele entra dentro da empresa
+        // alheia e passa a ver os checklists dela — em silêncio. As duas intenções
+        // possíveis ("é outra empresa com nome parecido" e "é mais um dono da mesma
+        // empresa") são indistinguíveis daqui, então quem decide é quem está
+        // cadastrando, e não este código.
+        if (role === 'admin' && storeBruta) {
+          const { rows: jaExiste } = await pool.query(
+            "SELECT name, email FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
+            [store]
+          );
+          if (jaExiste.length > 0) {
+            return res.status(400).json({
+              error: `Já existe uma empresa chamada "${store}" (de ${jaExiste[0].name} — ${jaExiste[0].email}). Use um nome diferente, ou cadastre esta pessoa como colaborador daquela empresa.`,
+            });
+          }
+        }
+
         // Verificar email duplicado antes de inserir
         const { rows: existingEmail } = await pool.query('SELECT id, name, store FROM users WHERE LOWER(email) = LOWER($1)', [email]);
         if (existingEmail.length > 0) {
@@ -2607,7 +2698,14 @@ export default async function handler(req, res) {
         }
         
         const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions) : null;
-        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, plan, phone, status, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, phone, status, permissions', [name, email, hashedPassword, role, store, plan, phone || null, inheritedStatus, permissionsJson]);
+        // O colaborador entra na loja já existente: herda a chave e também o rótulo
+        // dela. Sem o rótulo, ele veria a chave da conta no lugar do nome da empresa.
+        const { rows: rotuloDaLoja } = await pool.query(
+          'SELECT store_name FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND store_name IS NOT NULL LIMIT 1',
+          [store]
+        );
+        const storeNameHerdado = rotuloDaLoja.length > 0 ? rotuloDaLoja[0].store_name : store;
+        const { rows } = await pool.query('INSERT INTO users (name, email, password, role, store, store_name, plan, phone, status, permissions) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, store, store_name, phone, status, permissions', [name, email, hashedPassword, role, store, storeNameHerdado, plan, phone || null, inheritedStatus, permissionsJson]);
         
         // NÃO propagar o novo colaborador para checklists restritos.
         // Um checklist com assigned_to preenchido é uma restrição explícita do lojista;
@@ -2624,7 +2722,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
