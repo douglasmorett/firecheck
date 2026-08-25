@@ -28,40 +28,139 @@ pool.on('error', (err) => {
 });
 
 // ── JWT Secret ──
+//
+// Sem JWT_SECRET no ambiente, cada instância serverless sorteia o seu. Isso não
+// deixa ninguém forjar token, mas quebra o login de um jeito difícil de
+// diagnosticar: o token emitido por uma instância é recusado pela seguinte, e o
+// usuário é deslogado ao acaso. Em produção isso é erro de configuração, não
+// padrão aceitável — falha na subida, onde se vê.
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET é obrigatório em produção. Defina a variável de ambiente.');
+}
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
 const JWT_EXPIRY = '7d'; // Token válido por 7 dias
 
-// ── Rate Limiting em Memória ──
+// ── Freio de força bruta no login ────────────────────────────────────────────
+//
+// Um robô testando senhas comuns contra uma lista de e-mails faz milhares de
+// tentativas por minuto. O freio anterior era um teto fixo de 10 falhas por
+// minuto, numa chave que combinava IP e e-mail — e tinha dois furos:
+//
+//  1. o IP vem de x-forwarded-for, que é escrito por quem chama. Trocando o
+//     cabeçalho a cada tentativa, cada uma caía num balde novo e o teto nunca
+//     era alcançado. Um limite construído sobre isso não limita nada.
+//
+//  2. o teto era fixo: passado o minuto, mais dez tentativas, e assim para
+//     sempre. Sem crescer, o freio só desacelera o robô.
+//
+// Agora são dois contadores. O principal é a CONTA: o atacante varia o IP à
+// vontade, mas não pode variar o e-mail que quer invadir, então toda tentativa
+// contra aquela conta cai no mesmo lugar. O segundo é a origem, com teto bem
+// mais folgado — uma loja inteira atrás da mesma conexão divide um IP, e
+// apertar ali bloquearia gente inocente.
+//
+// A espera cresce com a insistência: quem errou cinco vezes espera um minuto;
+// quem insiste vai para cinco, quinze e trinta. O funcionário distraído mal
+// percebe, e o robô trava.
 const loginAttempts = new Map();
-const RATE_LIMIT_WINDOW = 60000; // 1 minuto
-const RATE_LIMIT_MAX = 10; // Máx 10 FALHAS por minuto, por e-mail e origem
 
-// A chave combina origem e e-mail. Só por IP, uma loja inteira atrás da mesma
-// conexão dividiria um contador: o colega que erra a senha bloquearia todo mundo.
+const RATE_LIMIT_WINDOW = 15 * 60000;  // esquece o contador após 15 min sem falha
+const LIMITE_POR_CONTA = 5;            // falhas antes da primeira espera
+const LIMITE_POR_ORIGEM = 30;          // idem, por endereço de origem
+
+// Quanto esperar, conforme a insistência acumulada além do limite.
+function esperaDoFreio(falhas, limite) {
+  const excedente = falhas - limite;
+  if (excedente <= 0) return 0;
+  if (excedente <= 3) return 60000;
+  if (excedente <= 8) return 5 * 60000;
+  if (excedente <= 20) return 15 * 60000;
+  return 30 * 60000;
+}
+
+// A chave continua sendo "origem|conta", como antes, para não mexer em quem
+// chama. A diferença é que ela agora é DESMONTADA aqui dentro e vira dois
+// contadores separados.
 function rateLimitKey(ip, email) {
   return `${ip}|${String(email || '').toLowerCase().trim()}`;
+}
+
+function partesDaChave(key) {
+  const corte = String(key).indexOf('|');
+  const ip = corte >= 0 ? String(key).slice(0, corte) : 'desconhecida';
+  const conta = corte >= 0 ? String(key).slice(corte + 1) : String(key);
+  return [`origem:${ip}`, `conta:${conta}`];
+}
+
+function lerRegistro(chave) {
+  const registro = loginAttempts.get(chave);
+  if (!registro) return null;
+  const agora = Date.now();
+  if (agora - registro.firstAttempt > RATE_LIMIT_WINDOW && agora > registro.bloqueadoAte) {
+    loginAttempts.delete(chave);
+    return null;
+  }
+  return registro;
 }
 
 // Só consulta. Login bem-sucedido não consome cota — quem acerta a senha nunca
 // é bloqueado, por mais gente que esteja entrando ao mesmo tempo.
 function checkRateLimit(key) {
-  const record = loginAttempts.get(key);
-  if (!record) return true;
-  if (Date.now() - record.firstAttempt > RATE_LIMIT_WINDOW) {
-    loginAttempts.delete(key);
-    return true;
+  const agora = Date.now();
+  for (const chave of partesDaChave(key)) {
+    const registro = lerRegistro(chave);
+    if (registro && agora < registro.bloqueadoAte) return false;
   }
-  return record.count <= RATE_LIMIT_MAX;
+  return true;
+}
+
+// Quantos segundos faltam para a próxima tentativa, para dizer a quem esperou.
+function segundosDeEspera(key) {
+  const agora = Date.now();
+  let maior = 0;
+  for (const chave of partesDaChave(key)) {
+    const registro = lerRegistro(chave);
+    if (registro && agora < registro.bloqueadoAte) {
+      maior = Math.max(maior, Math.ceil((registro.bloqueadoAte - agora) / 1000));
+    }
+  }
+  return maior;
 }
 
 function registerLoginFailure(key) {
-  const now = Date.now();
-  const record = loginAttempts.get(key);
-  if (!record || (now - record.firstAttempt > RATE_LIMIT_WINDOW)) {
-    loginAttempts.set(key, { count: 1, firstAttempt: now });
-  } else {
-    record.count++;
-  }
+  const agora = Date.now();
+  const [chaveOrigem, chaveConta] = partesDaChave(key);
+
+  const anotar = (chave, limite) => {
+    const registro = lerRegistro(chave) || { count: 0, firstAttempt: agora, bloqueadoAte: 0 };
+    registro.count++;
+    const espera = esperaDoFreio(registro.count, limite);
+    if (espera > 0) registro.bloqueadoAte = agora + espera;
+    loginAttempts.set(chave, registro);
+  };
+
+  anotar(chaveOrigem, LIMITE_POR_ORIGEM);
+  anotar(chaveConta, LIMITE_POR_CONTA);
+}
+
+// Quem acerta a senha sai do castigo — o contador da conta zera.
+function limparFreioDaConta(key) {
+  const [, chaveConta] = partesDaChave(key);
+  loginAttempts.delete(chaveConta);
+}
+
+// Origem da requisição, para contagem.
+//
+// Não é identidade: é cabeçalho, e cabeçalho o cliente escreve. Por isso vale o
+// ÚLTIMO endereço do encadeamento — o que o proxy mais próximo anexou — e não o
+// primeiro, que veio de fora e qualquer um inventa.
+function origemDaRequisicao(req) {
+  const direto = req.headers['cf-connecting-ip'] || req.headers['x-real-ip'];
+  if (direto) return String(direto).split(',')[0].trim();
+  const encadeado = String(req.headers['x-forwarded-for'] || '');
+  const saltos = encadeado.split(',').map(s => s.trim()).filter(Boolean);
+  if (saltos.length) return saltos[saltos.length - 1];
+  return (req.socket && req.socket.remoteAddress) || 'desconhecida';
 }
 
 function clearLoginFailures(key) {
@@ -201,14 +300,118 @@ async function autenticarComLojaAtual(req) {
   const authUser = authenticateToken(req);
   if (!authUser || !authUser.id) return authUser;
   try {
-    const { rows } = await pool.query('SELECT store FROM users WHERE id = $1', [authUser.id]);
-    if (rows.length > 0 && rows[0].store) return { ...authUser, store: rows[0].store };
+    const { rows } = await pool.query(
+      'SELECT store, password_changed_at FROM users WHERE id = $1',
+      [authUser.id]
+    );
+    if (rows.length === 0) return null;
+
+    // ── Trocar a senha derruba as sessões antigas ─────────────────────────────
+    //
+    // O token vale sete dias e não era revogável: quem tivesse um token roubado
+    // continuava dentro mesmo depois de o dono redefinir a senha — justamente a
+    // primeira coisa que se faz ao desconfiar de invasão. A redefinição não
+    // expulsava ninguém, só mudava o que era preciso digitar para entrar de novo.
+    //
+    // Comparando a emissão do token (iat, em segundos) com o carimbo da última
+    // troca, todo token emitido ANTES da troca deixa de valer na hora.
+    const trocaDeSenha = rows[0].password_changed_at;
+    if (trocaDeSenha && authUser.iat) {
+      const trocaEmSegundos = Math.floor(new Date(trocaDeSenha).getTime() / 1000);
+      // Um segundo de folga: o token emitido no mesmo instante da troca é o
+      // token NOVO, e derrubá-lo deslogaria quem acabou de trocar a senha.
+      if (authUser.iat < trocaEmSegundos - 1) return null;
+    }
+
+    if (rows[0].store) return { ...authUser, store: rows[0].store };
   } catch (e) {
     // Banco fora do ar não pode transformar uma requisição legítima em 401: sem
     // resposta, o token segue valendo o que já dizia.
     console.error('[loja] falha ao reler a loja do cadastro:', e.message);
   }
   return authUser;
+}
+
+// ── Quem chama uma rota interna: o agendador, não a internet ─────────────
+//
+// As rotas de cron e as de processamento em segundo plano não têm usuário
+// logado do outro lado, então não dá para exigir token de sessão. O que as
+// separa de um estranho é um segredo compartilhado com quem as agenda.
+//
+// FALHA FECHADA de propósito. A versão anterior deste arquivo dizia "enquanto
+// o segredo não estiver definido, a rota continua aberta e apenas registra o
+// aviso" — e o aviso ficou no log durante meses enquanto a porta seguia aberta.
+// Sem CRON_SECRET no ambiente, a rota recusa: um cron que parou de rodar é um
+// alarme visível; uma rota aberta não é.
+//
+// Aceita pelo cabeçalho Authorization (usado pela Vercel) ou por x-cron-secret.
+function autorizarChamadaInterna(req, res) {
+  const esperado = process.env.CRON_SECRET;
+  if (!esperado) {
+    console.error('[cron] CRON_SECRET não configurado — chamada recusada.');
+    res.status(503).json({ error: 'Serviço indisponível.' });
+    return false;
+  }
+  const enviado =
+    String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
+    req.headers['x-cron-secret'] ||
+    '';
+  if (!comparaSegredo(String(enviado), esperado)) {
+    console.error('[cron] segredo inválido — chamada recusada.');
+    res.status(401).json({ error: 'Não autorizado.' });
+    return false;
+  }
+  return true;
+}
+
+// Rota que o app chama com token de usuário E o agendador chama sozinho.
+//
+// As duas rotas de auditoria (auto-process-pending e process-audit-background)
+// são disparadas pela tela assim que o funcionário envia o checklist — e também
+// pelo cron, que varre o que ficou para trás. Exigir só o segredo de cron aqui
+// mataria a auditoria imediata: a foto seria enviada e o feedback nunca viria.
+//
+// Devolve true se qualquer um dos dois se identificou. Não responde nada quando
+// aceita; quando recusa, já respondeu 401.
+async function autorizarUsuarioOuInterno(req, res) {
+  const esperado = process.env.CRON_SECRET;
+  const enviado = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.headers['x-cron-secret'] || '';
+  if (esperado && comparaSegredo(String(enviado), esperado)) return true;
+  const usuario = await autenticarComLojaAtual(req);
+  if (usuario) return true;
+  res.status(401).json({ error: 'Token inválido ou ausente.' });
+  return false;
+}
+
+// Comparação de tempo constante. Um === simples devolve mais rápido quando o
+// primeiro caractere já difere, e isso, repetido, entrega o segredo caractere a
+// caractere. timingSafeEqual exige comprimentos iguais, então o tamanho é
+// conferido antes — e o tamanho de um segredo não é informação útil para quem
+// não o tem.
+function comparaSegredo(recebido, esperado) {
+  const a = Buffer.from(String(recebido || ''));
+  const b = Buffer.from(String(esperado || ''));
+  if (a.length !== b.length) return false;
+  try { return crypto.timingSafeEqual(a, b); } catch { return false; }
+}
+
+// Duas grafias da mesma loja são a mesma loja. O nome é a chave de tenant deste
+// sistema, e ele chega com espaço a mais e caixa trocada o tempo todo.
+function mesmaLoja(a, b) {
+  return String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+}
+
+// A loja que a requisição pode tocar: a do token, sempre — exceto para o
+// master, que é o suporte e precisa entrar na loja do cliente.
+//
+// Devolve null quando o pedido é para outra loja, e quem chama responde 403.
+// Não confunda com "loja ausente": pedido sem loja explícita usa a do token,
+// que é o caso normal.
+function lojaPermitida(authUser, lojaPedida) {
+  if (!authUser) return null;
+  if (authUser.role === 'master') return lojaPedida || authUser.store;
+  if (lojaPedida && !mesmaLoja(lojaPedida, authUser.store)) return null;
+  return authUser.store;
 }
 
 // ── Domínios Permitidos (CORS) ──
@@ -718,6 +921,10 @@ export default async function handler(req, res) {
       // painel precisa filtrar e contar isso sem abrir cada submissão.
       await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS enviado_ciente BOOLEAN DEFAULT FALSE');
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'active'");
+      // Carimbo da última troca de senha. Todo token emitido antes dele deixa de
+      // valer — é o que faz "redefinir a senha" realmente expulsar quem entrou
+      // com um token roubado. Nulo em quem nunca trocou, e nulo não derruba nada.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS password_changed_at TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(50)");
@@ -1088,7 +1295,9 @@ export default async function handler(req, res) {
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
             body: JSON.stringify({
               enabled: true,
-              url: 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
+              url: process.env.WHATSAPP_WEBHOOK_SECRET
+                ? 'https://www.firecheckapp.com.br/api/webhooks/whatsapp?secret=' + encodeURIComponent(process.env.WHATSAPP_WEBHOOK_SECRET)
+                : 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
               webhookByEvents: false,
               webhook_by_events: false,
               events: ['MESSAGES_UPSERT', 'messages.upsert']
@@ -1114,13 +1323,22 @@ export default async function handler(req, res) {
         const { email, password } = req.body;
         if (!email || !password) return res.status(400).json({ status: 'error', error: 'E-mail e senha são obrigatórios.' });
 
-        // Rate limiting por origem + e-mail, contando apenas falhas.
-        // x-forwarded-for pode vir como "cliente, proxy1, proxy2": o primeiro é o cliente.
-        const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-        const clientIp = forwarded || req.socket.remoteAddress || 'unknown';
+        // Rate limiting por conta + origem, contando apenas falhas.
+        //
+        // O primeiro elemento de x-forwarded-for é o que o CLIENTE mandou —
+        // usá-lo permitia trocar de balde a cada tentativa e nunca ser barrado.
+        const clientIp = origemDaRequisicao(req);
         const rlKey = rateLimitKey(clientIp, email);
         if (!checkRateLimit(rlKey)) {
-          return res.status(429).json({ status: 'error', error: 'Muitas tentativas de login. Aguarde 1 minuto e tente novamente.' });
+          const faltam = segundosDeEspera(rlKey);
+          const minutos = Math.ceil(faltam / 60);
+          return res.status(429).json({
+            status: 'error',
+            error: minutos > 1
+              ? `Muitas tentativas de login. Aguarde ${minutos} minutos e tente novamente.`
+              : 'Muitas tentativas de login. Aguarde 1 minuto e tente novamente.',
+            retryAfter: faltam,
+          });
         }
 
         // Buscar usuário SEM comparar senha na query (bcrypt faz isso em memória)
@@ -1193,6 +1411,9 @@ export default async function handler(req, res) {
           clearLoginFailures(rlKey);
 
           // ── Gerar JWT Token ──
+          // Quem acerta a senha sai do castigo do freio de tentativas.
+          limparFreioDaConta(rlKey);
+
           const tokenPayload = { id: user.id, email: user.email, role: user.role, store: user.store };
           const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 
@@ -1651,8 +1872,12 @@ export default async function handler(req, res) {
       
       // ── Submissão (preenchimento pelo funcionário) ──
       if (url.includes('/api/shopping/submit') && method === 'POST') {
+        // A loja saía de req.body quando não havia token — ou seja, sem token
+        // qualquer um gravava contagem de estoque na loja que quisesse, só
+        // escrevendo o nome dela no corpo.
+        if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
         const { shoppingListId, items, employeeName, notes } = req.body;
-        const store = authUser?.store || req.body.store;
+        const store = authUser.role === 'master' ? (req.body.store || authUser.store) : authUser.store;
         
         // Calcular itens abaixo do mínimo
         const belowMinimum = (items || []).filter(item => 
@@ -1756,9 +1981,19 @@ export default async function handler(req, res) {
 
       // ── CRUD Itens de uma lista ──
       if (url.includes('/api/shopping/items') && method === 'GET') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
         const listId = searchParams.get('listId');
         if (!listId) return res.status(400).json({ error: 'listId obrigatório.' });
-        const { rows } = await pool.query('SELECT * FROM shopping_items WHERE shopping_list_id = $1 ORDER BY sort_order ASC, id ASC', [listId]);
+
+        // Os itens não guardam a loja; quem guarda é a lista. Sem passar pela
+        // lista, um listId qualquer devolvia o estoque de outra empresa — o que
+        // ela compra, quanto e a que preço.
+        const { rows } = authUser.role === 'master'
+          ? await pool.query('SELECT * FROM shopping_items WHERE shopping_list_id = $1 ORDER BY sort_order ASC, id ASC', [listId])
+          : await pool.query(
+              'SELECT si.* FROM shopping_items si JOIN shopping_lists sl ON sl.id = si.shopping_list_id WHERE si.shopping_list_id = $1 AND LOWER(TRIM(sl.store)) = LOWER(TRIM($2)) ORDER BY si.sort_order ASC, si.id ASC',
+              [listId, authUser.store]
+            );
         return res.status(200).json(rows);
       }
 
@@ -1768,7 +2003,11 @@ export default async function handler(req, res) {
         const deleteMatch = pathname.match(/\/api\/shopping\/(\d+)/);
         if (deleteMatch) {
           if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
-          await pool.query('DELETE FROM shopping_lists WHERE id = $1', [deleteMatch[1]]);
+          // Apagava por id, sem olhar de quem era a lista.
+          const alvo = authUser.role === 'master'
+            ? await pool.query('DELETE FROM shopping_lists WHERE id = $1 RETURNING id', [deleteMatch[1]])
+            : await pool.query('DELETE FROM shopping_lists WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) RETURNING id', [deleteMatch[1], authUser.store]);
+          if (alvo.rowCount === 0) return res.status(404).json({ error: 'Lista não encontrada nesta loja.' });
           return res.status(200).json({ success: true });
         }
       }
@@ -1925,29 +2164,29 @@ export default async function handler(req, res) {
           // cancela o de um cliente. Aceita o segredo por cabeçalho ou por query,
           // porque cada gateway envia de um jeito.
           //
-          // Enquanto CAKTO_WEBHOOK_SECRET não estiver definido, a rota continua
-          // aberta e apenas registra o aviso — desligá-la sem aviso interromperia
-          // o processamento de pagamentos em produção. Configure o segredo na
-          // Cakto e na Vercel para fechar de vez.
+          // Sem CAKTO_WEBHOOK_SECRET no ambiente a rota recusa tudo: o segredo
+          // é a única coisa que separa a Cakto de um estranho. Configure o mesmo
+          // valor na Cakto e no ambiente do servidor.
           const segredoWebhook = process.env.CAKTO_WEBHOOK_SECRET;
-          if (segredoWebhook) {
-            const enviado =
-              req.headers['x-cakto-signature'] ||
-              req.headers['x-webhook-secret'] ||
-              req.headers['x-hub-signature'] ||
-              String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
-              searchParams.get('secret') ||
-              payload?.secret;
-            const a = Buffer.from(String(enviado || ''));
-            const b = Buffer.from(String(segredoWebhook));
-            // Comparação de tempo constante: um === simples vaza o segredo aos poucos.
-            const confere = a.length === b.length && crypto.timingSafeEqual(a, b);
-            if (!confere) {
-              console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
-              return res.status(401).json({ error: 'Assinatura inválida.' });
-            }
-          } else {
-            console.warn('[CAKTO WEBHOOK] CAKTO_WEBHOOK_SECRET não configurado — a rota aceita qualquer requisição. Configure o segredo para fechar esta porta.');
+          if (!segredoWebhook) {
+            // Antes esta rota seguia aberta com um aviso no log enquanto o
+            // segredo não fosse configurado. Aberta, ela ativa plano pago para
+            // quem quiser e cancela o de um cliente pagante — não há aviso no
+            // log que compense isso. Recusar é visível: o pagamento não libera,
+            // alguém reclama no mesmo dia e o segredo é configurado.
+            console.error('[CAKTO WEBHOOK] CAKTO_WEBHOOK_SECRET não configurado — requisição recusada.');
+            return res.status(503).json({ error: 'Webhook não configurado.' });
+          }
+          const enviado =
+            req.headers['x-cakto-signature'] ||
+            req.headers['x-webhook-secret'] ||
+            req.headers['x-hub-signature'] ||
+            String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
+            searchParams.get('secret') ||
+            payload?.secret;
+          if (!comparaSegredo(String(enviado || ''), segredoWebhook)) {
+            console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
+            return res.status(401).json({ error: 'Assinatura inválida.' });
           }
 
           console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
@@ -2353,6 +2592,10 @@ export default async function handler(req, res) {
 
     // ── Endpoint Manual/Disparo de Teste para Boas-Vindas do Trial ──
     if (url.includes('/api/send-trial-welcome')) {
+      // Manda mensagem de WhatsApp pelo número da empresa, para qualquer telefone
+      // que vier no corpo. Aberta, é um disparador de spam com a nossa marca — e a
+      // conta da Evolution é quem paga. Só o próprio sistema chama isto.
+      if (!autorizarChamadaInterna(req, res)) return;
       try {
         let targetEmail = searchParams.get('email');
         let targetPhone = searchParams.get('phone');
@@ -2403,11 +2646,18 @@ export default async function handler(req, res) {
         if (!email) return res.status(400).json({ status: 'error', error: 'Informe o e-mail.' });
 
         // Sem limite, esta rota redefine senhas em massa e vira negação de serviço.
-        const fwd = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-        const ipRecup = fwd || req.socket.remoteAddress || 'unknown';
+        const ipRecup = origemDaRequisicao(req);
         const chaveRecup = rateLimitKey(ipRecup, `recuperacao:${email}`);
         if (!checkRateLimit(chaveRecup)) {
-          return res.status(429).json({ status: 'error', error: 'Muitas solicitações. Aguarde 1 minuto e tente novamente.' });
+          const faltamRecup = segundosDeEspera(chaveRecup);
+          const minutosRecup = Math.ceil(faltamRecup / 60);
+          return res.status(429).json({
+            status: 'error',
+            error: minutosRecup > 1
+              ? `Muitas solicitações. Aguarde ${minutosRecup} minutos e tente novamente.`
+              : 'Muitas solicitações. Aguarde 1 minuto e tente novamente.',
+            retryAfter: faltamRecup,
+          });
         }
         registerLoginFailure(chaveRecup);
 
@@ -2428,7 +2678,12 @@ export default async function handler(req, res) {
 
         const tempPass = crypto.randomBytes(4).toString('hex').toUpperCase();
         const hashedTemp = await bcrypt.hash(tempPass, 12);
-        await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hashedTemp, rows[0].id]);
+        // O carimbo derruba todas as sessões abertas com a senha anterior. Quem
+        // pede recuperação normalmente está justamente tentando expulsar alguém.
+        await pool.query(
+          'UPDATE users SET password = $1, password_changed_at = NOW() WHERE id = $2',
+          [hashedTemp, rows[0].id]
+        );
 
         const fullPhone = telefone.startsWith('55') ? telefone : '55' + telefone;
         fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
@@ -2920,8 +3175,13 @@ export default async function handler(req, res) {
 
     // ── Endpoint de Cota ─────────────────────────────────────────
     if (url.includes('/api/quota')) {
-      const store = searchParams.get('store');
-      if (!store) return res.status(400).json({ error: 'Store obrigatória' });
+      // A cota é dado comercial da loja: plano contratado, quanto já usou, se
+      // está bloqueada. Lendo a loja da query, qualquer um enumerava o cadastro
+      // inteiro de clientes trocando um parâmetro.
+      const authQuota = await autenticarComLojaAtual(req);
+      if (!authQuota) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const store = lojaPermitida(authQuota, searchParams.get('store'));
+      if (!store) return res.status(403).json({ error: 'Você só pode consultar a cota da sua própria loja.' });
       const { rows: admins } = await pool.query(
         "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, ai_creations_used FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
         [store]
@@ -3309,6 +3569,7 @@ export default async function handler(req, res) {
     // ── Cron de Checklists Atrasados ─────────────────────────────────
     // ── Cron de Ponto - Notificação de Ausência/Falta ─────────────────────────────────
     if (url.includes('/api/cron/ponto-ausencia')) {
+      if (!autorizarChamadaInterna(req, res)) return;
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
@@ -3434,6 +3695,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/cron/checklists-delayed')) {
+      if (!autorizarChamadaInterna(req, res)) return;
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
@@ -3547,6 +3809,7 @@ export default async function handler(req, res) {
     // ── Auto-Processador de Pendentes (Piggyback) ─────────────────
     // Roda silenciosamente em CADA request ao backend, sem depender do admin
     if (url.includes('/api/auto-process-pending')) {
+      if (!(await autorizarUsuarioOuInterno(req, res))) return;
       try {
         const { rows: pending } = await pool.query(
           `SELECT id FROM checklist_submissions 
@@ -3570,6 +3833,10 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/process-audit-background')) {
       if (method === 'POST') {
+        // Reprocessa a auditoria de IA de uma submissão pelo id. Aberta, era uma
+        // torneira de custo: um laço de POSTs queima a cota do Gemini com o
+        // cartão da empresa, e ninguém repara até a fatura.
+        if (!(await autorizarUsuarioOuInterno(req, res))) return;
         const { submissionId } = req.body;
         const result = await processAuditForSubmission(pool, submissionId);
         return res.status(200).json(result);
@@ -3664,7 +3931,13 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/process-camera-ai')) {
       if (method === 'POST') {
-        const { store, cameraName, photoBase64, commands } = req.body;
+        // Cada chamada aqui manda uma imagem para o Gemini na conta da empresa.
+        // Sem token, qualquer um na internet gasta essa cota à vontade.
+        const authCamera = await autenticarComLojaAtual(req);
+        if (!authCamera) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+        const { cameraName, photoBase64, commands } = req.body;
+        const store = lojaPermitida(authCamera, req.body?.store);
+        if (!store) return res.status(403).json({ error: 'Você só pode analisar câmeras da sua própria loja.' });
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
@@ -3697,6 +3970,10 @@ export default async function handler(req, res) {
 
     if (url.includes('/api/generate-checklist-ai') && !url.includes('/api/generate-checklist-ai-v2') && !url.includes('/api/generate-checklist-ai-audio')) {
       if (method === 'POST') {
+        // Gera checklist com o Gemini na conta da empresa. As irmãs desta rota
+        // (-v2, -audio, transcribe) já exigiam token; esta ficou para trás.
+        const authGeraChecklist = await autenticarComLojaAtual(req);
+        if (!authGeraChecklist) return res.status(401).json({ error: 'Token inválido ou ausente.' });
         const { prompt } = req.body;
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
         if (!apiKey) return res.status(500).json({ error: 'API Key ausente' });
@@ -4251,9 +4528,23 @@ Responda APENAS com JSON válido.`;
 
     if (url.includes('/api/resolve-submission')) {
       if (method === 'POST') {
-        const { id, resolvedBy } = req.body;
+        const autorResolve = await autenticarComLojaAtual(req);
+        if (!autorResolve) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+        const { id } = req.body;
+        if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
         await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255)');
-        await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1', [id, resolvedBy]);
+
+        // Quem resolveu é quem está logado, não o que o corpo diz. O campo
+        // resolvedBy vinha do cliente e ia direto para o banco: dava para
+        // encerrar uma pendência assinando com o nome de outra pessoa.
+        const resolvedBy = autorResolve.name || autorResolve.email || 'Gestor';
+
+        // O WHERE levava só o id. Um id de outra loja era aceito do mesmo jeito,
+        // e a pendência dela sumia do painel do dono.
+        const alvo = autorResolve.role === 'master'
+          ? await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1 RETURNING id', [id, resolvedBy])
+          : await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($3)) RETURNING id', [id, resolvedBy, autorResolve.store]);
+        if (alvo.rowCount === 0) return res.status(404).json({ error: 'Registro não encontrado nesta loja.' });
         return res.status(200).json({ success: true });
       }
     }
@@ -4591,8 +4882,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // por qualquer funcionário, lia o espelho de qualquer loja e exportava o
     // relatório inteiro. O front já enviava Authorization em todas as chamadas,
     // então exigir o token aqui não muda nada para quem usa o app.
+    let authPonto = null;
     if (url.includes('/api/ponto')) {
-      const authPonto = await autenticarComLojaAtual(req);
+      authPonto = await autenticarComLojaAtual(req);
       if (!authPonto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
       // A loja vem do token, não do cliente. Só o master consulta outras lojas.
       if (authPonto.role !== 'master') {
@@ -4607,6 +4899,17 @@ A mensagem é lida pelo próprio funcionário, no celular:
       const userId = searchParams.get('userId');
       const store = searchParams.get('store');
       if (!userId) return res.status(400).json({ error: 'userId obrigatório' });
+
+      // O guard de /api/ponto compara a loja pedida com a do token, mas esta
+      // rota identifica o alvo por userId — e sem store na query não havia o que
+      // comparar. Qualquer conta válida lia a jornada de qualquer funcionário de
+      // qualquer empresa passando um id.
+      if (authPonto.role !== 'master' && String(userId) !== String(authPonto.id)) {
+        const { rows: dono } = await pool.query('SELECT store FROM users WHERE id = $1', [userId]);
+        if (dono.length === 0 || !mesmaLoja(dono[0].store, authPonto.store)) {
+          return res.status(403).json({ error: 'Você só pode consultar o ponto da sua própria loja.' });
+        }
+      }
       // Buscar timezone da loja
       let tz = 'America/Sao_Paulo';
       if (store) {
@@ -4685,26 +4988,46 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     // ── Edição ou Exclusão de Registro de Ponto ───────────────────────
     if (url.includes('/api/ponto/record')) {
-      if (method === 'PUT') {
-        const { id, type, timestamp, notes, editedBy } = req.body;
-        if (!id) return res.status(400).json({ error: 'id do registro é obrigatório' });
-        const { rows } = await pool.query(
-          `UPDATE ponto_records
+      // Corrigir marcação é ato de chefia, e fica registrado em edited_by.
+      const podeEditarPonto = ['admin', 'master', 'gestor'].includes(authPonto?.role);
+
+      // O UPDATE e o DELETE levavam só o id, e o id é sequencial. Amarrar à loja
+      // do token é o que impede alcançar o ponto de outra empresa. Duas consultas
+      // em vez de SQL montado por concatenação: o master enxerga tudo, o resto
+      // enxerga a própria loja, e nenhum nome de loja entra na string da query.
+      const EDITA_PONTO = `UPDATE ponto_records
            SET type = COALESCE($1, type),
                timestamp = COALESCE($2, timestamp),
                notes = COALESCE($3, notes),
                is_manual = TRUE,
                edited_by = COALESCE($4, edited_by),
                updated_at = CURRENT_TIMESTAMP
-           WHERE id = $5 RETURNING *`,
-          [type, timestamp, notes, editedBy || 'Gestor', id]
-        );
+           WHERE id = $5`;
+
+      if (method === 'PUT') {
+        if (!podeEditarPonto) return res.status(403).json({ error: 'Sem permissão para editar registros de ponto.' });
+        const { id, type, timestamp, notes } = req.body;
+        if (!id) return res.status(400).json({ error: 'id do registro é obrigatório' });
+
+        // Quem editou é quem está logado. O campo vinha do corpo da requisição:
+        // dava para assinar a correção com o nome de outra pessoa, justamente no
+        // dado que serve para provar quem mexeu.
+        const editor = authPonto.email || 'Gestor';
+
+        const { rows } = authPonto.role === 'master'
+          ? await pool.query(EDITA_PONTO + ' RETURNING *', [type, timestamp, notes, editor, id])
+          : await pool.query(EDITA_PONTO + ' AND LOWER(TRIM(store)) = LOWER(TRIM($6)) RETURNING *', [type, timestamp, notes, editor, id, authPonto.store]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Registro não encontrado nesta loja.' });
         return res.status(200).json({ success: true, record: rows[0] });
       }
       if (method === 'DELETE') {
+        if (!podeEditarPonto) return res.status(403).json({ error: 'Sem permissão para excluir registros de ponto.' });
         const id = searchParams.get('id') || req.body?.id;
         if (!id) return res.status(400).json({ error: 'id é obrigatório' });
-        await pool.query('DELETE FROM ponto_records WHERE id = $1', [id]);
+        const alvo = authPonto.role === 'master'
+          ? await pool.query('DELETE FROM ponto_records WHERE id = $1 RETURNING id', [id])
+          : await pool.query('DELETE FROM ponto_records WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) RETURNING id', [id, authPonto.store]);
+        if (alvo.rowCount === 0) return res.status(404).json({ error: 'Registro não encontrado nesta loja.' });
         return res.status(200).json({ success: true });
       }
     }
@@ -4941,6 +5264,12 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     // ── Endpoint de Teste de Push Notification ─────────────────────
     if (url.includes('/api/test-push') && method === 'POST') {
+      // Rota de diagnóstico: manda push para a conta de um e-mail qualquer.
+      // Aberta, confirmava se um e-mail tem conta aqui e enchia o celular do
+      // dono de notificações. Só o master, que é quem dá suporte, usa isto.
+      const authPush = await autenticarComLojaAtual(req);
+      if (!authPush) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (authPush.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       const { email } = req.body;
       if (!email) return res.status(400).json({ error: 'email obrigatório' });
       const { rows } = await pool.query("SELECT id, name, fcm_token FROM users WHERE LOWER(email) = LOWER($1)", [email]);
@@ -4965,6 +5294,16 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // ── WHATSAPP CHATBOT — BILL VIA WHATSAPP ─────────────────────
     if (url.includes('/api/webhooks/whatsapp')) {
       if (method === 'POST') {
+        const segredoWa = process.env.WHATSAPP_WEBHOOK_SECRET;
+        if (segredoWa) {
+          const enviadoWa = searchParams.get('secret') || req.headers['x-webhook-secret'] || '';
+          if (!comparaSegredo(String(enviadoWa), segredoWa)) {
+            console.error('[WhatsApp Webhook] Segredo inválido — requisição recusada.');
+            return res.status(401).json({ error: 'Não autorizado.' });
+          }
+        } else {
+          console.warn('[WhatsApp Webhook] WHATSAPP_WEBHOOK_SECRET não configurado — a rota aceita qualquer requisição.');
+        }
         try {
           const body = req.body || {};
           
