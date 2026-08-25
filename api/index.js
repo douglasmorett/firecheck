@@ -128,6 +128,61 @@ function authenticateToken(req) {
   }
 }
 
+// ── A loja sai do cadastro, não do token ────────────────────────────────
+// O JWT carrega o nome da loja e vale sete dias. Quando o lojista renomeia a
+// empresa no Perfil, o cadastro e as demais tabelas são atualizados em cascata,
+// mas o token não — e todo aparelho já logado continua enviando o nome antigo
+// até relogar. Como o nome da loja é a chave que separa um cliente do outro,
+// isso quebra dos dois lados: o que se grava nasce carimbado com um nome que
+// não existe mais, e o que se lê é procurado justamente por esse nome fantasma.
+//
+// Foi assim que dois checklists de um cliente novo ficaram invisíveis no painel
+// dele: renomeou a loja pela manhã, criou os checklists à tarde com o token da
+// manhã. Só o celular dele — que tinha o mesmo token antigo — os enxergava.
+//
+// Pior: a checagem de cota do envio procura o dono por `WHERE store = $1`. Com a
+// loja fantasma não acha ninguém, e o limite do plano deixa de ser aplicado.
+//
+// O cadastro é a única fonte que a renomeação atualiza, então é dele que a loja
+// passa a sair. Custa uma consulta por requisição autenticada.
+// Devolve a grafia que o cadastro usa para esta loja.
+//
+// Só o master pode dizer em qual loja está gravando (o corpo da requisição manda,
+// e é assim que o suporte cria coisas para um cliente). Esse nome vem da tela, que
+// o leu do navegador — e navegador guarda cópia velha. Passando pelo cadastro, um
+// nome desatualizado ou com espaço a mais reencontra a loja de verdade em vez de
+// abrir uma loja fantasma parecida.
+//
+// Nome que não corresponde a nenhuma loja volta como veio: pode ser um cliente
+// novo sendo cadastrado agora.
+async function lojaCanonica(nome) {
+  if (!nome || typeof nome !== 'string') return nome;
+  try {
+    const { rows } = await pool.query(
+      'SELECT store FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) LIMIT 1',
+      [nome]
+    );
+    if (rows.length > 0 && rows[0].store) return rows[0].store;
+  } catch (e) {
+    console.error('[loja] falha ao normalizar o nome da loja:', e.message);
+  }
+  return nome;
+}
+
+async function autenticarComLojaAtual(req) {
+  const authUser = authenticateToken(req);
+  if (!authUser || !authUser.id) return authUser;
+  try {
+    const { rows } = await pool.query('SELECT store FROM users WHERE id = $1', [authUser.id]);
+    if (rows.length > 0 && rows[0].store) return { ...authUser, store: rows[0].store };
+  } catch (e) {
+    // Banco fora do ar não pode transformar uma requisição legítima em 401: sem
+    // resposta, o token segue valendo o que já dizia.
+    console.error('[loja] falha ao reler a loja do cadastro:', e.message);
+  }
+  return authUser;
+}
+
 // ── Domínios Permitidos (CORS) ──
 const ALLOWED_ORIGINS = [
   'https://firecheckapp.com.br',
@@ -927,7 +982,7 @@ export default async function handler(req, res) {
 
 
     if (url.includes('/api/stats')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       let store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       if (authUser.role !== 'master') {
@@ -983,7 +1038,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/checklists')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
 
       // Verificar se é uma operação em um checklist específico (ex: DELETE /api/checklists/:id)
@@ -1015,7 +1070,7 @@ export default async function handler(req, res) {
 
         // A loja vem do token, nunca do corpo — exceto para master, que opera
         // qualquer loja. Sem isto, dava para criar checklist dentro de outro cliente.
-        const lojaDono = authUser.role === 'master' ? (store || authUser.store) : authUser.store;
+        const lojaDono = authUser.role === 'master' ? await lojaCanonica(store || authUser.store) : authUser.store;
 
         // Ao editar, confirma que o checklist é mesmo da loja de quem está editando.
         // O UPDATE abaixo filtra apenas por id, e os ids são sequenciais: sem esta
@@ -1253,7 +1308,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/vehicles/solicit')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       if (method === 'POST') {
         const { vehicleId } = req.body;
@@ -1265,7 +1320,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/vehicles')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
 
       // Funcionário consulta a frota (precisa escolher o veículo na vistoria), mas
@@ -1366,7 +1421,7 @@ export default async function handler(req, res) {
 
     // ── MÓDULO DE COMPRAS / ESTOQUE ──────────────────────────────
     if (url.includes('/api/shopping')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       
       // ── Submissão (preenchimento pelo funcionário) ──
       if (url.includes('/api/shopping/submit') && method === 'POST') {
@@ -2159,7 +2214,7 @@ export default async function handler(req, res) {
 
     if (url.match(/\/api\/users\/([^\/?]+)/)) {
       // ── Proteção JWT: Somente admin/master pode editar usuários ──
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
       if (authUser.role !== 'admin' && authUser.role !== 'master' && authUser.role !== 'gestor') {
         return res.status(403).json({ error: 'Sem permissão para esta ação.' });
@@ -2213,7 +2268,7 @@ export default async function handler(req, res) {
 
         // Renomear loja em TODAS as tabelas que guardam o nome dela.
         //
-        // Duas correções aqui. Primeira: faltavam seis tabelas (vehicles,
+        // Correções acumuladas aqui. Primeira: faltavam seis tabelas (vehicles,
         // work_schedules, ponto_config, cameras, checklist_executions,
         // wa_conversations) — a frota, as escalas e a configuração de ponto ficavam
         // órfãs com o nome antigo e sumiam do painel após a renomeação.
@@ -2222,25 +2277,67 @@ export default async function handler(req, res) {
         // banco com variações de espaço e caixa (há lojas gravadas como "Pet Nature"
         // e "Pet Nature "). As consultas de leitura normalizam com LOWER(TRIM()), e o
         // rename não normalizava — as linhas divergentes ficavam para trás.
-        if (storeName !== undefined && storeName !== user.store) {
+        //
+        // Terceira, e a razão de este bloco não ter mais uma lista escrita à mão: a
+        // lista só está certa enquanto alguém lembrar de acrescentar cada tabela nova
+        // que ganhar uma coluna `store`. Esquecer uma não dá erro nem aviso — os dados
+        // dela só somem do painel do cliente na próxima vez que ele renomear a loja, e
+        // ninguém liga uma coisa à outra. Quem sabe quais tabelas têm a coluna é o
+        // banco, então é a ele que se pergunta.
+        //
+        // Vai tudo numa transação: um rename pela metade deixa parte da empresa com o
+        // nome novo e parte com o antigo, que é exatamente o estado que se quer evitar.
+        // Se falhar, nada muda e a requisição devolve erro — o cadastro NÃO pode ser
+        // atualizado sozinho, senão a divergência nasce aqui mesmo.
+        if (storeName !== undefined && storeName !== user.store && user.store) {
           const oldStore = user.store;
-          const TABELAS_COM_LOJA = [
+          // Rede de segurança para o caso de o catálogo não responder.
+          const TABELAS_CONHECIDAS = [
             'users', 'checklists', 'checklist_submissions', 'checklist_executions',
             'store_cameras', 'cameras', 'ponto_records', 'ponto_config',
             'shopping_lists', 'shopping_submissions', 'vehicles', 'work_schedules',
             'wa_conversations',
           ];
-          for (const tabela of TABELAS_COM_LOJA) {
+          const cliente = await pool.connect();
+          try {
+            let tabelas = [];
             try {
-              // Nome de tabela vem da lista fixa acima, nunca da requisição.
-              await pool.query(
-                `UPDATE ${tabela} SET store = $1 WHERE LOWER(TRIM(store)) = LOWER(TRIM($2))`,
+              const { rows } = await cliente.query(`
+                SELECT c.table_name
+                  FROM information_schema.columns c
+                  JOIN information_schema.tables t
+                    ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+                 WHERE c.table_schema = 'public'
+                   AND c.column_name = 'store'
+                   AND t.table_type = 'BASE TABLE'
+              `);
+              tabelas = rows.map(r => r.table_name);
+            } catch (err) {
+              console.error('[Rename loja] Catálogo indisponível, usando a lista conhecida:', err.message);
+            }
+            if (tabelas.length === 0) tabelas = TABELAS_CONHECIDAS;
+
+            // O nome vem do catálogo do próprio banco, nunca da requisição; ainda
+            // assim só passa identificador simples, e entre aspas.
+            const seguras = tabelas.filter(t => /^[a-z_][a-z0-9_]*$/.test(t));
+
+            await cliente.query('BEGIN');
+            for (const tabela of seguras) {
+              await cliente.query(
+                `UPDATE "${tabela}" SET store = $1 WHERE LOWER(TRIM(store)) = LOWER(TRIM($2))`,
                 [storeName, oldStore]
               );
-            } catch (err) {
-              // Uma tabela ausente neste ambiente não pode abortar a renomeação das demais.
-              console.error(`[Rename loja] Falha ao atualizar ${tabela}:`, err.message);
             }
+            await cliente.query('COMMIT');
+            console.log(`[Rename loja] "${oldStore}" → "${storeName}" em ${seguras.length} tabelas.`);
+          } catch (err) {
+            try { await cliente.query('ROLLBACK'); } catch { /* a conexão já pode ter caído */ }
+            console.error('[Rename loja] Falhou, nada foi alterado:', err.message);
+            return res.status(500).json({
+              error: 'Não foi possível renomear a loja agora. Nada foi alterado — tente novamente em instantes.',
+            });
+          } finally {
+            cliente.release();
           }
         }
 
@@ -2380,7 +2477,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
     } else if (url.includes('/api/schedules')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido' });
 
       const idMatch = url.match(/\/api\/schedules\/(\d+)/);
@@ -2452,7 +2549,7 @@ export default async function handler(req, res) {
 
     } else if (url.includes('/api/users')) {
       // ── Proteção JWT ──
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
 
       if (method === 'POST') {
@@ -2471,7 +2568,7 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Somente o proprietário ou o master pode criar outro administrador.' });
         }
         // Master pode escolher a loja; os demais criam sempre dentro da sua.
-        const store = authUser.role === 'master' ? (storeBruta || authUser.store) : authUser.store;
+        const store = authUser.role === 'master' ? await lojaCanonica(storeBruta || authUser.store) : authUser.store;
 
         // Verificar email duplicado antes de inserir
         const { rows: existingEmail } = await pool.query('SELECT id, name, store FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -2578,13 +2675,13 @@ export default async function handler(req, res) {
         // Sem token, qualquer um na internet gravava submissões em qualquer loja e
         // em nome de qualquer funcionário. O app já envia Authorization aqui,
         // inclusive na sincronização da fila offline.
-        const autorFinalize = authenticateToken(req);
+        const autorFinalize = await autenticarComLojaAtual(req);
         if (!autorFinalize) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
 
         const { employeeName, tasks, feedbackInfo, selfie, checklistId, vehicleId, signature, startedAt } = req.body;
         // A loja sai do token. Antes vinha do corpo, então dava para lançar
         // submissão dentro da loja de outro cliente.
-        const store = autorFinalize.role === 'master' ? (req.body.store || autorFinalize.store) : autorFinalize.store;
+        const store = autorFinalize.role === 'master' ? await lojaCanonica(req.body.store || autorFinalize.store) : autorFinalize.store;
 
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
@@ -3166,7 +3263,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/submissions')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       
@@ -3225,7 +3322,7 @@ export default async function handler(req, res) {
     }
 
     if (url.includes('/api/cameras')) {
-      const authUser = authenticateToken(req);
+      const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       if (method === 'GET') {
@@ -3327,7 +3424,7 @@ export default async function handler(req, res) {
         const { audio, mimeType } = req.body;
         if (!audio) return res.status(400).json({ error: 'Nenhum áudio enviado' });
 
-        const authUser = authenticateToken(req);
+        const authUser = await autenticarComLojaAtual(req);
         if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
 
         const { rows: admins } = await pool.query(
@@ -3383,7 +3480,7 @@ export default async function handler(req, res) {
           return res.status(400).json({ error: 'Descrição ou conversa obrigatória' });
         }
 
-        const authUser = authenticateToken(req);
+        const authUser = await autenticarComLojaAtual(req);
         if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
 
         const { rows: admins } = await pool.query(
@@ -3510,7 +3607,7 @@ Responda APENAS com JSON válido.`;
     if (url.includes('/api/generate-shopping-ai')) {
       if (method === 'POST') {
         const { description, conversation = [], audio, mimeType } = req.body;
-        const authUser = authenticateToken(req);
+        const authUser = await autenticarComLojaAtual(req);
         if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
 
         const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -3616,7 +3713,7 @@ Responda APENAS com JSON válido.`;
           return res.status(400).json({ error: 'Nenhum áudio enviado' });
         }
 
-        const authUser = authenticateToken(req);
+        const authUser = await autenticarComLojaAtual(req);
         if (!authUser) return res.status(401).json({ error: 'Não autenticado' });
 
         const { rows: admins } = await pool.query(
@@ -3752,7 +3849,7 @@ Responda APENAS com JSON válido.`;
     // ── Integração com Bill SaaS ───────────────────────────────────
     if (url.includes('/api/bill/link')) {
       if (method === 'POST') {
-        const user = authenticateToken(req);
+        const user = await autenticarComLojaAtual(req);
         if (!user) return res.status(401).json({ error: 'Não autenticado' });
 
         const { email, password } = req.body;
@@ -3794,7 +3891,7 @@ Responda APENAS com JSON válido.`;
 
     if (url.includes('/api/bill/unlink')) {
       if (method === 'POST') {
-        const user = authenticateToken(req);
+        const user = await autenticarComLojaAtual(req);
         if (!user) return res.status(401).json({ error: 'Não autenticado' });
 
         try {
@@ -3812,7 +3909,7 @@ Responda APENAS com JSON válido.`;
 
     if (url.includes('/api/bill/status')) {
       if (method === 'GET') {
-        const user = authenticateToken(req);
+        const user = await autenticarComLojaAtual(req);
         if (!user) return res.status(401).json({ error: 'Não autenticado' });
 
         try {
@@ -4014,7 +4111,7 @@ Responda APENAS com JSON válido.`;
     // relatório inteiro. O front já enviava Authorization em todas as chamadas,
     // então exigir o token aqui não muda nada para quem usa o app.
     if (url.includes('/api/ponto')) {
-      const authPonto = authenticateToken(req);
+      const authPonto = await autenticarComLojaAtual(req);
       if (!authPonto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
       // A loja vem do token, não do cliente. Só o master consulta outras lojas.
       if (authPonto.role !== 'master') {
@@ -4340,7 +4437,7 @@ Responda APENAS com JSON válido.`;
       if (method === 'POST') {
         // Sem autenticação, bastava registrar o próprio aparelho no cadastro de
         // outra pessoa para passar a receber as notificações dela.
-        const donoToken = authenticateToken(req);
+        const donoToken = await autenticarComLojaAtual(req);
         if (!donoToken) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
 
         const { token, fcmToken } = req.body;
