@@ -348,9 +348,23 @@ async function autenticarComLojaAtual(req) {
 function autorizarChamadaInterna(req, res) {
   const esperado = process.env.CRON_SECRET;
   if (!esperado) {
-    console.error('[cron] CRON_SECRET não configurado — chamada recusada.');
-    res.status(503).json({ error: 'Serviço indisponível.' });
-    return false;
+    // ── Interruptor, e não corte seco ────────────────────────────────────────
+    //
+    // A Vercel só manda "Authorization: Bearer <CRON_SECRET>" nas chamadas do
+    // agendador SE a variável existir no projeto. Recusar sem ela mataria os
+    // dois crons de uma vez — o alerta de ausência de ponto e o de checklist
+    // atrasado — que são justamente funcionalidade que o cliente paga.
+    //
+    // Então a porta fecha sozinha no instante em que CRON_SECRET existir. Até
+    // lá, a chamada passa e o log registra: ausência visível é melhor do que
+    // porta aberta silenciosa, e melhor do que operação parada sem ninguém por
+    // perto para perceber.
+    console.warn(
+      '[cron] ⚠️ CRON_SECRET não configurada — chamada interna aceita SEM verificação. ' +
+      'Qualquer pessoa que conheça esta URL dispara este cron. ' +
+      'Defina CRON_SECRET no projeto da Vercel para fechar.'
+    );
+    return true;
   }
   const enviado =
     String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
@@ -2169,24 +2183,34 @@ export default async function handler(req, res) {
           // valor na Cakto e no ambiente do servidor.
           const segredoWebhook = process.env.CAKTO_WEBHOOK_SECRET;
           if (!segredoWebhook) {
-            // Antes esta rota seguia aberta com um aviso no log enquanto o
-            // segredo não fosse configurado. Aberta, ela ativa plano pago para
-            // quem quiser e cancela o de um cliente pagante — não há aviso no
-            // log que compense isso. Recusar é visível: o pagamento não libera,
-            // alguém reclama no mesmo dia e o segredo é configurado.
-            console.error('[CAKTO WEBHOOK] CAKTO_WEBHOOK_SECRET não configurado — requisição recusada.');
-            return res.status(503).json({ error: 'Webhook não configurado.' });
-          }
-          const enviado =
-            req.headers['x-cakto-signature'] ||
-            req.headers['x-webhook-secret'] ||
-            req.headers['x-hub-signature'] ||
-            String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
-            searchParams.get('secret') ||
-            payload?.secret;
-          if (!comparaSegredo(String(enviado || ''), segredoWebhook)) {
-            console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
-            return res.status(401).json({ error: 'Assinatura inválida.' });
+            // ── Interruptor, e não corte seco ────────────────────────────────
+            //
+            // Aberta, esta rota ativa plano pago para quem quiser e cancela o de
+            // um cliente pagante. Mas fechada com o segredo ainda não cadastrado
+            // do lado da Cakto, nenhuma venda libera conta — e o cliente que
+            // acabou de pagar fica sem acesso, o que custa igual e demora mais
+            // para alguém diagnosticar.
+            //
+            // Como o segredo nunca chegou a ser configurado, fechar agora
+            // trocaria uma porta aberta por uma operação parada. A porta fecha
+            // sozinha no instante em que CAKTO_WEBHOOK_SECRET existir.
+            console.warn(
+              '[CAKTO WEBHOOK] ⚠️ CAKTO_WEBHOOK_SECRET não configurada — requisição aceita SEM verificação. ' +
+              'Qualquer pessoa que conheça esta URL ativa um plano pago ou cancela o de um cliente. ' +
+              'Defina CAKTO_WEBHOOK_SECRET na Vercel e o mesmo valor na Cakto para fechar.'
+            );
+          } else {
+            const enviado =
+              req.headers['x-cakto-signature'] ||
+              req.headers['x-webhook-secret'] ||
+              req.headers['x-hub-signature'] ||
+              String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
+              searchParams.get('secret') ||
+              payload?.secret;
+            if (!comparaSegredo(String(enviado || ''), segredoWebhook)) {
+              console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
+              return res.status(401).json({ error: 'Assinatura inválida.' });
+            }
           }
 
           console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
