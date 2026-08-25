@@ -636,6 +636,9 @@ export default function AdminDashboard() {
   const [waChecklistAtrasado, setWaChecklistAtrasado] = useState(true);
   const [waPontoDiario, setWaPontoDiario] = useState(true);
   const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
+  const [waOcorrencia, setWaOcorrencia] = useState(true);
+  const [waDescarte, setWaDescarte] = useState(true);
+  const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
   const [rankingCustomDates, setRankingCustomDates] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -741,6 +744,8 @@ export default function AdminDashboard() {
     if (user.wa_checklist_atrasado !== undefined) setWaChecklistAtrasado(user.wa_checklist_atrasado);
     if (user.wa_ponto_diario !== undefined) setWaPontoDiario(user.wa_ponto_diario);
     if (user.wa_checklist_aprovado !== undefined) setWaChecklistAprovado(user.wa_checklist_aprovado);
+    if (user.wa_ocorrencia !== undefined) setWaOcorrencia(user.wa_ocorrencia);
+    if (user.wa_descarte !== undefined) setWaDescarte(user.wa_descarte);
     
     // Proteção extra: se for funcionário, não deixa ver o admin
     if (user.role === 'employee') {
@@ -1716,6 +1721,15 @@ export default function AdminDashboard() {
         const statsData = await statsRes.json();
         setStats(statsData);
 
+        // Ocorrências e descartes registrados pela equipe. Falhar aqui não pode
+        // derrubar o painel: é uma seção a mais, não o painel inteiro.
+        fetch(`${API_URL}/api/ocorrencias${query}`, {
+          headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+        })
+          .then(r => r.ok ? r.json() : [])
+          .then(d => setOcorrencias(Array.isArray(d) ? d : []))
+          .catch(() => {});
+
         const subRes = await fetch(`${API_URL}/api/submissions${query}`, {
           headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
         });
@@ -2089,7 +2103,9 @@ export default function AdminDashboard() {
           wa_checklist_reprovado: waChecklistReprovado,
           wa_checklist_atrasado: waChecklistAtrasado,
           wa_ponto_diario: waPontoDiario,
-          wa_checklist_aprovado: waChecklistAprovado
+          wa_checklist_aprovado: waChecklistAprovado,
+          wa_ocorrencia: waOcorrencia,
+          wa_descarte: waDescarte
         })
       });
       if (res.ok) {
@@ -2101,7 +2117,9 @@ export default function AdminDashboard() {
           wa_checklist_reprovado: waChecklistReprovado,
           wa_checklist_atrasado: waChecklistAtrasado,
           wa_ponto_diario: waPontoDiario,
-          wa_checklist_aprovado: waChecklistAprovado
+          wa_checklist_aprovado: waChecklistAprovado,
+          wa_ocorrencia: waOcorrencia,
+          wa_descarte: waDescarte
         };
         localStorage.setItem('user', JSON.stringify(updatedMe));
         setUserProfile(updatedMe);
@@ -2936,10 +2954,38 @@ export default function AdminDashboard() {
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                       <input 
-                          type="checkbox" 
-                          checked={waChecklistAtrasado} 
-                          onChange={e => setWaChecklistAtrasado(e.target.checked)} 
+                       <input
+                          type="checkbox"
+                          checked={waOcorrencia}
+                          onChange={e => setWaOcorrencia(e.target.checked)}
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-ocorrencia"
+                       />
+                       <label htmlFor="opt-ocorrencia" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>🚨 Ocorrência registrada pelo colaborador</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber na hora quando alguém registrar algo fora da rotina — freezer desligado, equipamento quebrado, problema com fornecedor.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input
+                          type="checkbox"
+                          checked={waDescarte}
+                          onChange={e => setWaDescarte(e.target.checked)}
+                          style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
+                          id="opt-descarte"
+                       />
+                       <label htmlFor="opt-descarte" style={{ cursor: 'pointer' }}>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📉 Descarte registrado pelo colaborador</strong>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber na hora o que foi jogado fora, com quantidade, motivo e valor estimado.</span>
+                       </label>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <input
+                          type="checkbox"
+                          checked={waChecklistAtrasado}
+                          onChange={e => setWaChecklistAtrasado(e.target.checked)}
                           style={{ width: '20px', height: '20px', cursor: 'pointer', marginTop: '3px' }}
                           id="opt-checklist-atrasado"
                        />
@@ -3709,8 +3755,56 @@ export default function AdminDashboard() {
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <ShieldAlert size={20} color="var(--error)" /> Alertas da Inteligência Artificial
             </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários, e o que a equipe registrou fora da rotina</p>
           </div>
+
+          {/* ── O que a equipe registrou por conta própria ────────────────────
+              Fica acima das reprovações porque é informação que ninguém pediu:
+              alguém parou o serviço para avisar de um problema, e isso costuma
+              ser mais urgente do que uma foto que saiu torta. */}
+          {ocorrencias.length > 0 && (
+            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', borderBottom: '1px solid var(--border-color)' }}>
+              {ocorrencias.map(o => (
+                <div key={`oc-${o.id}`} style={{
+                  padding: '16px', borderRadius: '12px',
+                  backgroundColor: o.tipo === 'descarte' ? 'rgba(15, 118, 110, 0.06)' : 'rgba(245, 158, 11, 0.07)',
+                  border: `1px solid ${o.tipo === 'descarte' ? 'rgba(15, 118, 110, 0.3)' : 'rgba(245, 158, 11, 0.35)'}`,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                      <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '2px' }}>
+                        {o.tipo === 'descarte' ? '📉 Descarte' : '🚨 Ocorrência'} · {o.employee_name}
+                      </strong>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        {new Date(o.created_at).toLocaleString('pt-BR')}
+                      </span>
+
+                      {o.tipo === 'descarte' && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem' }}>
+                          <strong>{o.item}</strong>
+                          {(o.quantidade || o.unidade) && <> — {[o.quantidade, o.unidade].filter(Boolean).join(' ')}</>}
+                          {o.motivo && <> · {o.motivo}</>}
+                          {o.valor_estimado != null && <> · <strong>R$ {Number(o.valor_estimado).toFixed(2)}</strong></>}
+                        </p>
+                      )}
+                      {o.descricao && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem', color: 'var(--text-main)' }}>{o.descricao}</p>
+                      )}
+                    </div>
+                    {o.photo && (
+                      <img
+                        src={o.photo}
+                        alt="Foto do registro"
+                        onClick={() => window.open(o.photo, '_blank')}
+                        style={{ width: '84px', height: '84px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', flexShrink: 0 }}
+                      />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
               submissions.map(s => {

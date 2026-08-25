@@ -610,6 +610,80 @@ async function avisarEnvioConsciente(store, employeeName, itens) {
 }
 
 
+// ── Aviso de ocorrência ou descarte ao dono da loja ──────────────────────────
+// Cada tipo tem a sua chave na aba de Notificações, porque são interesses
+// diferentes: um dono pode querer saber de todo descarte e não de toda ocorrência.
+async function avisarOcorrencia(store, registro) {
+  const ehDescarte = registro.tipo === 'descarte';
+  const titulo = ehDescarte ? '📉 Descarte registrado' : '⚠️ Ocorrência registrada';
+
+  const corpoCurto = ehDescarte
+    ? `${registro.employee_name} registrou descarte de ${[registro.quantidade, registro.unidade].filter(Boolean).join(' ')} de ${registro.item || 'item'}.`.slice(0, 160)
+    : `${registro.employee_name}: ${String(registro.descricao || '').slice(0, 110)}`;
+
+  try {
+    const { rows: donos } = await pool.query(
+      `SELECT id, name, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_ocorrencia, wa_descarte
+         FROM users
+        WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master' OR role = 'gestor')`,
+      [store]
+    );
+
+    for (const dono of donos) {
+      const querEste = ehDescarte ? dono.wa_descarte !== false : dono.wa_ocorrencia !== false;
+      if (!querEste) continue;
+
+      if (dono.fcm_token) {
+        try {
+          await admin.messaging().send({
+            token: dono.fcm_token,
+            notification: { title: titulo, body: corpoCurto },
+            data: { url: '/admin' },
+            apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+          });
+        } catch (pushErr) {
+          console.error('[Ocorrência] Falha no push:', pushErr.message);
+        }
+      }
+
+      const telefone = dono.whatsapp_phone || dono.phone;
+      const evoUrl = process.env.EVOLUTION_API_URL;
+      const evoKey = process.env.EVOLUTION_API_KEY;
+      const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+      if (telefone && dono.whatsapp_active !== false && evoUrl && evoKey) {
+        const limpo = String(telefone).replace(/\D/g, '');
+        const numero = limpo.startsWith('55') ? limpo : '55' + limpo;
+
+        const texto = ehDescarte
+          ? `📉 *DESCARTE REGISTRADO* — ${store}\n\n` +
+            `*Quem:* ${registro.employee_name}\n` +
+            `*Item:* ${registro.item || '—'}\n` +
+            `*Quantidade:* ${[registro.quantidade, registro.unidade].filter(Boolean).join(' ') || '—'}\n` +
+            (registro.valor_estimado ? `*Valor estimado:* R$ ${Number(registro.valor_estimado).toFixed(2)}\n` : '') +
+            (registro.motivo ? `*Motivo:* ${registro.motivo}\n` : '') +
+            (registro.descricao ? `\n${registro.descricao}\n` : '') +
+            (registro.photo ? `\n📷 Com foto anexada.` : '') +
+            `\n\nVer no painel: https://www.firecheckapp.com.br/admin`
+          : `⚠️ *OCORRÊNCIA REGISTRADA* — ${store}\n\n` +
+            `*Quem:* ${registro.employee_name}\n\n` +
+            `${registro.descricao || '—'}\n` +
+            (registro.photo ? `\n📷 Com foto anexada.` : '') +
+            `\n\nVer no painel: https://www.firecheckapp.com.br/admin`;
+
+        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: evoKey },
+          body: JSON.stringify({ number: numero, text: texto }),
+        }).catch(err => console.error('[Ocorrência] Falha no WhatsApp:', err.message));
+      }
+    }
+  } catch (e) {
+    console.error('[Ocorrência] Falha ao avisar os responsáveis:', e.message);
+  }
+}
+
+
 export default async function handler(req, res) {
   // ── CORS Restrito ──
   const origin = req.headers.origin || '';
@@ -665,6 +739,38 @@ export default async function handler(req, res) {
       // deixa de mexer em dado nenhum.
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS store_name TEXT");
       await pool.query("UPDATE users SET store_name = store WHERE store_name IS NULL AND store IS NOT NULL");
+
+      // ── Ocorrências e descartes registrados pelo funcionário ──
+      // O checklist cobre o que é previsto. O que sai da rotina — o freezer que
+      // descongelou, a caixa de tomate que veio estragada — não tinha onde ser
+      // dito, e virava conversa de corredor que não chega ao dono.
+      //
+      // As duas coisas moram na mesma tabela porque são o mesmo gesto (alguém no
+      // chão relatando um fato, com foto opcional) e mudam só nos campos de
+      // quantidade e valor. `tipo` separa as duas na leitura.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ocorrencias (
+          id SERIAL PRIMARY KEY,
+          store TEXT,
+          tipo TEXT NOT NULL DEFAULT 'ocorrencia',
+          employee_name TEXT,
+          employee_id INTEGER,
+          descricao TEXT,
+          photo TEXT,
+          item TEXT,
+          quantidade TEXT,
+          unidade TEXT,
+          valor_estimado NUMERIC(10,2),
+          motivo TEXT,
+          resolvido BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')
+        )
+      `);
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_ocorrencias_store_data ON ocorrencias (store, created_at DESC)');
+      // Avisos novos nascem ligados: quem acabou de registrar um descarte espera
+      // que o dono saiba, e o dono desliga se não quiser.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ocorrencia BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_descarte BOOLEAN DEFAULT TRUE");
       // ── Cota de Checklists ──
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklist_limit INTEGER DEFAULT 300");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
@@ -2369,7 +2475,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
-        const { name, store: storeName, storeKey, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, role, schedule_id, permissions, expiration_date } = req.body;
+        const { name, store: storeName, storeKey, plan, status, ponto_active, finance_active, checklist_limit, ponto_limit, timezone, contador_email, fechamento_dia, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, phone, whatsapp_active, whatsapp_phone, wa_ponto_atraso, wa_checklist_reprovado, wa_checklist_atrasado, wa_ponto_diario, wa_checklist_aprovado, wa_ocorrencia, wa_descarte, role, schedule_id, permissions, expiration_date } = req.body;
         const { rows: current } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
@@ -2511,6 +2617,8 @@ export default async function handler(req, res) {
         const finalWaChecklistAtrasado = wa_checklist_atrasado !== undefined ? wa_checklist_atrasado : user.wa_checklist_atrasado;
         const finalWaPontoDiario = wa_ponto_diario !== undefined ? wa_ponto_diario : user.wa_ponto_diario;
         const finalWaChecklistAprovado = wa_checklist_aprovado !== undefined ? wa_checklist_aprovado : user.wa_checklist_aprovado;
+        const finalWaOcorrencia = wa_ocorrencia !== undefined ? wa_ocorrencia : user.wa_ocorrencia;
+        const finalWaDescarte = wa_descarte !== undefined ? wa_descarte : user.wa_descarte;
         // Promoção a 'master' nunca vem do corpo da requisição: só um master
         // concede esse papel. Sem esta trava, qualquer admin ou gestor se
         // promovia a master editando o próprio cadastro.
@@ -2538,15 +2646,15 @@ export default async function handler(req, res) {
             UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8,
             ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14,
             wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19,
-            name = $21, store = $22, store_name = $29, ponto_limit = $23, role = $24, schedule_id = $25, photo = $27,
+            name = $21, store = $22, store_name = $29, wa_ocorrencia = $30, wa_descarte = $31, ponto_limit = $23, role = $24, schedule_id = $25, photo = $27,
             expiration_date = COALESCE($28, NOW() + CASE WHEN $1 = 'anual' OR $1 = 'business' THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END),
             quota_reset_date = COALESCE(quota_reset_date, NOW() + INTERVAL '30 days'),
             permissions = $26
             ${resetChecklists}
             WHERE id = $20
-          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName]);
+          `, [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName, finalWaOcorrencia, finalWaDescarte]);
         } else {
-          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, store_name = $29, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date) WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName]);
+          await pool.query('UPDATE users SET plan = $1, status = $2, ponto_active = $3, finance_active = $4, checklist_limit = $5, timezone = $6, contador_email = $7, fechamento_dia = $8, ponto_hora_entrada = $9, ponto_hora_saida = $10, ponto_tolerancia = $11, phone = $12, whatsapp_active = $13, whatsapp_phone = $14, wa_ponto_atraso = $15, wa_checklist_reprovado = $16, wa_checklist_atrasado = $17, wa_ponto_diario = $18, wa_checklist_aprovado = $19, name = $21, store = $22, store_name = $29, ponto_limit = $23, role = $24, schedule_id = $25, permissions = $26, photo = $27, expiration_date = COALESCE($28, expiration_date), wa_ocorrencia = $30, wa_descarte = $31 WHERE id = $20', [finalPlan, finalStatus, finalPonto || false, finalFinance || false, finalLimit, finalTz, finalContador, finalFechamento, finalHoraEntrada, finalHoraSaida, finalTolerancia, finalPhone, finalWhatsappActive, finalWhatsappPhone, finalWaPontoAtraso, finalWaChecklistReprovado, finalWaChecklistAtrasado, finalWaPontoDiario, finalWaChecklistAprovado, id, finalName, finalStore, finalPontoLimit, finalRole, finalScheduleId, finalPermissions, finalPhoto, expiration_date, finalStoreName, finalWaOcorrencia, finalWaDescarte]);
         }
 
         // ── Último dia trabalhado (escala 12x36) ─────────────────────────────
@@ -2798,7 +2906,7 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.wa_ocorrencia, u.wa_descarte, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
@@ -4149,6 +4257,106 @@ Responda APENAS com JSON válido.`;
         return res.status(200).json({ success: true });
       }
     }
+    // ── Ocorrências e descartes ────────────────────────────────────────────────
+    if (url.includes('/api/ocorrencias')) {
+      const autorOc = await autenticarComLojaAtual(req);
+      if (!autorOc) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+
+      if (method === 'POST') {
+        const { tipo, descricao, photo, item, quantidade, unidade, valorEstimado, motivo } = req.body;
+        const ehDescarte = String(tipo || '').toLowerCase() === 'descarte';
+
+        // Um registro sem conteúdo não avisa nada a ninguém e ainda dispara
+        // WhatsApp: para descarte basta o item, para ocorrência basta o relato.
+        const temConteudo = ehDescarte ? !!String(item || '').trim() : !!String(descricao || '').trim();
+        if (!temConteudo) {
+          return res.status(400).json({
+            error: ehDescarte ? 'Diga qual item foi descartado.' : 'Escreva o que aconteceu.',
+          });
+        }
+
+        // A loja sai do cadastro de quem está registrando, nunca do corpo.
+        const lojaDoRegistro = autorOc.role === 'master' ? await lojaCanonica(req.body.store || autorOc.store) : autorOc.store;
+
+        let fotoFinal = photo || null;
+        if (fotoFinal && typeof fotoFinal === 'string' && fotoFinal.startsWith('data:image')) {
+          try {
+            fotoFinal = await uploadImage(fotoFinal, `ocorrencias/${lojaDoRegistro}`);
+          } catch (upErr) {
+            // Foto é opcional: se o upload falhar, o relato não pode ser perdido.
+            console.error('[Ocorrência] Falha ao subir a foto:', upErr.message);
+            fotoFinal = null;
+          }
+        }
+
+        const { rows: quem } = await pool.query('SELECT name FROM users WHERE id = $1', [autorOc.id]);
+        const nomeAutor = quem[0]?.name || autorOc.email || 'Colaborador';
+
+        const { rows } = await pool.query(
+          `INSERT INTO ocorrencias (store, tipo, employee_name, employee_id, descricao, photo, item, quantidade, unidade, valor_estimado, motivo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+          [
+            lojaDoRegistro,
+            ehDescarte ? 'descarte' : 'ocorrencia',
+            nomeAutor,
+            autorOc.id,
+            descricao || null,
+            fotoFinal,
+            ehDescarte ? (item || null) : null,
+            ehDescarte ? (quantidade != null ? String(quantidade) : null) : null,
+            ehDescarte ? (unidade || null) : null,
+            ehDescarte && valorEstimado !== '' && valorEstimado != null ? Number(valorEstimado) : null,
+            ehDescarte ? (motivo || null) : null,
+          ]
+        );
+
+        // Sem await: o registro já está gravado e um WhatsApp lento não pode
+        // segurar a tela de quem está no meio do serviço.
+        avisarOcorrencia(lojaDoRegistro, rows[0])
+          .catch(e => console.error('[Ocorrência] aviso falhou:', e.message));
+
+        return res.status(200).json({ success: true, ocorrencia: rows[0] });
+      }
+
+      if (method === 'GET') {
+        const lojaConsulta = autorOc.role === 'master' ? (searchParams.get('store') || null) : autorOc.store;
+        const tipoFiltro = searchParams.get('tipo');
+
+        // O painel manda o mesmo ?start=&end= que usa nas outras abas.
+        const inicio = searchParams.get('start');
+        const fim = searchParams.get('end');
+
+        const condicoes = [];
+        const valores = [];
+        if (lojaConsulta) { valores.push(lojaConsulta); condicoes.push(`LOWER(TRIM(store)) = LOWER(TRIM($${valores.length}))`); }
+        if (tipoFiltro === 'descarte' || tipoFiltro === 'ocorrencia') { valores.push(tipoFiltro); condicoes.push(`tipo = $${valores.length}`); }
+        if (inicio) { valores.push(inicio + ' 00:00:00'); condicoes.push(`created_at >= $${valores.length}`); }
+        if (fim) { valores.push(fim + ' 23:59:59'); condicoes.push(`created_at <= $${valores.length}`); }
+
+        const { rows } = await pool.query(
+          `SELECT * FROM ocorrencias ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''} ORDER BY created_at DESC LIMIT 200`,
+          valores
+        );
+        return res.status(200).json(rows);
+      }
+
+      if (method === 'DELETE') {
+        const m = url.match(/\/api\/ocorrencias\/(\d+)/);
+        if (!m) return res.status(400).json({ error: 'Informe qual registro remover.' });
+        if (!['admin', 'master', 'gestor'].includes(autorOc.role)) {
+          return res.status(403).json({ error: 'Somente quem administra pode remover registros.' });
+        }
+        // O WHERE leva a loja junto: só por id, um id sequencial alcançaria o
+        // registro de outro cliente.
+        const filtroLoja = autorOc.role === 'master' ? '' : 'AND LOWER(TRIM(store)) = LOWER(TRIM($2))';
+        const params = autorOc.role === 'master' ? [m[1]] : [m[1], autorOc.store];
+        await pool.query(`DELETE FROM ocorrencias WHERE id = $1 ${filtroLoja}`, params);
+        return res.status(200).json({ success: true });
+      }
+
+      return res.status(405).json({ error: 'Método não permitido.' });
+    }
+
     if (url.includes('/api/audit')) {
       if (method === 'POST') {
         // ── Conferência de UMA foto, na hora ────────────────────────────────

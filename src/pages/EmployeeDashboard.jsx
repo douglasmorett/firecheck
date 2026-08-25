@@ -82,6 +82,17 @@ export default function EmployeeDashboard() {
   // Impede duas sincronizações da fila offline ao mesmo tempo (ver syncOfflineQueue).
   const syncingRef = useRef(false);
   const [isImpersonating] = useState(() => Boolean(localStorage.getItem('firecheck_admin_backup')));
+  // Registro de ocorrência / descarte. `tipoRegistro` nulo = modal fechado.
+  const [tipoRegistro, setTipoRegistro] = useState(null);
+  const [registroDescricao, setRegistroDescricao] = useState('');
+  const [registroFoto, setRegistroFoto] = useState(null);
+  const [registroItem, setRegistroItem] = useState('');
+  const [registroQtd, setRegistroQtd] = useState('');
+  const [registroUnidade, setRegistroUnidade] = useState('un');
+  const [registroValor, setRegistroValor] = useState('');
+  const [registroMotivo, setRegistroMotivo] = useState('');
+  const [registroEnviando, setRegistroEnviando] = useState(false);
+  const [registroOk, setRegistroOk] = useState(false);
   const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
 
   const handleReturnToAdmin = () => {
@@ -314,6 +325,69 @@ export default function EmployeeDashboard() {
       window.removeEventListener('online', syncOfflineQueue);
     };
   }, [userProfile, fetchChecklists]);
+
+  // A foto é opcional e some se der errado: o relato é que não pode se perder.
+  // Comprime como o checklist já faz — foto de celular em base64 estoura o
+  // limite do corpo da requisição.
+  const escolherFotoRegistro = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxWidth = 800;
+        let { width, height } = img;
+        if (width > maxWidth) { height = Math.round((maxWidth / width) * height); width = maxWidth; }
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        setRegistroFoto(canvas.toDataURL('image/jpeg', 0.6));
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const enviarRegistro = async () => {
+    const ehDescarte = tipoRegistro === 'descarte';
+    if (ehDescarte && !registroItem.trim()) { alert('Diga qual item foi descartado.'); return; }
+    if (!ehDescarte && !registroDescricao.trim()) { alert('Escreva o que aconteceu.'); return; }
+
+    setRegistroEnviando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/ocorrencias`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || ''),
+        },
+        body: JSON.stringify({
+          tipo: tipoRegistro,
+          descricao: registroDescricao,
+          photo: registroFoto,
+          item: registroItem,
+          quantidade: registroQtd,
+          unidade: registroUnidade,
+          valorEstimado: registroValor,
+          motivo: registroMotivo,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        alert(data?.error || 'Não foi possível registrar agora. Tente de novo.');
+        return;
+      }
+      setTipoRegistro(null);
+      setRegistroOk(true);
+      setTimeout(() => setRegistroOk(false), 4000);
+    } catch {
+      alert('Sem conexão para registrar agora. Tente de novo quando o sinal voltar.');
+    } finally {
+      setRegistroEnviando(false);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('user');
@@ -563,6 +637,33 @@ export default function EmployeeDashboard() {
           <Download size={16} /> WebApp
         </button>
       </div>
+      )}
+
+      {/* ── Registrar o que fugiu da rotina ──────────────────────────────────
+          O checklist só pergunta o que já se sabe perguntar. O freezer que
+          descongelou de madrugada, a caixa de tomate que veio estragada — isso
+          não tinha onde ser dito e virava conversa de corredor que nunca chegava
+          ao dono. Fica no topo porque quem precisa registrar está no meio do
+          serviço e não vai procurar. */}
+      {!isImpersonating && (
+        <section style={{ marginBottom: '32px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+            <button
+              className="btn"
+              onClick={() => { setTipoRegistro('ocorrencia'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
+              style={{ padding: '16px', backgroundColor: '#f59e0b', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+            >
+              <AlertCircle size={20} /> Registrar Ocorrência
+            </button>
+            <button
+              className="btn"
+              onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
+              style={{ padding: '16px', backgroundColor: '#0f766e', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+            >
+              <Package size={20} /> Registrar Descarte
+            </button>
+          </div>
+        </section>
       )}
 
       {hasPonto && (
@@ -1055,6 +1156,113 @@ export default function EmployeeDashboard() {
             ))}
           </div>
         </section>
+      )}
+
+      {/* Confirmação discreta: quem registrou precisa saber que chegou, sem um
+          alert que obriga a tirar a mão do serviço para clicar em OK. */}
+      {registroOk && (
+        <div style={{ position: 'fixed', bottom: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 10001, backgroundColor: 'var(--success, #16a34a)', color: '#fff', padding: '14px 20px', borderRadius: '12px', fontWeight: 'bold', fontSize: '0.9rem', boxShadow: '0 8px 24px rgba(0,0,0,0.25)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <CheckCircle size={18} /> Registrado. Seu gestor foi avisado.
+        </div>
+      )}
+
+      {tipoRegistro && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 10000, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', overflowY: 'auto' }}>
+          <div className="card animate-scale" style={{ width: '100%', maxWidth: '460px', padding: '24px', borderRadius: '16px', borderTop: `6px solid ${tipoRegistro === 'descarte' ? '#0f766e' : '#f59e0b'}`, maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+              <h2 style={{ fontSize: '1.15rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {tipoRegistro === 'descarte' ? <><Package size={20} color="#0f766e" /> Registrar Descarte</> : <><AlertCircle size={20} color="#f59e0b" /> Registrar Ocorrência</>}
+              </h2>
+              <button onClick={() => setTipoRegistro(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 18px 0' }}>
+              {tipoRegistro === 'descarte'
+                ? 'O que precisou ser jogado fora, e por quê. Seu gestor recebe na hora.'
+                : 'Algo fora da rotina? Conte aqui. Seu gestor recebe na hora.'}
+            </p>
+
+            {tipoRegistro === 'descarte' && (
+              <>
+                <label className="input-label">O que foi descartado *</label>
+                <input className="input-field" value={registroItem} onChange={e => setRegistroItem(e.target.value)}
+                  placeholder="Ex.: caixa de tomate" maxLength={120} style={{ marginBottom: '12px' }} />
+
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ flex: 2 }}>
+                    <label className="input-label">Quantidade</label>
+                    <input className="input-field" value={registroQtd} onChange={e => setRegistroQtd(e.target.value)}
+                      placeholder="Ex.: 3" inputMode="decimal" maxLength={20} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="input-label">Unidade</label>
+                    <select className="input-field" value={registroUnidade} onChange={e => setRegistroUnidade(e.target.value)}>
+                      <option value="un">un</option>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="L">L</option>
+                      <option value="ml">ml</option>
+                      <option value="cx">cx</option>
+                      <option value="pct">pct</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label className="input-label">Valor estimado (R$)</label>
+                    <input className="input-field" value={registroValor} onChange={e => setRegistroValor(e.target.value.replace(',', '.'))}
+                      placeholder="Ex.: 45.00" inputMode="decimal" maxLength={12} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label className="input-label">Motivo</label>
+                    <select className="input-field" value={registroMotivo} onChange={e => setRegistroMotivo(e.target.value)}>
+                      <option value="">Selecione…</option>
+                      <option value="Vencido">Vencido</option>
+                      <option value="Estragado">Estragado</option>
+                      <option value="Quebrado / danificado">Quebrado / danificado</option>
+                      <option value="Erro de preparo">Erro de preparo</option>
+                      <option value="Sobra do dia">Sobra do dia</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            <label className="input-label">
+              {tipoRegistro === 'descarte' ? 'Quer detalhar? (opcional)' : 'O que aconteceu? *'}
+            </label>
+            <textarea className="input-field" rows={4} maxLength={1000}
+              value={registroDescricao} onChange={e => setRegistroDescricao(e.target.value)}
+              placeholder={tipoRegistro === 'descarte'
+                ? 'Ex.: chegou já murcho do fornecedor'
+                : 'Ex.: o freezer da cozinha amanheceu desligado e a carne descongelou'}
+              style={{ resize: 'vertical', marginBottom: '14px' }} />
+
+            <label className="input-label">Foto (opcional)</label>
+            {registroFoto ? (
+              <div style={{ position: 'relative', marginBottom: '16px', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                <img src={registroFoto} alt="Foto do registro" style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', display: 'block' }} />
+                <button onClick={() => setRegistroFoto(null)}
+                  style={{ position: 'absolute', top: 8, right: 8, padding: '6px', borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}>
+                  <X size={14} />
+                </button>
+              </div>
+            ) : (
+              <label className="btn-secondary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px', marginBottom: '16px', cursor: 'pointer', fontSize: '0.85rem' }}>
+                <Smartphone size={16} /> Anexar foto
+                <input type="file" accept="image/*" capture="environment" onChange={escolherFotoRegistro} style={{ display: 'none' }} />
+              </label>
+            )}
+
+            <button className="btn" onClick={enviarRegistro} disabled={registroEnviando}
+              style={{ width: '100%', padding: '14px', fontWeight: 'bold', backgroundColor: tipoRegistro === 'descarte' ? '#0f766e' : '#f59e0b', border: 'none', color: '#fff' }}>
+              {registroEnviando ? 'Enviando…' : 'Enviar para o gestor'}
+            </button>
+          </div>
+        </div>
       )}
 
       <footer style={{ marginTop: '48px', textAlign: 'center', padding: '24px', borderTop: '1px solid var(--border-color)' }}>
