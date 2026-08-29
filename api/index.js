@@ -635,6 +635,7 @@ async function vigiarConexaoWhatsapp() {
   if (suporte === principal) return; // sem canal independente, o aviso não sai
 
   const conexao = await estadoWhatsapp();
+  console.log(`[Vigia da conexao] instância "${principal}": ${conexao.conectado ? 'conectada' : (conexao.motivo || 'estado desconhecido')}`);
   if (!conexao.conhecido || conexao.conectado) return;
 
   try {
@@ -1521,29 +1522,44 @@ export default async function handler(req, res) {
         const evoKey = process.env.EVOLUTION_API_KEY;
         const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
         if (evoUrl && evoKey) {
-          const resposta = await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-            body: JSON.stringify({
-              enabled: true,
-              url: process.env.WHATSAPP_WEBHOOK_SECRET
-                ? 'https://www.firecheckapp.com.br/api/webhooks/whatsapp?secret=' + encodeURIComponent(process.env.WHATSAPP_WEBHOOK_SECRET)
-                : 'https://www.firecheckapp.com.br/api/webhooks/whatsapp',
-              webhookByEvents: false,
-              webhook_by_events: false,
-              events: ['MESSAGES_UPSERT', 'messages.upsert']
-            })
-          });
-          // O `await fetch` só lança quando a rede cai. Instancia inexistente e
-          // apikey trocada voltam como 404/401 — e a linha abaixo anunciava
-          // "configurado com sucesso" para as duas.
-          if (resposta.ok) {
-            console.log('[Evolution] Webhook configurado para /api/webhooks/whatsapp');
-          } else {
-            const detalhe = await resposta.text().catch(() => '');
-            console.error(`[Evolution] Webhook NÃO configurado (HTTP ${resposta.status}) na instância "${evoInstance}": ${detalhe.slice(0, 300)}`);
+          const alvo = process.env.WHATSAPP_WEBHOOK_SECRET
+            ? 'https://www.firecheckapp.com.br/api/webhooks/whatsapp?secret=' + encodeURIComponent(process.env.WHATSAPP_WEBHOOK_SECRET)
+            : 'https://www.firecheckapp.com.br/api/webhooks/whatsapp';
+          const eventos = ['MESSAGES_UPSERT'];
+
+          // A v2 da Evolution quer os campos dentro de um objeto `webhook`; a v1
+          // queria no primeiro nível. Este servidor respondia
+          // `instance requires property "webhook"` a cada tentativa — ou seja, o
+          // webhook do chatbot nunca chegou a ser configurado — e o log dizia
+          // "configurado com sucesso" porque ninguém olhava o status da resposta.
+          //
+          // Tenta o formato novo e cai para o antigo, que é o único jeito de
+          // servir as duas versões sem saber de antemão qual está do outro lado.
+          const formatos = [
+            { webhook: { enabled: true, url: alvo, byEvents: false, base64: false, events: eventos } },
+            { enabled: true, url: alvo, webhookByEvents: false, webhook_by_events: false, events: eventos },
+          ];
+
+          let configurado = false;
+          let ultimoErro = '';
+          for (const corpo of formatos) {
+            const resposta = await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
+              body: JSON.stringify(corpo),
+            });
+            // O `await fetch` só lança quando a rede cai. Instância inexistente e
+            // apikey trocada voltam como 404/401, e antes as duas eram
+            // anunciadas como sucesso.
+            if (resposta.ok) { configurado = true; break; }
+            ultimoErro = `HTTP ${resposta.status}: ${(await resposta.text().catch(() => '')).slice(0, 250)}`;
           }
 
+          if (configurado) {
+            console.log('[Evolution] Webhook configurado para /api/webhooks/whatsapp');
+          } else {
+            console.error(`[Evolution] Webhook NÃO configurado na instância "${evoInstance}" — ${ultimoErro}`);
+          }
         }
       } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
 
