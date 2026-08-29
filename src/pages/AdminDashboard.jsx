@@ -638,6 +638,9 @@ export default function AdminDashboard() {
   const [waChecklistAprovado, setWaChecklistAprovado] = useState(true);
   const [waOcorrencia, setWaOcorrencia] = useState(true);
   const [waDescarte, setWaDescarte] = useState(true);
+  // Resultado do último teste de WhatsApp: { ok, motivo, numero, avisos }.
+  const [testeWhats, setTesteWhats] = useState(null);
+  const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
   const [rankingCustomDates, setRankingCustomDates] = useState({
@@ -2135,6 +2138,39 @@ export default function AdminDashboard() {
 
 
 
+  /**
+   * Manda um WhatsApp de verdade para o número que está na tela e mostra o que
+   * aconteceu.
+   *
+   * "Cadastrei meu número e não recebo nada" era impossível de responder sem
+   * abrir o log do servidor: o envio era disparado e esquecido, então número
+   * sem DDD, WhatsApp do sistema fora do ar e interruptor desmarcado davam
+   * exatamente o mesmo silêncio. Aqui cada um desses casos tem um nome.
+   */
+  const handleTestarWhatsapp = async () => {
+    setTestandoWhats(true);
+    setTesteWhats(null);
+    try {
+      const res = await fetch(`${API_URL}/api/whatsapp/testar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        // Vai o número digitado, não o salvo: quem está conferindo quer testar
+        // o que acabou de escrever, antes de salvar.
+        body: JSON.stringify({ telefone: whatsappPhone }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!data) {
+        setTesteWhats({ ok: false, motivo: 'O servidor não respondeu. Tente de novo em instantes.' });
+        return;
+      }
+      setTesteWhats(data);
+    } catch {
+      setTesteWhats({ ok: false, motivo: 'Sem conexão com o servidor agora.' });
+    } finally {
+      setTestandoWhats(false);
+    }
+  };
+
   const handlePurchaseOCRUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -2897,6 +2933,53 @@ export default function AdminDashboard() {
                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '4px', fontSize: '0.78rem' }}>
                           Preencha com o DDD (ex: 21999999999). Se deixado em branco, o sistema usará o telefone do seu perfil.
                        </small>
+                    </div>
+
+                    {/* ── Prova de que o canal funciona ─────────────────────
+                        O lojista salvava o número e ficava esperando um alerta
+                        que talvez nunca viesse, sem forma de saber se o problema
+                        era o número, o interruptor ou o servidor. Um botão que
+                        manda a mensagem na hora e diz o motivo da falha resolve
+                        isso sem passar por suporte. */}
+                    <div>
+                       <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={handleTestarWhatsapp}
+                          disabled={testandoWhats}
+                          style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '0.92rem', fontWeight: 'bold', cursor: testandoWhats ? 'wait' : 'pointer', opacity: testandoWhats ? 0.7 : 1 }}
+                       >
+                          {testandoWhats ? 'Enviando...' : '💬 Enviar mensagem de teste agora'}
+                       </button>
+                       <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.78rem' }}>
+                          Manda uma mensagem real para o número acima. Se não chegar, o motivo aparece aqui.
+                       </small>
+
+                       {testeWhats && (
+                         <div style={{
+                           marginTop: '12px',
+                           padding: '12px 14px',
+                           borderRadius: '10px',
+                           fontSize: '0.86rem',
+                           lineHeight: '1.5',
+                           backgroundColor: testeWhats.ok ? 'rgba(37, 211, 102, 0.10)' : 'rgba(239, 68, 68, 0.10)',
+                           border: `1px solid ${testeWhats.ok ? '#25D366' : '#ef4444'}`,
+                           color: testeWhats.ok ? '#0f766e' : '#b91c1c',
+                         }}>
+                           {testeWhats.ok ? (
+                             <>
+                               <strong>Mensagem enviada.</strong> Confira o WhatsApp do número
+                               {testeWhats.numero ? ` ${testeWhats.numero}` : ''}. Se não aparecer em até um minuto,
+                               o número está certo mas o aparelho pode estar sem internet.
+                               {Array.isArray(testeWhats.avisos) && testeWhats.avisos.map((aviso, i) => (
+                                 <div key={i} style={{ marginTop: '8px', color: '#b45309', fontWeight: 'bold' }}>⚠️ {aviso}</div>
+                               ))}
+                             </>
+                           ) : (
+                             <><strong>Não foi possível enviar.</strong> {testeWhats.motivo}</>
+                           )}
+                         </div>
+                       )}
                     </div>
                  </div>
               </div>

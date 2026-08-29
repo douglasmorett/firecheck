@@ -355,6 +355,15 @@ export default function EmployeeDashboard() {
     if (ehDescarte && !registroItem.trim()) { alert('Diga qual item foi descartado.'); return; }
     if (!ehDescarte && !registroDescricao.trim()) { alert('Escreva o que aconteceu.'); return; }
 
+    // Em simulação a tela funciona inteira, mas nada é gravado nem avisa
+    // ninguém — a mesma regra dos checklists de teste. Quem está conhecendo o
+    // sistema precisa ver o formulário; o dono não precisa receber o WhatsApp.
+    if (isImpersonating) {
+      setTipoRegistro(null);
+      alert('É assim que o colaborador registra. Como você está em Modo Simulação, este registro não foi gravado e ninguém foi avisado.');
+      return;
+    }
+
     setRegistroEnviando(true);
     try {
       const res = await fetch(`${API_URL}/api/ocorrencias`, {
@@ -645,26 +654,34 @@ export default function EmployeeDashboard() {
           não tinha onde ser dito e virava conversa de corredor que nunca chegava
           ao dono. Fica no topo porque quem precisa registrar está no meio do
           serviço e não vai procurar. */}
-      {!isImpersonating && (
-        <section style={{ marginBottom: '32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-            <button
-              className="btn"
-              onClick={() => { setTipoRegistro('ocorrencia'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
-              style={{ padding: '16px', backgroundColor: '#f59e0b', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
-            >
-              <AlertCircle size={20} /> Registrar Ocorrência
-            </button>
-            <button
-              className="btn"
-              onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
-              style={{ padding: '16px', backgroundColor: '#0f766e', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
-            >
-              <Package size={20} /> Registrar Descarte
-            </button>
-          </div>
-        </section>
-      )}
+      {/* Todo colaborador registra: um freezer que descongelou não espera o
+          gerente chegar, e o registro sempre carrega o nome de quem enviou.
+          Antes a seção sumia em Modo Simulação, então o lojista que entrava para
+          conhecer "a tela do funcionário" via exatamente o contrário do que
+          existe de verdade. */}
+      <section style={{ marginBottom: '32px' }}>
+        {isImpersonating && (
+          <p style={{ margin: '0 0 8px 0', fontSize: '0.78rem', color: '#b45309', fontWeight: 'bold' }}>
+            🧪 Em simulação: abra para ver o formulário. Nada aqui é gravado.
+          </p>
+        )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          <button
+            className="btn"
+            onClick={() => { setTipoRegistro('ocorrencia'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
+            style={{ padding: '16px', backgroundColor: '#f59e0b', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+          >
+            <AlertCircle size={20} /> Registrar Ocorrência
+          </button>
+          <button
+            className="btn"
+            onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
+            style={{ padding: '16px', backgroundColor: '#0f766e', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+          >
+            <Package size={20} /> Registrar Descarte
+          </button>
+        </div>
+      </section>
 
       {hasPonto && (
         <section style={{ marginBottom: '32px' }}>

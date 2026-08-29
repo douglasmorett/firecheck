@@ -481,12 +481,222 @@ function getAiCreationLimit(plan) {
   return 50; // default/starter (mais barato)
 }
 
+// ── Um telefone brasileiro no formato que o WhatsApp aceita ──────────────────
+//
+// O código repetia `limpo.startsWith('55') ? limpo : '55' + limpo` em dezessete
+// lugares, e essa regra erra em dois casos que existem na base:
+//
+//  - DDD 55 (Santa Maria/RS): "55999887766" já começa com "55", então o DDI
+//    nunca era acrescentado e o número saía com nove dígitos. Nunca chegava.
+//  - Telefone gravado com máscara, "(22) 99885-1680", em um dos pontos ia sem
+//    passar por replace e virava "55(22) 99885-1680".
+//
+// Aqui a decisão é pelo comprimento, que é o que de fato distingue os casos:
+// 10 ou 11 dígitos é número nacional e recebe o 55; 12 ou 13 começando com 55
+// já veio com DDI. Menos que isso é telefone sem DDD, que não tem como ser
+// entregue — e é melhor dizer isso do que mandar para um número errado.
+function numeroWhatsapp(telefone) {
+  const limpo = String(telefone || '').replace(/\D/g, '');
+  if (!limpo) return { numero: null, motivo: 'Nenhum telefone cadastrado.' };
+  if (limpo.length === 10 || limpo.length === 11) return { numero: '55' + limpo, motivo: null };
+  if ((limpo.length === 12 || limpo.length === 13) && limpo.startsWith('55')) return { numero: limpo, motivo: null };
+  if (limpo.length < 10) {
+    return { numero: null, motivo: `O número "${telefone}" está incompleto — falta o DDD (ex.: 21999998888).` };
+  }
+  // Comprimento fora do padrão brasileiro: pode ser número estrangeiro já com
+  // DDI. Segue como está em vez de estragá-lo com um 55 na frente.
+  return { numero: limpo, motivo: null };
+}
+
+// ── Esperar, mas nunca para sempre ────────────────────────────────
+//
+// Numa função serverless, o que fica pendente quando a resposta HTTP sai pode
+// simplesmente não terminar: a instância congela. Disparar e esquecer, ali, é
+// apostar que a mensagem sai — e quando não sai, nada registra.
+//
+// Esperar sem limite também não serve: um servidor de WhatsApp lento seguraria
+// a tela de quem está no meio do serviço. O teto resolve os dois: o caso normal
+// termina em menos de um segundo, e o caso ruim solta a tela e segue.
+function comTeto(promessa, ms, contexto) {
+  return Promise.race([
+    promessa,
+    new Promise(resolve => setTimeout(() => {
+      console.warn(`[${contexto}] passou de ${ms}ms; a resposta seguiu sem esperar o fim do envio.`);
+      resolve(null);
+    }, ms)),
+  ]);
+}
+
+// ── Envio de WhatsApp pela Evolution, com o erro guardado ────────────────────
+//
+// O padrão antigo era `fetch(...).catch(...)`: o catch só pega queda de rede.
+// Instância desconectada, apikey trocada, número que não existe no WhatsApp —
+// tudo isso volta como 400/401 com corpo explicando o motivo, e o corpo era
+// descartado. O sintoma no cliente era sempre o mesmo: "não recebi nada", sem
+// nada no log para conferir.
+//
+// Continua sem travar quem chamou: por padrão é disparo e segue a vida, mas
+// agora a resposta é lida e o motivo aparece no log. Quem precisa do resultado
+// (a rota de teste) dá await e recebe o motivo em português.
+// Quando cada conta mandou o ultimo WhatsApp de teste. Vive na memoria da
+// instancia, que e o suficiente: o objetivo e evitar o dedo nervoso no botao,
+// nao construir um limitador distribuido.
+const testesWhatsapp = new Map();
+
+async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instancia }) {
+  const evoUrl = process.env.EVOLUTION_API_URL;
+  const evoKey = process.env.EVOLUTION_API_KEY;
+  const evoInstance = instancia || process.env.EVOLUTION_INSTANCE || 'firecheck';
+
+  if (!evoUrl || !evoKey) {
+    const motivo = 'A integração de WhatsApp não está configurada no servidor (EVOLUTION_API_URL/EVOLUTION_API_KEY).';
+    console.error(`[${contexto}] ${motivo}`);
+    return { ok: false, motivo };
+  }
+
+  const { numero, motivo: motivoNumero } = numeroWhatsapp(telefone);
+  if (!numero) {
+    console.error(`[${contexto}] ${motivoNumero}`);
+    return { ok: false, motivo: motivoNumero };
+  }
+
+  try {
+    const resp = await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: evoKey },
+      body: JSON.stringify({ number: numero, text: texto }),
+    });
+
+    const bruto = await resp.text();
+    let corpo = null;
+    try { corpo = JSON.parse(bruto); } catch { /* a Evolution nem sempre devolve JSON no erro */ }
+
+    if (!resp.ok) {
+      const detalhe = corpo?.response?.message || corpo?.message || corpo?.error || bruto.slice(0, 300);
+      const motivo = traduzirFalhaWhatsapp(resp.status, String(detalhe || ''), evoInstance);
+      console.error(`[${contexto}] Evolution recusou o envio para ${numero} (HTTP ${resp.status}): ${detalhe}`);
+      return { ok: false, motivo, status: resp.status, detalhe: String(detalhe || '') };
+    }
+
+    console.log(`[${contexto}] Enviado para ${numero}: ${corpo?.key?.id || 'ok'}`);
+    return { ok: true, id: corpo?.key?.id || null, numero };
+  } catch (e) {
+    const motivo = `Não foi possível falar com o servidor de WhatsApp (${e.message}).`;
+    console.error(`[${contexto}] ${motivo}`);
+    return { ok: false, motivo };
+  }
+}
+
+// ── A conexão do sistema está de pé? ───────────────────────────────────────
+//
+// Um WhatsApp derrubado — celular sem bateria, sessão expirada no servidor —
+// devolve erro em cada envio, mas os envios são disparados e esquecidos, então
+// o sintoma que chega é sempre "parou de notificar" sem data nem motivo.
+// Perguntar o estado antes de tentar enviar transforma isso em uma frase.
+async function estadoWhatsapp() {
+  const evoUrl = process.env.EVOLUTION_API_URL;
+  const evoKey = process.env.EVOLUTION_API_KEY;
+  const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+  if (!evoUrl || !evoKey) return { conhecido: false };
+  try {
+    const resp = await fetch(`${evoUrl}/instance/connectionState/${evoInstance}`, {
+      headers: { apikey: evoKey },
+    });
+    if (!resp.ok) {
+      const detalhe = await resp.text().catch(() => '');
+      return { conhecido: true, conectado: false, motivo: traduzirFalhaWhatsapp(resp.status, detalhe, evoInstance) };
+    }
+    const corpo = await resp.json().catch(() => null);
+    const estado = corpo?.instance?.state || corpo?.state || '';
+    if (estado && estado !== 'open') {
+      return {
+        conhecido: true,
+        conectado: false,
+        motivo: `O WhatsApp do sistema está ${estado === 'connecting' ? 'reconectando' : 'desconectado'} no momento (estado: ${estado}). Fale com o suporte para ler o QR Code de novo.`,
+      };
+    }
+    return { conhecido: true, conectado: true };
+  } catch (e) {
+    return { conhecido: true, conectado: false, motivo: `Não foi possível falar com o servidor de WhatsApp (${e.message}).` };
+  }
+}
+
+// ── O sistema avisa quando o próprio WhatsApp cai ─────────────────────
+//
+// Enquanto a conexão estava fora do ar, nenhum alerta saía e nada no sistema
+// registrava isso: a falha só aparecia dias depois, na voz de um cliente
+// dizendo que "parou de notificar". Como o aviso não pode sair pelo canal que
+// caiu, ele vai pela instância de suporte, que é outro número.
+//
+// Roda de carona no cron que já existe, no máximo uma vez a cada seis horas.
+async function vigiarConexaoWhatsapp() {
+  const suporte = process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv';
+  const principal = process.env.EVOLUTION_INSTANCE || 'firecheck';
+  if (suporte === principal) return; // sem canal independente, o aviso não sai
+
+  const conexao = await estadoWhatsapp();
+  if (!conexao.conhecido || conexao.conectado) return;
+
+  try {
+    const { rowCount } = await pool.query(
+      `INSERT INTO avisos_sistema (chave, ultimo_envio) VALUES ('whatsapp_fora', NOW())
+       ON CONFLICT (chave) DO UPDATE SET ultimo_envio = NOW()
+       WHERE avisos_sistema.ultimo_envio < NOW() - INTERVAL '6 hours'`
+    );
+    if (rowCount === 0) return; // já avisado há pouco
+
+    const { rows: masters } = await pool.query(
+      "SELECT name, phone, whatsapp_phone FROM users WHERE role = 'master' LIMIT 1"
+    );
+    if (masters.length === 0) return;
+
+    await enviarWhatsapp({
+      telefone: masters[0].whatsapp_phone || masters[0].phone,
+      texto:
+        `⚠️ *FireCheck — o WhatsApp do sistema está fora do ar*
+
+` +
+        `${conexao.motivo}
+
+` +
+        `Enquanto isso, nenhum cliente recebe alerta de checklist, ponto, ocorrência ou descarte.
+` +
+        `Reconecte a instância *${principal}* na Evolution.`,
+      contexto: 'Vigia da conexao',
+      instancia: suporte,
+    });
+  } catch (e) {
+    console.error('[Vigia da conexao] falhou:', e.message);
+  }
+}
+
+// A Evolution responde em inglês e por código HTTP. Quem lê a mensagem é o
+// lojista, no painel — então cada falha que ele pode resolver sozinho ganha
+// nome e caminho.
+function traduzirFalhaWhatsapp(status, detalhe, instancia) {
+  const d = detalhe.toLowerCase();
+  if (status === 401 || status === 403 || d.includes('unauthorized')) {
+    return 'O servidor de WhatsApp recusou a credencial do FireCheck. Fale com o suporte.';
+  }
+  if (status === 404 || d.includes('does not exist') || d.includes('not found')) {
+    return `A conexão de WhatsApp do sistema ("${instancia}") não foi encontrada no servidor. Fale com o suporte.`;
+  }
+  if (d.includes('connecting') || d.includes('close') || d.includes('disconnected') || d.includes('not connected')) {
+    return 'O WhatsApp do sistema está desconectado no momento. Fale com o suporte para reconectar.';
+  }
+  if (d.includes('exists') || d.includes('number') || d.includes('jid')) {
+    return 'Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.';
+  }
+  return `O servidor de WhatsApp recusou o envio (erro ${status}).`;
+}
+
+
 // ── Disparo de Boas-Vindas Trial via WhatsApp de Suporte (22998851680) ──
 async function sendTrialWelcomeMessage(userPhone, userName, userStore) {
   if (!userPhone) return { success: false, reason: 'Telefone não informado' };
   
   const cleanPhone = userPhone.replace(/\D/g, '');
-  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+  const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
   const firstName = (userName || '').split(' ')[0] || 'Cliente';
   const storeName = userStore || 'sua loja';
 
@@ -801,11 +1011,10 @@ async function avisarEnvioConsciente(store, employeeName, itens) {
       const querWhats = chefe.whatsapp_active !== false && chefe.wa_checklist_reprovado !== false;
       const evoUrl = process.env.EVOLUTION_API_URL;
       const evoKey = process.env.EVOLUTION_API_KEY;
-      const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
       if (telefone && querWhats && evoUrl && evoKey) {
         const limpo = String(telefone).replace(/\D/g, '');
-        const numero = limpo.startsWith('55') ? limpo : '55' + limpo;
+        const numero = numeroWhatsapp(limpo).numero || limpo;
         const texto =
           `🚨 *ENVIO CIENTE DA REPROVAÇÃO*\n\n` +
           `*${employeeName}* finalizou um checklist na *${store}* depois de a conferência apontar problema em ` +
@@ -814,11 +1023,11 @@ async function avisarEnvioConsciente(store, employeeName, itens) {
           (justificativas.length ? `\n_Justificativa dele:_ ${justificativas.join(' / ')}\n` : '') +
           `\nConfira no painel: https://www.firecheckapp.com.br/admin`;
 
-        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: evoKey },
-          body: JSON.stringify({ number: numero, text: texto }),
-        }).catch(err => console.error('[Envio consciente] Falha no WhatsApp:', err.message));
+        await enviarWhatsapp({
+          telefone: numero,
+          texto: texto,
+          contexto: 'Envio consciente',
+        });
       }
     }
   } catch (e) {
@@ -866,11 +1075,10 @@ async function avisarOcorrencia(store, registro) {
       const telefone = dono.whatsapp_phone || dono.phone;
       const evoUrl = process.env.EVOLUTION_API_URL;
       const evoKey = process.env.EVOLUTION_API_KEY;
-      const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
       if (telefone && dono.whatsapp_active !== false && evoUrl && evoKey) {
         const limpo = String(telefone).replace(/\D/g, '');
-        const numero = limpo.startsWith('55') ? limpo : '55' + limpo;
+        const numero = numeroWhatsapp(limpo).numero || limpo;
 
         const texto = ehDescarte
           ? `📉 *DESCARTE REGISTRADO* — ${store}\n\n` +
@@ -888,11 +1096,11 @@ async function avisarOcorrencia(store, registro) {
             (registro.photo ? `\n📷 Com foto anexada.` : '') +
             `\n\nVer no painel: https://www.firecheckapp.com.br/admin`;
 
-        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', apikey: evoKey },
-          body: JSON.stringify({ number: numero, text: texto }),
-        }).catch(err => console.error('[Ocorrência] Falha no WhatsApp:', err.message));
+        await enviarWhatsapp({
+          telefone: numero,
+          texto: texto,
+          contexto: 'Ocorrência',
+        });
       }
     }
   } catch (e) {
@@ -990,6 +1198,15 @@ export default async function handler(req, res) {
       await pool.query('CREATE INDEX IF NOT EXISTS idx_ocorrencias_store_data ON ocorrencias (store, created_at DESC)');
       // Avisos novos nascem ligados: quem acabou de registrar um descarte espera
       // que o dono saiba, e o dono desliga se não quiser.
+      // Quando cada aviso de saúde do sistema foi mandado. Sem isto, um WhatsApp
+      // fora do ar renderia um alerta a cada meia hora, e alerta que repete vira
+      // alerta que se ignora.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS avisos_sistema (
+          chave TEXT PRIMARY KEY,
+          ultimo_envio TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ocorrencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_descarte BOOLEAN DEFAULT TRUE");
       // ── Cota de Checklists ──
@@ -1304,7 +1521,7 @@ export default async function handler(req, res) {
         const evoKey = process.env.EVOLUTION_API_KEY;
         const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
         if (evoUrl && evoKey) {
-          await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
+          const resposta = await fetch(`${evoUrl}/webhook/set/${evoInstance}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
             body: JSON.stringify({
@@ -1317,7 +1534,15 @@ export default async function handler(req, res) {
               events: ['MESSAGES_UPSERT', 'messages.upsert']
             })
           });
-          console.log('[Evolution] Webhook configurado com sucesso para /api/webhooks/whatsapp');
+          // O `await fetch` só lança quando a rede cai. Instancia inexistente e
+          // apikey trocada voltam como 404/401 — e a linha abaixo anunciava
+          // "configurado com sucesso" para as duas.
+          if (resposta.ok) {
+            console.log('[Evolution] Webhook configurado para /api/webhooks/whatsapp');
+          } else {
+            const detalhe = await resposta.text().catch(() => '');
+            console.error(`[Evolution] Webhook NÃO configurado (HTTP ${resposta.status}) na instância "${evoInstance}": ${detalhe.slice(0, 300)}`);
+          }
 
         }
       } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
@@ -1928,7 +2153,6 @@ export default async function handler(req, res) {
 
             const evoUrl = process.env.EVOLUTION_API_URL;
             const evoKey = process.env.EVOLUTION_API_KEY;
-            const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
             let msg = '';
             if (belowMinimum.length > 0) {
@@ -1964,14 +2188,14 @@ export default async function handler(req, res) {
               const phone = admin.whatsapp_phone || admin.phone;
               if (!phone) continue;
               const cleanPhone = phone.replace(/\D/g, '');
-              const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+              const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
               if (evoUrl && evoKey) {
-                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                  body: JSON.stringify({ number: fullPhone, text: msg })
-                }).catch(e => console.error('[Shopping] Erro WhatsApp:', e.message));
+                await enviarWhatsapp({
+                  telefone: fullPhone,
+                  texto: msg,
+                  contexto: 'Shopping',
+                });
               }
             }
           }
@@ -2308,15 +2532,12 @@ export default async function handler(req, res) {
                 const evoInstNovo = process.env.EVOLUTION_INSTANCE || 'firecheck';
                 const foneNovo = String(customerPhone || '').replace(/\D/g, '');
                 if (evoUrlNovo && evoKeyNovo && foneNovo) {
-                  const foneCompleto = foneNovo.startsWith('55') ? foneNovo : '55' + foneNovo;
-                  fetch(`${evoUrlNovo}/message/sendText/${evoInstNovo}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': evoKeyNovo },
-                    body: JSON.stringify({
-                      number: foneCompleto,
-                      text: `🔥 *Bem-vindo ao FireCheck!*\n\nSua conta já está ativa.\n\n📧 E-mail: *${customerEmail}*\n🔑 Senha: *${senhaInicial}*\n\nEntre em https://www.firecheckapp.com.br e altere sua senha no primeiro acesso.`,
-                    }),
-                  }).catch(e => console.error('[CAKTO] Falha ao enviar a senha por WhatsApp:', e.message));
+                  const foneCompleto = numeroWhatsapp(foneNovo).numero || foneNovo;
+                  enviarWhatsapp({
+                    telefone: foneCompleto,
+                    texto: `🔥 *Bem-vindo ao FireCheck!*\n\nSua conta já está ativa.\n\n📧 E-mail: *${customerEmail}*\n🔑 Senha: *${senhaInicial}*\n\nEntre em https://www.firecheckapp.com.br e altere sua senha no primeiro acesso.`,
+                    contexto: 'CAKTO', instancia: evoInstNovo,
+                  });
                 } else {
                   console.warn(`[CAKTO] Conta ${customerEmail} criada, mas sem canal para entregar a senha (telefone ou Evolution ausentes). O cliente precisará usar "Esqueci minha senha".`);
                 }
@@ -2454,7 +2675,6 @@ export default async function handler(req, res) {
 
                     const evoUrl = process.env.EVOLUTION_API_URL;
                     const evoKey = process.env.EVOLUTION_API_KEY;
-                    const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
                     if (evoUrl && evoKey) {
                       const { rows: masters } = await pool.query("SELECT phone, whatsapp_phone FROM users WHERE role = 'master' LIMIT 1");
@@ -2462,7 +2682,7 @@ export default async function handler(req, res) {
                         const masterPhone = masters[0].whatsapp_phone || masters[0].phone;
                         if (masterPhone) {
                           const cleanMasterPhone = masterPhone.replace(/\D/g, '');
-                          const fullMasterPhone = cleanMasterPhone.startsWith('55') ? cleanMasterPhone : '55' + cleanMasterPhone;
+                          const fullMasterPhone = numeroWhatsapp(cleanMasterPhone).numero || cleanMasterPhone;
 
                           const planNameFriendly = isPontoPlan ? `Ponto ${detectedPlan.replace('ponto_', '').toUpperCase()}` : detectedPlan.toUpperCase();
 
@@ -2474,18 +2694,18 @@ export default async function handler(req, res) {
                               `O cliente *${oldUser.name}* (Loja: *${oldUser.store}*), e-mail *${customerEmail}*, mudou para o plano *${planNameFriendly}*.\n` +
                               `⚠️ *Atenção:* Por favor, verifique no painel da Cakto e cancele a assinatura anterior dele para evitar cobranças duplicadas!`;
 
-                          fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                            body: JSON.stringify({ number: fullMasterPhone, text: masterMsg })
-                          }).catch(e => console.error('[Webhook Cakto - Alert Master] Erro:', e.message));
+                          enviarWhatsapp({
+                            telefone: fullMasterPhone,
+                            texto: masterMsg,
+                            contexto: 'Webhook Cakto - Alert Master',
+                          });
                         }
                       }
 
                       const clientPhone = oldUser.whatsapp_phone || oldUser.phone;
                       if (clientPhone) {
                         const cleanClientPhone = clientPhone.replace(/\D/g, '');
-                        const fullClientPhone = cleanClientPhone.startsWith('55') ? cleanClientPhone : '55' + cleanClientPhone;
+                        const fullClientPhone = numeroWhatsapp(cleanClientPhone).numero || cleanClientPhone;
 
                         const planNameFriendly = isPontoPlan ? `Ponto ${detectedPlan.replace('ponto_', '').toUpperCase()}` : detectedPlan.toUpperCase();
 
@@ -2499,11 +2719,11 @@ export default async function handler(req, res) {
                             `Confirmamos a alteração do seu plano para *${planNameFriendly}*.\n\n` +
                             `⚠️ *Importante:* Se você tinha uma assinatura ativa do plano anterior, lembre-se de cancelá-la no seu painel da Cakto ou entrar em contato com o suporte para garantir que não ocorra nenhuma cobrança dupla.`;
 
-                        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                          body: JSON.stringify({ number: fullClientPhone, text: clientMsg })
-                        }).catch(e => console.error('[Webhook Cakto - Alert Cliente] Erro:', e.message));
+                        enviarWhatsapp({
+                          telefone: fullClientPhone,
+                          texto: clientMsg,
+                          contexto: 'Webhook Cakto - Alert Cliente',
+                        });
                       }
                     }
                   }
@@ -2690,7 +2910,6 @@ export default async function handler(req, res) {
 
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
-        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
         const telefone = (rows[0].phone || '').replace(/\D/g, '');
 
         // Só redefine a senha se existir canal para entregá-la ao dono da conta.
@@ -2709,12 +2928,12 @@ export default async function handler(req, res) {
           [hashedTemp, rows[0].id]
         );
 
-        const fullPhone = telefone.startsWith('55') ? telefone : '55' + telefone;
-        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-          body: JSON.stringify({ number: fullPhone, text: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.` }),
-        }).catch(e => console.error('[WhatsApp] Erro ao enviar senha:', e.message));
+        const fullPhone = numeroWhatsapp(telefone).numero || telefone;
+        await enviarWhatsapp({
+          telefone: fullPhone,
+          texto: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.`,
+          contexto: 'Recuperacao de senha',
+        });
 
         // A senha nunca volta no corpo da resposta.
         return res.status(200).json(RESPOSTA_GENERICA);
@@ -2979,11 +3198,10 @@ export default async function handler(req, res) {
         if (finalWhatsappActive && finalWhatsappPhone) {
           const evoUrl = process.env.EVOLUTION_API_URL;
           const evoKey = process.env.EVOLUTION_API_KEY;
-          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
           if (evoUrl && evoKey) {
             const cleanPhone = finalWhatsappPhone.replace(/\D/g, '');
-            const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+            const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
             const storeName = user.store || 'sua loja';
             const confirmMsg =
               `✅ *Notificações do FireCheck salvas com sucesso!*\n\n` +
@@ -2996,14 +3214,10 @@ export default async function handler(req, res) {
               `💡 *Salve este contato* para não perder nenhuma notificação importante!\n\n` +
               `— Equipe FireCheck 🔥`;
 
-            fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-              body: JSON.stringify({ number: fullPhone, text: confirmMsg })
-            }).then(r => r.json()).then(d => {
-              console.log(`[WhatsApp] Confirmação enviada para ${fullPhone}:`, d?.key?.id || 'ok');
-            }).catch(e => {
-              console.error(`[WhatsApp] Falha ao enviar confirmação para ${fullPhone}:`, e.message);
+            await enviarWhatsapp({
+              telefone: fullPhone,
+              texto: confirmMsg,
+              contexto: 'Confirmacao de notificacoes',
             });
           }
         }
@@ -3392,7 +3606,7 @@ export default async function handler(req, res) {
                 const clientPhone = admin.whatsapp_phone || admin.phone;
                 if (clientPhone) {
                   const cleanPhone = clientPhone.replace(/\D/g, '');
-                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                  const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
                   const upgradeMsg = 
                     `⚠️ *ALERTA DE USO DE CRÉDITOS* ⚠️\n\n` +
@@ -3404,17 +3618,12 @@ export default async function handler(req, res) {
 
                   const evoUrl = process.env.EVOLUTION_API_URL;
                   const evoKey = process.env.EVOLUTION_API_KEY;
-                  const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
                   if (evoUrl && evoKey) {
-                    fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                      body: JSON.stringify({ number: fullPhone, text: upgradeMsg })
-                    }).then(r => r.json()).then(d => {
-                      console.log(`[WhatsApp Upgrade Alert] Enviado com sucesso para ${fullPhone}`);
-                    }).catch(err => {
-                      console.error(`[WhatsApp Upgrade Alert] Erro ao enviar para ${fullPhone}:`, err.message);
+                    enviarWhatsapp({
+                      telefone: fullPhone,
+                      texto: upgradeMsg,
+                      contexto: 'WhatsApp Upgrade Alert',
                     });
                   }
                 }
@@ -3448,7 +3657,6 @@ export default async function handler(req, res) {
         try {
           const evoUrl = process.env.EVOLUTION_API_URL;
           const evoKey = process.env.EVOLUTION_API_KEY;
-          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
           // Buscar título do checklist
           let checklistTitle = 'Checklist';
@@ -3506,7 +3714,7 @@ export default async function handler(req, res) {
 
                if (isWhatsappActive && targetPhone) {
                  const cleanPhone = targetPhone.replace(/\D/g, '');
-                 const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                 const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
                  // Notificação de checklist APROVADO (sem irregularidades e sem discrepância de estoque)
                  if (!hasWarnings && adm.wa_checklist_aprovado !== false) {
@@ -3519,11 +3727,11 @@ export default async function handler(req, res) {
                      `Status: *✅ Tudo em Conformidade*\n` +
                      `Nenhuma irregularidade ou falta de estoque encontrada. Operação segura! 🚀`;
 
-                   fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                     body: JSON.stringify({ number: fullPhone, text: successMsg })
-                   }).catch(e => console.error('[WhatsApp Admin Aprovado] Erro ao enviar:', e.message));
+                   await enviarWhatsapp({
+                     telefone: fullPhone,
+                     texto: successMsg,
+                     contexto: 'WhatsApp Admin Aprovado',
+                   });
                  }
 
                  // Notificação de checklist REPROVADO ou com Alerta de Estoque
@@ -3543,11 +3751,11 @@ export default async function handler(req, res) {
                      stockDetailsMsg + `\n\n` +
                      `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
 
-                   fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                     method: 'POST',
-                     headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                     body: JSON.stringify({ number: fullPhone, text: textMsg })
-                   }).catch(e => console.error('[WhatsApp Admin] Erro ao enviar:', e.message));
+                   await enviarWhatsapp({
+                     telefone: fullPhone,
+                     texto: textMsg,
+                     contexto: 'WhatsApp Admin',
+                   });
                  }
                }
              }
@@ -3564,7 +3772,7 @@ export default async function handler(req, res) {
 
               if (isWhatsappActive && targetPhone) {
                 const cleanPhone = targetPhone.replace(/\D/g, '');
-                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
                 const textMsg = `✅ *FireCheck - Checklist Enviado*\n\n` +
                   `📋 *${checklistTitle}*\n` +
@@ -3573,11 +3781,11 @@ export default async function handler(req, res) {
                   `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                   `Obrigado por manter nossa operação segura! 🚀`;
 
-                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                  body: JSON.stringify({ number: fullPhone, text: textMsg })
-                }).catch(e => console.error('[WhatsApp Funcionario] Erro ao enviar:', e.message));
+                await enviarWhatsapp({
+                  telefone: fullPhone,
+                  texto: textMsg,
+                  contexto: 'WhatsApp Funcionario',
+                });
               }
             }
           }
@@ -3597,7 +3805,6 @@ export default async function handler(req, res) {
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
-        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
         if (!evoUrl || !evoKey) {
           return res.status(500).json({ error: 'Evolution API não configurada.' });
@@ -3700,12 +3907,12 @@ export default async function handler(req, res) {
             const targetPhone = recipient.whatsapp_phone || recipient.phone;
             if (isWhatsappActive && targetPhone) {
               const cleanPhone = targetPhone.replace(/\D/g, '');
-              const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
-              fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                body: JSON.stringify({ number: fullPhone, text: textMsg })
-              }).catch(e => console.error('[WhatsApp Ausencia] Erro:', e.message));
+              const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
+              enviarWhatsapp({
+                telefone: fullPhone,
+                texto: textMsg,
+                contexto: 'WhatsApp Ausencia',
+              });
             }
             alertasEnviados++;
           }
@@ -3723,11 +3930,14 @@ export default async function handler(req, res) {
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
-        const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
         if (!evoUrl || !evoKey) {
           return res.status(500).json({ error: 'Evolution API não configurada.' });
         }
+
+        // De carona: este cron roda a cada meia hora e é o lugar mais barato
+        // para descobrir que o canal caiu antes de um cliente descobrir.
+        vigiarConexaoWhatsapp().catch(e => console.error('[Vigia da conexao]', e.message));
 
         // 1. Obter dia da semana atual em português (seg, ter...)
         const diasSemanaMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
@@ -3788,18 +3998,18 @@ export default async function handler(req, res) {
 
                 if (isWaChecklistAtrasadoActive && isWhatsappActive && targetPhone) {
                   const cleanPhone = targetPhone.replace(/\D/g, '');
-                  const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                  const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
                   const textMsg = `⏰ *FireCheck - Alerta de Checklist Atrasado*\n\n` +
                     `Atenção! O checklist programado *"${cl.title}"* da loja *${cl.store}* ainda não foi preenchido hoje.\n\n` +
                     `Horário programado: *${cl.scheduled_date}*\n` +
                     `Horário limite de tolerância ultrapassado. ⚠️`;
 
-                  fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                    body: JSON.stringify({ number: fullPhone, text: textMsg })
-                  }).catch(e => console.error(`[Cron WhatsApp Atraso] Erro:`, e.message));
+                  enviarWhatsapp({
+                    telefone: fullPhone,
+                    texto: textMsg,
+                    contexto: 'Cron WhatsApp Atraso',
+                  });
 
                   alertasEnviados++;
                 }
@@ -4625,10 +4835,17 @@ Responda APENAS com JSON válido.`;
           ]
         );
 
-        // Sem await: o registro já está gravado e um WhatsApp lento não pode
-        // segurar a tela de quem está no meio do serviço.
-        avisarOcorrencia(lojaDoRegistro, rows[0])
-          .catch(e => console.error('[Ocorrência] aviso falhou:', e.message));
+        // Espera até quatro segundos pelo aviso. Antes não esperava nada, com a
+        // justificativa de não segurar a tela — mas numa função serverless o
+        // envio pendente morre junto com a resposta, e o registro do freezer
+        // quebrado ficava no banco sem ninguém ser avisado. O registro já está
+        // gravado de qualquer forma; o teto garante que a tela solta.
+        await comTeto(
+          avisarOcorrencia(lojaDoRegistro, rows[0])
+            .catch(e => console.error('[Ocorrência] aviso falhou:', e.message)),
+          4000,
+          'Ocorrência',
+        );
 
         return res.status(200).json({ success: true, ocorrencia: rows[0] });
       }
@@ -5095,7 +5312,6 @@ A mensagem é lida pelo próprio funcionário, no celular:
         try {
           const evoUrl = process.env.EVOLUTION_API_URL;
           const evoKey = process.env.EVOLUTION_API_KEY;
-          const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
 
           if (evoUrl && evoKey) {
             const { rows: empDetails } = await pool.query(
@@ -5109,7 +5325,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
               if (isWhatsappActive && targetPhone) {
                 const cleanPhone = targetPhone.replace(/\D/g, '');
-                const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
                 const agora = new Date();
                 const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
@@ -5123,11 +5339,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
                   `Hora: *${horaAtual}*\n\n` +
                   `Seu ponto foi registrado com sucesso! ✅`;
 
-                fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                  body: JSON.stringify({ number: fullPhone, text: textMsg })
-                }).catch(e => console.error('[WhatsApp Ponto Funcionario] Erro ao enviar:', e.message));
+                await enviarWhatsapp({
+                  telefone: fullPhone,
+                  texto: textMsg,
+                  contexto: 'WhatsApp Ponto Funcionario',
+                });
               }
             }
           }
@@ -5201,14 +5417,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
                     try {
                       const evoUrl = process.env.EVOLUTION_API_URL;
                       const evoKey = process.env.EVOLUTION_API_KEY;
-                      const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
                       
                       const isWhatsappActive = adminData.whatsapp_active !== false;
                       const targetPhone = adminData.whatsapp_phone || adminData.phone;
                       
                       if (evoUrl && evoKey && isWhatsappActive && targetPhone) {
                         const cleanPhone = targetPhone.replace(/\D/g, '');
-                        const fullPhone = cleanPhone.startsWith('55') ? cleanPhone : '55' + cleanPhone;
+                        const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
                         
                         const textMsg = `⏰ *FireCheck - Alerta de Ponto Fora do Horário*\n\n` +
                           `O colaborador *${userName}* registrou o ponto com atraso na loja *${store}*.\n\n` +
@@ -5216,11 +5431,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
                           `Horário Registrado: *${horaAtual}*\n` +
                           `Detalhe: *${detalheMsg}* ⚠️`;
                           
-                        fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-                          body: JSON.stringify({ number: fullPhone, text: textMsg })
-                        }).catch(e => console.error('[WhatsApp Atraso Admin] Erro ao enviar:', e.message));
+                        await enviarWhatsapp({
+                          telefone: fullPhone,
+                          texto: textMsg,
+                          contexto: 'WhatsApp Atraso Admin',
+                        });
                       }
                     } catch (waAtrasoErr) {
                       console.error('Erro ao enviar WhatsApp de atraso para o admin:', waAtrasoErr);
@@ -5284,6 +5499,91 @@ A mensagem é lida pelo próprio funcionário, no celular:
         }
         return res.status(400).json({ error: 'userId/email e token obrigatórios' });
       }
+    }
+
+    // ── Teste do WhatsApp, feito pelo próprio lojista ──────────────────────
+    //
+    // "Cadastrei meu número e não recebo nada" é o chamado mais caro que existe:
+    // o número pode estar sem DDD, o interruptor pode estar desligado, o
+    // WhatsApp do sistema pode estar fora do ar — e nenhum desses três casos
+    // aparecia em lugar nenhum, porque o envio era disparado e esquecido.
+    //
+    // Esta rota manda uma mensagem de verdade, espera a resposta e devolve o
+    // motivo em português. Quem não recebe passa a saber o porquê sem abrir
+    // chamado, e quem recebe confirma que o canal está de pé.
+    if (url.includes('/api/whatsapp/testar') && method === 'POST') {
+      const autorTeste = await autenticarComLojaAtual(req);
+      if (!autorTeste) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+
+      const { rows } = await pool.query(
+        'SELECT name, phone, whatsapp_phone, whatsapp_active, store FROM users WHERE id = $1',
+        [autorTeste.id]
+      );
+      if (rows.length === 0) return res.status(404).json({ error: 'Conta não encontrada.' });
+      const eu = rows[0];
+
+      // O número do corpo permite testar antes de salvar — é o momento em que a
+      // pessoa está justamente digitando e querendo saber se está certo.
+      const telefone = String(req.body?.telefone || '').trim() || eu.whatsapp_phone || eu.phone;
+
+      const { numero, motivo: motivoNumero } = numeroWhatsapp(telefone);
+      if (!numero) {
+        return res.status(200).json({
+          ok: false,
+          motivo: motivoNumero || 'Nenhum telefone cadastrado. Preencha o campo com DDD (ex.: 21999998888) e salve.',
+        });
+      }
+
+      // Um limite bobo, mas suficiente: sem ele a rota vira um disparador de
+      // mensagens para qualquer número, na conta do WhatsApp do sistema.
+      const agora = Date.now();
+      const ultimo = testesWhatsapp.get(autorTeste.id) || 0;
+      if (agora - ultimo < 20000) {
+        return res.status(429).json({
+          ok: false,
+          motivo: 'Espere alguns segundos antes de enviar outro teste.',
+        });
+      }
+      testesWhatsapp.set(autorTeste.id, agora);
+
+      // Se a conexão do sistema está caida, o envio falharia com uma mensagem
+      // muito mais obscura. Melhor dizer logo qual é o problema — e que não é
+      // o número de quem está testando.
+      const conexao = await estadoWhatsapp();
+      if (conexao.conhecido && !conexao.conectado) {
+        return res.status(200).json({ ok: false, motivo: conexao.motivo, numero });
+      }
+
+      const primeiroNome = (eu.name || '').split(' ')[0] || 'tudo bem';
+      const resultado = await enviarWhatsapp({
+        telefone: numero,
+        texto:
+          `🔥 *FireCheck — teste de notificação*\n\n` +
+          `Olá, ${primeiroNome}! Se você está lendo isto, o WhatsApp da loja ` +
+          `*${eu.store || 'sua loja'}* está funcionando e os alertas vão chegar neste número.\n\n` +
+          `_Mensagem enviada por você mesmo, pelo botão de teste no painel._`,
+        contexto: 'Teste do lojista',
+      });
+
+      if (!resultado.ok) {
+        return res.status(200).json({ ok: false, motivo: resultado.motivo, numero });
+      }
+
+      const avisos = [];
+      if (eu.whatsapp_active === false) {
+        avisos.push('A mensagem saiu, mas "Habilitar Disparos no WhatsApp" está desmarcado — os alertas automáticos continuam desligados.');
+      }
+      if (!eu.whatsapp_phone && eu.phone) {
+        avisos.push('O campo de WhatsApp está vazio, então o sistema usa o telefone do seu perfil.');
+      }
+      // Testar um número que ainda não foi salvo é justamente o caso comum, e
+      // sair da tela achando que está configurado é o pior desfecho possível.
+      const salvo = numeroWhatsapp(eu.whatsapp_phone || eu.phone).numero;
+      if (salvo !== numero) {
+        avisos.push('Este número ainda não está salvo. Clique em "Salvar Configurações de Notificações" para os alertas passarem a vir para ele.');
+      }
+
+      return res.status(200).json({ ok: true, numero, avisos });
     }
 
     // ── Endpoint de Teste de Push Notification ─────────────────────
