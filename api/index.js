@@ -945,6 +945,17 @@ async function getEmployeeScheduleForDay(pool, userId, date) {
   return { isWorkday: true, horaEntrada: '08:00', horaSaida: '18:00', tolerancia: 15 };
 }
 
+// A IA estar fora do ar diz respeito ao serviço, não à foto que se tentou
+// auditar. Estas falhas voltam sozinhas e não podem consumir as tentativas de
+// uma submissão — uma foto ilegível, sim; crédito acabado, não.
+function falhaDeDisponibilidade(mensagem) {
+  const m = String(mensagem || '').toLowerCase();
+  return m.includes('429') || m.includes('quota') || m.includes('credits are depleted')
+      || m.includes('billing') || m.includes('resource_exhausted') || m.includes('rate limit')
+      || m.includes('503') || m.includes('overloaded') || m.includes('unavailable')
+      || m.includes('500 internal');
+}
+
 // ── Função Central de Auditoria IA (Reutilizável) ───────────────
 async function processAuditForSubmission(pool, submissionId) {
   const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
@@ -999,6 +1010,7 @@ async function processAuditForSubmission(pool, submissionId) {
 
   const errors = [];
   let processedCount = 0;
+  let indisponivel = false;
 
   for (const task of tasks) {
     // Pula se já tem feedback para esta task, ou se não tem foto
@@ -1041,7 +1053,24 @@ async function processAuditForSubmission(pool, submissionId) {
     } catch (error) {
       console.error(`[Auditoria IA] Erro task "${task.text}" (Tentativa ${retryCount}):`, error.message);
       errors.push({ taskId: task.id, error: error.message });
+      if (falhaDeDisponibilidade(error.message)) indisponivel = true;
     }
+  }
+
+  // ── Crédito acabado não é culpa do checklist ───────────────────────
+  //
+  // Enquanto os créditos do Gemini estiveram zerados, cada passagem do
+  // processador queimava uma das quinze tentativas de toda submissão pendente.
+  // Bastaram algumas horas para que checklists perfeitamente auditáveis
+  // esgotassem as chances e fossem carimbados "revisão manual" — e a busca de
+  // pendentes usa `retry_count < 15`, então eles nunca mais voltariam, mesmo com
+  // a IA de pé.
+  //
+  // Quando a falha é do serviço, e não da foto, a tentativa é devolvida.
+  if (indisponivel && processedCount === 0) {
+    await pool.query('UPDATE checklist_submissions SET retry_count = $1 WHERE id = $2', [submission.retry_count || 0, submissionId]);
+    console.warn(`[Auditoria IA] submissão ${submissionId}: IA indisponível, tentativa devolvida.`);
+    return { success: false, error: 'IA indisponível no momento', indisponivel: true };
   }
 
   // Salva resultado parcial ou completo
@@ -4108,6 +4137,32 @@ export default async function handler(req, res) {
           6000,
           'Vigia da conexao',
         );
+
+        // ── Devolver à fila o que a queda da IA carimbou ─────────────────
+        //
+        // Quando os créditos do Gemini zeraram, cada passagem do processador
+        // queimava uma das quinze tentativas de toda submissão pendente. Em
+        // poucas horas, checklists perfeitamente auditáveis esgotaram as chances
+        // e ficaram marcados "revisão manual" — e a busca de pendentes filtra por
+        // `retry_count < 15`, então eles nunca mais voltariam sozinhos.
+        //
+        // A marca não descrevia o checklist; descrevia uma queda de serviço que já
+        // passou. Aqui no cron, e não na rota que o painel chama de minuto em
+        // minuto, porque é uma varredura e meia hora de espera basta.
+        try {
+          const { rowCount: devolvidas } = await pool.query(`
+            UPDATE checklist_submissions
+               SET feedback_info = NULL, retry_count = 0
+             WHERE created_at > NOW() - INTERVAL '7 days'
+               AND feedback_info::text LIKE '%revisao_manual%'
+               AND feedback_info::text LIKE '%IA indispon%'
+          `);
+          if (devolvidas > 0) {
+            console.log(`[Auditoria IA] ${devolvidas} submissões marcadas por indisponibilidade voltaram para a fila.`);
+          }
+        } catch (e) {
+          console.error('[Auditoria IA] falha ao devolver submissões à fila:', e.message);
+        }
 
         // 1. Obter dia da semana atual em português (seg, ter...)
         const diasSemanaMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
