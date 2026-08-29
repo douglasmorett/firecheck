@@ -4582,16 +4582,33 @@ export default function AdminDashboard() {
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
                     {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
                   </p>
-                  {isMaster && member.role === 'admin' && member.checklist_limit && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                      <div style={{ width: '80px', height: '6px', backgroundColor: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
-                        <div style={{ width: `${Math.min(100, Math.round(((member.checklists_used || 0) / (member.checklist_limit || 300)) * 100))}%`, height: '100%', backgroundColor: ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.95 ? 'var(--error)' : ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.8 ? '#f59e0b' : 'var(--primary)', borderRadius: '100px' }} />
+                  {/* ── O que o plano de fato limita ─────────────────────────
+                      Esta barra media checklists, e mostrava "0/300" para todo
+                      mundo — inclusive para quem comprou checklists ilimitados e
+                      para quem está em teste. Os planos vendem "até 30
+                      colaboradores" e checklists sem limite; o número que importa
+                      olhar, para saber quando um cliente vai precisar de upgrade,
+                      é quantas pessoas ele já cadastrou. */}
+                  {isMaster && member.role === 'admin' && (() => {
+                    const usados = Number(member.colaboradores || 0);
+                    const teto = Number(member.ponto_limit || 0);
+                    const semTeto = !teto || teto >= 999999;
+                    const fracao = semTeto ? 0 : Math.min(1, usados / teto);
+                    const cor = fracao >= 0.95 ? 'var(--error)' : fracao >= 0.8 ? '#f59e0b' : 'var(--primary)';
+                    return (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                        <div style={{ width: '80px', height: '6px', backgroundColor: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.round(fracao * 100)}%`, height: '100%', backgroundColor: cor, borderRadius: '100px' }} />
+                        </div>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: fracao >= 0.8 ? cor : 'var(--text-muted)' }}>
+                          {usados}/{semTeto ? '∞' : teto} colaboradores
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          · checklists ilimitados
+                        </span>
                       </div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.95 ? 'var(--error)' : ((member.checklists_used || 0) / (member.checklist_limit || 300)) >= 0.8 ? '#f59e0b' : 'var(--text-muted)' }}>
-                        {member.checklists_used || 0}/{member.checklist_limit >= 999999 ? '∞' : member.checklist_limit} checklists
-                      </span>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {member.id !== userProfile?.id && (
@@ -4674,8 +4691,11 @@ export default function AdminDashboard() {
                   </p>
                 </div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  <p style={{ margin: '4px 0' }}>• Limite de Checklists: <strong>{userProfile?.checklist_limit >= 999999 ? 'Ilimitado' : (userProfile?.checklist_limit || 300)}</strong>/mês</p>
-                  <p style={{ margin: '4px 0' }}>• Limite de Ponto: <strong>{userProfile?.ponto_limit >= 999999 ? 'Ilimitado' : (userProfile?.ponto_limit || 5)}</strong> colaboradores</p>
+                  {/* Aqui dizia "Limite de Checklists: 300/mês" para quem comprou
+                      justamente checklists ilimitados. O número saia da coluna
+                      antiga do banco, que os planos atuais nem usam. */}
+                  <p style={{ margin: '4px 0' }}>• Checklists: <strong>Ilimitados</strong></p>
+                  <p style={{ margin: '4px 0' }}>• Colaboradores: <strong>até {userProfile?.ponto_limit >= 999999 ? 'ilimitados' : (userProfile?.ponto_limit || 30)}</strong> cadastrados</p>
                   {/* Módulo Financeiro não é oferecido no momento. A linha só aparece
                       para quem já o tem ativo — para os demais dizia sempre "Inativo",
                       anunciando um recurso que o cliente não consegue contratar. */}
@@ -5780,7 +5800,23 @@ export default function AdminDashboard() {
                   enterprise: 999999,
                   starter: 300, pro: 600, business: 1500, mensal: 600, anual: 1500,
                 };
-                setEditingPlan({...editingPlan, plan: newPlan, checklist_limit: limitMap[newPlan] || 300 });
+                // O teto de colaboradores é o que os planos de fato vendem, e
+                // ficava para trás: trocar alguém de Starter para Combo mudava a
+                // cota de checklists (que nem existe mais) e deixava o limite de
+                // pessoas no valor antigo.
+                const colabMap = {
+                  combo_mensal: 50, combo_anual: 50,
+                  checklists_mensal: 30, checklists_anual: 30,
+                  ponto_mensal: 30, ponto_anual: 30,
+                  enterprise: 999999,
+                  starter: 5, pro: 15, business: 50, mensal: 15, anual: 50,
+                };
+                setEditingPlan({
+                  ...editingPlan,
+                  plan: newPlan,
+                  checklist_limit: limitMap[newPlan] || 300,
+                  ponto_limit: colabMap[newPlan] ?? editingPlan.ponto_limit,
+                });
               }}>
                 {/* Conta cujo plano não está na lista (ex.: 'trial') mostraria a
                     primeira opção por padrão, e um Salvar sem querer trocaria o
@@ -5808,7 +5844,9 @@ export default function AdminDashboard() {
                 </optgroup>
               </select>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '6px' }}>
-                Cota atual desta conta: {Number(editingPlan.checklist_limit || 0) >= 999999 ? 'ilimitada' : `${Number(editingPlan.checklist_limit || 0).toLocaleString('pt-BR')} checklists/mês`}
+                Teto desta conta: {Number(editingPlan.ponto_limit || 0) >= 999999 ? 'colaboradores ilimitados' : `${Number(editingPlan.ponto_limit || 30)} colaboradores`}
+                {' · '}
+                {Number(editingPlan.checklist_limit || 0) >= 999999 ? 'checklists ilimitados' : `${Number(editingPlan.checklist_limit || 0).toLocaleString('pt-BR')} checklists/mês (plano legado)`}
                 {editingPlan.checklists_used !== undefined && ` · usados neste ciclo: ${editingPlan.checklists_used}`}
               </p>
 

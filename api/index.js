@@ -473,6 +473,24 @@ function getPlanLimit(plan) {
   return PLAN_LIMITS[(plan || 'starter').toLowerCase()] || 300;
 }
 
+/**
+ * Quantos checklists a conta pode gastar no ciclo.
+ *
+ * A coluna `checklist_limit` é de quando o produto se vendia por cota de
+ * checklist. Os planos de hoje vendem checklists ilimitados e limitam
+ * colaboradores — mas a coluna continua lá, com 300 gravado em toda conta
+ * criada antes da mudança ou pelo DEFAULT do ALTER TABLE.
+ *
+ * O bloqueio usava a coluna primeiro, então quem comprou "ilimitado" e ainda
+ * carregava um 300 antigo travava no meio do mês num limite que nunca lhe foi
+ * anunciado. Fica valendo o maior dos dois: a coluna nunca tira o que o plano dá.
+ */
+function limiteDeChecklists(user) {
+  const doPlano = getPlanLimit(user?.plan);
+  const daColuna = Number(user?.checklist_limit) || 0;
+  return Math.max(doPlano, daColuna);
+}
+
 function getAiCreationLimit(plan) {
   const p = (plan || 'starter').toLowerCase();
   if (p.includes('pro') || p === 'mensal') return 100;
@@ -701,6 +719,36 @@ async function vigiarConexaoWhatsapp() {
   } catch (e) {
     console.error('[Vigia da conexao] falhou:', e.message);
   }
+}
+
+// ── O que o erro do Gemini quer dizer ─────────────────────────────
+//
+// A pastilha "IA Offline" no painel não diz o que fazer, e o motivo vinha
+// cortado no meio da URL da API. Cada uma destas falhas tem um conserto
+// diferente, e nenhum deles é "esperar".
+function diagnosticoGemini(mensagem) {
+  const m = String(mensagem || '').toLowerCase();
+  // Crédito acabado e cota atingida chegam os dois como 429, e são problemas
+  // opostos: um espera até amanhã, o outro não resolve sozinho nunca.
+  if (m.includes('prepayment credits are depleted') || m.includes('billing') || m.includes('credits are depleted')) {
+    return 'Os créditos pré-pagos do Gemini acabaram. Isso não se renova sozinho: recarregue o projeto em ai.studio/projects para a IA voltar.';
+  }
+  if (m.includes('429') || m.includes('quota') || m.includes('resource_exhausted') || m.includes('rate limit')) {
+    return 'Cota do Gemini atingida por agora. Ela se renova sozinha, mas para não parar de novo o projeto precisa de um limite maior.';
+  }
+  if (m.includes('api key not valid') || m.includes('api_key_invalid') || m.includes('400 bad request') && m.includes('key')) {
+    return 'A chave do Gemini foi recusada. Ela pode ter sido revogada ou trocada — gere outra e atualize GEMINI_API_KEY na Vercel.';
+  }
+  if (m.includes('401') || m.includes('403') || m.includes('permission') || m.includes('unauthenticated')) {
+    return 'A chave do Gemini não tem permissão para este modelo, ou a API não está habilitada no projeto do Google Cloud.';
+  }
+  if (m.includes('404') || m.includes('not found') || m.includes('is not found for api version')) {
+    return 'O modelo gemini-2.5-flash não existe mais para esta chave. Trocar o nome do modelo resolve.';
+  }
+  if (m.includes('503') || m.includes('overloaded') || m.includes('unavailable')) {
+    return 'O Gemini está sobrecarregado no momento. Costuma voltar sozinho em minutos.';
+  }
+  return `O Gemini recusou a chamada: ${String(mensagem || '').slice(0, 220)}`;
 }
 
 // A Evolution responde em inglês e por código HTTP. Quem lê a mensagem é o
@@ -3456,7 +3504,14 @@ export default async function handler(req, res) {
         if (userRows.length > 0) store = userRows[0].store;
       }
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.wa_ocorrencia, u.wa_descarte, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, ws.name AS schedule_name, ws.color AS schedule_color
+        SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.wa_ocorrencia, u.wa_descarte, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, u.ponto_limit,
+               ws.name AS schedule_name, ws.color AS schedule_color,
+               -- Quantas pessoas a loja tem cadastradas. É este número, e não o de
+               -- checklists, que os planos limitam: a página de vendas anuncia
+               -- "até 30 colaboradores" e checklists ilimitados.
+               (SELECT COUNT(*) FROM users c
+                 WHERE LOWER(TRIM(c.store)) = LOWER(TRIM(u.store))
+                   AND c.role IN ('funcionario', 'gestor')) AS colaboradores
         FROM users u
         LEFT JOIN work_schedules ws ON u.schedule_id = ws.id
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
@@ -3486,7 +3541,7 @@ export default async function handler(req, res) {
       // Check e reset automático
       const wasReset = await checkAndResetQuota(pool, admin.id, admin.quota_reset_date);
       const used = wasReset ? 0 : (admin.checklists_used || 0);
-      const limit = admin.checklist_limit || getPlanLimit(admin.plan);
+      const limit = limiteDeChecklists(admin);
       const remaining = Math.max(0, limit - used);
       const resetDate = wasReset ? new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0] : (admin.quota_reset_date ? new Date(admin.quota_reset_date).toISOString().split('T')[0] : null);
       
@@ -3532,7 +3587,7 @@ export default async function handler(req, res) {
           // Re-fetch após possível reset
           const { rows: freshAdmin } = await pool.query('SELECT checklists_used, checklist_limit, plan, status FROM users WHERE id = $1', [admin.id]);
           const fa = freshAdmin[0];
-          const limit = fa.checklist_limit || getPlanLimit(fa.plan);
+          const limit = limiteDeChecklists(fa);
           const used = fa.checklists_used || 0;
           // Trial é ilimitado, master é ilimitado
           const isUnlimited = limit >= 999999 || fa.status === 'trial' || admin.role === 'master';
@@ -3645,7 +3700,7 @@ export default async function handler(req, res) {
           const { rows: freshAdminDetails } = await pool.query('SELECT name, email, store, plan, status, checklist_limit, checklists_used, upgrade_alert_sent, phone, whatsapp_phone FROM users WHERE id = $1', [adminId]);
           if (freshAdminDetails.length > 0) {
             const admin = freshAdminDetails[0];
-            const limit = admin.checklist_limit || getPlanLimit(admin.plan);
+            const limit = limiteDeChecklists(admin);
             const used = admin.checklists_used || 0;
             const threshold = limit * 0.9;
 
@@ -4102,7 +4157,13 @@ export default async function handler(req, res) {
         const text = (await result.response).text();
         return res.status(200).json({ ai: true, response: text.substring(0, 20) });
       } catch (e) {
-        return res.status(200).json({ ai: false, reason: e.message.substring(0, 100) });
+        // O erro do Gemini traz o que resolve o problema — cota estourada, chave
+        // recusada, modelo aposentado são coisas diferentes com conserto
+        // diferente. Cortado em 100 caracteres, o texto parava em
+        // "Error fetching from https://generativelanguage.googleapis.com/v1beta/mod",
+        // que não diz nada. Vai inteiro para o log, que é onde se investiga.
+        console.error('[Health IA] Gemini recusou:', e.message);
+        return res.status(200).json({ ai: false, reason: diagnosticoGemini(e.message) });
       }
     }
 
