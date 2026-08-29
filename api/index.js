@@ -593,10 +593,10 @@ async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instanci
 // devolve erro em cada envio, mas os envios são disparados e esquecidos, então
 // o sintoma que chega é sempre "parou de notificar" sem data nem motivo.
 // Perguntar o estado antes de tentar enviar transforma isso em uma frase.
-async function estadoWhatsapp() {
+async function estadoWhatsapp(qual) {
   const evoUrl = process.env.EVOLUTION_API_URL;
   const evoKey = process.env.EVOLUTION_API_KEY;
-  const evoInstance = process.env.EVOLUTION_INSTANCE || 'firecheck';
+  const evoInstance = qual || process.env.EVOLUTION_INSTANCE || 'firecheck';
   if (!evoUrl || !evoKey) return { conhecido: false };
   try {
     const resp = await fetch(`${evoUrl}/instance/connectionState/${evoInstance}`, {
@@ -619,6 +619,19 @@ async function estadoWhatsapp() {
   } catch (e) {
     return { conhecido: true, conectado: false, motivo: `Não foi possível falar com o servidor de WhatsApp (${e.message}).` };
   }
+}
+
+// Resposta guardada por três minutos. O painel pergunta o estado a cada
+// carregamento e não faz sentido bater na Evolution a cada F5 de cada lojista;
+// três minutos é curto o bastante para a faixa sumir logo depois de reconectar.
+let cacheEstadoWa = { quando: 0, valor: null };
+
+async function estadoWhatsappComCache() {
+  const agora = Date.now();
+  if (cacheEstadoWa.valor && agora - cacheEstadoWa.quando < 180000) return cacheEstadoWa.valor;
+  const valor = await estadoWhatsapp();
+  cacheEstadoWa = { quando: agora, valor };
+  return valor;
 }
 
 // ── O sistema avisa quando o próprio WhatsApp cai ─────────────────────
@@ -5564,6 +5577,37 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // Esta rota manda uma mensagem de verdade, espera a resposta e devolve o
     // motivo em português. Quem não recebe passa a saber o porquê sem abrir
     // chamado, e quem recebe confirma que o canal está de pé.
+    // ── O painel precisa saber que o canal caiu ────────────────────────────
+    //
+    // Na madrugada de 29/08 as duas instâncias estavam fora: a `firecheck`, que
+    // manda os alertas, e a `evopdv`, que era por onde o aviso de queda ia sair.
+    // Sem nenhum canal de WhatsApp de pé, o único lugar que sobra para contar
+    // isso é a própria tela — e ela é, aliás, onde o lojista está quando
+    // repara que parou de receber.
+    //
+    // Sem esta rota, o silêncio dura até alguém abrir um chamado. Foi o que
+    // aconteceu, e a cliente passou dias achando que o erro era dela.
+    if (url.includes('/api/whatsapp/estado') && method === 'GET') {
+      const autorEstado = await autenticarComLojaAtual(req);
+      if (!autorEstado) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (!['admin', 'gestor', 'master'].includes(autorEstado.role)) {
+        // Funcionário não configura notificação e não tem o que fazer com isto.
+        return res.status(200).json({ conectado: true });
+      }
+
+      const conexao = await estadoWhatsappComCache();
+      if (!conexao.conhecido || conexao.conectado) return res.status(200).json({ conectado: true });
+
+      // O master recebe o diagnóstico e o que fazer; o lojista recebe a verdade
+      // sem o vocabulário de servidor, que não o ajuda em nada.
+      return res.status(200).json({
+        conectado: false,
+        motivo: autorEstado.role === 'master'
+          ? conexao.motivo
+          : 'Os avisos por WhatsApp estão temporariamente fora do ar e já estamos reconectando. Nada do que sua equipe registra se perde — tudo continua no painel.',
+      });
+    }
+
     if (url.includes('/api/whatsapp/testar') && method === 'POST') {
       const autorTeste = await autenticarComLojaAtual(req);
       if (!autorTeste) return res.status(401).json({ error: 'Token inválido ou ausente.' });

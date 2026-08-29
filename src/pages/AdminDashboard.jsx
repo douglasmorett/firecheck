@@ -640,6 +640,8 @@ export default function AdminDashboard() {
   const [waDescarte, setWaDescarte] = useState(true);
   // Resultado do último teste de WhatsApp: { ok, motivo, numero, avisos }.
   const [testeWhats, setTesteWhats] = useState(null);
+  // { conectado, motivo } — nulo enquanto não se sabe.
+  const [whatsForaDoAr, setWhatsForaDoAr] = useState(null);
   const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
@@ -2147,6 +2149,32 @@ export default function AdminDashboard() {
    * sem DDD, WhatsApp do sistema fora do ar e interruptor desmarcado davam
    * exatamente o mesmo silêncio. Aqui cada um desses casos tem um nome.
    */
+  /**
+   * Pergunta se o WhatsApp do sistema está de pé.
+   *
+   * Na madrugada de 29/08 as duas instâncias estavam fora — a que manda os
+   * alertas e a de suporte, que era por onde o aviso de queda ia sair. Sem
+   * nenhum canal, a tela é o único lugar que sobra para contar isso. E é,
+   * afinal, onde o lojista está quando repara que parou de receber.
+   *
+   * Falhar aqui não pode atrapalhar nada: sem resposta, a faixa simplesmente
+   * não aparece.
+   */
+  useEffect(() => {
+    if (!userProfile) return;
+    if (!['admin', 'gestor', 'master'].includes(userProfile.role)) return;
+    let vivo = true;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/whatsapp/estado`, { headers: getAuthHeaders() });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (vivo && data && data.conectado === false) setWhatsForaDoAr(data);
+      } catch { /* sem resposta, sem faixa */ }
+    })();
+    return () => { vivo = false; };
+  }, [userProfile]);
+
   const handleTestarWhatsapp = async () => {
     setTestandoWhats(true);
     setTesteWhats(null);
@@ -2591,7 +2619,36 @@ export default function AdminDashboard() {
 
       {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} className="animate-fade">
-        
+
+        {/* ── O WhatsApp do sistema está fora do ar ──────────────────────────
+            Fica acima de tudo porque muda o significado de tudo que vem abaixo:
+            enquanto esta faixa estiver na tela, nenhum alerta chega a ninguém.
+            Antes disso, o único jeito de descobrir era um cliente reclamar. */}
+        {whatsForaDoAr && (
+          <div style={{
+            backgroundColor: 'rgba(239, 68, 68, 0.09)',
+            border: '1px solid #ef4444',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '14px',
+          }}>
+            <div style={{ backgroundColor: '#ef4444', padding: '8px', borderRadius: '50%', display: 'flex', flexShrink: 0 }}>
+              <ShieldAlert size={20} color="#fff" />
+            </div>
+            <div>
+              <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '3px' }}>
+                As notificações por WhatsApp estão fora do ar
+              </strong>
+              <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                {whatsForaDoAr.motivo}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* TRIAL BANNER */}
         {userProfile?.status === 'trial' && userProfile?.role === 'admin' && (
           <div style={{
