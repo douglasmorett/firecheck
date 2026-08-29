@@ -4591,7 +4591,7 @@ export default function AdminDashboard() {
                       é quantas pessoas ele já cadastrou. */}
                   {isMaster && member.role === 'admin' && (() => {
                     const usados = Number(member.colaboradores || 0);
-                    const teto = Number(member.ponto_limit || 0);
+                    const teto = Number(member.colaboradores_limite || member.ponto_limit || 0);
                     const semTeto = !teto || teto >= 999999;
                     const fracao = semTeto ? 0 : Math.min(1, usados / teto);
                     const cor = fracao >= 0.95 ? 'var(--error)' : fracao >= 0.8 ? '#f59e0b' : 'var(--primary)';
@@ -4695,7 +4695,7 @@ export default function AdminDashboard() {
                       justamente checklists ilimitados. O número saia da coluna
                       antiga do banco, que os planos atuais nem usam. */}
                   <p style={{ margin: '4px 0' }}>• Checklists: <strong>Ilimitados</strong></p>
-                  <p style={{ margin: '4px 0' }}>• Colaboradores: <strong>até {userProfile?.ponto_limit >= 999999 ? 'ilimitados' : (userProfile?.ponto_limit || 30)}</strong> cadastrados</p>
+                  <p style={{ margin: '4px 0' }}>• Colaboradores: <strong>até {(userProfile?.colaboradores_limite || userProfile?.ponto_limit) >= 999999 ? 'ilimitados' : (userProfile?.colaboradores_limite || userProfile?.ponto_limit || 30)}</strong> cadastrados</p>
                   {/* Módulo Financeiro não é oferecido no momento. A linha só aparece
                       para quem já o tem ativo — para os demais dizia sempre "Inativo",
                       anunciando um recurso que o cliente não consegue contratar. */}

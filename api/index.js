@@ -473,6 +473,45 @@ function getPlanLimit(plan) {
   return PLAN_LIMITS[(plan || 'starter').toLowerCase()] || 300;
 }
 
+// ── Quantos colaboradores cada plano vende ─────────────────────────
+//
+// Estes números são os da página de vendas, e o produto não pode entregar
+// menos do que anuncia:
+//
+//   Só Checklists    R$ 149/mês ou 12x R$ 97   — até 30 colaboradores
+//   Combo Tudo em 1  R$ 197/mês ou 12x R$ 167  — até 50 (bônus)
+//   Só Ponto         R$ 149/mês ou 12x R$ 97   — até 30 colaboradores
+//
+const COLABORADORES_POR_PLANO = {
+  'checklists_mensal': 30, 'checklists_anual': 30,
+  'combo_mensal': 50, 'combo_anual': 50,
+  'ponto_mensal': 30, 'ponto_anual': 30,
+  'enterprise': ILIMITADO, 'master': ILIMITADO,
+  // Em teste, o cliente enxerga o teto que vai ter ao assinar.
+  'trial': 30,
+  // Legado: os tetos que essas contas de fato receberam.
+  'starter': 5, 'starter_mensal': 5, 'start': 5, 'ponto_starter': 5,
+  'pro': 15, 'pro_mensal': 15, 'mensal': 15, 'ponto_pro': 15,
+  'business': 50, 'business_mensal': 50, 'anual': 50, 'ponto_business': 50,
+};
+
+/**
+ * Teto de colaboradores da conta.
+ *
+ * A coluna `ponto_limit` nasceu com DEFAULT 5, quando o limite era só do módulo
+ * de Ponto. Hoje todo plano vende um número de colaboradores, e quem comprou
+ * "até 30" mas carregava o 5 antigo travava no quinto cadastro — com a página
+ * de vendas prometendo trinta.
+ *
+ * Vale o maior dos dois, pelo mesmo motivo de limiteDeChecklists: a coluna pode
+ * ampliar o que foi negociado à parte, nunca tirar o que o plano dá.
+ */
+function tetoDeColaboradores(user) {
+  const doPlano = COLABORADORES_POR_PLANO[(user?.plan || '').toLowerCase()] || 0;
+  const daColuna = Number(user?.ponto_limit) || 0;
+  return Math.max(doPlano, daColuna) || 5;
+}
+
 /**
  * Quantos checklists a conta pode gastar no ciclo.
  *
@@ -3455,11 +3494,15 @@ export default async function handler(req, res) {
             const admin = admins[0];
             const { rows: countRes } = await pool.query("SELECT COUNT(*) FROM users WHERE store = $1 AND (role = 'funcionario' OR role = 'gestor')", [store]);
             const currentCount = parseInt(countRes[0].count);
-            const limit = admin.ponto_limit || 5;
+            const limit = tetoDeColaboradores(admin);
 
             const isUnlimited = limit >= 999999 || admin.status === 'trial' || admin.role === 'master';
             if (!isUnlimited && currentCount >= limit) {
-              return res.status(400).json({ error: `Você atingiu o limite de ${limit} colaboradores do seu plano de Ponto eletrônico. Faça upgrade do seu plano de Ponto para cadastrar mais colaboradores.` });
+              // A mensagem falava em "plano de Ponto eletrônico", mas este teto
+              // vale para qualquer plano — quem assina Só Checklists também tem
+              // um número de colaboradores, e lia um texto sobre um módulo que
+              // não comprou.
+              return res.status(400).json({ error: `Seu plano permite ${limit} colaboradores e você já cadastrou todos. Para cadastrar mais, mude para um plano com limite maior.` });
             }
           }
         }
@@ -3517,7 +3560,13 @@ export default async function handler(req, res) {
         ${store ? 'WHERE LOWER(u.store) = LOWER($1)' : ''}
         ORDER BY u.created_at DESC
       `, store ? [store] : []);
-      return res.status(200).json(rows);
+      // O teto sai do plano, não da coluna: senão a tela mostraria "0/5" para
+      // quem comprou até 30. A regra mora num lugar só, aqui.
+      return res.status(200).json(rows.map(u => ({
+        ...u,
+        colaboradores: Number(u.colaboradores || 0),
+        colaboradores_limite: tetoDeColaboradores(u),
+      })));
     }
 
 
