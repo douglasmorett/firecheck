@@ -639,12 +639,15 @@ async function vigiarConexaoWhatsapp() {
   if (!conexao.conhecido || conexao.conectado) return;
 
   try {
-    const { rowCount } = await pool.query(
-      `INSERT INTO avisos_sistema (chave, ultimo_envio) VALUES ('whatsapp_fora', NOW())
-       ON CONFLICT (chave) DO UPDATE SET ultimo_envio = NOW()
-       WHERE avisos_sistema.ultimo_envio < NOW() - INTERVAL '6 hours'`
+    // A janela de silêncio conta a partir de um aviso que **chegou**. Na
+    // estreia deste vigia o carimbo era gravado antes do envio: a mensagem
+    // falhou por falta de telefone e mesmo assim comprou seis horas de
+    // silêncio, com a instância caida o tempo inteiro. Um alerta que nunca
+    // saiu não pode contar como alerta dado.
+    const { rows: ultimo } = await pool.query(
+      "SELECT 1 FROM avisos_sistema WHERE chave = 'whatsapp_fora' AND ultimo_envio > NOW() - INTERVAL '6 hours'"
     );
-    if (rowCount === 0) return; // já avisado há pouco
+    if (ultimo.length > 0) return; // já avisado há pouco, e daquela vez chegou
 
     const { rows: masters } = await pool.query(
       "SELECT name, phone, whatsapp_phone FROM users WHERE role = 'master' LIMIT 1"
@@ -660,7 +663,7 @@ async function vigiarConexaoWhatsapp() {
       process.env.SUPORTE_WHATSAPP ||
       '22998851680';
 
-    await enviarWhatsapp({
+    const entregue = await enviarWhatsapp({
       telefone: foneMaster,
       texto:
         `⚠️ *FireCheck — o WhatsApp do sistema está fora do ar*\n\n` +
@@ -670,6 +673,18 @@ async function vigiarConexaoWhatsapp() {
       contexto: 'Vigia da conexao',
       instancia: suporte,
     });
+
+    if (!entregue.ok) {
+      // Sem carimbo: a próxima passagem tenta de novo em meia hora.
+      console.error(`[Vigia da conexao] o aviso NÃO foi entregue pela instância "${suporte}": ${entregue.motivo}`);
+      return;
+    }
+
+    await pool.query(
+      "INSERT INTO avisos_sistema (chave, ultimo_envio) VALUES ('whatsapp_fora', NOW()) "
+      + 'ON CONFLICT (chave) DO UPDATE SET ultimo_envio = NOW()'
+    );
+    console.log(`[Vigia da conexao] aviso entregue em ${foneMaster} pela instância "${suporte}".`);
   } catch (e) {
     console.error('[Vigia da conexao] falhou:', e.message);
   }
@@ -1212,6 +1227,15 @@ export default async function handler(req, res) {
           ultimo_envio TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
+      // Limpeza pontual: na estreia do vigia, em 29/08/2026 às 02:00, o carimbo
+      // foi gravado antes do envio e o envio falhou. Aquele carimbo comprou seis
+      // horas de silêncio para um aviso que nunca saiu, e precisa sumir para a
+      // próxima passagem tentar de novo. A data no filtro faz esta linha deixar
+      // de casar com qualquer coisa logo depois — pode ser removida a qualquer
+      // momento.
+      await pool.query(
+        "DELETE FROM avisos_sistema WHERE chave = 'whatsapp_fora' AND ultimo_envio < TIMESTAMPTZ '2026-08-29 06:00:00+00'"
+      );
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ocorrencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_descarte BOOLEAN DEFAULT TRUE");
       // ── Cota de Checklists ──
