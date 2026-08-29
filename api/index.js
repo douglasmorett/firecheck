@@ -649,19 +649,23 @@ async function vigiarConexaoWhatsapp() {
     const { rows: masters } = await pool.query(
       "SELECT name, phone, whatsapp_phone FROM users WHERE role = 'master' LIMIT 1"
     );
-    if (masters.length === 0) return;
+
+    // O número de suporte como último recurso. Na primeira vez que este aviso
+    // teve algo para dizer — a instância caiu de verdade — ele parou em
+    // "Nenhum telefone cadastrado", porque a conta master não tem telefone.
+    // Um alerta que depende de um campo opcional estar preenchido não é alerta.
+    const foneMaster =
+      masters[0]?.whatsapp_phone ||
+      masters[0]?.phone ||
+      process.env.SUPORTE_WHATSAPP ||
+      '22998851680';
 
     await enviarWhatsapp({
-      telefone: masters[0].whatsapp_phone || masters[0].phone,
+      telefone: foneMaster,
       texto:
-        `⚠️ *FireCheck — o WhatsApp do sistema está fora do ar*
-
-` +
-        `${conexao.motivo}
-
-` +
-        `Enquanto isso, nenhum cliente recebe alerta de checklist, ponto, ocorrência ou descarte.
-` +
+        `⚠️ *FireCheck — o WhatsApp do sistema está fora do ar*\n\n` +
+        `${conexao.motivo}\n\n` +
+        `Enquanto isso, nenhum cliente recebe alerta de checklist, ponto, ocorrência ou descarte.\n` +
         `Reconecte a instância *${principal}* na Evolution.`,
       contexto: 'Vigia da conexao',
       instancia: suporte,
