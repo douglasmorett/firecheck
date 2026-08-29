@@ -3953,7 +3953,16 @@ export default async function handler(req, res) {
 
         // De carona: este cron roda a cada meia hora e é o lugar mais barato
         // para descobrir que o canal caiu antes de um cliente descobrir.
-        vigiarConexaoWhatsapp().catch(e => console.error('[Vigia da conexao]', e.message));
+        //
+        // Com await: sem ele, nas duas primeiras passagens (01:00 e 01:30) o
+        // cron respondeu 200 e nada do vigia apareceu no log — a instância
+        // congela quando a resposta sai e leva junto o que ficou pendente. Era
+        // exatamente o defeito que este commit foi corrigir, repetido aqui.
+        await comTeto(
+          vigiarConexaoWhatsapp().catch(e => console.error('[Vigia da conexao]', e.message)),
+          6000,
+          'Vigia da conexao',
+        );
 
         // 1. Obter dia da semana atual em português (seg, ter...)
         const diasSemanaMap = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
