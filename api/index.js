@@ -669,7 +669,10 @@ async function estadoWhatsapp(qual) {
       return {
         conhecido: true,
         conectado: false,
-        motivo: `O WhatsApp do sistema está ${estado === 'connecting' ? 'reconectando' : 'desconectado'} no momento (estado: ${estado}). Fale com o suporte para ler o QR Code de novo.`,
+        // Dizia "leia o QR Code de novo", que é o conserto do caso raro. `close`
+        // quase sempre é socket perdido e volta com um restart — e o sistema já
+        // tenta isso sozinho antes de mostrar qualquer coisa a alguém.
+        motivo: `O WhatsApp do sistema está ${estado === 'connecting' ? 'reconectando' : 'desconectado'} no momento (estado: ${estado}).`,
       };
     }
     return { conhecido: true, conectado: true };
@@ -870,10 +873,10 @@ function traduzirFalhaWhatsapp(status, detalhe, instancia) {
     return 'O servidor de WhatsApp recusou a credencial do FireCheck. Fale com o suporte.';
   }
   if (status === 404 || d.includes('does not exist') || d.includes('not found')) {
-    return `A conexão de WhatsApp do sistema ("${instancia}") não foi encontrada no servidor. Fale com o suporte.`;
+    return `A conexão de WhatsApp do sistema ("${instancia}") não existe no servidor da Evolution. Ela precisa ser criada — aí sim com leitura de QR Code.`;
   }
   if (d.includes('connecting') || d.includes('close') || d.includes('disconnected') || d.includes('not connected')) {
-    return 'O WhatsApp do sistema está desconectado no momento. Fale com o suporte para reconectar.';
+    return 'O WhatsApp do sistema está desconectado no momento.';
   }
   if (d.includes('exists') || d.includes('number') || d.includes('jid')) {
     return 'Esse número não foi encontrado no WhatsApp. Confira o DDD e o dígito 9.';
@@ -4203,9 +4206,13 @@ export default async function handler(req, res) {
         // cron respondeu 200 e nada do vigia apareceu no log — a instância
         // congela quando a resposta sai e leva junto o que ficou pendente. Era
         // exatamente o defeito que este commit foi corrigir, repetido aqui.
+        // Vinte e cinco segundos porque o vigia agora tenta religar a sessão, e
+        // cada tentativa espera quatro segundos o socket subir antes de
+        // perguntar o estado. Com o teto de seis, a reconexão era cortada no
+        // meio e o log nunca chegava a dizer se tinha funcionado.
         await comTeto(
           vigiarConexaoWhatsapp().catch(e => console.error('[Vigia da conexao]', e.message)),
-          6000,
+          25000,
           'Vigia da conexao',
         );
 
