@@ -699,39 +699,61 @@ async function reconectarWhatsapp(qual) {
   const inst = qual || process.env.EVOLUTION_INSTANCE || 'firecheck';
   if (!evoUrl || !evoKey) return { ok: false, motivo: 'A integração de WhatsApp não está configurada no servidor.' };
 
-  const tentativas = [
+  // Um restart só, e então espera. A primeira versão disparava os três caminhos
+  // em sequência sempre que o estado ainda não era 'open' depois de quatro
+  // segundos — e como o restart de fato funciona, o que ela fazia era reiniciar
+  // a conexão três vezes seguidas, cortando o handshake do WhatsApp toda vez
+  // que ele começava. Nos logs isso aparecia como 'connecting' em todas as
+  // tentativas, que é progresso sendo interrompido, não falha.
+  //
+  // A versão da Evolution do outro lado não é conhecida, então o próximo
+  // caminho só entra quando o anterior foi *recusado* pelo servidor.
+  const caminhos = [
     ['POST', `${evoUrl}/instance/restart/${inst}`],
     ['PUT', `${evoUrl}/instance/restart/${inst}`],
     ['GET', `${evoUrl}/instance/connect/${inst}`],
   ];
 
+  let aceito = false;
   let ultimoErro = '';
-  for (const [metodo, endereco] of tentativas) {
+  for (const [metodo, endereco] of caminhos) {
     try {
       const resp = await fetch(endereco, { method: metodo, headers: { apikey: evoKey } });
-      if (resp.ok) {
-        // A instância leva alguns segundos para subir o socket e trocar o
-        // handshake. Perguntar o estado no mesmo instante devolve 'connecting'
-        // e faria o código concluir que falhou.
-        await new Promise(r => setTimeout(r, 4000));
-        const depois = await estadoWhatsapp(inst);
-        if (depois.conectado) {
-          console.log(`[Reconexão] instância "${inst}" voltou por ${metodo} ${endereco.split('/').slice(-2)[0]}.`);
-          return { ok: true, metodo };
-        }
-        ultimoErro = depois.motivo || 'ainda desconectada';
-        continue;
-      }
+      if (resp.ok) { aceito = true; break; }
       ultimoErro = `HTTP ${resp.status}: ${(await resp.text().catch(() => '')).slice(0, 200)}`;
     } catch (e) {
       ultimoErro = e.message;
     }
   }
 
-  console.error(`[Reconexão] instância "${inst}" não voltou — ${ultimoErro}`);
+  if (!aceito) {
+    console.error(`[Reconexão] o servidor recusou reiniciar "${inst}" — ${ultimoErro}`);
+    return { ok: false, motivo: `O servidor recusou reiniciar a conexão "${inst}" (${ultimoErro}).` };
+  }
+
+  // Reconectar ao WhatsApp leva de poucos segundos a algumas dezenas. Pergunta
+  // de três em três até responder, em vez de chutar um único tempo de espera.
+  let estado = null;
+  for (let i = 0; i < 7; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    estado = await estadoWhatsapp(inst);
+    if (estado.conectado) {
+      console.log(`[Reconexão] instância "${inst}" voltou em ${(i + 1) * 3}s.`);
+      return { ok: true };
+    }
+  }
+
+  // Parar em 'connecting' não é o mesmo que falhar: o restart foi aceito e a
+  // sessão está subindo. Quem fica preso em 'connecting' passagem após
+  // passagem é que foi deslogado de verdade, e aí sim precisa do QR Code.
+  const subindo = String(estado?.motivo || '').includes('reconectando');
+  console.warn(`[Reconexão] instância "${inst}" ${subindo ? 'ainda subindo após 21s' : 'não voltou'} — ${estado?.motivo || ''}`);
   return {
     ok: false,
-    motivo: `A instância "${inst}" não religou sozinha (${ultimoErro}). Se ela foi deslogada no aparelho, aí sim é preciso ler o QR Code de novo.`,
+    subindo,
+    motivo: subindo
+      ? `A conexão "${inst}" foi reiniciada e ainda está subindo. Se continuar assim na próxima verificação, a sessão foi deslogada no aparelho e aí sim precisa ler o QR Code.`
+      : `A instância "${inst}" não religou (${estado?.motivo || 'estado desconhecido'}).`,
   };
 }
 
@@ -768,19 +790,29 @@ async function vigiarConexaoWhatsapp() {
   // Antes de acusar queda, tenta religar. A maioria dos `close` é socket
   // perdido, não sessão deslogada, e volta com um restart — sem QR Code e sem
   // ninguém precisar saber que caiu. Só o que não volta vira alarme.
-  const religou = await reconectarWhatsapp(principal);
+  //
+  // As duas juntas: elas moram no mesmo servidor e caem juntas, e religar
+  // em sequência dobraria os vinte e um segundos de espera de cada uma.
+  const estadoSuporte = await estadoWhatsapp(suporte);
+  const [religou] = await Promise.all([
+    reconectarWhatsapp(principal),
+    estadoSuporte.conectado ? Promise.resolve({ ok: true }) : reconectarWhatsapp(suporte),
+  ]);
   if (religou.ok) {
     console.log(`[Vigia da conexao] instância "${principal}" religada sozinha.`);
-    // Tenta também o canal de suporte, que costuma cair junto — as duas moram
-    // no mesmo servidor.
-    if (!(await estadoWhatsapp(suporte)).conectado) await reconectarWhatsapp(suporte);
     return;
   }
+
+  // Reiniciada e ainda subindo não é queda: o socket pode fechar o handshake
+  // a qualquer segundo. Alarmar aqui encheria o WhatsApp de falso positivo a
+  // cada meia hora. A próxima passagem confere de novo, e aí sim.
+  if (religou.subindo) {
+    console.log(`[Vigia da conexao] "${principal}" reiniciada e ainda subindo; confere de novo na próxima passagem.`);
+    return;
+  }
+
   conexao = await estadoWhatsapp();
   if (conexao.conectado) return;
-
-  // O aviso sai pelo canal de suporte, que pode ter caido junto.
-  if (!(await estadoWhatsapp(suporte)).conectado) await reconectarWhatsapp(suporte);
 
   try {
     // A janela de silêncio conta a partir de um aviso que **chegou**. Na
@@ -4206,13 +4238,12 @@ export default async function handler(req, res) {
         // cron respondeu 200 e nada do vigia apareceu no log — a instância
         // congela quando a resposta sai e leva junto o que ficou pendente. Era
         // exatamente o defeito que este commit foi corrigir, repetido aqui.
-        // Vinte e cinco segundos porque o vigia agora tenta religar a sessão, e
-        // cada tentativa espera quatro segundos o socket subir antes de
-        // perguntar o estado. Com o teto de seis, a reconexão era cortada no
-        // meio e o log nunca chegava a dizer se tinha funcionado.
+        // O vigia agora reinicia a sessão e acompanha por até vinte e um
+        // segundos até ela subir. Com teto de seis, e depois de vinte e cinco,
+        // a reconexão era cortada no meio e o log nunca dizia se funcionou.
         await comTeto(
           vigiarConexaoWhatsapp().catch(e => console.error('[Vigia da conexao]', e.message)),
-          25000,
+          40000,
           'Vigia da conexao',
         );
 
