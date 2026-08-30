@@ -642,6 +642,7 @@ export default function AdminDashboard() {
   const [testeWhats, setTesteWhats] = useState(null);
   // { conectado, motivo } — nulo enquanto não se sabe.
   const [whatsForaDoAr, setWhatsForaDoAr] = useState(null);
+  const [religando, setReligando] = useState(false);
   const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
@@ -2175,6 +2176,34 @@ export default function AdminDashboard() {
     return () => { vivo = false; };
   }, [userProfile]);
 
+  /**
+   * Religa a sessão de WhatsApp do sistema.
+   *
+   * `state: close` quase sempre é socket perdido, não conta deslogada, e volta
+   * com um restart. Sem este botão, a única saída visível era abrir o servidor
+   * da Evolution — ou esperar o cron da meia hora.
+   */
+  const handleReligarWhatsapp = async () => {
+    setReligando(true);
+    try {
+      const res = await fetch(`${API_URL}/api/whatsapp/reconectar`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setWhatsForaDoAr(null);
+        addToast('WhatsApp reconectado. Os alertas voltaram a sair.', 'success');
+      } else {
+        addToast(data?.principal?.motivo || 'Não foi possível religar agora.', 'error');
+      }
+    } catch {
+      addToast('Sem conexão com o servidor agora.', 'error');
+    } finally {
+      setReligando(false);
+    }
+  };
+
   const handleTestarWhatsapp = async () => {
     setTestandoWhats(true);
     setTesteWhats(null);
@@ -2645,6 +2674,20 @@ export default function AdminDashboard() {
               <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
                 {whatsForaDoAr.motivo}
               </span>
+              {isMaster && (
+                <button
+                  type="button"
+                  onClick={handleReligarWhatsapp}
+                  disabled={religando}
+                  style={{
+                    marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
+                    backgroundColor: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
+                    cursor: religando ? 'wait' : 'pointer', opacity: religando ? 0.7 : 1, display: 'block',
+                  }}
+                >
+                  {religando ? 'Religando...' : 'Tentar religar agora'}
+                </button>
+              )}
             </div>
           </div>
         )}

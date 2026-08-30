@@ -678,6 +678,60 @@ async function estadoWhatsapp(qual) {
   }
 }
 
+// ── Religar a sessão sem passar pelo QR Code ────────────────────────────────
+//
+// `state: close` quase nunca quer dizer que a conta foi deslogada: o servidor
+// da Evolution reiniciou, a conexão caiu, o processo perdeu o socket. Nesses
+// casos as credenciais da sessão continuam salvas e um restart religa sozinho —
+// ler o QR de novo só é necessário quando a sessão foi de fato invalidada, o
+// que é raro.
+//
+// Como a versão da Evolution do outro lado não é conhecida, tenta os caminhos
+// que as duas expõem, na ordem em que a v2 os prefere, e para no primeiro que
+// responder. Depois espera e pergunta o estado de novo: quem decide se deu
+// certo é a instância, não o código de resposta do restart.
+async function reconectarWhatsapp(qual) {
+  const evoUrl = process.env.EVOLUTION_API_URL;
+  const evoKey = process.env.EVOLUTION_API_KEY;
+  const inst = qual || process.env.EVOLUTION_INSTANCE || 'firecheck';
+  if (!evoUrl || !evoKey) return { ok: false, motivo: 'A integração de WhatsApp não está configurada no servidor.' };
+
+  const tentativas = [
+    ['POST', `${evoUrl}/instance/restart/${inst}`],
+    ['PUT', `${evoUrl}/instance/restart/${inst}`],
+    ['GET', `${evoUrl}/instance/connect/${inst}`],
+  ];
+
+  let ultimoErro = '';
+  for (const [metodo, endereco] of tentativas) {
+    try {
+      const resp = await fetch(endereco, { method: metodo, headers: { apikey: evoKey } });
+      if (resp.ok) {
+        // A instância leva alguns segundos para subir o socket e trocar o
+        // handshake. Perguntar o estado no mesmo instante devolve 'connecting'
+        // e faria o código concluir que falhou.
+        await new Promise(r => setTimeout(r, 4000));
+        const depois = await estadoWhatsapp(inst);
+        if (depois.conectado) {
+          console.log(`[Reconexão] instância "${inst}" voltou por ${metodo} ${endereco.split('/').slice(-2)[0]}.`);
+          return { ok: true, metodo };
+        }
+        ultimoErro = depois.motivo || 'ainda desconectada';
+        continue;
+      }
+      ultimoErro = `HTTP ${resp.status}: ${(await resp.text().catch(() => '')).slice(0, 200)}`;
+    } catch (e) {
+      ultimoErro = e.message;
+    }
+  }
+
+  console.error(`[Reconexão] instância "${inst}" não voltou — ${ultimoErro}`);
+  return {
+    ok: false,
+    motivo: `A instância "${inst}" não religou sozinha (${ultimoErro}). Se ela foi deslogada no aparelho, aí sim é preciso ler o QR Code de novo.`,
+  };
+}
+
 // Resposta guardada por três minutos. O painel pergunta o estado a cada
 // carregamento e não faz sentido bater na Evolution a cada F5 de cada lojista;
 // três minutos é curto o bastante para a faixa sumir logo depois de reconectar.
@@ -704,9 +758,26 @@ async function vigiarConexaoWhatsapp() {
   const principal = process.env.EVOLUTION_INSTANCE || 'firecheck';
   if (suporte === principal) return; // sem canal independente, o aviso não sai
 
-  const conexao = await estadoWhatsapp();
+  let conexao = await estadoWhatsapp();
   console.log(`[Vigia da conexao] instância "${principal}": ${conexao.conectado ? 'conectada' : (conexao.motivo || 'estado desconhecido')}`);
   if (!conexao.conhecido || conexao.conectado) return;
+
+  // Antes de acusar queda, tenta religar. A maioria dos `close` é socket
+  // perdido, não sessão deslogada, e volta com um restart — sem QR Code e sem
+  // ninguém precisar saber que caiu. Só o que não volta vira alarme.
+  const religou = await reconectarWhatsapp(principal);
+  if (religou.ok) {
+    console.log(`[Vigia da conexao] instância "${principal}" religada sozinha.`);
+    // Tenta também o canal de suporte, que costuma cair junto — as duas moram
+    // no mesmo servidor.
+    if (!(await estadoWhatsapp(suporte)).conectado) await reconectarWhatsapp(suporte);
+    return;
+  }
+  conexao = await estadoWhatsapp();
+  if (conexao.conectado) return;
+
+  // O aviso sai pelo canal de suporte, que pode ter caido junto.
+  if (!(await estadoWhatsapp(suporte)).conectado) await reconectarWhatsapp(suporte);
 
   try {
     // A janela de silêncio conta a partir de um aviso que **chegou**. Na
@@ -5752,6 +5823,36 @@ A mensagem é lida pelo próprio funcionário, no celular:
     //
     // Sem esta rota, o silêncio dura até alguém abrir um chamado. Foi o que
     // aconteceu, e a cliente passou dias achando que o erro era dela.
+    // ── Religar o WhatsApp do sistema na hora ──────────────────────
+    //
+    // O cron já tenta religar de meia em meia hora, mas quem está olhando a
+    // faixa vermelha no painel não quer esperar meia hora — e nem abrir o
+    // servidor da Evolution para descobrir que bastava um restart.
+    if (url.includes('/api/whatsapp/reconectar') && method === 'POST') {
+      const autorRec = await autenticarComLojaAtual(req);
+      if (!autorRec) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (autorRec.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+
+      const principal = process.env.EVOLUTION_INSTANCE || 'firecheck';
+      const suporte = process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv';
+
+      const r1 = await reconectarWhatsapp(principal);
+      // O canal de suporte mora no mesmo servidor e cai junto; religar só um
+      // deixaria o alerta de queda sem por onde sair da próxima vez.
+      const jaOk = (await estadoWhatsapp(suporte)).conectado;
+      const r2 = jaOk ? { ok: true } : await reconectarWhatsapp(suporte);
+
+      // A resposta invalida o cache, senão a faixa continuaria na tela por até
+      // três minutos depois de a conexão ter voltado.
+      cacheEstadoWa = { quando: 0, valor: null };
+
+      return res.status(200).json({
+        ok: r1.ok,
+        principal: { instancia: principal, ok: r1.ok, motivo: r1.motivo || null },
+        suporte: { instancia: suporte, ok: r2.ok, motivo: r2.motivo || null },
+      });
+    }
+
     if (url.includes('/api/whatsapp/estado') && method === 'GET') {
       const autorEstado = await autenticarComLojaAtual(req);
       if (!autorEstado) return res.status(401).json({ error: 'Token inválido ou ausente.' });
