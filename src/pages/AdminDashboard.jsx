@@ -643,6 +643,8 @@ export default function AdminDashboard() {
   // { conectado, motivo } — nulo enquanto não se sabe.
   const [whatsForaDoAr, setWhatsForaDoAr] = useState(null);
   const [religando, setReligando] = useState(false);
+  // { qr, codigo, instancia } quando o pareamento e a unica saida.
+  const [pareamento, setPareamento] = useState(null);
   const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
@@ -2193,14 +2195,41 @@ export default function AdminDashboard() {
       const data = await res.json().catch(() => null);
       if (data?.ok) {
         setWhatsForaDoAr(null);
+        setPareamento(null);
         addToast('WhatsApp reconectado. Os alertas voltaram a sair.', 'success');
       } else {
-        addToast(data?.principal?.motivo || 'Não foi possível religar agora.', 'error');
+        // Reiniciar e voltar a `close` significa credencial invalidada: não há
+        // conserto remoto, e o único caminho é parear de novo. Em vez de mandar
+        // abrir o servidor da Evolution, traz o QR para cá.
+        addToast(data?.principal?.motivo || 'Não foi possível religar. Pareie de novo abaixo.', 'error');
+        await handlePareaWhatsapp();
       }
     } catch {
       addToast('Sem conexão com o servidor agora.', 'error');
     } finally {
       setReligando(false);
+    }
+  };
+
+  /** Puxa o QR Code (ou o código de oito dígitos) para parear o número do sistema. */
+  const handlePareaWhatsapp = async (instancia) => {
+    try {
+      const res = await fetch(`${API_URL}/api/whatsapp/parear`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(instancia ? { instancia } : {}),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.jaConectada) {
+        setWhatsForaDoAr(null);
+        setPareamento(null);
+        addToast('Esta conexão já está ativa.', 'success');
+        return;
+      }
+      if (data?.ok) setPareamento(data);
+      else addToast(data?.motivo || 'Não foi possível gerar o QR Code agora.', 'error');
+    } catch {
+      addToast('Sem conexão com o servidor agora.', 'error');
     }
   };
 
@@ -2687,6 +2716,43 @@ export default function AdminDashboard() {
                 >
                   {religando ? 'Religando...' : 'Tentar religar agora'}
                 </button>
+              )}
+
+              {/* ── Quando religar não basta ─────────────────────────────
+                  A sessão reiniciar e voltar a `close` significa credencial
+                  invalidada — o aparelho desvinculou o dispositivo. Não existe
+                  conserto remoto para isso; existe parear de novo. O que dá para
+                  poupar é a viagem até o servidor da Evolution. */}
+              {isMaster && pareamento && (
+                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                  <strong style={{ display: 'block', fontSize: '0.92rem', marginBottom: '8px' }}>
+                    Parear o número de novo — conexão "{pareamento.instancia}"
+                  </strong>
+                  {pareamento.codigo ? (
+                    <>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                        No celular do número do sistema: WhatsApp → Aparelhos conectados →
+                        Conectar aparelho → <strong>Conectar com número de telefone</strong>. Digite:
+                      </p>
+                      <div style={{ fontFamily: 'monospace', fontSize: '1.9rem', fontWeight: 'bold', letterSpacing: '0.16em', color: 'var(--primary)' }}>
+                        {pareamento.codigo}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                        No celular do número do sistema: WhatsApp → Aparelhos conectados →
+                        Conectar aparelho, e aponte para o código abaixo.
+                      </p>
+                      <img src={pareamento.qr} alt="QR Code para parear o WhatsApp do sistema"
+                           style={{ width: '232px', maxWidth: '100%', borderRadius: '8px', backgroundColor: '#fff', padding: '8px' }} />
+                    </>
+                  )}
+                  <p style={{ margin: '10px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    O código expira em cerca de um minuto. Se não der tempo, clique de novo em
+                    "Tentar religar agora" para gerar outro.
+                  </p>
+                </div>
               )}
             </div>
           </div>

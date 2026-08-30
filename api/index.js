@@ -5866,6 +5866,71 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // O cron já tenta religar de meia em meia hora, mas quem está olhando a
     // faixa vermelha no painel não quer esperar meia hora — e nem abrir o
     // servidor da Evolution para descobrir que bastava um restart.
+    // ── Parear o número do sistema sem sair do painel ──────────────────────
+    //
+    // Quando o restart não traz a sessão de volta — ela volta a `close` em vez
+    // de fechar o handshake — as credenciais foram invalidadas: o aparelho
+    // desvinculou o dispositivo, ou a instância nunca chegou a ser pareada.
+    // Não há conserto remoto: alguém precisa parear de novo.
+    //
+    // O que dá para evitar é a viagem até o servidor da Evolution. A própria
+    // rota de conexão devolve o QR Code e, na v2, também um código de oito
+    // dígitos para digitar no WhatsApp — que é bem mais fácil de usar pelo
+    // celular do que apontar a câmera para outra tela.
+    if (url.includes('/api/whatsapp/parear') && method === 'POST') {
+      const autorPar = await autenticarComLojaAtual(req);
+      if (!autorPar) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (autorPar.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+
+      const evoUrl = process.env.EVOLUTION_API_URL;
+      const evoKey = process.env.EVOLUTION_API_KEY;
+      if (!evoUrl || !evoKey) return res.status(200).json({ ok: false, motivo: 'A integração de WhatsApp não está configurada no servidor.' });
+
+      const inst = String(req.body?.instancia || '') === (process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv')
+        ? (process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv')
+        : (process.env.EVOLUTION_INSTANCE || 'firecheck');
+
+      // Número no formato E.164 sem o +, quando se quer o código de pareamento
+      // em vez do QR. Vem do corpo porque o número do sistema não está no banco.
+      const telefone = String(req.body?.telefone || '').trim();
+      const { numero } = telefone ? numeroWhatsapp(telefone) : { numero: null };
+
+      try {
+        const endereco = `${evoUrl}/instance/connect/${inst}` + (numero ? `?number=${encodeURIComponent(numero)}` : '');
+        const resp = await fetch(endereco, { headers: { apikey: evoKey } });
+        const bruto = await resp.text();
+        let corpo = null;
+        try { corpo = JSON.parse(bruto); } catch { /* a Evolution nem sempre devolve JSON no erro */ }
+
+        if (!resp.ok) {
+          const detalhe = corpo?.response?.message || corpo?.message || bruto.slice(0, 200);
+          console.error(`[Pareamento] "${inst}" recusou (HTTP ${resp.status}): ${detalhe}`);
+          return res.status(200).json({ ok: false, motivo: traduzirFalhaWhatsapp(resp.status, String(detalhe || ''), inst) });
+        }
+
+        // A instância já pareada não devolve QR nenhum — devolve o estado.
+        const estado = corpo?.instance?.state || corpo?.state || '';
+        if (estado === 'open') {
+          cacheEstadoWa = { quando: 0, valor: null };
+          return res.status(200).json({ ok: true, jaConectada: true, instancia: inst });
+        }
+
+        const qr = corpo?.base64 || corpo?.qrcode?.base64 || null;
+        const codigo = corpo?.pairingCode || corpo?.qrcode?.pairingCode || null;
+
+        if (!qr && !codigo) {
+          console.error(`[Pareamento] "${inst}" respondeu sem QR nem código: ${bruto.slice(0, 300)}`);
+          return res.status(200).json({ ok: false, motivo: 'O servidor não devolveu o QR Code desta vez. Tente de novo em alguns segundos.' });
+        }
+
+        console.log(`[Pareamento] "${inst}" gerou ${codigo ? 'código de pareamento' : 'QR Code'}.`);
+        return res.status(200).json({ ok: true, instancia: inst, qr, codigo });
+      } catch (e) {
+        console.error('[Pareamento] falhou:', e.message);
+        return res.status(200).json({ ok: false, motivo: `Não foi possível falar com o servidor de WhatsApp (${e.message}).` });
+      }
+    }
+
     if (url.includes('/api/whatsapp/reconectar') && method === 'POST') {
       const autorRec = await autenticarComLojaAtual(req);
       if (!autorRec) return res.status(401).json({ error: 'Token inválido ou ausente.' });
