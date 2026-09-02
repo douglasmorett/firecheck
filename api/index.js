@@ -40,6 +40,23 @@ if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('hex');
 const JWT_EXPIRY = '7d'; // Token válido por 7 dias
 
+// ── Chatbot do WhatsApp: desligado por padrão ────────────────────────────────
+//
+// O número do FireCheck é número de aviso: dispara checklist reprovado,
+// ocorrência, descarte e alerta de ponto. Quem recebe esses avisos é lojista, e
+// lojista responde — "ok", "já vi", um áudio. Com o Bill ligado, cada uma dessas
+// respostas virava conversa de robô no número da empresa.
+//
+// Por isso a porta nasce fechada: só existe chatbot no WhatsApp com
+// WHATSAPP_CHATBOT=on no ambiente. Sem isso o webhook é registrado desligado na
+// Evolution, e o que porventura chegue nele é descartado sem resposta.
+//
+// Isto não desliga o Bill IA de dentro do painel (criar checklist, lista de
+// compras): aquele é outro caminho e continua igual.
+const chatbotWhatsAppLigado = ['on', 'true', '1', 'sim'].includes(
+  String(process.env.WHATSAPP_CHATBOT || '').trim().toLowerCase()
+);
+
 // ── Freio de força bruta no login ────────────────────────────────────────────
 //
 // Um robô testando senhas comuns contra uma lista de e-mails faz milhares de
@@ -1779,7 +1796,14 @@ export default async function handler(req, res) {
       `);
       migrationsRun = true;
 
-      // ── Auto-configurar Webhook da Evolution API (chatbot) ──
+      // ── Webhook da Evolution API: segue o estado do chatbot ──
+      //
+      // Este bloco roda a cada partida a frio. Enquanto mandava enabled:true
+      // fixo, desligar o webhook no painel da Evolution não durava: a próxima
+      // requisição religava sozinha. Agora ele obedece a WHATSAPP_CHATBOT.
+      //
+      // Os avisos não passam por aqui: são POST /message/sendText, de saída.
+      // Mexer no webhook não os afeta.
       try {
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
@@ -1799,8 +1823,8 @@ export default async function handler(req, res) {
           // Tenta o formato novo e cai para o antigo, que é o único jeito de
           // servir as duas versões sem saber de antemão qual está do outro lado.
           const formatos = [
-            { webhook: { enabled: true, url: alvo, byEvents: false, base64: false, events: eventos } },
-            { enabled: true, url: alvo, webhookByEvents: false, webhook_by_events: false, events: eventos },
+            { webhook: { enabled: chatbotWhatsAppLigado, url: alvo, byEvents: false, base64: false, events: eventos } },
+            { enabled: chatbotWhatsAppLigado, url: alvo, webhookByEvents: false, webhook_by_events: false, events: eventos },
           ];
 
           let configurado = false;
@@ -1819,9 +1843,11 @@ export default async function handler(req, res) {
           }
 
           if (configurado) {
-            console.log('[Evolution] Webhook configurado para /api/webhooks/whatsapp');
+            console.log(chatbotWhatsAppLigado
+              ? '[Evolution] Webhook ligado em /api/webhooks/whatsapp (chatbot ativo)'
+              : '[Evolution] Webhook desligado — o número só dispara notificação');
           } else {
-            console.error(`[Evolution] Webhook NÃO configurado na instância "${evoInstance}" — ${ultimoErro}`);
+            console.error(`[Evolution] Não consegui ${chatbotWhatsAppLigado ? 'ligar' : 'desligar'} o webhook na instância "${evoInstance}" — ${ultimoErro}`);
           }
         }
       } catch (whErr) { console.error('[Evolution] Erro ao configurar webhook:', whErr.message); }
@@ -6084,6 +6110,14 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // ── WHATSAPP CHATBOT — BILL VIA WHATSAPP ─────────────────────
     if (url.includes('/api/webhooks/whatsapp')) {
       if (method === 'POST') {
+        // Trava dupla. Mesmo com o webhook desligado na Evolution, uma
+        // instância antiga ou um reenvio na fila ainda pode bater aqui — e
+        // todo caminho abaixo termina em sendWAReply. Com o chatbot desligado
+        // a mensagem morre nesta linha, sem resposta ao lojista.
+        if (!chatbotWhatsAppLigado) {
+          return res.status(200).json({ ignored: 'chatbot_desligado' });
+        }
+
         const segredoWa = process.env.WHATSAPP_WEBHOOK_SECRET;
         if (segredoWa) {
           const enviadoWa = searchParams.get('secret') || req.headers['x-webhook-secret'] || '';
