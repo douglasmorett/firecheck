@@ -19,7 +19,12 @@ export default function PontoModule({ userProfile }) {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [pontoMonth, setPontoMonth] = useState(new Date().toISOString().substring(0, 7));
+  // Mês no dia de SÃO PAULO: com toISOString() (UTC), aberto depois das 21h
+  // do último dia do mês, o espelho vinha pré-selecionado no mês SEGUINTE —
+  // vazio, bem na hora do fechamento da folha.
+  const [pontoMonth, setPontoMonth] = useState(
+    new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }).substring(0, 7)
+  );
 
   const fetchEmployees = async () => {
     try {

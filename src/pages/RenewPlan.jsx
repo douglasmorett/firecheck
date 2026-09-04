@@ -6,7 +6,13 @@ import { Capacitor } from '@capacitor/core';
 export default function RenewPlan() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const email = searchParams.get('email') || '';
+  // Sem o e-mail na URL (link antigo, acesso direto), cai no e-mail de quem
+  // está logado neste aparelho: o pagamento na Cakto precisa casar com a conta
+  // — pagar com outro e-mail deixa o webhook sem saber quem ativar.
+  const emailLogado = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}').email || ''; } catch { return ''; }
+  })();
+  const email = searchParams.get('email') || emailLogado;
   const [billingCycle, setBillingCycle] = useState('anual'); // 'mensal' ou 'anual'
 
   const PLANS = [

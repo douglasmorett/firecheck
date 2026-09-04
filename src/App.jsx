@@ -33,6 +33,14 @@ class ErrorBoundary extends Component {
 
   handleReset = () => {
     try {
+      // Se a quebra pegou o gestor em Modo Simulação, apagar só o backup o
+      // deixaria preso no perfil do colaborador — sem a faixa de aviso e sem o
+      // botão de voltar, e tudo que ele preenchesse entraria como execução
+      // oficial em nome do funcionário. Por isso o backup volta para 'user'
+      // antes de sair, o mesmo caminho do "Voltar para a minha conta" da
+      // BarraDeAcessoRemoto.
+      const backup = localStorage.getItem('firecheck_admin_backup');
+      if (backup) localStorage.setItem('user', backup);
       localStorage.removeItem('firecheck_admin_backup');
       localStorage.removeItem('firecheck_impersonated');
     } catch {}
@@ -41,7 +49,20 @@ class ErrorBoundary extends Component {
 
   handleFullClear = () => {
     try {
-      localStorage.clear();
+      // Remoção cirúrgica em vez de localStorage.clear(): a fila offline
+      // (firecheck_offline_queue) guarda checklists já preenchidos esperando
+      // internet e as chaves firecheck_draft_* guardam rascunhos em andamento —
+      // um clear() aqui destruiria esse trabalho para sempre, logo abaixo de
+      // uma mensagem que promete "Seus dados continuam seguros". Só sai o que
+      // é sessão; o resto o login recria ou sincroniza sozinho.
+      [
+        'user',
+        'firecheck_token',
+        'firecheck_admin_backup',
+        'firecheck_impersonated',
+        'firecheck_email',
+        'admin_active_tab'
+      ].forEach((chave) => localStorage.removeItem(chave));
       sessionStorage.clear();
     } catch {}
     window.location.href = '/login';
@@ -119,6 +140,12 @@ class ErrorBoundary extends Component {
               >
                 Limpar Cache e Fazer Login Novamente
               </button>
+              {/* Sem esta linha o funcionário com checklists na fila offline
+                  não tem como saber se o botão apaga o trabalho dele — e a
+                  dúvida faria ele não tocar nem quando precisa. */}
+              <p style={{ color: '#64748b', fontSize: '0.75rem', margin: 0, lineHeight: '1.4' }}>
+                Checklists aguardando envio e rascunhos em andamento são mantidos.
+              </p>
             </div>
           </div>
         </div>

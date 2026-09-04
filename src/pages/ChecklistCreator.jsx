@@ -419,7 +419,10 @@ export default function ChecklistCreator() {
             setCategory(cl.category || 'geral');
             setRequireSignature(cl.require_signature || false);
             setAssetLinkType(cl.asset_link_type || '');
-            setTasks(cl.tasks || []);
+            // Checklists criados pelo robô de WhatsApp chegam sem id nas tarefas;
+            // como updateTask/removeTask casam por t.id, id undefined em todas faz
+            // digitar numa espelhar em todas e excluir uma apagar todas. Garante id aqui.
+            setTasks((cl.tasks || []).map((t, i) => (t.id != null ? t : { ...t, id: Date.now() + i })));
             setWeekdays(cl.weekdays || []);
             setAssignedTo(Array.isArray(cl.assigned_to) ? cl.assigned_to : []);
           }
@@ -633,11 +636,14 @@ export default function ChecklistCreator() {
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   📅 {recurrence === '' ? 'Data de Execução' : 'A partir de qual data'}
                 </label>
+                {/* min no dia de SP, não UTC: depois das 21h toISOString() já é amanhã
+                    e o calendário bloquearia marcar o checklist único para hoje — igual
+                    ao corte de dia operacional que o servidor já faz. */}
                 <input
                   type="date"
                   className="input-field"
                   value={scheduledDate}
-                  min={recurrence === '' ? new Date().toISOString().split('T')[0] : undefined}
+                  min={recurrence === '' ? new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }) : undefined}
                   onChange={e => setScheduledDate(e.target.value)}
                   onClick={(e) => e.target.showPicker?.()}
                   style={{ cursor: 'pointer' }}

@@ -5,6 +5,13 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 
+// O dia operacional é o de SÃO PAULO — a MESMA régua do ChecklistExecution,
+// que grava o rascunho sob esta chave. Com toISOString() (UTC), das 21h à
+// meia-noite o escritor salvava sob um dia e este painel procurava no outro:
+// o selo "Em andamento X%" sumia bem na hora do fechamento.
+const diaDeSaoPaulo = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
 
 const handle401 = (res, navigate) => {
   if (res.status === 401) {
@@ -14,6 +21,22 @@ const handle401 = (res, navigate) => {
   }
   return res;
 };
+
+// O navegador dispara 'beforeinstallprompt' UMA única vez, logo após o
+// carregamento — em geral com a pessoa ainda no /login. Um listener registrado
+// só quando alguma tela monta chega tarde demais, e o botão "WebApp" caía
+// sempre nas instruções manuais mesmo onde o prompt nativo existia. Este
+// módulo é importado estaticamente pelo App, então este código roda no boot,
+// antes do primeiro render — a tempo de capturar o evento para qualquer tela.
+if (typeof window !== 'undefined' && !window.__firecheckPwaListenerRegistrado) {
+  window.__firecheckPwaListenerRegistrado = true;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Sem o preventDefault o Chrome consome o evento na mini-barra dele e
+    // .prompt() deixa de funcionar depois.
+    e.preventDefault();
+    window.__firecheckPwaPrompt = e;
+  });
+}
 
 const setupPushNotifications = async (email) => {
   try {
@@ -263,8 +286,10 @@ export default function EmployeeDashboard() {
       console.log(`[Offline Sync] Sincronizando ${queue.length} checklists pendentes...`);
       const newQueue = [];
       const recusados = [];
-      
-      for (const item of queue) {
+      let resposta401 = null;
+
+      for (let i = 0; i < queue.length; i++) {
+        const item = queue[i];
         try {
           const res = await fetch(`${API_URL}/api/finalize`, {
             method: 'POST',
@@ -286,6 +311,14 @@ export default function EmployeeDashboard() {
                 body: JSON.stringify({ submissionId: data.id })
               }).catch(() => {});
             }
+          } else if (res.status === 401) {
+            // Sessão vencida (o JWT dura 7 dias) NÃO é recusa do checklist:
+            // o trabalho preenchido offline, com fotos, tem que sobreviver ao
+            // relogin. Este item e os ainda não tentados voltam para a fila —
+            // insistir agora só renderia mais 401 com o mesmo token morto.
+            newQueue.push(...queue.slice(i));
+            resposta401 = res;
+            break;
           } else if (res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429) {
             // Recusa definitiva do servidor (checklist já enviado hoje, cota
             // estourada, dados inválidos). Reenviar isso para sempre nunca daria
@@ -308,6 +341,13 @@ export default function EmployeeDashboard() {
       }
 
       localStorage.setItem('firecheck_offline_queue', JSON.stringify(newQueue));
+      if (resposta401) {
+        // Leva ao login sem descartar nada: a fila fica no localStorage, e
+        // quando o funcionário relogar e voltar a esta tela o efeito remonta
+        // e reenviará tudo com o token novo (chamada na montagem, logo abaixo).
+        handle401(resposta401, navigate);
+        return;
+      }
       if (newQueue.length < queue.length && userProfile) {
         fetchChecklists(userProfile);
       }
@@ -324,7 +364,7 @@ export default function EmployeeDashboard() {
       window.removeEventListener('offline', updateOnlineStatus);
       window.removeEventListener('online', syncOfflineQueue);
     };
-  }, [userProfile, fetchChecklists]);
+  }, [userProfile, fetchChecklists, navigate]);
 
   // A foto é opcional e some se der errado: o relato é que não pode se perder.
   // Comprime como o checklist já faz — foto de celular em base64 estoura o
@@ -411,7 +451,7 @@ export default function EmployeeDashboard() {
 
   const getDraftProgress = (type, id) => {
     if (!userProfile?.id || !id) return { percent: 0, doneCount: 0, totalCount: 0, isStarted: false };
-    const today = new Date().toISOString().split('T')[0];
+    const today = diaDeSaoPaulo();
     const draftKey = `firecheck_draft_${type}_${userProfile.id}_${id}_${today}`;
     try {
       const raw = localStorage.getItem(draftKey);
@@ -427,7 +467,9 @@ export default function EmployeeDashboard() {
         } else if (t.type === 'stock') {
           if (t.done !== '' && t.done !== null && t.done !== undefined) doneCount++;
         } else {
-          if (t.done !== null && t.done !== undefined && t.done !== '' && t.done !== false) doneCount++;
+          // 'false' É resposta: quem respondeu "Não" respondeu — descontar o
+          // false travava a barra e o selo abaixo de 100% num checklist completo.
+          if (t.done !== null && t.done !== undefined && t.done !== '') doneCount++;
           else if (t.photo || (Array.isArray(t.photos) && t.photos.length > 0)) doneCount++;
         }
       });
@@ -752,7 +794,9 @@ export default function EmployeeDashboard() {
                 
                 const todayDate = new Date();
                 const dayOfWeek = todayDate.getDay();
-                const dateString = todayDate.toISOString().split('T')[0];
+                // Data no dia de SP: com toISOString() (UTC), a vistoria com
+                // data marcada aparecia/sumia 3 horas antes da virada real.
+                const dateString = diaDeSaoPaulo();
                 
                 if (vehicle.schedule_type === 'daily') return true;
                 if (vehicle.schedule_type === 'weekdays') {

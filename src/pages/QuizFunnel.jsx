@@ -118,10 +118,13 @@ export default function QuizFunnel() {
 
   if (isProcessing) {
     return (
-      <div style={{ backgroundColor: 'var(--text-main)', color: '#0f172a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
+      // O fundo desta tela é var(--text-main) (#18181B — o tema único do index.css é claro, e aqui a
+      // variável de TEXTO é usada como fundo escuro): o texto direto sobre ele precisa ser claro,
+      // senão a mensagem de carregamento fica invisível.
+      <div style={{ backgroundColor: 'var(--text-main)', color: '#f8fafc', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px', textAlign: 'center' }}>
         <Loader2 size={60} color="#22c55e" style={{ animation: 'spin 1s linear infinite', marginBottom: '24px' }} />
         <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{loadingText}</h2>
-        <p style={{ color: 'var(--text-muted)', marginTop: '16px', maxWidth: '400px' }}>Nossa Inteligência Artificial está processando suas respostas para encontrar o real prejuízo oculto na sua operação.</p>
+        <p style={{ color: '#94a3b8', marginTop: '16px', maxWidth: '400px' }}>Nossa Inteligência Artificial está processando suas respostas para encontrar o real prejuízo oculto na sua operação.</p>
       </div>
     );
   }
@@ -172,7 +175,8 @@ export default function QuizFunnel() {
       <div style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ maxWidth: '700px', width: '100%', textAlign: 'center' }}>
           
-          <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: '#ffffff' }}>
+          {/* Esta seção fica sobre var(--bg-color) (#F4F4F5, claro): branco aqui desaparece no fundo */}
+          <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: 'bold', marginBottom: '16px', lineHeight: '1.2', color: 'var(--text-main)' }}>
             A sua equipe só funciona de verdade quando <span style={{ color: '#ef4444' }}>você está lá?</span>
           </h1>
           <p style={{ fontSize: '1.1rem', color: '#94a3b8', marginBottom: '24px' }}>
@@ -284,7 +288,10 @@ export default function QuizFunnel() {
               key={idx}
               onClick={() => handleAnswer(idx)}
               style={{
-                backgroundColor: 'var(--text-main)', border: '2px solid #e2e8f0', color: '#1e293b',
+                // Mesmo #f8fafc que o onMouseOut/onTouchEnd já aplicam: no celular (onde chega o
+                // tráfego pago) não existe hover, então esta cor base é a única que o lead vê —
+                // var(--text-main) é #18181B no tema único e deixava texto escuro sobre fundo escuro.
+                backgroundColor: '#f8fafc', border: '2px solid #e2e8f0', color: '#1e293b',
                 padding: '20px', borderRadius: '12px', fontSize: '1.1rem', textAlign: 'left',
                 cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '12px', fontWeight: '500'
               }}

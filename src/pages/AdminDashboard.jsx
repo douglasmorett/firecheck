@@ -92,6 +92,13 @@ const trialInfo = (conta) => {
   return `Termina em ${data}, daqui a ${dias} dia(s).`;
 };
 
+// Dia operacional (YYYY-MM-DD) no fuso de São Paulo — o mesmo corte que o
+// servidor usa. toISOString() devolve o dia UTC, que vira às 21h de SP: o
+// formulário de batida manual vinha pré-preenchido com amanhã e o espelho de
+// ponto abria no mês seguinte na noite do último dia do mês.
+const diaOperacionalSP = () =>
+  new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
 // ── Planos comerciais ────────────────────────────────────────────────────────
 // Fonte única de preço e link de pagamento dentro do painel, espelhando a landing
 // page. Antes cada tela repetia os valores e eles divergiram: o paywall anunciava
@@ -588,7 +595,7 @@ export default function AdminDashboard() {
   const [pontoExportPeriod, setPontoExportPeriod] = useState('mes_atual');
   const [pontoCustomDates, setPontoCustomDates] = useState({ start: '', end: '' });
   const [pontoRecords, setPontoRecords] = useState([]);
-  const [pontoMonth, setPontoMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [pontoMonth, setPontoMonth] = useState(diaOperacionalSP().slice(0, 7));
   const [pontoFilterEmployee, setPontoFilterEmployee] = useState('todos');
   const [showPontoPanel, setShowPontoPanel] = useState(false);
   const [pontoPhotoPreview, setPontoPhotoPreview] = useState(null);
@@ -597,7 +604,7 @@ export default function AdminDashboard() {
   const [pontoManualForm, setPontoManualForm] = useState({
     userId: '',
     type: 'entrada',
-    date: new Date().toISOString().slice(0, 10),
+    date: diaOperacionalSP(),
     time: '08:00',
     notes: ''
   });
@@ -755,8 +762,11 @@ export default function AdminDashboard() {
     if (user.wa_ocorrencia !== undefined) setWaOcorrencia(user.wa_ocorrencia);
     if (user.wa_descarte !== undefined) setWaDescarte(user.wa_descarte);
     
-    // Proteção extra: se for funcionário, não deixa ver o admin
-    if (user.role === 'employee') {
+    // Proteção extra: se for funcionário, não deixa ver o admin.
+    // O papel que a API grava é 'funcionario' — 'employee' é nomenclatura antiga
+    // que nunca casava, então qualquer funcionário digitando /admin abria o
+    // painel do gestor com a equipe inteira. Gestor continua passando.
+    if (user.role === 'funcionario' || user.role === 'employee') {
       navigate('/funcionario');
       return;
     }
@@ -1078,7 +1088,7 @@ export default function AdminDashboard() {
         setPontoManualForm({
           userId: '',
           type: 'entrada',
-          date: new Date().toISOString().slice(0, 10),
+          date: diaOperacionalSP(),
           time: '08:00',
           notes: ''
         });
@@ -2390,13 +2400,25 @@ export default function AdminDashboard() {
 
   const isTrialExpired = () => {
     if (!userProfile) return false;
-    if (userProfile.status === 'blocked' || userProfile.status === 'pending') return true;
-    if (userProfile.status === 'trial') {
+    // Colaborador herda a situação do ADMIN da loja — a mesma regra do login no
+    // backend. O webhook de pagamento só ativa a linha do comprador: o gestor
+    // criado no trial fica com status 'trial' para sempre no próprio row e este
+    // paywall travava a tela numa loja que já paga. O admin vem no mesmo fetch
+    // de /api/users que alimenta `team`; enquanto ele não carrega, não bloqueia
+    // (o backend já aplicou a regra do admin ao autorizar este login).
+    let conta = userProfile;
+    if (userProfile.role === 'gestor' || userProfile.role === 'funcionario') {
+      const adminDaLoja = (team || []).find(u => u.role === 'admin');
+      if (!adminDaLoja) return false;
+      conta = adminDaLoja;
+    }
+    if (conta.status === 'blocked' || conta.status === 'pending') return true;
+    if (conta.status === 'trial') {
       // Usa a mesma regra do backend: quando há trial_ends_at, é ele que vale.
       // Antes esta tela contava sempre 7 dias desde a criação e ignorava a
       // extensão concedida no painel — o cliente com teste estendido continuava
       // preso na tela de pagamento.
-      const dias = diasRestantesDeTeste(userProfile);
+      const dias = diasRestantesDeTeste(conta);
       return dias !== null && dias < 0;
     }
     return false;
@@ -2786,10 +2808,13 @@ export default function AdminDashboard() {
             </div>
             {/* Dizia apenas "Assinar Plano Agora" e levava ao checkout anual de
                 Só Checklists, sem informar plano nem valor. Agora o botão diz para
-                onde leva, com preço e link vindos de PLANOS_COMERCIAIS. */}
+                onde leva, com preço e link vindos de PLANOS_COMERCIAIS.
+                O e-mail vai na URL porque o webhook da Cakto casa o pagamento
+                com a conta pelo e-mail: sem ele, o cliente digita outro no
+                checkout e o pagamento cria uma conta nova em vez de ativar esta. */}
             <button
               className="btn"
-              onClick={() => navigate('/renovar')}
+              onClick={() => navigate(`/renovar?email=${encodeURIComponent(userProfile?.email || '')}`)}
               style={{ whiteSpace: 'nowrap' }}
             >
               Ver planos e assinar
@@ -4061,7 +4086,10 @@ export default function AdminDashboard() {
                 if (alerts.length === 0) return null;
                 
                 return alerts.map(([taskId, feedback]) => {
-                  const task = s.tasks.find(t => t.id === taskId);
+                  // As chaves de feedback_info chegam como string (chave de JSON),
+                  // mas os ids das tarefas são números — sem coerção o find nunca
+                  // casava e todo alerta virava "Tarefa Desconhecida".
+                  const task = s.tasks.find(t => String(t.id) === String(taskId));
                   return (
                     <div key={`${s.id}-${taskId}`} style={{ 
                       padding: '16px', 

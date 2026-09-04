@@ -1,7 +1,7 @@
 {
   "name": "FireCheck",
   "short_name": "FireCheck",
-  "start_url": "/",
+  "start_url": "/login",
   "display": "standalone",
   "background_color": "#0a0b0f",
   "theme_color": "#ff4d00",

@@ -13,6 +13,12 @@ const getAuthHeaders = () => ({
 // sobrescrever a resposta real do funcionário. Vazio significa "sem limite".
 const temLimite = (v) => v !== undefined && v !== null && v !== '';
 
+// Dia operacional no fuso de São Paulo — a MESMA régua do servidor, que grava
+// created_at em UTC e corta o dia com helpers de SP. toISOString() vira o dia
+// às 21h de SP: rascunho e submissão de hoje "sumiam" bem na hora do fechamento.
+const diaDeSaoPaulo = (valor) =>
+  (valor ? new Date(valor) : new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+
 const handle401 = (res, navigate) => {
   if (res.status === 401) {
     localStorage.removeItem('user');
@@ -59,6 +65,11 @@ export default function ChecklistExecution() {
 
   const [activeCameraTaskId, setActiveCameraTaskId] = useState(null);
   const [selfie, setSelfie] = useState(null);
+  // O botão do modal diz "Capturar e Finalizar": capturada a selfie, o envio tem
+  // que continuar sozinho. Não dá para chamar handleFinish no próprio clique — o
+  // closure ainda veria selfie = null e reabriria a câmera. O flag é consumido
+  // por um efeito que roda no render seguinte, já com a selfie no estado.
+  const [finalizarAposSelfie, setFinalizarAposSelfie] = useState(false);
   const [showSelfieModal, setShowSelfieModal] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -145,7 +156,7 @@ export default function ChecklistExecution() {
           setRequireSelfie(false);
           setRequireSignature(false);
 
-          const today = new Date().toISOString().split('T')[0];
+          const today = diaDeSaoPaulo();
           const draftKey = profile.id ? `firecheck_draft_shopping_${profile.id}_${shoppingListId}_${today}` : null;
           let savedDraft = null;
           if (draftKey) {
@@ -197,7 +208,7 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
             
-            const today = new Date().toISOString().split('T')[0];
+            const today = diaDeSaoPaulo();
             const draftKey = profile.id ? `firecheck_draft_vehicle_${profile.id}_${vehicleId}_${today}` : null;
             let savedDraft = null;
             if (draftKey && !vehicle.completed_today) {
@@ -224,20 +235,34 @@ export default function ChecklistExecution() {
             
             // Buscar os detalhes da submissão se já estiver concluído
             if (vehicle.completed_today) {
+              const authHeaders = { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') };
               fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`, {
-                headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+                headers: authHeaders
               })
               .then(res => res.json())
               .then(subs => {
-                const today = new Date().toISOString().split('T')[0];
-                const mySub = subs.find(s => s.vehicle_id === vehicle.id && s.created_at.startsWith(today));
-                if (mySub) {
-                  setTasks(mySub.tasks);
-                  setAIFeedback(mySub.feedback_info || {});
-                  setSelfie(mySub.selfie);
-                  setSignature(mySub.signature);
-                }
-              });
+                // O dia é comparado no fuso de SP: o servidor marca completed_today
+                // pela régua de SP, mas created_at chega em UTC — depois das 21h o
+                // prefixo UTC já é "amanhã" e a vistoria feita hoje abria em branco.
+                const hoje = diaDeSaoPaulo();
+                const mySub = Array.isArray(subs)
+                  ? subs.find(s => s.vehicle_id === vehicle.id && diaDeSaoPaulo(s.created_at) === hoje)
+                  : null;
+                if (!mySub) return null;
+                // A listagem troca fotos/assinatura pelo marcador "[imagem]" para não
+                // pesar; as imagens reais só vêm no detalhe por ?id=.
+                return fetch(`${API_URL}/api/submissions?id=${mySub.id}`, { headers: authHeaders })
+                  .then(r => r.ok ? r.json() : mySub)
+                  .catch(() => mySub);
+              })
+              .then(sub => {
+                if (!sub) return;
+                setTasks(sub.tasks);
+                setAIFeedback(sub.feedback_info || {});
+                setSelfie(sub.selfie);
+                setSignature(sub.signature);
+              })
+              .catch(() => {});
             }
           }
         }
@@ -291,7 +316,7 @@ export default function ChecklistExecution() {
               setSubmitted(true);
             }
 
-            const today = new Date().toISOString().split('T')[0];
+            const today = diaDeSaoPaulo();
             const draftKey = profile.id ? `firecheck_draft_checklist_${profile.id}_${cl.id}_${today}` : null;
             let savedDraft = null;
             if (draftKey && !cl.completedToday) {
@@ -331,19 +356,33 @@ export default function ChecklistExecution() {
 
             // Buscar os detalhes da submissão se já estiver concluído
             if (cl.completedToday) {
+              const authHeaders = { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') };
               fetch(`${API_URL}/api/submissions?store=${encodeURIComponent(profile.store)}`, {
-                  headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') }
+                  headers: authHeaders
                 })
                 .then(res => { handle401(res, navigate); return res.json(); })
                 .then(subs => {
-                  const today = new Date().toISOString().split('T')[0];
-                  const mySub = subs.find(s => s.checklist_id === cl.id && s.created_at.startsWith(today));
-                  if (mySub) {
-                    setTasks(mySub.tasks);
-                    setAIFeedback(mySub.feedback_info || {});
-                    setSelfie(mySub.selfie);
-                  }
-                });
+                  // Dia comparado no fuso de SP: completedToday vem da régua de SP do
+                  // servidor, mas created_at é UTC — depois das 21h o prefixo UTC já é
+                  // "amanhã" e o checklist concluído abria sem as respostas.
+                  const hoje = diaDeSaoPaulo();
+                  const mySub = Array.isArray(subs)
+                    ? subs.find(s => s.checklist_id === cl.id && diaDeSaoPaulo(s.created_at) === hoje)
+                    : null;
+                  if (!mySub) return null;
+                  // A listagem troca as fotos pelo marcador "[imagem]"; as imagens
+                  // reais só vêm no detalhe por ?id=.
+                  return fetch(`${API_URL}/api/submissions?id=${mySub.id}`, { headers: authHeaders })
+                    .then(r => r.ok ? r.json() : mySub)
+                    .catch(() => mySub);
+                })
+                .then(sub => {
+                  if (!sub) return;
+                  setTasks(sub.tasks);
+                  setAIFeedback(sub.feedback_info || {});
+                  setSelfie(sub.selfie);
+                })
+                .catch(() => {});
             }
           }
         }
@@ -359,7 +398,7 @@ export default function ChecklistExecution() {
   useEffect(() => {
     if (loading || submitted || isReadOnly || !userProfile?.id) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = diaDeSaoPaulo();
     let key = null;
     if (shoppingListId) {
       key = `firecheck_draft_shopping_${userProfile.id}_${shoppingListId}_${today}`;
@@ -374,6 +413,9 @@ export default function ChecklistExecution() {
     const hasProgress = tasks.some(t => {
       if (t.type === 'itemlist') return Array.isArray(t.done) && t.done.length > 0;
       if (t.type === 'stock') return t.done !== '' && t.done !== null && t.done !== undefined;
+      // "Não" (false) em pergunta Sim/Não é resposta dada: sem esta linha, um
+      // rascunho só com "Não" nunca era salvo e o preenchimento se perdia.
+      if (t.type === 'boolean') return t.done === true || t.done === false;
       return t.done !== null && t.done !== undefined && t.done !== '' && t.done !== false;
     }) || Boolean(selfie) || Boolean(signature);
 
@@ -395,7 +437,7 @@ export default function ChecklistExecution() {
         setDraftSavedStatus(false);
         // Libera espaço descartando rascunhos de outros dias e tenta uma vez mais.
         try {
-          const hoje = new Date().toISOString().split('T')[0];
+          const hoje = diaDeSaoPaulo();
           for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
             if (k && k.startsWith('firecheck_draft_') && !k.endsWith(hoje)) localStorage.removeItem(k);
@@ -413,7 +455,7 @@ export default function ChecklistExecution() {
 
   // Helper para limpar rascunho ao finalizar
   const clearCurrentDraft = () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = diaDeSaoPaulo();
     if (userProfile?.id) {
       if (shoppingListId) {
         localStorage.removeItem(`firecheck_draft_shopping_${userProfile.id}_${shoppingListId}_${today}`);
@@ -666,6 +708,7 @@ export default function ChecklistExecution() {
     setSelfie(photoUrl);
     setShowSelfieModal(false);
     stopCamera();
+    setFinalizarAposSelfie(true);
   };
 
   const startSelfieCamera = async () => {
@@ -725,6 +768,7 @@ export default function ChecklistExecution() {
         setSelfie(photoUrl);
         setShowSelfieModal(false);
         stopCamera();
+        setFinalizarAposSelfie(true);
       };
       img.src = event.target.result;
     };
@@ -808,7 +852,10 @@ export default function ChecklistExecution() {
         alert('É obrigatório enviar a foto das tarefas exigidas antes de finalizar.');
         return;
       }
-      if (category === 'veiculo' && !selectedVehicleId) {
+      // Pela rota do veículo (/execucao/veiculo/:id) o veículo JÁ está na URL
+      // e o seletor nem é renderizado — exigir selectedVehicleId aqui era um
+      // beco sem saída: "Selecione o veículo" sem seletor nenhum na tela.
+      if (category === 'veiculo' && !vehicleId && !selectedVehicleId) {
         alert('Selecione o veículo inspecionado antes de finalizar.');
         return;
       }
@@ -863,6 +910,12 @@ export default function ChecklistExecution() {
       return;
     }
 
+    // A trava fecha ANTES da espera da conferência, não só na hora do fetch: era
+    // nesta janela, com o botão ainda ativo mostrando "Conferindo as fotos…", que
+    // o segundo toque disparava um segundo envio quase simultâneo — e o guarda de
+    // duplicata do servidor não pega, porque o primeiro INSERT ainda não existe.
+    setIsSubmitting(true);
+
     // ── Porta de saída: nada reprovado passa sem ele saber ──────────────────
     //
     // Espera pelas conferências que ainda estão voltando. Sem isto, quem termina
@@ -881,6 +934,9 @@ export default function ChecklistExecution() {
 
     const reprovadas = tasks.filter(t => aiFeedbackRef.current[t.id]?.resultado === 'reprovado');
     if (reprovadas.length > 0 && !cienteConfirmado) {
+      // A decisão volta para o funcionário: o botão precisa destravar para ele
+      // poder refazer a foto e finalizar de novo.
+      setIsSubmitting(false);
       setJustificativa('');
       setGateReprovacao(reprovadas.map(t => ({
         id: t.id,
@@ -935,7 +991,6 @@ export default function ChecklistExecution() {
       }
     };
 
-    setIsSubmitting(true);
     try {
       let res;
       try {
@@ -996,8 +1051,22 @@ export default function ChecklistExecution() {
     }
   };
 
+  // Retoma o envio prometido pelo "Capturar e Finalizar" da selfie. Roda num
+  // efeito porque só aqui a selfie recém-capturada já está no estado — dentro de
+  // takeSelfie o handleFinish ainda a veria como null e reabriria a câmera.
+  useEffect(() => {
+    if (finalizarAposSelfie && selfie) {
+      setFinalizarAposSelfie(false);
+      handleFinish();
+    }
+  }, [finalizarAposSelfie, selfie]);
+
   const completedCount = tasks.filter(t => {
     if (t.type === 'itemlist') return Array.isArray(t.done) && t.done.length > 0;
+    // Em pergunta Sim/Não, "Não" (false) é resposta dada. Descontá-la do
+    // progresso empurrava o funcionário a trocar um "Não" honesto por "Sim"
+    // só para ver a barra chegar a 100% — exatamente o dado que não pode mentir.
+    if (t.type === 'boolean') return t.done === true || t.done === false;
     return t.done !== null && t.done !== false && t.done !== '';
   }).length;
   const progress = Math.round((completedCount / (tasks.length || 1)) * 100);
@@ -1244,7 +1313,11 @@ export default function ChecklistExecution() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {tasks.map((task, index) => {
-          const isDone = task.done !== null && task.done !== false && task.done !== '';
+          // "Não" numa pergunta Sim/Não é resposta dada: o card ganha o visto
+          // verde igual, senão parece tarefa esquecida (mesma regra do progresso).
+          const isDone = task.type === 'boolean'
+            ? (task.done === true || task.done === false)
+            : (task.done !== null && task.done !== false && task.done !== '');
           const prevTask = index > 0 ? tasks[index - 1] : null;
           const showSectionHeader = task.section && (!prevTask || prevTask.section !== task.section);
           

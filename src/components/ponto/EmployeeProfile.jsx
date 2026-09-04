@@ -127,9 +127,10 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
   };
 
   const filteredRecords = pontoRecords.filter(r => {
-    const rDate = new Date(r.timestamp);
-    const rMonthStr = `${rDate.getFullYear()}-${String(rDate.getMonth() + 1).padStart(2, '0')}`;
-    return rMonthStr === filterMonth;
+    // O mês sai do texto do timestamp (hora de parede da loja): passar por
+    // new Date() deslocava -3h e a batida da madrugada do dia 1 caía no mês
+    // anterior — o registro sumia dos dois meses do espelho.
+    return String(r.timestamp || '').slice(0, 7) === filterMonth;
   });
 
   const totalRegistros = filteredRecords.length;
@@ -186,13 +187,19 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
            const dayRecords = filteredRecords.filter(r => r.timestamp.split('T')[0] === currentDateStr);
            const entrada = Array.isArray(dayRecords) ? dayRecords.find(r => r.type === 'entrada') : null;
            if (entrada) {
-             const entDate = new Date(entrada.timestamp);
-             const [h, m] = wdInfo.hora_entrada.split(':').map(Number);
-             const expectedDate = new Date(currentDate);
-             expectedDate.setHours(h, m, 0, 0);
-             const diffMins = (entDate - expectedDate) / 60000;
-             if (diffMins > (scheduleObj.tolerancia || 15)) {
-               atrasos++;
+             // O timestamp guarda a hora de parede da loja com um 'Z' postiço:
+             // new Date() deslocava a batida ~3h para trás e nenhum atraso real
+             // passava da tolerância (o card vivia em 0). Comparamos minuto de
+             // parede com minuto de parede, como o extrato já faz para exibir.
+             const horaBatida = entrada.hora_local
+               || String(entrada.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1];
+             if (horaBatida) {
+               const [bh, bm] = horaBatida.split(':').map(Number);
+               const [h, m] = wdInfo.hora_entrada.split(':').map(Number);
+               const diffMins = (bh * 60 + bm) - (h * 60 + m);
+               if (diffMins > (scheduleObj.tolerancia || 15)) {
+                 atrasos++;
+               }
              }
            }
         }

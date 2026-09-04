@@ -39,10 +39,14 @@ export default function ShoppingExecution() {
         const data = await itemsRes.json();
         setItems(data);
         
-        // Inicializar valores com o estoque atual se houver, ou vazio
+        // Campos começam VAZIOS de propósito: current_stock guarda a conferência
+        // anterior, e pré-preencher deixava o required de todos os inputs já
+        // satisfeito — um toque em Finalizar enviava os números da semana passada
+        // como contagem de hoje. Vazio força digitação real; a última contagem
+        // aparece só como referência ao lado de cada item.
         const initialMap = {};
         data.forEach(item => {
-          initialMap[item.id] = item.current_stock !== null && item.current_stock !== undefined ? String(item.current_stock) : '';
+          initialMap[item.id] = '';
         });
         setStockValues(initialMap);
       }
@@ -128,6 +132,35 @@ export default function ShoppingExecution() {
     return (
       <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
         <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%' }}></div>
+      </div>
+    );
+  }
+
+  // Já conferida hoje: o painel de um colega aberto antes ainda mostra a lista como
+  // pendente, e um segundo envio sobrescreveria a contagem do primeiro e dispararia
+  // outro WhatsApp ao gestor — por isso a tela trava aqui em vez de abrir o formulário.
+  // (!submitted preserva a tela de sucesso de quem acabou de enviar: nesse caso o
+  // listInfo em memória ainda veio do fetch de antes do envio.)
+  if (!submitted && listInfo?.completed_today) {
+    return (
+      <div className="page-container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '40px' }}>
+        <div className="card animate-scale" style={{ padding: '36px 24px', borderRadius: '20px', borderTop: '6px solid var(--success)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <CheckCircle size={36} />
+          </div>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>Conferência já realizada hoje</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '24px' }}>
+            Esta lista já foi conferida hoje por <strong>{listInfo.completed_by || 'outro colaborador'}</strong>.
+            Não é preciso contar de novo — uma nova conferência será liberada amanhã.
+          </p>
+          <button
+            onClick={() => navigate('/funcionario')}
+            className="btn"
+            style={{ width: '100%', padding: '14px', fontSize: '1rem', backgroundColor: '#0f172a', color: 'white', borderRadius: '12px', fontWeight: 'bold' }}
+          >
+            Voltar para o Início
+          </button>
+        </div>
       </div>
     );
   }
@@ -253,6 +286,13 @@ export default function ShoppingExecution() {
                     <strong style={{ fontSize: '0.95rem', color: 'var(--primary)' }}>
                       {item.min_stock || 0} {item.unit || 'un'}
                     </strong>
+                    {/* Só referência: o valor NÃO entra no campo, senão o funcionário
+                        reenviaria a contagem antiga sem conferir nada. */}
+                    {item.current_stock !== null && item.current_stock !== undefined && (
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', marginTop: '2px' }}>
+                        Última conferência: {item.current_stock} {item.unit || 'un'}
+                      </span>
+                    )}
                   </div>
                 </div>
 
