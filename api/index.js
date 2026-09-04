@@ -27,6 +27,35 @@ pool.on('error', (err) => {
   console.error('[pg] erro em conexão ociosa:', err.message);
 });
 
+// ── O DIA DO FIRECHECK É O DIA DE SÃO PAULO ─────────────────────────────────
+//
+// O banco grava created_at em UTC (now() da Neon; a Vercel roda em UTC). "Hoje"
+// calculado com toISOString() também é UTC — e aí o dia do sistema virava às
+// 21:00 de Brasília: um FECHAMENTO feito às 22h de ontem continuava "Concluído
+// hoje" até as 21h do dia seguinte, e o guarda de duplicata respondia "já foi
+// realizado hoje" para o fechamento de HOJE (visto na loja Osaka em 04/09/2026,
+// meio-dia, com o card de ontem ainda finalizado).
+//
+// O Brasil não tem horário de verão desde 2019: o offset é fixo -03:00, então
+// 00:00 em São Paulo é 03:00 no relógio UTC do banco.
+const diaDeSaoPaulo = (d = new Date()) =>
+  d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+/** Começo do dia de SP expresso no relógio UTC do banco: 'YYYY-MM-DD 03:00:00'. */
+const inicioDoDiaSPemUTC = () => diaDeSaoPaulo() + ' 03:00:00';
+/** Fim do dia de SP no relógio UTC: 02:59:59 do dia UTC seguinte. */
+const fimDoDiaSPemUTC = () => {
+  const d = new Date(diaDeSaoPaulo() + 'T00:00:00-03:00');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10) + ' 02:59:59';
+};
+/** Filtro vindo do painel ('YYYY-MM-DD' no fuso do lojista) → corte UTC. */
+const inicioDoDiaEmUTC = (dia) => dia + ' 03:00:00';
+const fimDoDiaEmUTC = (dia) => {
+  const d = new Date(dia + 'T00:00:00-03:00');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10) + ' 02:59:59';
+};
+
 // ── JWT Secret ──
 //
 // Sem JWT_SECRET no ambiente, cada instância serverless sorteia o seu. Isso não
@@ -1987,7 +2016,7 @@ export default async function handler(req, res) {
       let storeQuery = '';
       if (start && end) {
         dateQuery = ' WHERE created_at BETWEEN $1 AND $2';
-        params = [start + ' 00:00:00', end + ' 23:59:59'];
+        params = [inicioDoDiaEmUTC(start), fimDoDiaEmUTC(end)];
       }
       if (store && store !== 'undefined' && store !== 'null') {
         storeQuery = (params.length > 0 ? ' AND' : ' WHERE') + ' LOWER(store) = LOWER($' + (params.length + 1) + ')';
@@ -2002,9 +2031,8 @@ export default async function handler(req, res) {
           if (Object.values(feedback).some(f => f.status === 'warning' || f.status === 'error')) alertasCount++;
         } catch (e) { }
       });
-      // Calcular checklists de hoje
-      const today = new Date().toISOString().split('T')[0];
-      let todayParams = [today + ' 00:00:00', today + ' 23:59:59'];
+      // Calcular checklists de hoje — o dia de SÃO PAULO, não o de UTC
+      let todayParams = [inicioDoDiaSPemUTC(), fimDoDiaSPemUTC()];
       let todayStoreQuery = '';
       if (store && store !== 'undefined' && store !== 'null') {
         todayStoreQuery = ' AND LOWER(store) = LOWER($3)';
@@ -2112,12 +2140,10 @@ export default async function handler(req, res) {
         return res.status(200).json([]);
       }
 
-      const today = new Date().toISOString().split('T')[0];
-
       let checklistsQuery = 'SELECT * FROM checklists';
       let checklistsParams = [];
       let todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE created_at >= $1';
-      let todaySubsParams = [today + ' 00:00:00'];
+      let todaySubsParams = [inicioDoDiaSPemUTC()];
       let everSubsQuery = 'SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions GROUP BY checklist_id';
       let everSubsParams = [];
 
@@ -2126,7 +2152,7 @@ export default async function handler(req, res) {
         checklistsParams.push(store);
         
         todaySubsQuery = 'SELECT checklist_id, employee_name FROM checklist_submissions WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND created_at >= $2';
-        todaySubsParams = [store, today + ' 00:00:00'];
+        todaySubsParams = [store, inicioDoDiaSPemUTC()];
         
         everSubsQuery = 'SELECT checklist_id, MAX(employee_name) as employee_name FROM checklist_submissions WHERE LOWER(store) = LOWER($1) GROUP BY checklist_id';
         everSubsParams = [store];
@@ -2368,7 +2394,7 @@ export default async function handler(req, res) {
         return res.status(200).json([]);
       }
       
-      const todayStart = new Date().toISOString().split('T')[0] + ' 00:00:00';
+      const todayStart = inicioDoDiaSPemUTC();
       let queryStr = `
         SELECT v.*, u.name as employee_name,
                (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1 LIMIT 1) as completed_by,
@@ -2624,9 +2650,8 @@ export default async function handler(req, res) {
       if (method === 'GET') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
         const store = (authUser.role === 'master' || !authUser.store) ? (searchParams.get('store') || authUser.store) : authUser.store;
-        const today = new Date().toISOString().split('T')[0];
         const { rows } = await pool.query(
-          `SELECT sl.*, 
+          `SELECT sl.*,
                   (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id) as item_count, 
                   (SELECT COUNT(*) FROM shopping_items si WHERE si.shopping_list_id = sl.id AND si.current_stock IS NOT NULL AND si.current_stock < si.min_stock) as below_min_count,
                   EXISTS(SELECT 1 FROM shopping_submissions ss WHERE ss.shopping_list_id = sl.id AND ss.created_at >= $2) as completed_today,
@@ -2634,7 +2659,7 @@ export default async function handler(req, res) {
            FROM shopping_lists sl 
            WHERE LOWER(TRIM(sl.store)) = LOWER(TRIM($1)) AND sl.active = TRUE 
            ORDER BY sl.id DESC`,
-          [store, today + ' 00:00:00']
+          [store, inicioDoDiaSPemUTC()]
         );
         
         // Parsear assigned_to e weekdays
@@ -3845,8 +3870,10 @@ export default async function handler(req, res) {
         }
         // ------------------------------------
 
-        const today = new Date().toISOString().split('T')[0];
-        const checkDupe = await pool.query('SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3', [checklistId, store, today + ' 00:00:00']);
+        // O guarda de duplicata usa o dia de SÃO PAULO: com o corte em UTC,
+        // o fechamento de ontem à noite bloqueava o de hoje até as 21h com
+        // "já foi realizado hoje" — a loja ficava sem conseguir fechar o dia.
+        const checkDupe = await pool.query('SELECT employee_name FROM checklist_submissions WHERE checklist_id = $1 AND store = $2 AND created_at >= $3', [checklistId, store, inicioDoDiaSPemUTC()]);
         if (checkDupe.rows.length > 0) return res.status(400).json({ message: `Este checklist já foi realizado hoje por ${checkDupe.rows[0].employee_name}.` });
 
         const { rows } = await pool.query(
@@ -5228,8 +5255,8 @@ Responda APENAS com JSON válido.`;
         const valores = [];
         if (lojaConsulta) { valores.push(lojaConsulta); condicoes.push(`LOWER(TRIM(store)) = LOWER(TRIM($${valores.length}))`); }
         if (tipoFiltro === 'descarte' || tipoFiltro === 'ocorrencia') { valores.push(tipoFiltro); condicoes.push(`tipo = $${valores.length}`); }
-        if (inicio) { valores.push(inicio + ' 00:00:00'); condicoes.push(`created_at >= $${valores.length}`); }
-        if (fim) { valores.push(fim + ' 23:59:59'); condicoes.push(`created_at <= $${valores.length}`); }
+        if (inicio) { valores.push(inicioDoDiaEmUTC(inicio)); condicoes.push(`created_at >= $${valores.length}`); }
+        if (fim) { valores.push(fimDoDiaEmUTC(fim)); condicoes.push(`created_at <= $${valores.length}`); }
 
         const { rows } = await pool.query(
           `SELECT * FROM ocorrencias ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''} ORDER BY created_at DESC LIMIT 200`,
@@ -6355,10 +6382,10 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
           try {
             // Stats do dia
-            const todayDate = new Date().toISOString().split('T')[0];
+
             const { rows: todaySubs } = await pool.query(
               "SELECT COUNT(*) as total, COUNT(CASE WHEN feedback_info::text LIKE '%warning%' OR feedback_info::text LIKE '%error%' THEN 1 END) as alerts FROM checklist_submissions WHERE store = $1 AND created_at >= $2",
-              [userStore, todayDate + ' 00:00:00']
+              [userStore, inicioDoDiaSPemUTC()]
             );
             const { rows: allChecklists } = await pool.query(
               'SELECT id, title, recurrence, weekdays, scheduled_date, category FROM checklists WHERE LOWER(store) = LOWER($1)', [userStore]
