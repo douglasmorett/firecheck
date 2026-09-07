@@ -262,6 +262,24 @@ function trialExpirado(conta) {
   return fim < new Date();
 }
 
+// A conta pode RECEBER AVISO? É a mesma régua do login (bloqueada, pendente,
+// teste vencido, plano expirado), numa função só, para os crons usarem.
+//
+// Por que existe: o cron de ausência de ponto pegava toda loja com
+// status 'trial' sem olhar a data. Quem fez o teste grátis, cadastrou o ponto
+// uma vez e sumiu recebia "fulano não bateu ponto" TODO DIA, para sempre —
+// uma mensagem de cobrança de um sistema que a pessoa nem usa mais. É o tipo
+// de mensagem que se bloqueia e denuncia, e foi assim que o número de aviso
+// do FireCheck caiu em setembro de 2026. Regra do dono: acabou o teste e não
+// pagou, nenhuma mensagem.
+function contaEmDia(conta) {
+  if (!conta) return false;
+  if (conta.status === 'blocked' || conta.status === 'pending') return false;
+  if (conta.status === 'trial' && trialExpirado(conta)) return false;
+  if (conta.status === 'active' && conta.expiration_date && new Date(conta.expiration_date) < new Date()) return false;
+  return true;
+}
+
 function authenticateToken(req) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -4293,7 +4311,7 @@ export default async function handler(req, res) {
 
         // Buscar todas as lojas que têm ponto ativo
         const { rows: adminsWithPonto } = await pool.query(
-          "SELECT DISTINCT store, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, timezone, wa_ponto_ausencia FROM users WHERE (role = 'admin' OR role = 'master') AND (ponto_active = TRUE OR status = 'trial')"
+          "SELECT DISTINCT store, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, timezone, wa_ponto_ausencia, status, created_at, expiration_date, trial_ends_at FROM users WHERE (role = 'admin' OR role = 'master') AND (ponto_active = TRUE OR status = 'trial')"
         );
 
         let alertasEnviados = 0;
@@ -4308,6 +4326,10 @@ export default async function handler(req, res) {
           const isAusenciaActive = lojaPonto.wa_ponto_ausencia !== false;
           if (!isAusenciaActive) continue;
 
+          // Teste vencido, plano expirado, pendente ou bloqueada: nem push,
+          // nem WhatsApp. Ver contaEmDia.
+          if (!contaEmDia(lojaPonto)) continue;
+
           const tz = lojaPonto.timezone || 'America/Sao_Paulo';
           const agora = new Date();
           const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
@@ -4321,6 +4343,15 @@ export default async function handler(req, res) {
 
           // Só verificar se já passou do horário limite
           if (atualMinutos < limiteMinutos) continue;
+
+          // Ponto que ninguém usa não gera cobrança: sem NENHUMA batida nos
+          // últimos 7 dias, a loja não está usando o módulo — avisar "fulano
+          // não bateu ponto" todo dia só ensina o gestor a bloquear o número.
+          const { rows: usoRecente } = await pool.query(
+            "SELECT 1 FROM ponto_records WHERE store = $1 AND timestamp >= NOW() - INTERVAL '7 days' LIMIT 1",
+            [storeName]
+          );
+          if (usoRecente.length === 0) continue;
 
           // Buscar todos os funcionários da loja
           const today = agora.toLocaleDateString('en-CA', { timeZone: tz });
@@ -4519,9 +4550,14 @@ export default async function handler(req, res) {
             if (submissoes.length === 0) {
               // Checklist atrasado! Buscar dados dos Donos e Gestores
               const { rows: adminRows } = await pool.query(
-                "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_atrasado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+                "SELECT role, status, created_at, expiration_date, trial_ends_at, phone, whatsapp_active, whatsapp_phone, wa_checklist_atrasado FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
                 [cl.store]
               );
+
+              // A conta da loja é a do admin/master; gestor herda. Teste
+              // vencido ou plano expirado: ninguém da loja recebe. Ver contaEmDia.
+              const contaDaLoja = adminRows.find(r => r.role === 'admin' || r.role === 'master') || adminRows[0];
+              if (!contaEmDia(contaDaLoja)) continue;
 
               for (const adminData of adminRows) {
                 const isWaChecklistAtrasadoActive = adminData.wa_checklist_atrasado !== false;
