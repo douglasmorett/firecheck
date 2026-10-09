@@ -4369,6 +4369,13 @@ export default async function handler(req, res) {
           }
 
           console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
+          // Guarda o que a Cakto mandou. Sem isto não havia como saber o nome do
+          // produto quando uma venda não liberava o plano certo (Pet Nature, 03/10).
+          try {
+            await pool.query('INSERT INTO webhook_logs (payload, created_at) VALUES ($1, NOW())', [JSON.stringify(payload ?? null)]);
+          } catch (erroDoLog) {
+            console.warn('[CAKTO WEBHOOK] Não gravei o payload em webhook_logs:', erroDoLog?.message);
+          }
 
           // A Cakto envia dados de diferentes formas dependendo do evento.
           // Tentamos capturar o email do comprador
@@ -4428,6 +4435,10 @@ export default async function handler(req, res) {
                 else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
                 else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
                 else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
+                // Qualquer outro produto com "ponto" no nome é o módulo de Ponto. O de R$ 67
+                // mensal que a Pet Nature comprou (09/10/2026) não casava com nenhuma regra
+                // acima e caía no padrão 'pro': gravava checklists e deixava o Ponto desligado.
+                else if (/ponto/.test(lowerProduct)) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
                 else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
                 else if (lowerProduct.includes('business')) detectedPlan = 'business';
                 
@@ -4503,6 +4514,10 @@ export default async function handler(req, res) {
                 else if (lowerProduct.includes('ponto_starter') || lowerProduct.includes('ponto starter')) detectedPlan = 'ponto_starter';
                 else if (lowerProduct.includes('ponto_pro') || lowerProduct.includes('ponto pro')) detectedPlan = 'ponto_pro';
                 else if (lowerProduct.includes('ponto_business') || lowerProduct.includes('ponto business')) detectedPlan = 'ponto_business';
+                // Qualquer outro produto com "ponto" no nome é o módulo de Ponto. O de R$ 67
+                // mensal que a Pet Nature comprou (09/10/2026) não casava com nenhuma regra
+                // acima e caía no padrão 'pro': gravava checklists e deixava o Ponto desligado.
+                else if (/ponto/.test(lowerProduct)) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
                 else if (lowerProduct.includes('starter') || lowerProduct.includes('start')) detectedPlan = 'starter';
                 else if (lowerProduct.includes('business')) detectedPlan = 'business';
 
