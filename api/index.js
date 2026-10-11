@@ -5801,7 +5801,7 @@ Responda APENAS com JSON válido.`;
             ehDescarte ? (item || null) : null,
             ehDescarte ? (quantidade != null ? String(quantidade) : null) : null,
             ehDescarte ? (unidade || null) : null,
-            ehDescarte && valorEstimado !== '' && valorEstimado != null ? Number(valorEstimado) : null,
+            ehDescarte && valorEstimado !== '' && valorEstimado != null && Number.isFinite(Number(String(valorEstimado).replace(',', '.'))) ? Number(String(valorEstimado).replace(',', '.')) : null,
             ehDescarte ? (motivo || null) : null,
           ]
         );
