@@ -1428,6 +1428,178 @@ async function avisarOcorrencia(store, registro) {
   }
 }
 
+// ── Integração com o FireHub: o descarte daqui vira perda lá ─────────────────
+//
+// Uma loja do FireHub conversa com UM FireCheck (uma `store` daqui); duas lojas
+// são dois FireChecks, cada um ligado à sua. A ligação nasce DENTRO do FireHub:
+// o dono digita lá o e-mail e a senha do FireCheck, o FireHub chama
+// /api/integracoes/firehub/conectar servidor-a-servidor e manda junto uma chave
+// que ele mesmo gerou. A senha não fica guardada em lugar nenhum; a chave fica
+// em `integracao_firehub` e volta no Authorization de cada descarte enviado.
+
+// Para onde o FireCheck aceita mandar descartes. Sem esta lista, quem soubesse
+// o e-mail e a senha de um dono poderia apontar a loja para um servidor
+// qualquer e passar a receber cada descarte — com nome do funcionário e foto.
+//
+// localhost é só para quem roda os dois sistemas na própria máquina: em
+// produção ele apontaria para dentro do servidor do próprio FireCheck.
+function urlDoFirehubPermitida(texto) {
+  let u;
+  try { u = new URL(String(texto || '').trim()); } catch { return null; }
+  if (u.username || u.password || u.search || u.hash) return null;
+  if (u.pathname && u.pathname !== '/') return null;
+  if (u.protocol === 'https:' && !u.port && (u.hostname === 'firehubfood.com.br' || u.hostname === 'www.firehubfood.com.br')) {
+    return u.origin;
+  }
+  if (process.env.NODE_ENV !== 'production' && u.protocol === 'http:' && u.hostname === 'localhost') {
+    return u.origin;
+  }
+  return null;
+}
+
+// A conta pode ligar a integração? Mesma régua do login (bloqueada, pendente,
+// teste vencido, plano expirado): funcionário e gestor herdam o estado do dono
+// da loja; o master não tem bloqueio. Devolve o motivo, ou null se está em dia.
+async function motivoDeContaParada(user) {
+  if (user.role === 'master') return null;
+  let conta = user;
+  if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
+    const { rows } = await pool.query(
+      "SELECT status, created_at, expiration_date, trial_ends_at FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
+      [user.store]
+    );
+    if (rows.length === 0) return null;
+    conta = rows[0];
+  }
+  if (conta.status === 'blocked') return 'A conta do FireCheck desta loja está suspensa. Regularize o FireCheck antes de conectar.';
+  if (conta.status === 'pending') return 'O pagamento do FireCheck desta loja está pendente. Regularize o FireCheck antes de conectar.';
+  if (conta.status === 'trial' && trialExpirado(conta)) return 'O período de teste do FireCheck desta loja acabou. Assine um plano do FireCheck antes de conectar.';
+  if (conta.status === 'active' && conta.expiration_date && new Date(conta.expiration_date) < new Date()) {
+    return 'O plano do FireCheck desta loja expirou. Renove o FireCheck antes de conectar.';
+  }
+  return null;
+}
+
+async function integracaoFirehubDaLoja(store) {
+  if (!store) return null;
+  const { rows } = await pool.query(
+    `SELECT store, firehub_loja_id, firehub_loja_nome, chave, url, conectado_em
+       FROM integracao_firehub
+      WHERE LOWER(TRIM(store)) = LOWER(TRIM($1))
+      LIMIT 1`,
+    [store]
+  );
+  return rows[0] || null;
+}
+
+// Quanto do teto de quatro segundos do registro o FireHub pode usar. Sobra um
+// fôlego para gravar o resultado antes de a resposta sair.
+const PRAZO_FIREHUB_MS = 3700;
+
+// O created_at das ocorrências é o relógio de São Paulo gravado sem fuso (ver o
+// CREATE TABLE). Ler direto viraria "horário de SP com Z no fim", três horas
+// adiantado do lado de lá; a conversão é feita no próprio banco.
+const COLUNAS_DO_DESCARTE = `id, store, item, quantidade, unidade, valor_estimado, motivo, employee_name, photo,
+  to_char((created_at AT TIME ZONE 'America/Sao_Paulo') AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS registrado_em`;
+
+// A quantidade é texto livre no formulário ("3", "1,5"). Do lado de lá ela é
+// número; o que não dá para ler como número vai nulo em vez de quebrar o envio.
+function numeroOuNulo(v) {
+  if (v == null || v === '') return null;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : null;
+}
+
+function erroCurto(msg) {
+  return ('erro: ' + String(msg || 'falha').replace(/\s+/g, ' ').trim()).slice(0, 160);
+}
+
+// Manda um descarte e grava o resultado em ocorrencias.firehub_status. Nunca
+// lança: quem chama é o registro do descarte, que não pode falhar por causa
+// disto. `respondeu` diz se o FireHub chegou a responder (falso = fora do ar ou
+// lento), para não gastar o teto reenviando para um servidor que não atende.
+async function enviarDescarteAoFirehub(integ, d, prazo) {
+  const corpo = {
+    idExterno: d.id,
+    loja: d.store,
+    item: d.item,
+    quantidade: numeroOuNulo(d.quantidade),
+    unidade: d.unidade || null,
+    valorEstimado: numeroOuNulo(d.valor_estimado),
+    motivo: d.motivo || null,
+    funcionario: d.employee_name || null,
+    registradoEm: d.registrado_em || null,
+    foto: typeof d.photo === 'string' && /^https?:\/\//i.test(d.photo) ? d.photo : null,
+  };
+
+  let status;
+  let respondeu = false;
+  try {
+    const resp = await fetch(`${integ.url}/api/integracoes/firecheck/descarte`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${integ.chave}` },
+      body: JSON.stringify(corpo),
+      signal: AbortSignal.timeout(Math.max(300, prazo - Date.now())),
+    });
+    respondeu = true;
+    if (resp.ok) {
+      status = 'enviado';
+    } else {
+      const texto = await resp.text().catch(() => '');
+      let motivo = texto;
+      try { const j = JSON.parse(texto); motivo = j.error || j.message || texto; } catch { /* corpo não é JSON */ }
+      status = erroCurto(`HTTP ${resp.status}${motivo ? ' ' + motivo : ''}`);
+    }
+  } catch (e) {
+    status = erroCurto(e && (e.name === 'TimeoutError' || e.name === 'AbortError')
+      ? 'o FireHub não respondeu a tempo'
+      : (e && e.message) || 'falha de rede');
+  }
+
+  try {
+    await pool.query('UPDATE ocorrencias SET firehub_status = $1 WHERE id = $2', [status, d.id]);
+  } catch (e) {
+    console.error(`[FireHub] não consegui gravar o status do descarte ${d.id}:`, e.message);
+  }
+  if (status !== 'enviado') console.warn(`[FireHub] descarte ${d.id} da loja ${d.store}: ${status}`);
+  return { status, respondeu };
+}
+
+// Chamado logo depois de gravar um descarte. Manda o novo e, no embalo, reenvia
+// até cinco da mesma loja dos últimos sete dias que ainda não chegaram lá — o
+// FireHub é idempotente por idExterno, então reenviar é seguro. Não há cron
+// para isto: o próximo descarte é que carrega os atrasados.
+//
+// Só entra no reenvio o que foi registrado depois da ligação. Descarte de antes
+// de a loja conectar não vira perda retroativa no FireHub.
+async function sincronizarDescartesComFirehub(store, idNovo) {
+  const integ = await integracaoFirehubDaLoja(store);
+  if (!integ) return;
+  const prazo = Date.now() + PRAZO_FIREHUB_MS;
+
+  const { rows: novo } = await pool.query(`SELECT ${COLUNAS_DO_DESCARTE} FROM ocorrencias WHERE id = $1`, [idNovo]);
+  if (novo[0]) {
+    const { respondeu } = await enviarDescarteAoFirehub(integ, novo[0], prazo);
+    if (!respondeu) return;
+  }
+  if (Date.now() > prazo - 500) return;
+
+  const { rows: pendentes } = await pool.query(
+    `SELECT ${COLUNAS_DO_DESCARTE}
+       FROM ocorrencias
+      WHERE tipo = 'descarte'
+        AND id <> $2
+        AND LOWER(TRIM(store)) = LOWER(TRIM($1))
+        AND (firehub_status IS NULL OR firehub_status LIKE 'erro%')
+        AND created_at >= (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '7 days'
+        AND (created_at AT TIME ZONE 'America/Sao_Paulo') >= $3
+      ORDER BY created_at ASC
+      LIMIT 5`,
+    [store, idNovo, integ.conectado_em]
+  );
+  await Promise.all(pendentes.map(d => enviarDescarteAoFirehub(integ, d, prazo)));
+}
+
 
 export default async function handler(req, res) {
   // ── CORS Restrito ──
@@ -1516,6 +1688,23 @@ export default async function handler(req, res) {
         )
       `);
       await pool.query('CREATE INDEX IF NOT EXISTS idx_ocorrencias_store_data ON ocorrencias (store, created_at DESC)');
+      // ── Integração com o FireHub ──
+      // Uma linha por loja do FireCheck ligada a uma loja do FireHub. A chave
+      // foi gerada pelo FireHub e volta no Authorization de cada descarte.
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS integracao_firehub (
+          store TEXT PRIMARY KEY,
+          firehub_loja_id TEXT NOT NULL,
+          firehub_loja_nome TEXT,
+          chave TEXT NOT NULL,
+          url TEXT NOT NULL,
+          conectado_por TEXT,
+          conectado_em TIMESTAMPTZ DEFAULT now()
+        )
+      `);
+      // 'enviado' ou 'erro: <motivo curto>'. Nulo = ainda não foi (ou a loja
+      // não estava ligada). É o que o reenvio procura.
+      await pool.query('ALTER TABLE ocorrencias ADD COLUMN IF NOT EXISTS firehub_status TEXT');
       // Avisos novos nascem ligados: quem acabou de registrar um descarte espera
       // que o dono saiba, e o dono desliga se não quiser.
       // Quando cada aviso de saúde do sistema foi mandado. Sem isto, um WhatsApp
@@ -5399,6 +5588,171 @@ Responda APENAS com JSON válido.`;
         return res.status(200).json({ success: true });
       }
     }
+    // ── Integração com o FireHub ───────────────────────────────────────────────
+    //
+    // conectar e desconectar são chamadas pelo SERVIDOR do FireHub, não por uma
+    // tela daqui: não há token de usuário do FireCheck. conectar se prova com o
+    // e-mail e a senha do dono; desconectar, com a chave que o próprio FireHub
+    // gerou na ligação.
+    if (url.includes('/api/integracoes/firehub/conectar')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const { email, senha, firehubLojaId, firehubLojaNome, chave, urlDoFirehub } = req.body || {};
+
+      if (!email || !senha) return res.status(400).json({ error: 'E-mail e senha do FireCheck são obrigatórios.' });
+      const idLojaFirehub = firehubLojaId != null ? String(firehubLojaId).trim() : '';
+      if (!idLojaFirehub) return res.status(400).json({ error: 'firehubLojaId é obrigatório.' });
+      if (typeof chave !== 'string' || chave.length < 32 || chave.length > 1000) {
+        return res.status(400).json({ error: 'chave inválida: precisa ser um texto de 32 caracteres ou mais.' });
+      }
+      const urlFirehub = urlDoFirehubPermitida(urlDoFirehub);
+      if (!urlFirehub) return res.status(400).json({ error: 'urlDoFirehub não permitida.' });
+      const nomeLojaFirehub = firehubLojaNome != null ? String(firehubLojaNome).trim().slice(0, 200) || null : null;
+
+      // Mesmo freio de força bruta do login: este endpoint também responde
+      // "senha certa / senha errada", e as falhas contam na mesma conta.
+      const rlKey = rateLimitKey(origemDaRequisicao(req), email);
+      if (!checkRateLimit(rlKey)) {
+        const minutos = Math.max(1, Math.ceil(segundosDeEspera(rlKey) / 60));
+        return res.status(429).json({ error: `Muitas tentativas com este e-mail. Aguarde ${minutos} minuto(s) e tente de novo.` });
+      }
+
+      const { rows: achados } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [String(email).trim()]);
+      const user = achados[0];
+      let senhaConfere = false;
+      if (user && user.password) {
+        if (user.password.startsWith('$2')) {
+          senhaConfere = await bcrypt.compare(String(senha), user.password);
+        } else {
+          // Senha legada em texto puro: mesma migração que o login faz.
+          senhaConfere = String(senha) === user.password;
+          if (senhaConfere) {
+            const hash = await bcrypt.hash(String(senha), 12);
+            await pool.query('UPDATE users SET password = $1 WHERE id = $2', [hash, user.id]);
+          }
+        }
+      }
+      if (!senhaConfere) {
+        registerLoginFailure(rlKey);
+        return res.status(401).json({ error: 'E-mail ou senha do FireCheck incorretos.' });
+      }
+      limparFreioDaConta(rlKey);
+
+      const parada = await motivoDeContaParada(user);
+      if (parada) return res.status(403).json({ error: parada });
+
+      if (!['admin', 'master', 'gestor'].includes(user.role)) {
+        return res.status(403).json({ error: 'Só o dono ou gestor do FireCheck pode conectar' });
+      }
+      if (!user.store) return res.status(400).json({ error: 'Esta conta do FireCheck não está ligada a nenhuma loja.' });
+
+      // A chave da linha é a grafia que já está lá, se a loja já tiver ligação;
+      // senão, a do cadastro de quem está conectando.
+      const atual = await integracaoFirehubDaLoja(user.store);
+      if (atual && String(atual.firehub_loja_id) !== idLojaFirehub) {
+        return res.status(409).json({
+          error: `Este FireCheck já está conectado à loja ${atual.firehub_loja_nome || atual.firehub_loja_id} do FireHub. Desconecte lá antes.`,
+        });
+      }
+      const store = atual ? atual.store : user.store;
+
+      // Reconectar a mesma loja do FireHub troca a chave e mantém a data da
+      // ligação. O WHERE do ON CONFLICT segura a corrida de duas lojas do
+      // FireHub conectando ao mesmo tempo: a segunda não sobrescreve a primeira.
+      const { rows: gravada } = await pool.query(
+        `INSERT INTO integracao_firehub (store, firehub_loja_id, firehub_loja_nome, chave, url, conectado_por)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (store) DO UPDATE
+            SET firehub_loja_nome = EXCLUDED.firehub_loja_nome,
+                chave = EXCLUDED.chave,
+                url = EXCLUDED.url,
+                conectado_por = EXCLUDED.conectado_por
+          WHERE integracao_firehub.firehub_loja_id = EXCLUDED.firehub_loja_id
+         RETURNING store`,
+        [store, idLojaFirehub, nomeLojaFirehub, chave, urlFirehub, user.email]
+      );
+      if (gravada.length === 0) {
+        const outra = await integracaoFirehubDaLoja(store);
+        return res.status(409).json({
+          error: `Este FireCheck já está conectado à loja ${(outra && (outra.firehub_loja_nome || outra.firehub_loja_id)) || 'outra'} do FireHub. Desconecte lá antes.`,
+        });
+      }
+
+      // Uma loja do FireHub conversa com UM FireCheck. Se ela estava ligada a
+      // outra loja daqui, aquela ligação ficou velha (a chave dela o FireHub já
+      // trocou) e só serviria para mostrar "vai para o FireHub" numa loja cujos
+      // descartes não chegam mais lá.
+      await pool.query(
+        'DELETE FROM integracao_firehub WHERE firehub_loja_id = $1 AND LOWER(TRIM(store)) <> LOWER(TRIM($2))',
+        [idLojaFirehub, store]
+      );
+
+      const { rows: donoDaLoja } = await pool.query(
+        `SELECT COALESCE(NULLIF(TRIM(store_name), ''), store) AS nome
+           FROM users
+          WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master')
+          ORDER BY (role = 'admin') DESC
+          LIMIT 1`,
+        [store]
+      );
+      const storeName = donoDaLoja[0]?.nome || user.store_name || store;
+
+      console.log(`[FireHub] loja "${store}" conectada à loja ${idLojaFirehub} (${nomeLojaFirehub || 'sem nome'}) do FireHub por ${user.email}`);
+      return res.status(200).json({ ok: true, store, storeName, email: user.email });
+    }
+
+    if (url.includes('/api/integracoes/firehub/desconectar')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const chave = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (chave.length < 32) return res.status(401).json({ error: 'Chave ausente ou inválida.' });
+      const { rowCount } = await pool.query('DELETE FROM integracao_firehub WHERE chave = $1', [chave]);
+      if (rowCount > 0) console.log(`[FireHub] ${rowCount} ligação(ões) desfeita(s) pelo FireHub.`);
+      // Idempotente: sem ligação com esta chave também é sucesso.
+      return res.status(200).json({ ok: true });
+    }
+
+    // As duas abaixo são das telas do FireCheck, com o token de sempre.
+    if (url.includes('/api/integracoes/firehub/status')) {
+      if (method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
+      const autor = await autenticarComLojaAtual(req);
+      if (!autor) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const loja = autor.role === 'master' ? await lojaCanonica(searchParams.get('store') || autor.store) : autor.store;
+      try {
+        const integ = await integracaoFirehubDaLoja(loja);
+        return res.status(200).json({
+          conectado: !!integ,
+          firehubLojaNome: integ ? (integ.firehub_loja_nome || null) : null,
+          conectadoEm: integ ? integ.conectado_em : null,
+        });
+      } catch (e) {
+        console.error('[FireHub] falha ao ler a ligação:', e.message);
+        return res.status(200).json({ conectado: false, firehubLojaNome: null, conectadoEm: null });
+      }
+    }
+
+    if (url.includes('/api/integracoes/firehub/itens')) {
+      if (method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
+      const autor = await autenticarComLojaAtual(req);
+      if (!autor) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      const loja = autor.role === 'master' ? await lojaCanonica(searchParams.get('store') || autor.store) : autor.store;
+      try {
+        const integ = await integracaoFirehubDaLoja(loja);
+        if (!integ) return res.status(200).json({ itens: [] });
+        const resp = await fetch(`${integ.url}/api/integracoes/firecheck/itens`, {
+          headers: { Authorization: `Bearer ${integ.chave}` },
+          signal: AbortSignal.timeout(4000),
+        });
+        if (!resp.ok) {
+          console.warn(`[FireHub] itens da loja "${loja}": HTTP ${resp.status}`);
+          return res.status(200).json({ itens: [] });
+        }
+        const dados = await resp.json().catch(() => null);
+        return res.status(200).json({ itens: Array.isArray(dados?.itens) ? dados.itens : [] });
+      } catch (e) {
+        console.warn(`[FireHub] itens da loja "${loja}" indisponíveis:`, e.message);
+        return res.status(200).json({ itens: [] });
+      }
+    }
+
     // ── Ocorrências e descartes ────────────────────────────────────────────────
     if (url.includes('/api/ocorrencias')) {
       const autorOc = await autenticarComLojaAtual(req);
@@ -5457,9 +5811,19 @@ Responda APENAS com JSON válido.`;
         // envio pendente morre junto com a resposta, e o registro do freezer
         // quebrado ficava no banco sem ninguém ser avisado. O registro já está
         // gravado de qualquer forma; o teto garante que a tela solta.
+        //
+        // O descarte de loja ligada ao FireHub segue para lá no mesmo teto, em
+        // paralelo com o aviso. Falhar ali não desfaz nada aqui: o resultado fica
+        // em firehub_status e o próximo descarte da loja reenvia.
         await comTeto(
-          avisarOcorrencia(lojaDoRegistro, rows[0])
-            .catch(e => console.error('[Ocorrência] aviso falhou:', e.message)),
+          Promise.all([
+            avisarOcorrencia(lojaDoRegistro, rows[0])
+              .catch(e => console.error('[Ocorrência] aviso falhou:', e.message)),
+            ehDescarte
+              ? sincronizarDescartesComFirehub(lojaDoRegistro, rows[0].id)
+                  .catch(e => console.error('[FireHub] envio do descarte falhou:', e.message))
+              : null,
+          ]),
           4000,
           'Ocorrência',
         );

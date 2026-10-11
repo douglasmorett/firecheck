@@ -12,6 +12,20 @@ import API_URL from '../api';
 const diaDeSaoPaulo = () =>
   new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
+// Unidades que o formulário de descarte oferece, e como as do FireHub caem nelas.
+// Insumo com unidade que não está aqui deixa a unidade como estava.
+const UNIDADES_DO_DESCARTE = ['un', 'kg', 'g', 'L', 'ml', 'cx', 'pct'];
+const APELIDOS_DE_UNIDADE = {
+  l: 'L', lt: 'L', litro: 'L', litros: 'L',
+  und: 'un', unid: 'un', unidade: 'un', unidades: 'un',
+  kilo: 'kg', quilo: 'kg', grama: 'g', gramas: 'g',
+  caixa: 'cx', pacote: 'pct',
+};
+const unidadeDoFirehub = (u) => {
+  const t = String(u || '').trim().toLowerCase();
+  return APELIDOS_DE_UNIDADE[t] || UNIDADES_DO_DESCARTE.find(x => x.toLowerCase() === t) || null;
+};
+
 
 const handle401 = (res, navigate) => {
   if (res.status === 401) {
@@ -116,6 +130,10 @@ export default function EmployeeDashboard() {
   const [registroMotivo, setRegistroMotivo] = useState('');
   const [registroEnviando, setRegistroEnviando] = useState(false);
   const [registroOk, setRegistroOk] = useState(false);
+  // Loja ligada ao FireHub: o descarte vira perda lá, e o campo do item sugere
+  // os produtos e insumos cadastrados no FireHub. Sem ligação, nada muda.
+  const [firehub, setFirehub] = useState(null); // { conectado, firehubLojaNome }
+  const [firehubItens, setFirehubItens] = useState(null); // null = ainda não buscou
   const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
 
   const handleReturnToAdmin = () => {
@@ -388,6 +406,47 @@ export default function EmployeeDashboard() {
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  // A ligação com o FireHub é lida uma vez ao abrir o painel.
+  useEffect(() => {
+    const token = localStorage.getItem('firecheck_token');
+    if (!token) return;
+    fetch(`${API_URL}/api/integracoes/firehub/status`, { headers: { Authorization: 'Bearer ' + token } })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d && d.conectado) setFirehub(d); })
+      .catch(() => { /* sem ligação visível: o formulário fica como sempre foi */ });
+  }, []);
+
+  // Os itens do FireHub só são buscados quando alguém abre o descarte, e uma
+  // vez por sessão da tela. Produtos vêm antes dos insumos.
+  const carregarItensFirehub = () => {
+    if (!firehub?.conectado || firehubItens !== null) return;
+    setFirehubItens([]);
+    fetch(`${API_URL}/api/integracoes/firehub/itens`, {
+      headers: { Authorization: 'Bearer ' + (localStorage.getItem('firecheck_token') || '') },
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => {
+        // Sem resposta boa, volta a "não buscou" para tentar de novo na próxima abertura.
+        if (!d) { setFirehubItens(null); return; }
+        const lista = Array.isArray(d.itens) ? d.itens.filter(i => i && typeof i.nome === 'string' && i.nome.trim()) : [];
+        lista.sort((a, b) => (a.tipo === 'produto' ? 0 : 1) - (b.tipo === 'produto' ? 0 : 1));
+        setFirehubItens(lista);
+      })
+      .catch(() => setFirehubItens(null)); // sem sugestões agora: o campo continua livre
+  };
+
+  // Escolher um produto do FireHub põe a unidade em "un"; um insumo traz a
+  // unidade dele, se ela existir no formulário.
+  const escolherItemDescarte = (valor) => {
+    setRegistroItem(valor);
+    const nome = valor.trim().toLowerCase();
+    const achado = nome && Array.isArray(firehubItens) ? firehubItens.find(i => i.nome.trim().toLowerCase() === nome) : null;
+    if (!achado) return;
+    if (achado.tipo === 'produto') { setRegistroUnidade('un'); return; }
+    const unidade = unidadeDoFirehub(achado.unidade);
+    if (unidade) setRegistroUnidade(unidade);
   };
 
   const enviarRegistro = async () => {
@@ -717,7 +776,7 @@ export default function EmployeeDashboard() {
           </button>
           <button
             className="btn"
-            onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
+            onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); carregarItensFirehub(); }}
             style={{ padding: '16px', backgroundColor: '#0f766e', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
           >
             <Package size={20} /> Registrar Descarte
@@ -1246,9 +1305,22 @@ export default function EmployeeDashboard() {
 
             {tipoRegistro === 'descarte' && (
               <>
+                {firehub?.conectado && (
+                  <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '-8px 0 14px 0' }}>
+                    Este descarte vai para o FireHub ({firehub.firehubLojaNome || 'loja conectada'}) e conta como perda.
+                  </p>
+                )}
                 <label className="input-label">O que foi descartado *</label>
-                <input className="input-field" value={registroItem} onChange={e => setRegistroItem(e.target.value)}
+                <input className="input-field" value={registroItem} onChange={e => escolherItemDescarte(e.target.value)}
+                  list={firehub?.conectado && firehubItens?.length ? 'firehub-itens-descarte' : undefined}
                   placeholder="Ex.: caixa de tomate" maxLength={120} style={{ marginBottom: '12px' }} />
+                {firehub?.conectado && firehubItens?.length > 0 && (
+                  <datalist id="firehub-itens-descarte">
+                    {firehubItens.map((i, idx) => (
+                      <option key={`${i.tipo}-${idx}`} value={i.nome}>{i.tipo === 'produto' ? 'Produto' : 'Insumo'}</option>
+                    ))}
+                  </datalist>
+                )}
 
                 <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
                   <div style={{ flex: 2 }}>

@@ -340,6 +340,8 @@ export default function AdminDashboard() {
   // -- Bill Integration --
   const [billLinked, setBillLinked] = useState(false);
   const [billUser, setBillUser] = useState(null);
+  // -- Integração com o FireHub (só leitura: a ligação nasce no FireHub) --
+  const [firehubLigacao, setFirehubLigacao] = useState(null);
 
   // -- Tutorial Interativo / Tour Guiado --
   const [showWelcomeTourModal, setShowWelcomeTourModal] = useState(false);
@@ -830,6 +832,14 @@ export default function AdminDashboard() {
       }
     };
     checkBillStatus();
+  }, []);
+
+  // Ligação com o FireHub: os descartes desta loja vão para lá e viram perda.
+  useEffect(() => {
+    fetch(`${API_URL}/api/integracoes/firehub/status`, { headers: getAuthHeaders() })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setFirehubLigacao(d); })
+      .catch(() => { /* sem resposta: o bloco mostra "não conectado" */ });
   }, []);
 
   // Atualiza registros de ponto quando o mês muda
@@ -3255,6 +3265,23 @@ export default function AdminDashboard() {
                        </label>
                     </div>
 
+                    {/* Integração com o FireHub. Só mostra o estado: a ligação é
+                        feita de dentro do FireHub, com o e-mail e a senha daqui. */}
+                    <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '4px' }}>🔗 Integração com o FireHub</strong>
+                       {firehubLigacao?.conectado ? (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                             Conectado à loja <strong>{firehubLigacao.firehubLojaNome || '—'}</strong> do FireHub
+                             {firehubLigacao.conectadoEm ? <> desde {new Date(firehubLigacao.conectadoEm).toLocaleDateString('pt-BR')}</> : null}.
+                             {' '}Os descartes desta loja vão para o FireHub e contam como perda lá.
+                          </span>
+                       ) : (
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                             Não conectado — conecte pelo FireHub, na tela Checklist e ponto.
+                          </span>
+                       )}
+                    </div>
+
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
                        <input
                           type="checkbox"
@@ -4060,6 +4087,13 @@ export default function AdminDashboard() {
                           {o.motivo && <> · {o.motivo}</>}
                           {o.valor_estimado != null && <> · <strong>R$ {Number(o.valor_estimado).toFixed(2)}</strong></>}
                         </p>
+                      )}
+                      {o.tipo === 'descarte' && o.firehub_status && (
+                        <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.75rem', color: o.firehub_status === 'enviado' ? '#0f766e' : '#b45309' }}>
+                          {o.firehub_status === 'enviado'
+                            ? '✓ Lançado como perda no FireHub'
+                            : '⚠️ Ainda não chegou ao FireHub — vai de novo junto com o próximo descarte'}
+                        </span>
                       )}
                       {o.descricao && (
                         <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem', color: 'var(--text-main)' }}>{o.descricao}</p>
