@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarClock, Users, Bot, Sparkles, X, Copy, ClipboardList, Mic, MicOff, Send, MessageCircle, ArrowRight, CheckCircle, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
+import { vendeNoApp } from '../vendaNoApp';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -239,7 +240,9 @@ export default function ChecklistCreator() {
           {
             role: 'bill',
             type: 'upgrade_offer',
-            content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+            content: vendeNoApp
+              ? `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+              : `⚠️ ${data.error || 'Limite de criação por IA atingido.'}`
           }
         ]);
         setIsAIGenerating(false);
@@ -327,7 +330,9 @@ export default function ChecklistCreator() {
           {
             role: 'bill',
             type: 'upgrade_offer',
-            content: `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+            content: vendeNoApp
+              ? `⚠️ ${data.error || 'Limite de criação por IA atingido.'}\n\nPara continuar criando checklists inteligentes e ter um limite maior, assine um plano maior:`
+              : `⚠️ ${data.error || 'Limite de criação por IA atingido.'}`
           }
         ]);
         return;
@@ -1267,7 +1272,7 @@ export default function ChecklistCreator() {
                   {msg.role === 'bill' && <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>}
                   {msg.content.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
 
-                  {msg.type === 'upgrade_offer' && (
+                  {vendeNoApp && msg.type === 'upgrade_offer' && (
                     <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                       {/* As condições listavam só as chaves antigas: quem estava em
                           'trial' ou nos planos atuais (checklists_mensal, combo_...)

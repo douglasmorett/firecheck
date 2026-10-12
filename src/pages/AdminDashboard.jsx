@@ -4,6 +4,7 @@ import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, 
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
+import { vendeNoApp } from '../vendaNoApp';
 import PWAInstall from '../components/PWAInstall';
 import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
@@ -1809,6 +1810,10 @@ export default function AdminDashboard() {
       const cameraLimit = hasCameraPlan ? 4 : 1;
       
       if (cameras.length >= cameraLimit && userProfile?.role !== 'master') {
+        if (!vendeNoApp) {
+          alert(`Você atingiu o limite de ${cameraLimit} câmera(s) do seu plano.`);
+          return;
+        }
         alert(`Você atingiu o limite de ${cameraLimit} câmera(s)! Adquira o Módulo Extra ou renove sua assinatura para expandir o monitoramento.`);
         window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank');
         return;
@@ -2436,6 +2441,24 @@ export default function AdminDashboard() {
 
   const showPaywall = !isMaster && isTrialExpired();
 
+  // No app da loja, sem preço nem checkout (ver vendaNoApp.js).
+  if (showPaywall && !vendeNoApp) {
+    return (
+      <div className="page-container animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center', padding: '20px' }}>
+        <div style={{ backgroundColor: 'rgba(255, 23, 68, 0.1)', padding: '20px', borderRadius: '50%', marginBottom: '24px' }}>
+          <Lock size={48} color="var(--error)" />
+        </div>
+        <h1 style={{ fontSize: '1.6rem', marginBottom: '16px' }}>Acesso inativo</h1>
+        <p style={{ color: 'var(--text-muted)', maxWidth: '420px', fontSize: '1rem', lineHeight: '1.6' }}>
+          O acesso da sua empresa ao FireCheck não está ativo no momento. Fale com o responsável pela conta da empresa.
+        </p>
+        <button onClick={handleLogout} style={{ marginTop: '32px', background: 'transparent', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}>
+          Sair do Sistema
+        </button>
+      </div>
+    );
+  }
+
   if (showPaywall) {
     return (
       <div className="page-container animate-fade" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center', padding: '20px' }}>
@@ -2791,7 +2814,7 @@ export default function AdminDashboard() {
         )}
 
         {/* TRIAL BANNER */}
-        {userProfile?.status === 'trial' && userProfile?.role === 'admin' && (
+        {vendeNoApp && userProfile?.status === 'trial' && userProfile?.role === 'admin' && (
           <div style={{
             backgroundColor: 'rgba(255, 160, 0, 0.1)',
             border: '1px solid #FFA000',
@@ -2822,6 +2845,7 @@ export default function AdminDashboard() {
                 O e-mail vai na URL porque o webhook da Cakto casa o pagamento
                 com a conta pelo e-mail: sem ele, o cliente digita outro no
                 checkout e o pagamento cria uma conta nova em vez de ativar esta. */}
+            {vendeNoApp && (
             <button
               className="btn"
               onClick={() => navigate(`/renovar?email=${encodeURIComponent(userProfile?.email || '')}`)}
@@ -2829,6 +2853,7 @@ export default function AdminDashboard() {
             >
               Ver planos e assinar
             </button>
+            )}
           </div>
         )}
         
@@ -3036,7 +3061,7 @@ export default function AdminDashboard() {
               {quotaInfo.percentUsed >= 100 ? '🔴 Cota esgotada!' : quotaInfo.percentUsed >= 80 ? `⚠️ ${quotaInfo.remaining} restantes` : `✅ ${quotaInfo.remaining} checklists restantes`}
               {quotaInfo.resetDate && ` • Renova em ${Math.max(0, Math.ceil((new Date(quotaInfo.resetDate) - new Date()) / (1000*60*60*24)))} dias`}
             </span>
-            {quotaInfo.percentUsed >= 80 && (
+            {vendeNoApp && quotaInfo.percentUsed >= 80 && (
               <button className="btn" style={{ padding: '6px 16px', fontSize: '0.8rem' }} onClick={() => setShowQuotaUpgradeModal(true)}>
                 Fazer Upgrade
               </button>
@@ -3046,7 +3071,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Modal de Upgrade de Cota */}
-      {showQuotaUpgradeModal && (
+      {vendeNoApp && showQuotaUpgradeModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowQuotaUpgradeModal(false)}>
           <div className="card" style={{ maxWidth: '500px', width: '100%', padding: '40px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
             <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
@@ -3320,7 +3345,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Tab: Paywall Módulo Ponto ──────────────────── */}
-      {(tab === 'ponto' && !userProfile?.ponto_active && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
+      {(vendeNoApp && tab === 'ponto' &&!userProfile?.ponto_active && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
         <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
             <UserCheck size={48} color="#3b82f6" />
@@ -3487,6 +3512,7 @@ export default function AdminDashboard() {
                branco. Quem está aqui não tem o módulo de Ponto, então o produto certo
                é o Combo — o mesmo destino do botão "Combo Completo" usado na tela de
                limite de cota. */}
+           {vendeNoApp && (
            <button
              className="btn"
              onClick={() => window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}
@@ -3494,6 +3520,7 @@ export default function AdminDashboard() {
            >
              Fazer Upgrade Agora
            </button>
+           )}
         </div>
       )}
 
@@ -4874,6 +4901,7 @@ export default function AdminDashboard() {
                     <p style={{ margin: '4px 0' }}>• Módulo Financeiro: <strong>Ativo</strong></p>
                   )}
                 </div>
+                {vendeNoApp && (
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
                   <h4 style={{ margin: '0 0 12px 0', fontSize: '0.95rem' }}>Deseja fazer um Upgrade de Plano?</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -4896,6 +4924,7 @@ export default function AdminDashboard() {
                     ⚠️ Lembre-se de cancelar o plano anterior na Cakto após o upgrade para evitar cobranças duplicadas.
                   </p>
                 </div>
+                )}
               </div>
             </div>
           </div>
@@ -5410,6 +5439,7 @@ export default function AdminDashboard() {
           </div>
           <div style={{ padding: '24px' }}>
             {/* Aviso de Gratuidade e Venda de Módulo */}
+            {vendeNoApp && (
             <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                <Info size={32} color="#3b82f6" />
                <div style={{ flex: 1 }}>
@@ -5427,6 +5457,7 @@ export default function AdminDashboard() {
                  Liberar 4 Câmeras (R$ 49,90)
                </button>
             </div>
+            )}
 
             {cameras.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Flame, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import API_URL from '../api';
+import { vendeNoApp } from '../vendaNoApp';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -199,10 +200,11 @@ export default function Login() {
           </button>
         </form>
 
+        {vendeNoApp && (
         <div style={{ marginTop: '32px', textAlign: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '24px' }}>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             Ainda não tem uma conta? <br/>
-            <button 
+            <button
               onClick={() => navigate('/')}
               style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px', padding: '8px 0' }}
             >
@@ -210,6 +212,7 @@ export default function Login() {
             </button>
           </p>
         </div>
+        )}
 
         <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
           <ShieldCheck size={14} /> Sistema Criptografado e Seguro

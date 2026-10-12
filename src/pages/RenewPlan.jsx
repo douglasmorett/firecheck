@@ -64,6 +64,22 @@ export default function RenewPlan() {
     }
   };
 
+  // No app da loja não há preço nem checkout (ver vendaNoApp.js): só o aviso.
+  if (Capacitor.isNativePlatform()) {
+    return (
+      <div style={{ minHeight: '100vh', backgroundColor: 'var(--bg-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 20px' }}>
+        <div className="card" style={{ maxWidth: '420px', width: '100%', padding: '32px', textAlign: 'center' }}>
+          <ShieldCheck size={40} color="var(--primary)" style={{ marginBottom: '16px' }} />
+          <h2 style={{ marginBottom: '12px' }}>Acesso inativo</h2>
+          <p style={{ color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '24px' }}>
+            O acesso da sua empresa ao FireCheck não está ativo no momento. Fale com o responsável pela conta da empresa.
+          </p>
+          <button className="btn" style={{ width: '100%' }} onClick={() => navigate('/login')}>Voltar ao login</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
