@@ -152,11 +152,16 @@ export default function WhatsappDaLoja() {
         </div>
       </div>
 
-      {!estado.conectado && estado.centralCobre && (
+      {!estado.conectado && (estado.centralCobre ? (
         <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: '12px 0 0' }}>
           Enquanto não conectar, os avisos continuam saindo pelo número do FireCheck.
         </p>
-      )}
+      ) : (
+        <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '10px', fontSize: '0.86rem', backgroundColor: 'rgba(234,179,8,0.12)', border: '1px solid #eab308', color: '#854d0e' }}>
+          <strong>Sem o WhatsApp da loja conectado, nenhum aviso chega no WhatsApp</strong> — nem para você, nem para os gestores.
+          Os avisos no aplicativo (notificação no celular) continuam normalmente.
+        </div>
+      ))}
 
       {podeMexer && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>

@@ -674,10 +674,11 @@ const testesWhatsapp = new Map();
 // de ponto, teste) passa `loja` e sai por ela. O que é do FireCheck — senha,
 // cobrança, boas-vindas, suporte — continua no número do sistema.
 //
-// Loja que ainda não conectou continua recebendo pelo número do sistema,
-// enquanto WHATSAPP_CENTRAL_PARA_LOJAS não for "false": desligar de uma vez
-// deixaria todas as lojas sem aviso no dia do deploy.
-const centralCobreLojas = () => String(process.env.WHATSAPP_CENTRAL_PARA_LOJAS || '').toLowerCase() !== 'false';
+// Loja que não conectou o WhatsApp dela NÃO recebe aviso (Douglas, 12/10/2026:
+// "loja que não conectou não recebe nada") — é o que protege o número do
+// sistema de bloqueio. WHATSAPP_CENTRAL_PARA_LOJAS=true religa o número do
+// sistema como reserva, se um dia for preciso.
+const centralCobreLojas = () => String(process.env.WHATSAPP_CENTRAL_PARA_LOJAS || '').toLowerCase() === 'true';
 const gatewayDasLojas = () => ({
   evoUrl: String(process.env.EVOLUTION_LOJAS_URL || process.env.EVOLUTION_API_URL || '').replace(/\/+$/, ''),
   evoKey: process.env.EVOLUTION_LOJAS_KEY || process.env.EVOLUTION_API_KEY || '',
@@ -3998,6 +3999,7 @@ export default async function handler(req, res) {
               telefone: fullPhone,
               texto: confirmMsg,
               contexto: 'Confirmacao de notificacoes',
+              loja: user.store,
             });
           }
         }
@@ -6968,7 +6970,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // muito mais obscura. Melhor dizer logo qual é o problema — e que não é
       // o número de quem está testando.
       // (Com o WhatsApp da loja conectado o teste sai por ele: o do sistema não importa.)
-      const conexao = (await instanciaDaLoja(eu.store)) ? { conhecido: false } : await estadoWhatsapp();
+      const conexao = ((await instanciaDaLoja(eu.store)) || !centralCobreLojas()) ? { conhecido: false } : await estadoWhatsapp();
       if (conexao.conhecido && !conexao.conectado) {
         return res.status(200).json({ ok: false, motivo: conexao.motivo, numero });
       }
