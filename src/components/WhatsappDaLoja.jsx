@@ -23,6 +23,9 @@ const formatarNumero = (n) => {
   return n || '';
 };
 
+// O servidor guarda com o 55 na frente; na tela, o número como a pessoa digitou.
+const paraTela = (lista) => (lista || []).map((d) => ({ ...d, numero: formatarNumero(d.numero) }));
+
 const VERDE = '#25D366';
 
 export default function WhatsappDaLoja() {
@@ -41,7 +44,7 @@ export default function WhatsappDaLoja() {
       if (!r.ok) return null;
       const j = await r.json();
       setEstado(j);
-      setDestinos((atual) => (atual.length ? atual : (j.destinos || [])));
+      setDestinos((atual) => (atual.length ? atual : paraTela(j.destinos)));
       return j;
     } catch {
       return null;
@@ -120,7 +123,7 @@ export default function WhatsappDaLoja() {
       if (!r.ok) {
         setAviso({ ok: false, texto: j.error || 'Não deu para salvar os números.' });
       } else {
-        setDestinos(j.destinos || []);
+        setDestinos(paraTela(j.destinos));
         setAviso({ ok: true, texto: 'Números salvos. Eles recebem os mesmos avisos que você marcou abaixo.' });
       }
     } finally {
