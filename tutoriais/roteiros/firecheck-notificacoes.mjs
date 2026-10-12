@@ -1,52 +1,88 @@
-// Tutorial da aba Notificações do painel do dono: o número que recebe e quais
-// avisos chegam no WhatsApp.
+// Tutorial da aba Notificações do painel do dono: conectar o WhatsApp da loja,
+// quem recebe os avisos e quais avisos chegam.
 //
 // Regra de todo roteiro: a fala só afirma o que a tela faz DE VERDADE nesta
 // gravação. Se a frase descreve um clique, o clique acontece na imagem.
 // Nada sai da máquina: o vídeo NÃO clica em "Enviar mensagem de teste agora".
 //
-// Conferido no código antes de cada frase (AdminDashboard.jsx › tab 'notificacoes' e api/index.js):
-// - todo aviso exige whatsapp_active !== false ("Habilitar Disparos no WhatsApp") e vai
-//   para whatsapp_phone || phone (em branco = telefone do perfil);
+// O ambiente de gravação não tem servidor de WhatsApp. As duas respostas que
+// dependem dele (o estado da conexão e o QR Code) são servidas pelo próprio
+// navegador da gravação, no formato exato de api › /api/whatsapp-loja; a tela,
+// os textos e o "Salvar números" (PUT, banco local) são os de verdade.
+//
+// Conferido no código antes de cada frase (components/WhatsappDaLoja.jsx,
+// AdminDashboard.jsx › tab 'notificacoes' e api/index.js):
+// - os avisos de loja saem pela instância da loja (enviarWhatsapp com `loja`); sem ela
+//   conectada, nenhum aviso sai no WhatsApp (centralCobreLojas() = false em produção);
+// - "Conectar o WhatsApp da loja" devolve { qr, codigo }; a tela pergunta a cada 3 s e,
+//   conectado, mostra "● Conectado · <número>" e "WhatsApp da loja conectado...";
+// - "Quem recebe os avisos": até 10 números extras, que recebem os mesmos avisos
+//   marcados; só o dono muda (podeMexer);
+// - todo aviso do dono/gestor exige whatsapp_active !== false e vai para
+//   whatsapp_phone || phone (em branco = telefone do perfil);
 // - "Enviar mensagem de teste agora" manda uma mensagem real e mostra o motivo se falhar;
-// - Atrasos (wa_ponto_atraso): entrada ou saída batida depois do horário + tolerância
-//   (api › /api/ponto POST). OBS: a tolerância usada ali é sempre 15 min (defeito) — a fala
-//   não cita minutos;
-// - Reprovado (wa_checklist_reprovado): IA com status warning/error numa foto OU quantidade
-//   fora do mínimo/máximo; Concluído (wa_checklist_aprovado): sem nenhum dos dois;
-// - Ocorrência (wa_ocorrencia) e Descarte (wa_descarte, com item, quantidade, valor e motivo);
-// - Checklist Pendente/Atrasado (wa_checklist_atrasado): cron de meia em meia hora, checklist
-//   com horário marcado que ninguém enviou;
-// - Ausência: cron ponto-ausencia, quem não bateu entrada até entrada + tolerância + 30 min.
-//   NÃO tem caixinha na tela (wa_ponto_ausencia não aparece): chega com os disparos habilitados;
-// - "Fechamento Diário de Ponto" (wa_ponto_diario) é só guardado: nada no api/index.js envia
-//   esse resumo. A fala não fala dele;
-// - os mesmos avisos vão para os gestores (role gestor), cada um com as caixinhas da própria aba;
+// - Atrasos, Reprovado (IA ou quantidade fora do mínimo/máximo), Concluído, Ocorrência,
+//   Descarte, Checklist Pendente/Atrasado (cron de meia em meia hora);
+// - Ausência: cron ponto-ausencia, sem caixinha; chega com os disparos habilitados;
+// - "Fechamento Diário de Ponto" (wa_ponto_diario) é só guardado: a fala não fala dele;
 // - "Salvar Configurações de Notificações" grava e mostra o aviso verde no canto.
+import QRCode from "qrcode";
 import { dormir } from "../motor/palco.mjs";
 import { abrirAba, cenaFinal } from "./_equipe-ponto-comum.mjs";
 
 const titulo = (p) => p.locator("h2", { hasText: "Notificações do Sistema" });
 const opcao = (p, id) => p.locator(`#${id}`).locator("xpath=..");
-const cartaoWhats = (p) => p.locator(".card", { hasText: "Conexão do WhatsApp" }).first();
+const cartaoLoja = (p) => p.locator(".card", { hasText: "WhatsApp da loja (quem envia os avisos)" }).first();
+const cartaoWhats = (p) => p.locator(".card", { hasText: "Seu número para receber os avisos" }).first();
 const cartaoAvisos = (p) => p.locator(".card", { hasText: "Alertas de Notificação Personalizados" }).first();
+
+// O que o servidor de WhatsApp responderia. `conectado` vira true na cena em que
+// o celular "lê" o QR Code.
+const whats = { conectado: false };
+const NUMERO_DA_LOJA = "5522998887766";
 
 export default {
   id: "firecheck-notificacoes",
-  titulo: "Como escolher os avisos que chegam no WhatsApp",
+  titulo: "Como conectar o WhatsApp da loja e escolher os avisos",
   publico: "gestor",
   rota: "admin",
   prontaQuando: "text=Painel do Dono",
   pronuncia: { IA: "i á", DDD: "dê dê dê" },
 
   async antesDeGravar(palco) {
+    const p = palco.pagina;
+    whats.conectado = false;
+    const qr = await QRCode.toDataURL("FireCheck · Sabor da Praça · conectar o WhatsApp da loja", { width: 480, margin: 1 });
+    // Só o GET do estado e o "conectar" passam por aqui; o PUT dos números vai ao servidor local.
+    // No contexto, não na página: o service worker do app (PWA) faz as chamadas, e a
+    // rota da página não as vê.
+    await p.context().route(/\/api\/whatsapp-loja(\/conectar)?(\?.*)?$/, async (rota) => {
+      const pedido = rota.request();
+      if (pedido.method() === "POST") {
+        await dormir(900);
+        return rota.fulfill({ json: { ok: true, conectado: false, qr, codigo: null } });
+      }
+      if (pedido.method() !== "GET") return rota.fallback();
+      const real = await rota.fetch();
+      const corpo = await real.json().catch(() => ({}));
+      return rota.fulfill({
+        json: { ...corpo, conectado: whats.conectado, numero: whats.conectado ? NUMERO_DA_LOJA : null, centralCobre: false, podeMexer: true },
+      });
+    });
     await abrirAba(palco, "Notificações", "Notificações do Sistema");
+    // A faixa "Tem um tutorial desta tela" traria a ficha da gravação ANTERIOR deste vídeo.
+    const ocultar = p.getByRole("button", { name: "Não mostrar mais nesta tela" });
+    if (await ocultar.isVisible().catch(() => false)) {
+      await ocultar.evaluate((b) => b.click());
+      await dormir(600);
+    }
+    await cartaoLoja(p).waitFor({ state: "visible", timeout: 20_000 });
   },
 
   cenas: [
     {
       capitulo: "Os avisos no WhatsApp",
-      fala: "Na aba Notificações você escolhe quais avisos da loja chegam no seu WhatsApp, e em qual número.",
+      fala: "Na aba Notificações você conecta o WhatsApp da loja, escolhe quem recebe os avisos e quais avisos chegam.",
       acao: async (palco, ctx) => {
         const p = palco.pagina;
         await dormir(300);
@@ -57,11 +93,113 @@ export default {
       },
     },
     {
-      capitulo: "O número que recebe",
-      fala: "Primeiro, deixe marcado Habilitar Disparos no WhatsApp. Desmarcado, nenhum aviso sai para o seu número.",
+      capitulo: "Conectar o WhatsApp da loja",
+      fala: "Os avisos saem do WhatsApp da sua própria loja, não de um número do FireCheck. Enquanto ele não estiver conectado, nenhum aviso chega no WhatsApp.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        const c = cartaoLoja(p);
+        await palco.camera(c, { zoomMax: 1.4, margem: 40 });
+        await palco.destacar(c.locator("h3"), { folga: 6 });
+        await palco.mover(c.locator("h3"), { ms: 800 });
+        await ctx.ate(0.5);
+        const alerta = c.getByText("Sem o WhatsApp da loja conectado").locator("xpath=..");
+        await palco.destacar(alerta, { folga: 6 });
+        await palco.mover(alerta, { ms: 700 });
+        await ctx.ate(1);
+        await palco.apagarDestaque();
+      },
+    },
+    {
+      fala: "Para conectar, clique em Conectar o WhatsApp da loja. Na hora aparece um QR Code.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        const botao = cartaoLoja(p).getByRole("button", { name: "Conectar o WhatsApp da loja" });
+        await palco.destacar(botao, { folga: 6 });
+        await ctx.ate(0.5);
+        await palco.clicar(botao);
+        await palco.apagarDestaque();
+        const img = cartaoLoja(p).locator('img[alt^="QR Code"]');
+        await img.waitFor({ state: "visible", timeout: 10_000 });
+        await palco.camera(cartaoLoja(p), { zoomMax: 1.3, margem: 30 });
+        await palco.mover(img, { ms: 700 });
+        await ctx.ate(1);
+      },
+    },
+    {
+      fala: "Pegue o celular da loja, abra o WhatsApp, toque em Aparelhos conectados, depois em Conectar um aparelho, e aponte a câmera para o QR Code.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        const passos = cartaoLoja(p).locator("ol");
+        await palco.destacar(passos, { folga: 8 });
+        await palco.mover(passos.locator("li").nth(1), { ms: 800 });
+        await ctx.ate(1);
+        await palco.apagarDestaque();
+      },
+    },
+    {
+      fala: "Quando o celular lê, a tela se atualiza sozinha e mostra Conectado, com o número da loja. A partir daí, os avisos saem por ele.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        whats.conectado = true;
+        const selo = cartaoLoja(p).getByText(/● Conectado/);
+        await selo.waitFor({ state: "visible", timeout: 15_000 });
+        await palco.destacar(selo, { folga: 6 });
+        await palco.mover(selo, { ms: 700 });
+        await ctx.ate(0.6);
+        const aviso = cartaoLoja(p).getByText("WhatsApp da loja conectado.", { exact: false });
+        if (await aviso.isVisible().catch(() => false)) {
+          await palco.destacar(aviso, { folga: 6 });
+          await palco.mover(aviso, { ms: 600 });
+        }
+        await ctx.ate(1);
+        await palco.apagarDestaque();
+      },
+    },
+    {
+      capitulo: "Quem recebe os avisos",
+      fala: "Você e cada gestor recebem no número que cadastraram. Para mandar também para outro número, como um sócio, clique em Adicionar número.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        const c = cartaoLoja(p);
+        const secao = c.getByText("📞 Quem recebe os avisos");
+        await palco.rolarAte(secao, { bloco: "center" });
+        await palco.camera(c, { zoomMax: 1.3, margem: 30 });
+        await palco.destacar(secao.locator("xpath=.."), { folga: 6 });
+        await palco.mover(secao, { ms: 700 });
+        await ctx.ate(0.65);
+        await palco.apagarDestaque();
+        await palco.clicar(c.getByRole("button", { name: "+ Adicionar número" }));
+        await ctx.ate(1);
+      },
+    },
+    {
+      fala: "Coloque o nome e o número com DDD, e clique em Salvar números. Ele passa a receber os mesmos avisos que estão marcados nesta tela.",
+      acao: async (palco, ctx) => {
+        const p = palco.pagina;
+        const c = cartaoLoja(p);
+        await palco.digitar(c.locator('input[placeholder="Nome (ex.: Sócio)"]').last(), "Sócio");
+        await ctx.ate(0.3);
+        await palco.digitar(c.locator('input[placeholder="DDD + número"]').last(), "22 99876-5432");
+        await ctx.ate(0.5);
+        await palco.clicar(c.getByRole("button", { name: "Salvar números" }));
+        const ok = c.getByText("Números salvos.", { exact: false });
+        await ok.waitFor({ state: "visible", timeout: 10_000 }).catch(() => {});
+        if (await ok.isVisible().catch(() => false)) {
+          await palco.destacar(ok, { folga: 6 });
+          await palco.mover(ok, { ms: 600 });
+        }
+        await ctx.ate(1);
+        await palco.apagarDestaque();
+        await palco.cameraAberta({ ms: 500 });
+      },
+    },
+    {
+      capitulo: "O seu número",
+      fala: "Logo abaixo fica o seu número. Deixe marcado Habilitar Disparos no WhatsApp. Desmarcado, nenhum aviso sai para você.",
       acao: async (palco, ctx) => {
         const p = palco.pagina;
         const caixa = cartaoWhats(p).locator("label", { hasText: "Habilitar Disparos no WhatsApp" });
+        await palco.rolarAte(cartaoWhats(p), { bloco: "center" });
         await palco.camera(cartaoWhats(p), { zoomMax: 1.5, margem: 40 });
         await palco.destacar(caixa, { folga: 6 });
         await palco.mover(caixa.locator("input"), { ms: 800 });
@@ -85,7 +223,7 @@ export default {
       acao: async (palco, ctx) => {
         const p = palco.pagina;
         const botao = cartaoWhats(p).getByRole("button", { name: /mensagem de teste/ });
-        await palco.destacar([botao, cartaoWhats(p).getByText("Manda uma mensagem real")], { folga: 6 });
+        await palco.destacar(botao, { folga: 6 });
         await palco.mover(botao, { ms: 700 });
         await ctx.ate(1);
         await palco.apagarDestaque();
@@ -98,6 +236,7 @@ export default {
       acao: async (palco, ctx) => {
         const p = palco.pagina;
         const c = cartaoAvisos(p);
+        await palco.rolarAte(c.locator("h3"), { bloco: "center" });
         await palco.destacar(c.locator("h3"), { folga: 8 });
         await palco.mover(c.locator("h3"), { ms: 800 });
         await ctx.ate(1);
@@ -188,7 +327,7 @@ export default {
       fala: "Esses avisos também vão para os gestores da loja. Cada gestor com acesso a esta aba escolhe os dele, no número dele.",
       acao: async (palco, ctx) => {
         const p = palco.pagina;
-        await palco.mover(titulo(p), { ms: 800 });
+        await palco.mover(cartaoWhats(p).locator("h3"), { ms: 800 });
         await ctx.ate(1);
       },
     },

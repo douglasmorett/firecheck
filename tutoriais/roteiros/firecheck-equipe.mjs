@@ -10,7 +10,8 @@
 // - "Adicionar Colaborador" abre "Cadastrar Colaborador": nome, e-mail de acesso,
 //   senha inicial, telefone/WhatsApp e papel; só o dono vê a opção Gestor / Gerente
 //   (isAdmin || isMaster). Funcionário entra na Tela de Execução; gestor, no painel;
-//   o telefone recebe o comprovante de cada ponto batido no WhatsApp (api › /api/ponto POST);
+//   o telefone recebe o comprovante de cada ponto batido no WhatsApp, enviado pelo
+//   WhatsApp da loja (api › /api/ponto POST → enviarWhatsapp com `loja`);
 // - as caixinhas de "Permissões do Gestor" escondem do menu dele a aba correspondente
 //   (TAB_PERMISSION_MAP); "Editar" muda nome, telefone, papel, permissões e escala;
 // - "Acessar Conta" entra no FireCheck como a pessoa (handleImpersonateUser) — o vídeo não clica;
@@ -38,6 +39,12 @@ export default {
 
   async antesDeGravar(palco) {
     await abrirAba(palco, "Equipe", "Equipe da Loja");
+    // A faixa "Tem um tutorial desta tela" não entra no vídeo (os outros foram gravados sem ela).
+    const ocultar = palco.pagina.getByRole("button", { name: "Não mostrar mais nesta tela" });
+    if (await ocultar.isVisible().catch(() => false)) {
+      await ocultar.evaluate((b) => b.click());
+      await dormir(600);
+    }
   },
 
   cenas: [
@@ -84,7 +91,7 @@ export default {
       pausa: 300,
     },
     {
-      fala: "Crie uma senha inicial e passe para ele. No telefone, com DDD, ele recebe no WhatsApp o comprovante de cada ponto que bater.",
+      fala: "Crie uma senha inicial e passe para ele. No telefone, com DDD, ele recebe o comprovante de cada ponto que bater, pelo WhatsApp da loja.",
       acao: async (palco, ctx) => {
         const p = palco.pagina;
         const j = janelaNova(p);

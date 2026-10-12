@@ -312,8 +312,8 @@
   "firecheck-equipe": {
     "id": "firecheck-equipe",
     "titulo": "Como cadastrar a equipe e os gestores",
-    "duracao": 123,
-    "versao": "4c60f257",
+    "duracao": 124,
+    "versao": "3d7caacd",
     "publico": "gestor",
     "capitulos": [
       {
@@ -321,23 +321,23 @@
         "titulo": "A equipe da loja"
       },
       {
-        "em": 14.5,
+        "em": 14.1,
         "titulo": "Cadastrar um funcionário"
       },
       {
-        "em": 47.5,
+        "em": 46.7,
         "titulo": "O gestor e as permissões"
       },
       {
-        "em": 87,
+        "em": 87.5,
         "titulo": "Acessar a conta e remover"
       },
       {
-        "em": 100.3,
+        "em": 101.4,
         "titulo": "O limite do plano"
       }
     ],
-    "texto": "Na aba Equipe fica todo mundo que usa o FireCheck na sua loja: o nome, o papel, a escala de trabalho, o e-mail e o telefone. Para cadastrar alguém, clique em Adicionar Colaborador. Escreva o nome completo e o e-mail. É com esse e-mail que a pessoa entra no FireCheck. Crie uma senha inicial e passe para ele. No telefone, com DDD, ele recebe no WhatsApp o comprovante de cada ponto que bater. No papel, Funcionário: ele usa a Tela de Execução no celular, para fazer os checklists e bater o ponto. Clique em Cadastrar Colaborador. Pronto: o Marcos já aparece no alto da lista. O gestor ajuda a tocar a loja e entra neste painel, como o dono. Só o dono pode cadastrar um gestor. A Fernanda é a gestora daqui. Clique em Editar para ver o que ela pode fazer. Em Permissões do Gestor, cada caixinha libera uma aba do painel. O que ficar desmarcado some do menu dela. Por exemplo: desmarcando Compras e estoque, a Fernanda deixa de ver as compras. Nesta mesma janela você muda o nome, o telefone, o papel e a escala de trabalho. No fim, clique em Salvar Alterações. Acessar Conta abre o FireCheck como se você fosse aquela pessoa, para ver o que ela vê. E a lixeira tira a pessoa da equipe. Antes de apagar, o FireCheck pede para você confirmar. O seu plano tem um limite de colaboradores. Ele aparece em Perfil da Empresa. Contam os funcionários e os gestores; o dono fica de fora. Quando a equipe chega no limite, o cadastro avisa e não deixa passar. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+    "texto": "Na aba Equipe fica todo mundo que usa o FireCheck na sua loja: o nome, o papel, a escala de trabalho, o e-mail e o telefone. Para cadastrar alguém, clique em Adicionar Colaborador. Escreva o nome completo e o e-mail. É com esse e-mail que a pessoa entra no FireCheck. Crie uma senha inicial e passe para ele. No telefone, com DDD, ele recebe o comprovante de cada ponto que bater, pelo WhatsApp da loja. No papel, Funcionário: ele usa a Tela de Execução no celular, para fazer os checklists e bater o ponto. Clique em Cadastrar Colaborador. Pronto: o Marcos já aparece no alto da lista. O gestor ajuda a tocar a loja e entra neste painel, como o dono. Só o dono pode cadastrar um gestor. A Fernanda é a gestora daqui. Clique em Editar para ver o que ela pode fazer. Em Permissões do Gestor, cada caixinha libera uma aba do painel. O que ficar desmarcado some do menu dela. Por exemplo: desmarcando Compras e estoque, a Fernanda deixa de ver as compras. Nesta mesma janela você muda o nome, o telefone, o papel e a escala de trabalho. No fim, clique em Salvar Alterações. Acessar Conta abre o FireCheck como se você fosse aquela pessoa, para ver o que ela vê. E a lixeira tira a pessoa da equipe. Antes de apagar, o FireCheck pede para você confirmar. O seu plano tem um limite de colaboradores. Ele aparece em Perfil da Empresa. Contam os funcionários e os gestores; o dono fica de fora. Quando a equipe chega no limite, o cadastro avisa e não deixa passar. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
   },
   "firecheck-perfil": {
     "id": "firecheck-perfil",
@@ -504,5 +504,43 @@
       }
     ],
     "texto": "Quando a loja tem uma lista de compras para conferir, ela aparece aqui na Tela de Execução, em Listas de compras. O cartão já avisa quantos itens estavam abaixo do mínimo na última contagem. Toque em Preencher. Para cada item, conte o que tem na loja agora e digite a quantidade. A farinha de trigo: trinta quilos. Do lado ficam o mínimo que a loja precisa ter e a última contagem. É só para referência: o campo começa vazio, para você contar de novo. Se a quantidade fica abaixo do mínimo, o item fica vermelho e a tela mostra quanto falta. Aqui tem só quatro quilos de muçarela. E quando a quantidade chega ao mínimo, a tela mostra Estoque suficiente, em verde. Faça o mesmo com todos os itens. A conferência só é enviada com todos preenchidos. Se quiser, escreva uma observação para o gestor. No fim, toque em Finalizar e Enviar Conferência. Pronto: a contagem fica registrada, e a tela mostra quantos itens ficaram abaixo do mínimo. O gestor vê tudo no painel, em Compras e Estoque. Toque em Voltar para o Início. A lista de compras sai da tela por hoje. Ficou alguma dúvida? Para rever este vídeo, é só tocar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-notificacoes": {
+    "id": "firecheck-notificacoes",
+    "titulo": "Como conectar o WhatsApp da loja e escolher os avisos",
+    "duracao": 185,
+    "versao": "7a044c6e",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "Os avisos no WhatsApp"
+      },
+      {
+        "em": 8.6,
+        "titulo": "Conectar o WhatsApp da loja"
+      },
+      {
+        "em": 48.5,
+        "titulo": "Quem recebe os avisos"
+      },
+      {
+        "em": 68.3,
+        "titulo": "O seu número"
+      },
+      {
+        "em": 93.5,
+        "titulo": "Escolha os avisos"
+      },
+      {
+        "em": 139.5,
+        "titulo": "O aviso de ausência"
+      },
+      {
+        "em": 152.9,
+        "titulo": "Gestores e salvar"
+      }
+    ],
+    "texto": "Na aba Notificações você conecta o WhatsApp da loja, escolhe quem recebe os avisos e quais avisos chegam. Os avisos saem do WhatsApp da sua própria loja, não de um número do FireCheck. Enquanto ele não estiver conectado, nenhum aviso chega no WhatsApp. Para conectar, clique em Conectar o WhatsApp da loja. Na hora aparece um QR Code. Pegue o celular da loja, abra o WhatsApp, toque em Aparelhos conectados, depois em Conectar um aparelho, e aponte a câmera para o QR Code. Quando o celular lê, a tela se atualiza sozinha e mostra Conectado, com o número da loja. A partir daí, os avisos saem por ele. Você e cada gestor recebem no número que cadastraram. Para mandar também para outro número, como um sócio, clique em Adicionar número. Coloque o nome e o número com DDD, e clique em Salvar números. Ele passa a receber os mesmos avisos que estão marcados nesta tela. Logo abaixo fica o seu número. Deixe marcado Habilitar Disparos no WhatsApp. Desmarcado, nenhum aviso sai para você. No telefone, coloque o número com DDD. Se ficar em branco, os avisos vão para o telefone do seu perfil. E o botão de teste manda uma mensagem de verdade para esse número. Se ela não chegar, o motivo aparece logo embaixo. Do lado, cada caixinha liga ou desliga um tipo de aviso. Atrasos: quando alguém da equipe bate a entrada ou a saída depois do horário combinado. Checklist reprovado: quando a inteligência artificial aponta problema numa foto, ou uma quantidade fica fora do mínimo ou do máximo. E checklist concluído: chega quando alguém termina um checklist sem nenhum problema. Ocorrência é o que a equipe registra fora da rotina, como um freezer com defeito. E descarte é o que foi jogado fora, com a quantidade, o motivo e o valor. Checklist atrasado: quando passa o horário marcado de um checklist e ninguém enviou. Tem ainda o aviso de ausência: quem não bater a entrada até meia hora depois da tolerância aparece numa lista. Ele não tem caixinha, e chega sempre que os disparos estão habilitados. Esses avisos também vão para os gestores da loja. Cada gestor com acesso a esta aba escolhe os dele, no número dele. Por exemplo: para não receber um aviso a cada checklist que dá certo, desmarque Checklist Concluído com Sucesso. No fim, clique em Salvar Configurações de Notificações, aqui embaixo. O aviso verde no canto mostra que ficou tudo gravado. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
   }
 }
