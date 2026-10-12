@@ -540,12 +540,14 @@ export default function ChecklistExecution() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
-        let alvo = null;
+        // A tarefa sai da lista ATUAL, não de dentro do setTasks: o React 19
+        // roda aquela função depois, e o `alvo` preenchido lá dentro chegava
+        // vazio aqui — a IA nunca conferia a foto na hora (de 24/08 a 11/10/2026).
+        const alvo = tasks.find(t => t.id === taskId);
         setTasks(prev => prev.map(t => {
           if (t.id === taskId) {
             const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
             currentPhotos.push(photoUrl);
-            alvo = t;
             return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
           }
           return t;
@@ -577,12 +579,12 @@ export default function ChecklistExecution() {
     canvas.height = height;
     canvas.getContext('2d').drawImage(video, 0, 0, width, height);
     const photoUrl = canvas.toDataURL('image/jpeg', 0.6);
-    let alvo = null;
+    // Ver handleFileUpload: a tarefa sai da lista atual, não de dentro do setTasks.
+    const alvo = tasks.find(t => t.id === taskId);
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
         const currentPhotos = Array.isArray(t.photos) ? [...t.photos] : [];
         currentPhotos.push(photoUrl);
-        alvo = t;
         return { ...t, photos: currentPhotos, photo: photoUrl, forceOverride: false };
       }
       return t;
