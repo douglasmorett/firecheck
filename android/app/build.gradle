@@ -7,7 +7,7 @@ android {
         applicationId "com.grupohakim.firecheck"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 4
+        versionCode 5
         versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -16,10 +16,10 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
-    // As senhas saem de variáveis de ambiente ou de android/keystore.properties,
-    // que está fora do versionamento. Antes ficavam em texto puro aqui, num
-    // repositório público — qualquer pessoa assinava um APK aceito como
-    // atualização legítima do FireCheck.
+    // As senhas saem de variÃ¡veis de ambiente ou de android/keystore.properties,
+    // que estÃ¡ fora do versionamento. Antes ficavam em texto puro aqui, num
+    // repositÃ³rio pÃºblico â€” qualquer pessoa assinava um APK aceito como
+    // atualizaÃ§Ã£o legÃ­tima do FireCheck.
     //
     // Para compilar localmente, crie android/keystore.properties com:
     //   storeFile=firecheck.jks
