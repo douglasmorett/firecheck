@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Image } from 'lucide-react';
 import API_URL from '../api';
+import { vendeNoApp } from '../vendaNoApp';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -1040,7 +1041,9 @@ export default function ChecklistExecution() {
           }, 30000);
         }
       } else if (data?.quota_exceeded) {
-        alert('⚠️ Sua empresa atingiu o limite de checklists do plano deste mês. Fale com o seu gerente para fazer upgrade.');
+        alert(vendeNoApp
+          ? '⚠️ Sua empresa atingiu o limite de checklists do plano deste mês. Fale com o seu gerente para fazer upgrade.'
+          : '⚠️ Sua empresa atingiu o limite de checklists deste mês. Fale com o seu gerente.');
       } else {
         // O servidor recusou. O checklist continua aberto para nova tentativa —
         // não vai para a fila offline, senão seria reenviado e recusado sem fim.

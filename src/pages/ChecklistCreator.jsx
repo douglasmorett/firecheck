@@ -620,7 +620,9 @@ export default function ChecklistCreator() {
                   placeholder="Nome da sua loja"
                 />
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                  🔒 Loja vinculada ao seu plano. Para gerenciar redes, assine o <strong>Plano Custom</strong>.
+                  {vendeNoApp
+                    ? <>🔒 Loja vinculada ao seu plano. Para gerenciar redes, assine o <strong>Plano Custom</strong>.</>
+                    : '🔒 Loja vinculada à sua conta.'}
                 </span>
               </>
             )}
