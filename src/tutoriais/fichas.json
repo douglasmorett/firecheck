@@ -1,1 +1,508 @@
-{}
+{
+  "firecheck-painel": {
+    "id": "firecheck-painel",
+    "titulo": "Um passeio pelo painel do FireCheck",
+    "duracao": 124,
+    "versao": "f493ce3d",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que é o FireCheck"
+      },
+      {
+        "em": 22.3,
+        "titulo": "Os números da loja"
+      },
+      {
+        "em": 47.3,
+        "titulo": "A auditoria em tempo real"
+      },
+      {
+        "em": 63.2,
+        "titulo": "Abrir um checklist feito"
+      },
+      {
+        "em": 92.2,
+        "titulo": "O menu"
+      },
+      {
+        "em": 105.2,
+        "titulo": "A tela da equipe"
+      }
+    ],
+    "texto": "Este é o painel do FireCheck. Daqui o dono acompanha a rotina da loja: os checklists que a equipe faz no celular, com foto, conferidos pela inteligência artificial. Aqui em cima, o selo mostra que a inteligência artificial está ligada. E nas duas datas você escolhe o período que os números vão mostrar. No primeiro cartão, quantos checklists a equipe já enviou hoje, e embaixo quantos foram feitos no período. A conformidade é a parte dos checklists em que nenhuma tarefa foi reprovada pela inteligência artificial. E os alertas contam os checklists com alguma tarefa reprovada que ainda ninguém resolveu. Hoje tem um pedindo atenção. Logo abaixo fica a auditoria em tempo real: cada checklist enviado, quem fez, a hora, e o que a inteligência artificial achou das fotos. Este aqui foi reprovado. Vamos abrir para ver o que aconteceu. Abre com cada tarefa, a foto que a funcionária tirou na hora e o parecer da inteligência artificial ao lado. A tarefa pedia a bancada limpa, e a foto mostra farelo, molho e uma faca em cima. A inteligência artificial reprovou e explicou o porquê. Depois de conversar com a equipe, clique em Finalizar Ocorrência. O checklist fica como resolvido e sai da conta dos alertas. No menu ao lado fica o resto do FireCheck: o controle de ponto, os alertas, os checklists, a frota, as compras e a equipe. Cada um tem o seu vídeo. E o botão Tela de Execução abre a tela que a equipe usa no celular para fazer os checklists e bater o ponto. Ficou alguma dúvida? Cada tela do FireCheck tem o seu vídeo: é só clicar em Tutorial, no alto da tela, ou em Tutoriais em vídeo, no menu."
+  },
+  "firecheck-resultados": {
+    "id": "firecheck-resultados",
+    "titulo": "Ver o checklist feito: fotos, IA e PDF",
+    "duracao": 116,
+    "versao": "17569289",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "Onde ficam os checklists feitos"
+      },
+      {
+        "em": 17.4,
+        "titulo": "Abrir um checklist"
+      },
+      {
+        "em": 40.9,
+        "titulo": "Ampliar a foto"
+      },
+      {
+        "em": 48.6,
+        "titulo": "Número e múltipla escolha"
+      },
+      {
+        "em": 63.8,
+        "titulo": "O relatório em PDF"
+      },
+      {
+        "em": 85.4,
+        "titulo": "Tarefa de nota"
+      },
+      {
+        "em": 98.7,
+        "titulo": "Filtrar por categoria"
+      }
+    ],
+    "texto": "Todo checklist que a equipe envia aparece aqui no Dashboard, dentro do período destas duas datas. Na Auditoria em Tempo Real, cada linha é um checklist enviado: quem fez, a hora, e o selo da inteligência artificial. Vamos abrir esta Abertura da cozinha, que foi aprovada. No alto, quem fez e quando. Embaixo vem cada tarefa: a resposta, a foto que ela tirou e o parecer da inteligência artificial. Aqui a resposta foi sim, e a inteligência artificial aprovou a foto e disse o porquê. Clique na foto para ver grande. Para fechar, é o X, ou um clique fora da foto. Na tarefa de número, a resposta é o valor que a funcionária digitou: a geladeira estava a três graus. Na de múltipla escolha, aparece a opção que ela tocou: o óleo está bom para usar. Exportar PDF abre, numa janela nova, o relatório deste checklist pronto para imprimir ou salvar: com cada tarefa, as fotos e o parecer da inteligência artificial. Já o Finalizar Ocorrência marca o checklist como resolvido: é o que você usa quando alguma tarefa sai reprovada. Agora, um checklist do salão. Na tarefa de nota, aparece a nota que a funcionária deu ao salão. Aqui, a nota máxima. Para achar mais rápido, use o Filtrar Categoria. A categoria é a que você escolheu ao criar o checklist. Aqui, só os da cozinha. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-alertas": {
+    "id": "firecheck-alertas",
+    "titulo": "Alertas da IA: reprovações, ocorrências e descartes",
+    "duracao": 101,
+    "versao": "ce98f9f7",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que aparece aqui"
+      },
+      {
+        "em": 10.6,
+        "titulo": "Ocorrências e descartes"
+      },
+      {
+        "em": 46.3,
+        "titulo": "Tarefas reprovadas"
+      },
+      {
+        "em": 63.3,
+        "titulo": "Resolver o alerta"
+      },
+      {
+        "em": 78.3,
+        "titulo": "Consultar depois"
+      },
+      {
+        "em": 86.5,
+        "titulo": "No Dashboard"
+      }
+    ],
+    "texto": "A aba Alertas IA junta o que pede a sua atenção: as tarefas que a inteligência artificial reprovou e o que a equipe registrou fora da rotina. Em cima, o que a equipe registrou por conta própria, nos botões Registrar Ocorrência e Registrar Descarte da Tela de Execução. A ocorrência mostra quem registrou, quando, e o que aconteceu: aqui, o freezer 2 com a porta que não fecha. O descarte traz o item, a quantidade, o motivo, o valor perdido e a foto do que foi para o lixo. Esses registros são só aviso: não têm botão. Ficam aqui enquanto estiverem dentro das datas do alto da tela. Embaixo, cada tarefa que a inteligência artificial reprovou: quem fez, a loja, e o que ela viu de errado na foto. Clique em Analisar Evidência e Resolver: abre o checklist, com a foto e o parecer. Converse com a equipe e, quando estiver resolvido, clique em Finalizar Ocorrência. O alerta fica verde, marcado como concluído, e o botão vira Ver Evidência Salva, para consultar depois. Clicando em Ver Evidência Salva, o checklist abre de novo, agora marcado como Ocorrência Resolvida. E lá no Dashboard, o cartão de alertas conta só os que ainda não foram resolvidos. Agora, nenhum. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-checklists": {
+    "id": "firecheck-checklists",
+    "titulo": "Criar e editar um checklist",
+    "duracao": 162,
+    "versao": "61d52d1d",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "A lista de checklists"
+      },
+      {
+        "em": 31.4,
+        "titulo": "Criar um checklist"
+      },
+      {
+        "em": 82.8,
+        "titulo": "As tarefas"
+      },
+      {
+        "em": 139.5,
+        "titulo": "Salvar"
+      },
+      {
+        "em": 146.8,
+        "titulo": "Editar"
+      }
+    ],
+    "texto": "Na aba Checklists ficam todos os checklists da loja, com o que a equipe já fez hoje e o que ainda falta. Em cima, os pendentes, com a faixa vermelha. Embaixo, os concluídos, com o nome de quem fez. Visualizar mostra o checklist do jeito que a funcionária vê. Editar abre para mudar. E Excluir apaga de vez: antes, pede para você digitar a palavra excluir. Para criar um novo, clique em Novo Checklist. O botão Gerar com Inteligência Artificial chama o Bill: você explica por áudio ou por escrito, ele faz umas perguntas e monta as tarefas. Aqui, vamos montar à mão. Primeiro, escreva o nome do checklist. Na recorrência você escolhe: uma vez só, numa data, todo dia, nos dias da semana que marcar, toda semana ou todo mês. Este vai ser todo dia. Logo abaixo: se a funcionária tira uma selfie no fim, e a categoria do checklist. Quem faz: Toda a Equipe vale para todo mundo, até quem entrar depois. Se marcar pessoas, só elas veem. E aqui, a assinatura com o dedo na tela. Agora as tarefas. Cada uma tem a descrição e o tipo de resposta. A primeira é de sim ou não. Marcando Exigir Foto Real, ela precisa tirar a foto. E aqui você escreve o que a foto tem que mostrar: a inteligência artificial confere por essa descrição e avisa a funcionária na hora se faltar algo. Adicionar Tarefa põe mais uma. Esta é de número, para a temperatura da carne. Com um máximo de sete graus, a tela avisa a funcionária quando passar disso. A terceira tarefa, sobre as embalagens, é de múltipla escolha. Você escreve as opções, e a funcionária toca na que vale. No tipo de resposta tem também estrelas de um a cinco, texto livre e lista de itens para conferir um por um. Pronto: clique em Salvar Checklist. Ele já aparece na lista, nos pendentes de hoje. Para mudar alguma coisa depois, é o Editar: abre o mesmo formulário com tudo preenchido. Mude e salve de novo. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-ponto-gestor": {
+    "id": "firecheck-ponto-gestor",
+    "titulo": "Como acompanhar o ponto da equipe",
+    "duracao": 159,
+    "versao": "33e94a3f",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O controle de ponto"
+      },
+      {
+        "em": 16.6,
+        "titulo": "Os funcionários"
+      },
+      {
+        "em": 29.5,
+        "titulo": "A ficha do funcionário"
+      },
+      {
+        "em": 43.5,
+        "titulo": "O extrato e a selfie"
+      },
+      {
+        "em": 59.7,
+        "titulo": "Um atraso"
+      },
+      {
+        "em": 85,
+        "titulo": "As escalas de trabalho"
+      },
+      {
+        "em": 137.1,
+        "titulo": "Configurações gerais"
+      }
+    ],
+    "texto": "No Controle de Ponto você acompanha a presença da equipe: quem bateu o ponto, a que horas, com selfie e localização. A tela tem três partes. Os funcionários, as escalas de trabalho e as configurações gerais do ponto. Em Funcionários, cada cartão mostra a pessoa, a função e a escala dela. A busca acha pelo nome ou pelo e-mail. Vamos abrir a ficha do Rafael, o motoboy. Na ficha aparecem a foto, o e-mail e a função. Em Regra de Ponto fica a escala dele: o Turno da noite. Para trocar, escolha outra e clique em Salvar Regras. Ao lado, o Extrato de Pontos lista cada entrada e saída do mês, da mais nova para a mais antiga. Cada batida traz a selfie que ele tirou na hora, o horário, e o endereço onde o celular estava, pelo GPS. O Turno da noite começa às cinco da tarde. Anteontem, o Rafael bateu a entrada com dezoito minutos de atraso. Se o aviso de atrasos estiver ligado em Notificações, um atraso assim chega no seu WhatsApp na hora em que ele bate o ponto. Em Visão Mensal, o mês vira um calendário: verde é dia com presença, e vermelho é dia de trabalho sem ponto batido. Agora as escalas. Em Escalas de Trabalho ficam os turnos da loja, com o horário e os dias da semana de cada um. Para criar um turno, clique em Nova Escala. Dê um nome, escolha o tipo, semanal fixa ou plantão 12x36, e uma cor para reconhecer o turno. Coloque a entrada e a saída e marque os dias de trabalho. Este é um turno de reforço: só no sábado e no domingo, das onze às três da tarde. Clique em Salvar Escala. Pronto: o turno novo já aparece aqui. O lápis edita e a lixeira apaga cada escala. Depois, vincule a escala a cada funcionário na ficha dele, ou na aba Equipe. Em Configurações Gerais ficam o horário padrão da loja e a tolerância de atraso. Eles valem para quem não tem escala. E do lado, o fuso horário da loja, o e-mail do contador e o dia de fechamento da folha. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-ranking": {
+    "id": "firecheck-ranking",
+    "titulo": "Como funciona o ranking da equipe",
+    "duracao": 98,
+    "versao": "ef8a3c79",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O ranking da equipe"
+      },
+      {
+        "em": 7.6,
+        "titulo": "O período"
+      },
+      {
+        "em": 25.3,
+        "titulo": "Como a nota é calculada"
+      },
+      {
+        "em": 43.3,
+        "titulo": "O que não entra na nota"
+      },
+      {
+        "em": 60.6,
+        "titulo": "O pódio e os números"
+      },
+      {
+        "em": 73.2,
+        "titulo": "A lista completa"
+      }
+    ],
+    "texto": "O Ranking mostra quem da sua equipe está fazendo os checklists completos, do primeiro ao último colocado. No alto, escolha o período: hoje, a semana, o mês, ou Personalizado, com as datas que você quiser. Aqui vamos ficar com o mês. O pódio, os cartões e a lista seguem sempre o período escolhido. A nota de cada pessoa é a parte das tarefas que ela marcou como feitas, somando todos os checklists que enviou no período. A Juliana deixou algumas tarefas sem fazer, e a nota dela caiu. Quem não enviou nenhum checklist no período não entra no ranking. Atenção: o parecer da inteligência artificial não entra nesta conta. A Ana teve uma foto reprovada ontem e continua em primeiro, porque fez todas as tarefas. As fotos reprovadas você acompanha em Alertas IA, aqui no menu. No pódio ficam os três primeiros, com a coroa no líder. E nos cartões: o total de tarefas feitas no período, a média da equipe toda, e o nome do líder. Embaixo vem a lista completa: a posição, a nota e quantas tarefas cada um fez. A barra fica verde de 90% para cima, amarela de 70% a 89%, e vermelha abaixo de 70%. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-frota": {
+    "id": "firecheck-frota",
+    "titulo": "Frota e vistoria de veículos no FireCheck",
+    "duracao": 148,
+    "versao": "87f430bb",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que é esta tela"
+      },
+      {
+        "em": 11.4,
+        "titulo": "Os veículos da loja"
+      },
+      {
+        "em": 30.3,
+        "titulo": "Cadastrar um veículo"
+      },
+      {
+        "em": 57.1,
+        "titulo": "O que conferir na vistoria"
+      },
+      {
+        "em": 81.6,
+        "titulo": "Quando fazer a vistoria"
+      },
+      {
+        "em": 108.9,
+        "titulo": "Pedir uma vistoria"
+      },
+      {
+        "em": 119.4,
+        "titulo": "As vistorias feitas"
+      }
+    ],
+    "texto": "Em Frota e Veículos ficam os veículos da loja, como a moto e o carro das entregas. Para cada um, você monta a vistoria que o motorista faz pelo celular. Cada cartão mostra a foto, a placa, a quilometragem e o motorista. A moto fica com o Rafael. A Fiorino não tem motorista fixo. Em Editar você muda os dados e a vistoria do veículo. Excluir tira o veículo da frota. Para incluir um veículo, clique em Cadastrar Veículo. Preencha a placa, o modelo e a marca. Depois, a quilometragem de hoje. Em Motorista Vinculado, escolha quem usa o veículo. É na tela dessa pessoa que a vistoria aparece. E em Foto do Veículo, escolha uma foto do aparelho. Do lado ficam os critérios da vistoria. Clique em Adicionar Item ao Checklist e escreva o que o motorista tem que conferir. Marque Foto Obrigatória quando quiser a foto daquele item. A foto passa pela conferência da inteligência artificial. Mais um item: a quilometragem do painel, com o tipo Valor Numérico. Mais abaixo, em Recorrência, você diz quando a vistoria é cobrada: todo dia, em dias da semana, em datas marcadas, ou sob demanda. Aqui, segunda, quarta e sexta. Nesses dias, a vistoria aparece como pendente na tela do motorista. Tudo pronto: clique em Salvar Veículo. A moto nova já está na frota, com o Lucas como motorista. No veículo sob demanda, como a moto do Rafael, use o botão Solicitar: a vistoria fica pendente na tela do motorista por 24 horas. O motorista faz a vistoria na Tela de Execução, com as fotos. A vistoria enviada aparece no Dashboard, na auditoria. Hoje o Rafael já fez a da moto. Abrindo, estão as respostas do motorista, a foto e o parecer da inteligência artificial. Fechando, é só voltar para Frota e Veículos. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-compras": {
+    "id": "firecheck-compras",
+    "titulo": "Listas de compras e estoque no FireCheck",
+    "duracao": 158,
+    "versao": "03acfc50",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que é esta tela"
+      },
+      {
+        "em": 11.6,
+        "titulo": "As listas da loja"
+      },
+      {
+        "em": 31.9,
+        "titulo": "O que a equipe contou"
+      },
+      {
+        "em": 66.3,
+        "titulo": "Criar uma lista"
+      },
+      {
+        "em": 94.7,
+        "titulo": "Os itens e o estoque mínimo"
+      },
+      {
+        "em": 132.1,
+        "titulo": "A contagem da equipe"
+      }
+    ],
+    "texto": "Em Compras e Estoque você monta as listas de compras da loja, cada produto com o seu estoque mínimo. A equipe conta o que tem, e o FireCheck mostra o que está faltando. Cada lista é um cartão. Esta é a das compras da semana: tem cinco itens, e três deles ficaram abaixo do mínimo na última contagem. O lápis edita a lista. A lixeira tira a lista da tela, mas as contagens já feitas continuam no histórico. Logo abaixo fica o histórico das conferências: quem contou, quando, e quantos itens ficaram abaixo do mínimo. Ontem, quem conferiu foi a Fernanda. Clique em Ver Relatório Detalhado para ver a contagem item por item. No alto, quem contou, quando, e o recado que deixou: a muçarela acaba antes de sexta. Em vermelho, o que está abaixo do mínimo e quanto falta. A muçarela tem 4 quilos, e o mínimo é 10: faltam 6. Para montar uma lista nova, feche o relatório e clique em Nova Lista de Compras. Dê um nome para a lista. Em Recorrência, escolha se ela é diária, semanal ou mensal. Em Atribuir a, escolha quem confere a lista: só essa pessoa vê a lista na tela dela. Deixando qualquer colaborador, ela aparece para todos. Agora os itens: o produto, a unidade e o estoque mínimo. Quando a contagem fica abaixo desse número, o item aparece como falta. Para mais um produto, clique em Adicionar Item. Se preferir, em Cadastrar com IA você descreve a lista, escrevendo ou por áudio, e a inteligência artificial preenche o formulário para você conferir. Tudo certo? Clique em Criar Lista. A lista nova aparece primeiro: diária, com dois itens, e o nome de quem vai conferir. A Ana faz a contagem na Tela de Execução, pelo celular, e envia. Cada lista é conferida uma vez por dia, e a contagem entra aqui no histórico. E com o WhatsApp ligado, em Notificações, o dono e os gestores recebem a lista do que precisa comprar assim que a contagem chega. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-bill": {
+    "id": "firecheck-bill",
+    "titulo": "Como conectar o FireCheck ao Bill",
+    "duracao": 60,
+    "versao": "d7b9a8fa",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que é o Bill"
+      },
+      {
+        "em": 17.6,
+        "titulo": "Como conectar"
+      },
+      {
+        "em": 30,
+        "titulo": "Se a senha estiver errada"
+      },
+      {
+        "em": 37.9,
+        "titulo": "Depois de conectar"
+      },
+      {
+        "em": 47.5,
+        "titulo": "Quem ainda não tem o Bill"
+      }
+    ],
+    "texto": "Nesta aba você liga o FireCheck à sua conta do Bill. Como diz a tela, o Bill é a inteligência artificial dos participantes do projeto Empresa Inteligente, do Douglas Morett. Logo abaixo, a tela mostra o que entra na integração. Para conectar, use o mesmo e-mail e a mesma senha da sua conta do Bill. O FireCheck confere os dois direto com o Bill. Depois, é só clicar em Conectar minha conta. Se o e-mail ou a senha estiverem errados, aparece um aviso em vermelho logo acima do e-mail, e nada é ligado. Com a conta ligada, esta aba passa a mostrar Conectado ao Bill, e o botão Desvincular conta, para desligar quando quiser. E quem ainda não tem o Bill encontra o caminho aqui embaixo: o link leva ao Instagram do Douglas Morett. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-equipe": {
+    "id": "firecheck-equipe",
+    "titulo": "Como cadastrar a equipe e os gestores",
+    "duracao": 123,
+    "versao": "4c60f257",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "A equipe da loja"
+      },
+      {
+        "em": 14.5,
+        "titulo": "Cadastrar um funcionário"
+      },
+      {
+        "em": 47.5,
+        "titulo": "O gestor e as permissões"
+      },
+      {
+        "em": 87,
+        "titulo": "Acessar a conta e remover"
+      },
+      {
+        "em": 100.3,
+        "titulo": "O limite do plano"
+      }
+    ],
+    "texto": "Na aba Equipe fica todo mundo que usa o FireCheck na sua loja: o nome, o papel, a escala de trabalho, o e-mail e o telefone. Para cadastrar alguém, clique em Adicionar Colaborador. Escreva o nome completo e o e-mail. É com esse e-mail que a pessoa entra no FireCheck. Crie uma senha inicial e passe para ele. No telefone, com DDD, ele recebe no WhatsApp o comprovante de cada ponto que bater. No papel, Funcionário: ele usa a Tela de Execução no celular, para fazer os checklists e bater o ponto. Clique em Cadastrar Colaborador. Pronto: o Marcos já aparece no alto da lista. O gestor ajuda a tocar a loja e entra neste painel, como o dono. Só o dono pode cadastrar um gestor. A Fernanda é a gestora daqui. Clique em Editar para ver o que ela pode fazer. Em Permissões do Gestor, cada caixinha libera uma aba do painel. O que ficar desmarcado some do menu dela. Por exemplo: desmarcando Compras e estoque, a Fernanda deixa de ver as compras. Nesta mesma janela você muda o nome, o telefone, o papel e a escala de trabalho. No fim, clique em Salvar Alterações. Acessar Conta abre o FireCheck como se você fosse aquela pessoa, para ver o que ela vê. E a lixeira tira a pessoa da equipe. Antes de apagar, o FireCheck pede para você confirmar. O seu plano tem um limite de colaboradores. Ele aparece em Perfil da Empresa. Contam os funcionários e os gestores; o dono fica de fora. Quando a equipe chega no limite, o cadastro avisa e não deixa passar. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-perfil": {
+    "id": "firecheck-perfil",
+    "titulo": "Perfil da empresa e plano no FireCheck",
+    "duracao": 77,
+    "versao": "e2364d78",
+    "publico": "gestor",
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "O que é esta tela"
+      },
+      {
+        "em": 5.5,
+        "titulo": "Os dados da empresa"
+      },
+      {
+        "em": 36.1,
+        "titulo": "O seu plano"
+      },
+      {
+        "em": 47.5,
+        "titulo": "Trocar de plano"
+      },
+      {
+        "em": 63.8,
+        "titulo": "O que fica em outras abas"
+      }
+    ],
+    "texto": "Em Perfil da Empresa ficam os dados da sua conta e o seu plano do FireCheck. O nome da empresa é o que aparece no painel e na tela da equipe. Embaixo, o nome do dono e o telefone de contato. Para mudar, é só escrever por cima. Aqui, o nome da loja ganha o Lanchonete. Depois, clique em Salvar Perfil. A página recarrega e abre no Dashboard, já com o nome novo da loja. Para voltar ao perfil, clique de novo em Perfil da Empresa. Do lado, o plano atual da conta, e se ele está ativo. Os checklists não têm limite. E neste plano cabem até 50 colaboradores cadastrados. Para mudar de plano, estes botões abrem a página de pagamento numa aba nova: o combo anual ou o mensal. E atenção ao aviso em vermelho: depois da troca, cancele o plano antigo na Cakto, para não pagar duas vezes. O número que recebe os avisos de WhatsApp fica em Notificações. E as pessoas da loja, em Equipe. Para rever este vídeo, é só clicar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-fazer-checklist": {
+    "id": "firecheck-fazer-checklist",
+    "titulo": "Como fazer um checklist",
+    "duracao": 112,
+    "versao": "803b2f49",
+    "publico": "funcionario",
+    "emPe": true,
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "A Tela de Execução"
+      },
+      {
+        "em": 18.1,
+        "titulo": "Começar o checklist"
+      },
+      {
+        "em": 30.2,
+        "titulo": "Responder as tarefas"
+      },
+      {
+        "em": 54,
+        "titulo": "Tirar a foto"
+      },
+      {
+        "em": 79.3,
+        "titulo": "Finalizar"
+      },
+      {
+        "em": 104.8,
+        "titulo": "Para rever este vídeo"
+      }
+    ],
+    "texto": "Esta é a Tela de Execução do FireCheck. É nela que você faz, pelo celular, os checklists do dia. Mais abaixo, em Checklists pendentes, ficam os que ainda faltam hoje. Os que já foram feitos descem para Concluídos hoje. Hoje falta o Fechamento da loja. Para começar, toque em Iniciar. No alto fica o nome do checklist, e a barra mostra quantas tarefas você já respondeu. Cada tarefa tem o seu jeito de responder. Esta é de Sim ou Não. Nesta, você escolhe uma das opções. E nesta, você digita o valor: aqui, o dinheiro que tem no caixa. O celular vai guardando o que você responde. Se precisar sair da tela, o checklist fica em andamento e você continua de onde parou. Tarefa com foto avisa: Obrigatório, foto ao vivo. Responda e toque em Câmera ao Vivo. Aponte o celular para o que a tarefa pede, aqui o piso da cozinha, e toque em Capturar Foto. A foto fica na tarefa. Saiu ruim? Toque no xis e tire outra. Sem a foto, o checklist não pode ser enviado. Com tudo respondido, é hora de enviar. Depois do envio, a inteligência artificial confere as fotos, e o gestor vê o resultado no painel. Toque em Finalizar e Enviar. Pronto, checklist enviado! Em alguns segundos, a tela volta sozinha para a lista. E o Fechamento da loja aparece em Concluídos hoje, riscado e com o selo de finalizado. Ficou alguma dúvida? Para rever este vídeo, é só tocar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-descarte": {
+    "id": "firecheck-descarte",
+    "titulo": "Registrar ocorrência e descarte",
+    "duracao": 95,
+    "versao": "714b3c92",
+    "publico": "funcionario",
+    "emPe": true,
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "Avisar o que fugiu da rotina"
+      },
+      {
+        "em": 11.6,
+        "titulo": "Registrar uma ocorrência"
+      },
+      {
+        "em": 39.8,
+        "titulo": "Registrar um descarte"
+      },
+      {
+        "em": 64.6,
+        "titulo": "A foto do descarte"
+      },
+      {
+        "em": 76.9,
+        "titulo": "Quem vê o registro"
+      }
+    ],
+    "texto": "Na Tela de Execução, logo no alto, ficam dois botões para avisar o gestor do que fugiu da rotina: Registrar Ocorrência e Registrar Descarte. Ocorrência é um problema que o gestor precisa saber: um freezer que parou, um equipamento quebrado. Toque em Registrar Ocorrência. Conte o que aconteceu neste campo. Se ajudar, anexe uma foto. Depois, toque em Enviar para o gestor. Pronto. Embaixo, a tela confirma que o registro foi feito e que o seu gestor foi avisado. Descarte é o que precisou ir para o lixo. Toque em Registrar Descarte. Escreva o que foi descartado, a quantidade e a unidade. Se souber, ponha o valor estimado em reais. E escolha o motivo na lista. Quer explicar melhor? Use o campo de detalhes. Aqui, as esfirras queimaram no forno. Agora a foto. Toque em Anexar foto, e o celular abre a câmera para você fotografar o que vai para o lixo. Confira tudo e toque em Enviar para o gestor. O descarte sai com o seu nome, e o gestor recebe na hora. No painel, o dono vê cada ocorrência e cada descarte, com a foto e o valor, na aba Alertas IA. Para rever este vídeo, é só tocar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-bater-ponto": {
+    "id": "firecheck-bater-ponto",
+    "titulo": "Como bater o ponto",
+    "duracao": 104,
+    "versao": "e04eb0db",
+    "publico": "funcionario",
+    "emPe": true,
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "Onde fica o ponto"
+      },
+      {
+        "em": 14.1,
+        "titulo": "A tela do ponto"
+      },
+      {
+        "em": 23,
+        "titulo": "A localização"
+      },
+      {
+        "em": 39.6,
+        "titulo": "O que falta"
+      },
+      {
+        "em": 48.4,
+        "titulo": "A selfie"
+      },
+      {
+        "em": 64.4,
+        "titulo": "Registrar a entrada"
+      },
+      {
+        "em": 77.8,
+        "titulo": "A saída"
+      },
+      {
+        "em": 88.7,
+        "titulo": "Fora do horário"
+      }
+    ],
+    "texto": "Na Tela de Execução, o seu ponto fica neste cartão. Ele mostra o seu turno e a hora da entrada e da saída de hoje. Para bater o ponto, toque em Registrar Ponto com IA. Esta é a tela do ponto. No alto, o seu nome e a hora de agora. Logo abaixo, o horário do seu turno de hoje. O ponto só vale com a localização do celular ligada. Aqui aparece onde você está e a precisão do sinal. Se a precisão passar de duzentos metros, o ponto não registra. Vá para um lugar aberto e toque em Atualizar. Mais abaixo, esta lista mostra o que ainda falta para registrar. A localização já está certa; falta a selfie. A selfie confirma que é você mesmo batendo o ponto. Toque em Abrir Câmera. Enquadre o rosto no círculo e toque no botão laranja. Pronto, foto capturada. Se ficou ruim, toque em Tirar novamente. Com tudo certo, os botões acendem. Na chegada, toque em Registrar Entrada. A tela confirma, e a entrada aparece em Registros de hoje, com a hora e o endereço. Cada batida pede uma selfie nova. No fim do turno, tire a selfie de novo e toque em Registrar Saída. A saída só registra depois da entrada. E atenção ao horário: ponto batido depois do horário do turno, passando da tolerância, gera um aviso para o dono e o gestor da loja. Para rever este vídeo, é só tocar em Tutorial, aqui no alto da tela."
+  },
+  "firecheck-compras-funcionario": {
+    "id": "firecheck-compras-funcionario",
+    "titulo": "Contar o estoque da lista de compras",
+    "duracao": 88,
+    "versao": "4f60090f",
+    "publico": "funcionario",
+    "emPe": true,
+    "capitulos": [
+      {
+        "em": 0,
+        "titulo": "A lista de compras"
+      },
+      {
+        "em": 14.4,
+        "titulo": "Contar cada item"
+      },
+      {
+        "em": 55.3,
+        "titulo": "Observação e envio"
+      },
+      {
+        "em": 80.3,
+        "titulo": "Para rever este vídeo"
+      }
+    ],
+    "texto": "Quando a loja tem uma lista de compras para conferir, ela aparece aqui na Tela de Execução, em Listas de compras. O cartão já avisa quantos itens estavam abaixo do mínimo na última contagem. Toque em Preencher. Para cada item, conte o que tem na loja agora e digite a quantidade. A farinha de trigo: trinta quilos. Do lado ficam o mínimo que a loja precisa ter e a última contagem. É só para referência: o campo começa vazio, para você contar de novo. Se a quantidade fica abaixo do mínimo, o item fica vermelho e a tela mostra quanto falta. Aqui tem só quatro quilos de muçarela. E quando a quantidade chega ao mínimo, a tela mostra Estoque suficiente, em verde. Faça o mesmo com todos os itens. A conferência só é enviada com todos preenchidos. Se quiser, escreva uma observação para o gestor. No fim, toque em Finalizar e Enviar Conferência. Pronto: a contagem fica registrada, e a tela mostra quantos itens ficaram abaixo do mínimo. O gestor vê tudo no painel, em Compras e Estoque. Toque em Voltar para o Início. A lista de compras sai da tela por hoje. Ficou alguma dúvida? Para rever este vídeo, é só tocar em Tutorial, aqui no alto da tela."
+  }
+}

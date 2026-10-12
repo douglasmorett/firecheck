@@ -663,9 +663,6 @@ export default function AdminDashboard() {
   const [testeWhats, setTesteWhats] = useState(null);
   // { conectado, motivo } — nulo enquanto não se sabe.
   const [whatsForaDoAr, setWhatsForaDoAr] = useState(null);
-  const [religando, setReligando] = useState(false);
-  // { qr, codigo, instancia } quando o pareamento e a unica saida.
-  const [pareamento, setPareamento] = useState(null);
   const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
@@ -2189,12 +2186,11 @@ export default function AdminDashboard() {
    * exatamente o mesmo silêncio. Aqui cada um desses casos tem um nome.
    */
   /**
-   * Pergunta se o WhatsApp do sistema está de pé.
+   * Pergunta se a loja já conectou o WhatsApp dela.
    *
-   * Na madrugada de 29/08 as duas instâncias estavam fora — a que manda os
-   * alertas e a de suporte, que era por onde o aviso de queda ia sair. Sem
-   * nenhum canal, a tela é o único lugar que sobra para contar isso. E é,
-   * afinal, onde o lojista está quando repara que parou de receber.
+   * Só a faixa verde ("conecte o WhatsApp da sua empresa") usa esta resposta.
+   * O número do sistema não aparece mais no painel (Douglas, 12/10/2026): a
+   * senha se recupera por e-mail e a cobrança é o bloqueio da conta.
    *
    * Falhar aqui não pode atrapalhar nada: sem resposta, a faixa simplesmente
    * não aparece.
@@ -2208,67 +2204,12 @@ export default function AdminDashboard() {
         const res = await fetch(`${API_URL}/api/whatsapp/estado`, { headers: getAuthHeaders() });
         if (!res.ok) return;
         const data = await res.json();
-        if (vivo) setWhatsForaDoAr(data && data.conectado === false ? data : null);
+        if (vivo) setWhatsForaDoAr(data && data.conectado === false && data.lojaSemWhatsapp ? data : null);
       } catch { /* sem resposta, sem faixa */ }
     })();
     return () => { vivo = false; };
     // A aba entra na lista: quem acabou de conectar em Notificações vê a faixa sumir ao sair de lá.
   }, [userProfile, tab]);
-
-  /**
-   * Religa a sessão de WhatsApp do sistema.
-   *
-   * `state: close` quase sempre é socket perdido, não conta deslogada, e volta
-   * com um restart. Sem este botão, a única saída visível era abrir o servidor
-   * da Evolution — ou esperar o cron da meia hora.
-   */
-  const handleReligarWhatsapp = async () => {
-    setReligando(true);
-    try {
-      const res = await fetch(`${API_URL}/api/whatsapp/reconectar`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json().catch(() => null);
-      if (data?.ok) {
-        setWhatsForaDoAr(null);
-        setPareamento(null);
-        addToast('WhatsApp reconectado. Os alertas voltaram a sair.', 'success');
-      } else {
-        // Reiniciar e voltar a `close` significa credencial invalidada: não há
-        // conserto remoto, e o único caminho é parear de novo. Em vez de mandar
-        // abrir o servidor da Evolution, traz o QR para cá.
-        addToast(data?.principal?.motivo || 'Não foi possível religar. Pareie de novo abaixo.', 'error');
-        await handlePareaWhatsapp();
-      }
-    } catch {
-      addToast('Sem conexão com o servidor agora.', 'error');
-    } finally {
-      setReligando(false);
-    }
-  };
-
-  /** Puxa o QR Code (ou o código de oito dígitos) para parear o número do sistema. */
-  const handlePareaWhatsapp = async (instancia) => {
-    try {
-      const res = await fetch(`${API_URL}/api/whatsapp/parear`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(instancia ? { instancia } : {}),
-      });
-      const data = await res.json().catch(() => null);
-      if (data?.jaConectada) {
-        setWhatsForaDoAr(null);
-        setPareamento(null);
-        addToast('Esta conexão já está ativa.', 'success');
-        return;
-      }
-      if (data?.ok) setPareamento(data);
-      else addToast(data?.motivo || 'Não foi possível gerar o QR Code agora.', 'error');
-    } catch {
-      addToast('Sem conexão com o servidor agora.', 'error');
-    }
-  };
 
   const handleTestarWhatsapp = async () => {
     setTestandoWhats(true);
@@ -2751,10 +2692,6 @@ export default function AdminDashboard() {
       {/* ÁREA PRINCIPAL */}
       <main style={{ flex: 1, padding: '32px', overflowY: 'auto', display: 'flex', flexDirection: 'column' }} className="animate-fade">
 
-        {/* ── O WhatsApp do sistema está fora do ar ──────────────────────────
-            Fica acima de tudo porque muda o significado de tudo que vem abaixo:
-            enquanto esta faixa estiver na tela, nenhum alerta chega a ninguém.
-            Antes disso, o único jeito de descobrir era um cliente reclamar. */}
         {/* Loja sem o WhatsApp dela: o convite para conectar (na própria aba
             Notificações o cartão do WhatsApp da loja já diz isso). */}
         {whatsForaDoAr?.lojaSemWhatsapp && tab !== 'notificacoes' && (
@@ -2790,84 +2727,6 @@ export default function AdminDashboard() {
                 >
                   Conectar o WhatsApp agora
                 </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {whatsForaDoAr && !whatsForaDoAr.lojaSemWhatsapp && (
-          <div style={{
-            backgroundColor: 'rgba(239, 68, 68, 0.09)',
-            border: '1px solid #ef4444',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '14px',
-          }}>
-            <div style={{ backgroundColor: '#ef4444', padding: '8px', borderRadius: '50%', display: 'flex', flexShrink: 0 }}>
-              <ShieldAlert size={20} color="#fff" />
-            </div>
-            <div>
-              <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '3px' }}>
-                {whatsForaDoAr.sistema
-                  ? 'O WhatsApp do sistema está desconectado (recuperação de senha e cobrança)'
-                  : 'As notificações por WhatsApp estão fora do ar'}
-              </strong>
-              <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                {whatsForaDoAr.motivo}
-              </span>
-              {isMaster && (
-                <button
-                  type="button"
-                  onClick={handleReligarWhatsapp}
-                  disabled={religando}
-                  style={{
-                    marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
-                    backgroundColor: '#ef4444', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
-                    cursor: religando ? 'wait' : 'pointer', opacity: religando ? 0.7 : 1, display: 'block',
-                  }}
-                >
-                  {religando ? 'Religando...' : 'Tentar religar agora'}
-                </button>
-              )}
-
-              {/* ── Quando religar não basta ─────────────────────────────
-                  A sessão reiniciar e voltar a `close` significa credencial
-                  invalidada — o aparelho desvinculou o dispositivo. Não existe
-                  conserto remoto para isso; existe parear de novo. O que dá para
-                  poupar é a viagem até o servidor da Evolution. */}
-              {isMaster && pareamento && (
-                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: 'var(--bg-card)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                  <strong style={{ display: 'block', fontSize: '0.92rem', marginBottom: '8px' }}>
-                    Parear o número de novo — conexão "{pareamento.instancia}"
-                  </strong>
-                  {pareamento.codigo ? (
-                    <>
-                      <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                        No celular do número do sistema: WhatsApp → Aparelhos conectados →
-                        Conectar aparelho → <strong>Conectar com número de telefone</strong>. Digite:
-                      </p>
-                      <div style={{ fontFamily: 'monospace', fontSize: '1.9rem', fontWeight: 'bold', letterSpacing: '0.16em', color: 'var(--primary)' }}>
-                        {pareamento.codigo}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p style={{ margin: '0 0 10px 0', fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                        No celular do número do sistema: WhatsApp → Aparelhos conectados →
-                        Conectar aparelho, e aponte para o código abaixo.
-                      </p>
-                      <img src={pareamento.qr} alt="QR Code para parear o WhatsApp do sistema"
-                           style={{ width: '232px', maxWidth: '100%', borderRadius: '8px', backgroundColor: '#fff', padding: '8px' }} />
-                    </>
-                  )}
-                  <p style={{ margin: '10px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    O código expira em cerca de um minuto. Se não der tempo, clique de novo em
-                    "Tentar religar agora" para gerar outro.
-                  </p>
-                </div>
               )}
             </div>
           </div>
@@ -2945,9 +2804,23 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: '#25D366' }}>Instale o WebApp &amp; Configure o Robô do WhatsApp</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cadastre os contatos e ative as notificações automáticas do WhatsApp no menu "Perfil da Empresa". Para instalar na tela inicial, clique no menu do navegador (⋮ ou compartilhar) e selecione <strong>"Adicionar à Tela Inicial"</strong>.</p>
+                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Conecte o WhatsApp da empresa, cadastre os números e ative as notificações automáticas na aba "Notificações". Para instalar na tela inicial, clique no menu do navegador (⋮ ou compartilhar) e selecione <strong>"Adicionar à Tela Inicial"</strong>.</p>
               </div>
             </div>
+            {/* O texto mandava procurar o menu; o botão leva direto. */}
+            {tab !== 'notificacoes' && (
+              <button
+                type="button"
+                onClick={() => setTab('notificacoes')}
+                style={{
+                  padding: '10px 18px', borderRadius: '8px', border: 'none', marginRight: '24px',
+                  backgroundColor: '#25D366', color: '#fff', fontWeight: 'bold', fontSize: '0.9rem',
+                  cursor: 'pointer', whiteSpace: 'nowrap',
+                }}
+              >
+                Configurar o WhatsApp
+              </button>
+            )}
           </div>
         )}
 
