@@ -4,6 +4,8 @@ import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, Ref
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
+import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 
 // O dia operacional é o de SÃO PAULO — a MESMA régua do ChecklistExecution,
 // que grava o rascunho sob esta chave. Com toISOString() (UTC), das 21h à
@@ -651,7 +653,9 @@ export default function EmployeeDashboard() {
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: 0 }}>{userProfile?.store_name || userProfile?.store}</p>
            </div>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+           {/* "Tutorial": os vídeos desta tela (src/tutoriais/telas.js › '/funcionario'). */}
+           <BotaoTutorial tela="/funcionario" usuario={userProfile} encolhe />
            {(userProfile?.role === 'admin' || userProfile?.role === 'gestor' || userProfile?.role === 'master' || isImpersonating) && (
              <button 
                onClick={() => navigate('/admin')} 
@@ -684,14 +688,16 @@ export default function EmployeeDashboard() {
         </div>
       </header>
 
-      <div style={{ backgroundColor: 'var(--bg-color)', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)' }}>
+      <div style={{ backgroundColor: 'var(--bg-color)', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
          <div style={{ backgroundColor: 'rgba(255, 69, 0, 0.1)', padding: '12px', borderRadius: '12px' }}>
             <User size={24} color="var(--primary)" />
          </div>
-         <div>
+         <div style={{ flex: '1 1 160px', minWidth: 0 }}>
             <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Olá, {userProfile?.name}!</h3>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Você tem {pendingChecklists.length} tarefas pendentes para hoje.</p>
          </div>
+         {/* Com dúvida? Todos os vídeos da equipe, um depois do outro (a central). */}
+         <BotaoTutoriaisEmVideo usuario={userProfile} variante="cartao" />
       </div>
 
       {/* BANNER WEBAPP + WHATSAPP — esconde se já está no app nativo ou se o usuário dispensou */}

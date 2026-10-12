@@ -1,0 +1,14 @@
+{
+  "name": "firecheck-tutoriais",
+  "private": true,
+  "type": "module",
+  "description": "Gravação dos tutoriais em vídeo do FireCheck (fora do app: não entra no build da Vercel).",
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@electric-sql/pglite-socket": "0.2.11",
+    "bcryptjs": "3.0.3",
+    "pg": "8.20.0",
+    "playwright": "1.60.0",
+    "sharp": "0.34.5"
+  }
+}

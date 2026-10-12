@@ -9,6 +9,9 @@ import PWAInstall from '../components/PWAInstall';
 import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
 import WhatsappDaLoja from '../components/WhatsappDaLoja';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
+import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
+import { centralAbreSozinha, lerUsuario } from '../tutoriais/telas';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -354,6 +357,13 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const tourDismissed = localStorage.getItem('firecheck_tour_dismissed');
+    // Quando a central de tutoriais em vídeo vai abrir sozinha, ela é a boas-vindas:
+    // o convite do tour antigo não abre junto nem na próxima visita (o tour
+    // continua no botão "Tour do Sistema" do menu).
+    if (!tourDismissed && centralAbreSozinha(lerUsuario(), '/admin')) {
+      localStorage.setItem('firecheck_tour_dismissed', 'true');
+      return;
+    }
     if (!tourDismissed) {
       // Marcar imediatamente no localStorage para nunca mais reaparecer sozinho
       localStorage.setItem('firecheck_tour_dismissed', 'true');
@@ -2677,6 +2687,12 @@ export default function AdminDashboard() {
             {!isSidebarCollapsed && '📋 Tela de Execução'}
           </button>
 
+          {/* Tutoriais em vídeo (igual ao FireHub): abre a central com todos os vídeos.
+              Só aparece quando há vídeo publicado para quem está logado. */}
+          {!isMaster && (
+            <BotaoTutoriaisEmVideo usuario={userProfile} recolhido={isSidebarCollapsed} onClick={() => setIsSidebarOpen(false)} />
+          )}
+
           {/* Botão para Acessar a Central de Tutoriais */}
           <button 
             onClick={() => {
@@ -2945,7 +2961,9 @@ export default function AdminDashboard() {
               <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              {/* "Tutorial <aba>": o vídeo da aba aberta (src/tutoriais/telas.js). */}
+              {!isMaster && <BotaoTutorial key={tab} tela={`admin:${tab}`} usuario={userProfile} encolhe />}
               <button
                 onClick={() => navigate('/funcionario')}
                 className="btn animate-scale"
@@ -3021,6 +3039,10 @@ export default function AdminDashboard() {
             ) : null}
           </div>
         </header>
+
+      {/* Faixa "Tem um tutorial desta tela" no alto da aba, como no FireHub; some com
+          "Não mostrar mais nesta tela" (por aba, neste aparelho). */}
+      {!isMaster && <BotaoTutorial key={`faixa-${tab}`} tela={`admin:${tab}`} usuario={userProfile} variante="faixa" />}
 
       {/* Cards de KPIs (Visível apenas nos Dashboards Iniciais) */}
       {tab === 'auditoria' && (

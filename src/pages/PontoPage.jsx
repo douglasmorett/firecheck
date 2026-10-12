@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X, Calendar, ShieldAlert } from 'lucide-react';
 import API_URL from '../api';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -574,6 +575,9 @@ export default function PontoPage() {
             </div>
           </div>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* "Tutorial": como bater o ponto (src/tutoriais/telas.js › '/ponto'). */}
+        <BotaoTutorial tela="/ponto" usuario={user} encolhe />
         <button
           onClick={handleLogout}
           style={{
@@ -584,6 +588,7 @@ export default function PontoPage() {
         >
           Sair <LogOut size={16} />
         </button>
+        </div>
       </header>
 
       {/* ═══ Card do Usuário ═══ */}

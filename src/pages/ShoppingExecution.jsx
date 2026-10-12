@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, CheckCircle, AlertTriangle, Package, Send, ShieldCheck } from 'lucide-react';
 import API_URL from '../api';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 
 export default function ShoppingExecution() {
   const { id, shoppingListId } = useParams();
@@ -224,7 +225,7 @@ export default function ShoppingExecution() {
         >
           <ArrowLeft size={20} />
         </button>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h2 style={{ fontSize: '1.2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShoppingCart size={20} color="var(--primary)" />
             {listInfo?.title || 'Checklist de Compras'}
@@ -233,6 +234,8 @@ export default function ShoppingExecution() {
             Insira a quantidade disponível em estoque para cada item
           </p>
         </div>
+        {/* "Tutorial": como conferir a lista de compras (src/tutoriais/telas.js). */}
+        <BotaoTutorial tela="/execucao/compras" encolhe />
       </div>
 
       <form onSubmit={handleSubmit}>

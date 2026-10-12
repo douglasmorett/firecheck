@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Save, Trash2, Camera, ShieldCheck, Clock, CalendarCloc
 import { useNavigate, useParams } from 'react-router-dom';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -565,6 +566,9 @@ export default function ChecklistCreator() {
           </div>
         </div>
 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        {/* "Tutorial Checklist": como criar e editar (src/tutoriais/telas.js › '/admin/creator'). */}
+        <BotaoTutorial tela="/admin/creator" />
         {!isEditing && (
           <button 
             className="btn btn-pulse" 
@@ -582,6 +586,7 @@ export default function ChecklistCreator() {
             <Sparkles size={20} /> Gerar com Inteligência Artificial
           </button>
         )}
+        </div>
       </header>
 
       <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>

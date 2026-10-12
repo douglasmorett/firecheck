@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
+import { esquecerCentralFechada } from '../tutoriais/telas';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -59,6 +60,8 @@ export default function Login() {
         // mesmo que a sessão anterior tenha terminado de forma anormal.
         localStorage.removeItem('firecheck_admin_backup');
         localStorage.removeItem('firecheck_impersonated');
+        // "Fechar" a central de tutoriais vale até o próximo login: este.
+        esquecerCentralFechada(data.user);
         
         if (rememberMe) {
           localStorage.setItem('firecheck_email', email);

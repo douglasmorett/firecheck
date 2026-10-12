@@ -1,0 +1,194 @@
+/* Tutoriais em vídeo — botão "Tutorial", faixa, janela do vídeo e central.
+   Mesmo desenho do FireHub, nas cores do FireCheck (var(--primary) é o laranja).
+   Prefixo fc-tut- para não esbarrar no CSS das telas. */
+
+/* ── Botão "Tutorial" da tela ─────────────────────────────────────────────── */
+.fc-tut-botao{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border-radius:10px;
+  background:var(--bg-card);border:1px solid var(--border-color);color:var(--text-main);font-weight:700;font-size:.85rem;
+  cursor:pointer;white-space:nowrap;position:relative;font-family:inherit;flex:none;transition:background .15s,border-color .15s}
+.fc-tut-botao svg{color:var(--primary);flex:none}
+.fc-tut-botao:hover{background:#FFF4EE;border-color:#FFC9AE}
+.fc-tut-botao:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.fc-tut-novo{position:absolute;top:-4px;right:-4px;width:11px;height:11px;border-radius:50%;background:#FDE047;border:2px solid var(--primary)}
+@media (max-width:520px){.fc-tut-botao.encolhe .fc-tut-nome{display:none}.fc-tut-botao{height:34px;padding:0 10px;font-size:.8rem}}
+
+/* ── Botão "Tutoriais em vídeo" (menu lateral e Tela de Execução) ────────── */
+.fc-tut-central-botao{display:flex;align-items:center;gap:12px;width:100%;padding:12px 16px;border-radius:8px;border:none;
+  background:var(--primary);color:#fff;font-weight:700;font-size:.9rem;cursor:pointer;text-align:left;font-family:inherit;
+  box-shadow:0 4px 12px rgba(255,77,0,.25);transition:background .15s;margin-top:8px}
+.fc-tut-central-botao:hover{background:var(--primary-hover)}
+.fc-tut-central-botao.recolhido{justify-content:center;padding:12px 0}
+.fc-tut-central-botao.cartao{width:auto;margin:0;padding:9px 14px;border-radius:10px;font-size:.85rem;gap:8px;white-space:nowrap}
+
+/* ── Faixa no alto da aba ────────────────────────────────────────────────── */
+.fc-tut-faixa{display:flex;align-items:center;gap:14px;background:var(--bg-card);border:1px solid #FFD9C6;border-radius:14px;padding:10px 14px;margin-bottom:24px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.fc-tut-miniatura{position:relative;flex:none;width:96px;height:54px;border-radius:9px;overflow:hidden;border:0;padding:0;cursor:pointer;background:#18181B}
+.fc-tut-miniatura img{width:100%;height:100%;object-fit:cover;display:block;opacity:.9}
+.fc-tut-miniatura.em-pe img{object-fit:contain}
+.fc-tut-miniatura:hover img{opacity:1}
+.fc-tut-play{position:absolute;inset:0;margin:auto;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--primary);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+.fc-tut-qtd{position:absolute;right:4px;bottom:4px;background:rgba(24,24,27,.86);color:#fff;font-size:.62rem;font-weight:800;padding:1px 5px;border-radius:5px;line-height:1.5}
+.fc-tut-faixa-texto{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fc-tut-faixa-texto b{font-size:.9rem;color:var(--text-main);font-weight:800}
+.fc-tut-faixa-texto span{font-size:.8rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-tut-acoes{display:flex;align-items:center;gap:12px;flex:none}
+.fc-tut-assistir{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:9px;border:0;background:var(--primary);color:#fff;font-weight:800;font-size:.82rem;cursor:pointer;font-family:inherit}
+.fc-tut-assistir:hover{background:var(--primary-hover)}
+.fc-tut-ocultar{border:0;background:none;color:var(--text-muted);font-size:.74rem;text-decoration:underline;cursor:pointer;font-family:inherit;white-space:nowrap;padding:0}
+.fc-tut-ocultar:hover{color:var(--text-main)}
+@media (max-width:640px){
+  .fc-tut-faixa{flex-wrap:wrap;gap:8px 10px;padding:10px}
+  .fc-tut-miniatura{width:80px;height:45px}
+  .fc-tut-faixa-texto span{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .fc-tut-acoes{width:100%;justify-content:space-between}
+}
+
+/* ── Janela do vídeo ─────────────────────────────────────────────────────── */
+.fc-tut-fundo{position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:16px}
+.fc-tut-janela{background:var(--bg-card);border-radius:16px;width:min(1080px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;
+  box-shadow:0 24px 60px rgba(0,0,0,.35);color:var(--text-main);text-align:left}
+.fc-tut-topo{display:flex;align-items:center;gap:12px;padding:14px 16px 12px 20px}
+.fc-tut-cabeca{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.fc-tut-topo h2{margin:0;font-size:1.05rem;font-weight:800;line-height:1.3;color:var(--text-main)}
+.fc-tut-sobre{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--primary)}
+.fc-tut-todos{border:1px solid var(--border-color);background:var(--bg-card);border-radius:9px;height:34px;padding:0 12px;font-weight:700;font-size:.8rem;cursor:pointer;color:var(--text-main);font-family:inherit;white-space:nowrap;flex:none}
+.fc-tut-todos:hover{background:var(--bg-card-hover)}
+.fc-tut-fechar{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:9px;border:1px solid var(--border-color);background:var(--bg-color);cursor:pointer;color:var(--text-main);flex:none;padding:0}
+.fc-tut-corpo{display:grid;grid-template-columns:minmax(0,1fr) 264px;gap:16px;padding:0 16px 16px 20px}
+.fc-tut-palco{position:relative;background:#18181B;border-radius:12px;overflow:hidden}
+.fc-tut-video{width:100%;aspect-ratio:16/9;background:#18181B;display:block}
+.fc-tut-video.em-pe{aspect-ratio:9/16;height:min(70vh,660px);width:auto;max-width:100%;margin:0 auto}
+.fc-tut-aviso{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px;text-align:center;color:#fff;background:rgba(24,24,27,.92);font-size:.9rem;line-height:1.45}
+.fc-tut-aviso button{height:36px;padding:0 16px;border-radius:10px;border:0;background:var(--primary);color:#fff;font-weight:800;font-size:.84rem;cursor:pointer;font-family:inherit}
+.fc-tut-barra{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:.78rem;color:var(--text-muted);flex-wrap:wrap}
+.fc-tut-barra button{border:1px solid var(--border-color);background:var(--bg-card);border-radius:8px;padding:4px 9px;font-weight:700;font-size:.76rem;cursor:pointer;color:var(--text-main);font-family:inherit}
+.fc-tut-barra button[aria-pressed="true"]{background:var(--text-main);border-color:var(--text-main);color:#fff}
+.fc-tut-barra .fc-tut-proximo{margin-left:auto;display:inline-flex;align-items:center;gap:6px;max-width:100%;border-color:#FFD0B8;background:#FFF4EE;color:#B83A00;padding:5px 11px}
+.fc-tut-proximo span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fc-tut-lista-titulo{font-size:.7rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:2px 0 8px 8px}
+.fc-tut-lista{display:flex;flex-direction:column;gap:2px;margin:0;padding:0;list-style:none}
+.fc-tut-capitulo{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:9px;cursor:pointer;font-size:.84rem;color:var(--text-main);font-family:inherit;line-height:1.35}
+.fc-tut-capitulo:hover{background:var(--bg-color)}
+.fc-tut-capitulo[aria-current="true"]{background:#FFF1EA;color:#B83A00;font-weight:700}
+.fc-tut-capitulo time{font-variant-numeric:tabular-nums;font-size:.74rem;color:var(--text-muted);min-width:32px;flex:none}
+.fc-tut-capitulo[aria-current="true"] time{color:var(--primary)}
+
+/* Vários vídeos na mesma tela: cartões numerados com a capa */
+.fc-tut-serie{margin:0 16px 14px 20px;padding:10px 12px 12px;border:1px solid #FFD9C6;background:#FFF8F4;border-radius:14px}
+.fc-tut-serie-topo{display:flex;align-items:center;gap:4px 12px;flex-wrap:wrap;margin:0 2px 9px}
+.fc-tut-serie-topo b{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;font-weight:800;color:#B83A00}
+.fc-tut-serie-topo span{font-size:.78rem;color:#7C5A4A}
+.fc-tut-serie-topo em{margin-left:auto;font-style:normal;font-size:.74rem;font-weight:700;color:var(--text-muted);display:inline-flex;align-items:center;gap:4px}
+.fc-tut-cartoes{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:8px}
+.fc-tut-cartoes li{min-width:0}
+.fc-tut-cartao{display:flex;align-items:center;gap:10px;width:100%;height:100%;text-align:left;padding:6px 8px 6px 6px;border-radius:11px;border:1.5px solid #EADFD6;background:var(--bg-card);cursor:pointer;font-family:inherit;color:var(--text-main)}
+.fc-tut-cartao:hover{border-color:#FFB48F}
+.fc-tut-cartao[aria-current="true"]{border-color:var(--primary);box-shadow:0 0 0 3px rgba(255,77,0,.14)}
+.fc-tut-cartao-capa{position:relative;flex:none;width:84px;aspect-ratio:16/9;border-radius:7px;overflow:hidden;background:#18181B}
+.fc-tut-cartao-capa img{width:100%;height:100%;object-fit:cover;display:block}
+.fc-tut-cartao-capa.em-pe img{object-fit:contain}
+.fc-tut-cartao-capa i{position:absolute;top:4px;left:4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:rgba(24,24,27,.86);color:#fff;font-style:normal;font-size:.72rem;font-weight:800;display:flex;align-items:center;justify-content:center}
+.fc-tut-cartao[aria-current="true"] .fc-tut-cartao-capa i{background:var(--primary)}
+.fc-tut-cartao-texto{min-width:0;display:flex;flex-direction:column;gap:3px}
+.fc-tut-cartao-texto b{font-size:.8rem;font-weight:800;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fc-tut-cartao-texto small{font-size:.72rem;color:var(--text-muted);font-weight:600;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.fc-tut-agora{color:var(--primary);font-weight:800;display:inline-flex;align-items:center;gap:3px}
+.fc-tut-visto{color:#15803D;font-weight:800;display:inline-flex;align-items:center;gap:3px}
+
+/* O vídeo acabou: contagem para o próximo, ou fim da série */
+.fc-tut-fim{position:absolute;inset:0;background:rgba(15,23,42,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#fff;text-align:center;padding:16px}
+.fc-tut-fim-rotulo{font-size:.74rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:#FDBA74}
+.fc-tut-fim-proximo{display:flex;align-items:center;gap:12px;max-width:min(460px,100%);text-align:left}
+.fc-tut-fim-proximo img{flex:none;width:120px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:2px solid rgba(255,255,255,.25);background:#18181B}
+.fc-tut-fim-proximo b,.fc-tut-fim-titulo{font-size:1.02rem;font-weight:800;line-height:1.3}
+.fc-tut-fim-conta{font-size:.84rem;color:#CBD5E1;font-variant-numeric:tabular-nums}
+.fc-tut-fim-barra{display:block;width:min(260px,70%);height:4px;border-radius:99px;background:rgba(255,255,255,.18);overflow:hidden;position:relative}
+.fc-tut-fim-barra::after{content:"";position:absolute;inset:0;background:var(--primary);transform-origin:left;animation:fc-tut-encher var(--espera) linear forwards}
+@keyframes fc-tut-encher{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.fc-tut-fim-ok{width:44px;height:44px;border-radius:50%;background:#16A34A;display:flex;align-items:center;justify-content:center}
+.fc-tut-fim-sub{font-size:.84rem;color:#CBD5E1;max-width:420px}
+.fc-tut-fim-botoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.fc-tut-fim-botoes button{display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 16px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:transparent;color:#fff;font-weight:800;font-size:.85rem;cursor:pointer;font-family:inherit}
+.fc-tut-fim-botoes button.sim{background:var(--primary);border-color:var(--primary)}
+.fc-tut-fim-botoes button:not(.sim):hover{background:rgba(255,255,255,.1)}
+
+/* ── Central de tutoriais ────────────────────────────────────────────────── */
+.fc-central-janela{width:min(1180px,100%)}
+.fc-central-boas{margin:0;padding:0 20px 14px;color:var(--text-muted);font-size:.9rem;line-height:1.55;max-width:880px}
+.fc-central-boas strong{color:var(--text-main)}
+.fc-central-chave{display:inline-flex;align-items:center;gap:4px;background:var(--primary);color:#fff;border-radius:7px;padding:1px 8px;font-weight:700;font-size:.78rem;vertical-align:1px;white-space:nowrap}
+.fc-central-corpo{grid-template-columns:minmax(0,1fr) 300px}
+.fc-central-lista{max-height:min(480px,calc(100vh - 330px));overflow:auto;padding-right:4px}
+.fc-central-grupo{font-size:.68rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:12px 0 4px 8px}
+.fc-central-grupo:first-child{margin-top:0}
+.fc-central-item{display:flex;gap:9px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:8px;border-radius:9px;cursor:pointer;font-size:.84rem;color:var(--text-main);font-family:inherit;line-height:1.3}
+.fc-central-item:hover{background:var(--bg-color)}
+.fc-central-item[aria-current="true"]{background:#FFF1EA;color:#B83A00;font-weight:700}
+.fc-central-marca{flex:none;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;border:1.5px solid #D4D4D8;color:#fff}
+.fc-central-marca.visto{background:#16A34A;border-color:#16A34A}
+.fc-central-dur{margin-left:auto;padding-left:6px;font-size:.72rem;color:var(--text-muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.fc-central-busca{display:flex;align-items:center;gap:7px;margin:0 0 8px;padding:0 10px;height:38px;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color);color:var(--text-muted)}
+.fc-central-busca:focus-within{border-color:var(--primary);background:var(--bg-card);box-shadow:0 0 0 3px rgba(255,77,0,.12)}
+.fc-central-busca input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:16px;color:var(--text-main);cursor:text;padding:0}
+.fc-central-busca input::-webkit-search-cancel-button{display:none}
+.fc-central-busca button{border:0;background:none;color:var(--text-muted);cursor:pointer;padding:2px;display:inline-flex}
+.fc-central-vazio{margin:8px;font-size:.82rem;color:var(--text-muted);line-height:1.45}
+.fc-central-achado{margin-bottom:6px}
+.fc-central-trecho{display:flex;gap:8px;width:100%;text-align:left;border:0;background:none;padding:4px 8px 4px 37px;border-radius:8px;cursor:pointer;font-size:.78rem;color:var(--text-muted);font-family:inherit;line-height:1.35}
+.fc-central-trecho:hover{background:#FFF1EA;color:#B83A00}
+.fc-central-trecho time{color:var(--primary);font-variant-numeric:tabular-nums;min-width:30px}
+.fc-central-capitulos{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.fc-central-capitulos button{border:1px solid var(--border-color);background:var(--bg-card);border-radius:999px;padding:4px 10px;font-size:.76rem;cursor:pointer;color:var(--text-main);font-family:inherit}
+.fc-central-capitulos button[aria-current="true"]{background:#FFF1EA;border-color:#FFB48F;color:#B83A00;font-weight:700}
+.fc-central-capitulos time{color:var(--text-muted);margin-right:4px;font-variant-numeric:tabular-nums}
+.fc-central-rodape{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 20px 16px;border-top:1px solid var(--border-color)}
+.fc-central-progresso{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--text-muted);margin-right:auto}
+.fc-central-rodape button{height:40px;padding:0 16px;border-radius:10px;font-weight:700;font-size:.86rem;cursor:pointer;font-family:inherit}
+.fc-central-btn-fechar{border:1px solid var(--border-color);background:var(--bg-card);color:var(--text-main)}
+.fc-central-btn-fechar:hover{background:var(--bg-card-hover)}
+.fc-central-btn-nao{border:1px solid var(--text-main);background:var(--text-main);color:#fff}
+
+/* Ao fechar a central que abriu sozinha: a seta mostra onde o tutorial mora */
+.fc-seta-anel{position:fixed;z-index:100001;border-radius:12px;pointer-events:none;
+  box-shadow:0 0 0 3px #FDE047,0 0 0 9999px rgba(15,23,42,.38);animation:fc-anel 1.4s ease-in-out infinite}
+@keyframes fc-anel{50%{box-shadow:0 0 0 7px #FDE047,0 0 0 9999px rgba(15,23,42,.38)}}
+.fc-seta-balao{position:fixed;z-index:100002;width:290px;max-width:calc(100vw - 24px);background:var(--bg-card);color:var(--text-main);border-radius:12px;
+  padding:14px 16px;font-size:.88rem;line-height:1.45;box-shadow:0 14px 34px rgba(0,0,0,.3)}
+.fc-seta-balao:before{content:"";position:absolute;top:-7px;left:var(--x,24px);width:14px;height:14px;background:var(--bg-card);transform:rotate(45deg);border-radius:2px}
+.fc-seta-balao strong{display:block;margin-bottom:3px;font-size:.94rem}
+.fc-seta-balao button{margin-top:10px;border:0;background:var(--text-main);color:#fff;border-radius:8px;padding:7px 14px;font-weight:700;font-size:.82rem;cursor:pointer;font-family:inherit}
+
+/* ── Celular ─────────────────────────────────────────────────────────────── */
+@media (max-width:860px){
+  .fc-tut-fundo{padding:8px}
+  /* minmax(0,…): com 1fr a coluna crescia até a largura natural do vídeo em pé e a janela rolava de lado */
+  .fc-tut-corpo,.fc-central-corpo{grid-template-columns:minmax(0,1fr);padding:0 12px 14px}
+  .fc-tut-topo{padding:12px}
+  .fc-tut-serie{margin:0 12px 12px;padding:9px 10px 10px}
+  .fc-tut-serie-topo em{margin-left:0}
+  .fc-tut-cartoes{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 6px;-webkit-overflow-scrolling:touch}
+  .fc-tut-cartoes li{flex:0 0 min(250px,80%);scroll-snap-align:start}
+  .fc-tut-fim-proximo img{width:84px}
+  .fc-tut-fim-proximo b,.fc-tut-fim-titulo{font-size:.9rem}
+  .fc-tut-fim{gap:7px;padding:10px}
+  .fc-tut-fim-botoes button{height:34px;padding:0 12px;font-size:.8rem}
+  /* Em pé, o vídeo ocupa a altura que sobra do topo da janela; capítulos embaixo. */
+  .fc-tut-video.em-pe{height:calc(100vh - 190px);height:calc(100dvh - 190px);max-height:none}
+  .fc-central-lista{max-height:none}
+  .fc-central-boas{padding:0 12px 12px;font-size:.85rem}
+  .fc-central-rodape{padding:10px 12px 14px}
+  .fc-central-progresso{width:100%}
+  .fc-central-rodape button{flex:1}
+}
+/* Central no computador: o vídeo encolhe pela altura da tela para o rodapé
+   ("Fechar" / "Já vi, não mostrar mais") caber sem rolar num notebook de 768 px. */
+@media (min-width:861px){
+  .fc-central-corpo .fc-tut-palco{width:min(100%,max(480px,calc((100vh - 400px) * 16 / 9)));margin:0 auto}
+  .fc-central-corpo .fc-tut-palco.em-pe{width:auto}
+  .fc-central-corpo .fc-tut-video.em-pe{height:max(320px,calc(100vh - 400px))}
+}
+@media (max-width:520px){
+  .fc-tut-todos .fc-tut-todos-longo{display:none}
+  .fc-tut-topo h2{font-size:.98rem}
+}
+@media (prefers-reduced-motion:reduce){.fc-tut-fim-barra::after{animation:none;transform:scaleX(1)}.fc-seta-anel{animation:none}}

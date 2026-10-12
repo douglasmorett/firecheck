@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Camera, CheckCircle, AlertTriangle, Send, X, AlertCircle, Star, PenLine, FileText, Trophy, ArrowLeft, Flame, ShieldAlert, Image } from 'lucide-react';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
+import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -1274,9 +1275,13 @@ export default function ChecklistExecution() {
            </div>
            <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck Pro</h2>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        {/* "Tutorial": como preencher um checklist (src/tutoriais/telas.js). */}
+        <BotaoTutorial tela={vehicleId ? '/execucao/veiculo' : '/execucao'} encolhe />
         <button onClick={() => navigate('/funcionario')} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', fontWeight: 'bold' }}>
            <ArrowLeft size={16} /> Voltar
         </button>
+        </div>
       </header>
 
       <header style={{ textAlign: 'center', marginBottom: '24px' }}>

@@ -16,6 +16,7 @@ import PontoPage from './pages/PontoPage';
 import RenewPlan from './pages/RenewPlan';
 import ThankYou from './pages/ThankYou';
 import ResellerPage from './pages/ResellerPage';
+import CentralDeTutoriais from './components/tutoriais/CentralDeTutoriais';
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -172,6 +173,8 @@ function App() {
     <ErrorBoundary>
       <Router>
         <RouteTracker />
+        {/* Tutoriais em vídeo: abre sozinha uma vez depois do login e pelo botão "Tutoriais em vídeo" */}
+        <CentralDeTutoriais />
         <Routes>
           {/* Site Institucional de Vendas */}
           <Route path="/privacy" element={<PrivacyPolicy />} />
