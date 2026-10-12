@@ -6918,6 +6918,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
         return res.status(200).json({ conectado: true });
       }
 
+      // O número do sistema não é usado para nada que o master acompanhe
+      // (Douglas, 12/10/2026: avisos, senha e cobrança não saem por ele): sem
+      // faixa vermelha para o master.
+      if (autorEstado.role === 'master') return res.status(200).json({ conectado: true });
+
       // O lojista não depende mais do número do sistema: o aviso dele sai do
       // WhatsApp da própria loja. A faixa diz se ESSE está conectado.
       if (autorEstado.role !== 'master' && !centralCobreLojas()) {
