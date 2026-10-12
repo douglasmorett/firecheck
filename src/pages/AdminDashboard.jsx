@@ -2198,11 +2198,12 @@ export default function AdminDashboard() {
         const res = await fetch(`${API_URL}/api/whatsapp/estado`, { headers: getAuthHeaders() });
         if (!res.ok) return;
         const data = await res.json();
-        if (vivo && data && data.conectado === false) setWhatsForaDoAr(data);
+        if (vivo) setWhatsForaDoAr(data && data.conectado === false ? data : null);
       } catch { /* sem resposta, sem faixa */ }
     })();
     return () => { vivo = false; };
-  }, [userProfile]);
+    // A aba entra na lista: quem acabou de conectar em Notificações vê a faixa sumir ao sair de lá.
+  }, [userProfile, tab]);
 
   /**
    * Religa a sessão de WhatsApp do sistema.
@@ -2738,7 +2739,47 @@ export default function AdminDashboard() {
             Fica acima de tudo porque muda o significado de tudo que vem abaixo:
             enquanto esta faixa estiver na tela, nenhum alerta chega a ninguém.
             Antes disso, o único jeito de descobrir era um cliente reclamar. */}
-        {whatsForaDoAr && (
+        {/* Loja sem o WhatsApp dela: o convite para conectar (na própria aba
+            Notificações o cartão do WhatsApp da loja já diz isso). */}
+        {whatsForaDoAr?.lojaSemWhatsapp && tab !== 'notificacoes' && (
+          <div style={{
+            backgroundColor: 'rgba(37, 211, 102, 0.08)',
+            border: '1px solid #25D366',
+            borderRadius: '12px',
+            padding: '16px 20px',
+            marginBottom: '24px',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '14px',
+          }}>
+            <div style={{ backgroundColor: '#25D366', padding: '8px', borderRadius: '50%', display: 'flex', flexShrink: 0 }}>
+              <Bell size={20} color="#fff" />
+            </div>
+            <div>
+              <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '3px' }}>
+                Conecte o WhatsApp da sua empresa para receber as notificações
+              </strong>
+              <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                {whatsForaDoAr.motivo}
+              </span>
+              {whatsForaDoAr.podeConectar && (
+                <button
+                  type="button"
+                  onClick={() => setTab('notificacoes')}
+                  style={{
+                    marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
+                    backgroundColor: '#25D366', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
+                    cursor: 'pointer', display: 'block',
+                  }}
+                >
+                  Conectar o WhatsApp agora
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {whatsForaDoAr && !whatsForaDoAr.lojaSemWhatsapp && (
           <div style={{
             backgroundColor: 'rgba(239, 68, 68, 0.09)',
             border: '1px solid #ef4444',
@@ -2754,7 +2795,9 @@ export default function AdminDashboard() {
             </div>
             <div>
               <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '3px' }}>
-                As notificações por WhatsApp estão fora do ar
+                {whatsForaDoAr.sistema
+                  ? 'O WhatsApp do sistema está desconectado (recuperação de senha e cobrança)'
+                  : 'As notificações por WhatsApp estão fora do ar'}
               </strong>
               <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
                 {whatsForaDoAr.motivo}

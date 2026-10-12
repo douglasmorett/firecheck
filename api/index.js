@@ -6918,12 +6918,27 @@ A mensagem é lida pelo próprio funcionário, no celular:
         return res.status(200).json({ conectado: true });
       }
 
+      // O lojista não depende mais do número do sistema: o aviso dele sai do
+      // WhatsApp da própria loja. A faixa diz se ESSE está conectado.
+      if (autorEstado.role !== 'master' && !centralCobreLojas()) {
+        if (await instanciaDaLoja(autorEstado.store)) return res.status(200).json({ conectado: true });
+        return res.status(200).json({
+          conectado: false,
+          lojaSemWhatsapp: true,
+          podeConectar: autorEstado.role === 'admin',
+          motivo: autorEstado.role === 'admin'
+            ? 'Para receber as notificações no WhatsApp, conecte o WhatsApp da sua empresa e cadastre os números que vão receber os avisos.'
+            : 'Para receber as notificações no WhatsApp, o dono da loja precisa conectar o WhatsApp da empresa na aba Notificações.',
+        });
+      }
+
       const conexao = await estadoWhatsappComCache();
       if (!conexao.conhecido || conexao.conectado) return res.status(200).json({ conectado: true });
 
       // O master recebe o diagnóstico e o que fazer; o lojista recebe a verdade
       // sem o vocabulário de servidor, que não o ajuda em nada.
       return res.status(200).json({
+        sistema: autorEstado.role === 'master',
         conectado: false,
         motivo: autorEstado.role === 'master'
           ? conexao.motivo
