@@ -4070,8 +4070,16 @@ export default async function handler(req, res) {
       // (nomes e fotos da equipe). A resposta completa carrega telefone do
       // dono, plano, validade e permissões — ficha que não é da conta dele.
       if (['funcionario', 'employee'].includes(authUser.role)) {
+        // Do dono vão também `ponto_active` e o "em teste": é por eles que a
+        // Tela de Execução mostra o "Bater ponto" e que /ponto deixa entrar
+        // (EmployeeDashboard e PontoPage procuram o admin com o ponto ligado).
+        // Sem os dois, de 04/09 a 11/10/2026 o funcionário de loja paga não
+        // conseguia bater o ponto.
         return res.status(200).json(rows.map(u => ({
           id: u.id, name: u.name, role: u.role, photo: u.photo, store: u.store,
+          ...((u.role === 'admin' || u.role === 'master')
+            ? { ponto_active: u.ponto_active === true, ...(u.status === 'trial' ? { status: 'trial' } : {}) }
+            : {}),
         })));
       }
       // O teto sai do plano, não da coluna: senão a tela mostraria "0/5" para
