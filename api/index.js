@@ -664,10 +664,137 @@ function comTeto(promessa, ms, contexto) {
 // nao construir um limitador distribuido.
 const testesWhatsapp = new Map();
 
-async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instancia }) {
-  const evoUrl = process.env.EVOLUTION_API_URL;
-  const evoKey = process.env.EVOLUTION_API_KEY;
-  const evoInstance = instancia || process.env.EVOLUTION_INSTANCE || 'firecheck';
+// ── WhatsApp DA LOJA: o aviso sai do número da própria loja ────────────────
+//
+// Douglas, 12/10/2026: "para não tomar ban no nosso número, a loja escaneia o
+// QR Code com o WhatsApp dela e configura os números que recebem; aí a própria
+// loja manda a mensagem". Cada loja tem a SUA instância no servidor de WhatsApp
+// (`firecheck_loja_<id do dono>`), conectada pela tela Notificações. Aviso de
+// loja (atraso, ausência, checklist, ocorrência, descarte, compras, comprovante
+// de ponto, teste) passa `loja` e sai por ela. O que é do FireCheck — senha,
+// cobrança, boas-vindas, suporte — continua no número do sistema.
+//
+// Loja que ainda não conectou continua recebendo pelo número do sistema,
+// enquanto WHATSAPP_CENTRAL_PARA_LOJAS não for "false": desligar de uma vez
+// deixaria todas as lojas sem aviso no dia do deploy.
+const centralCobreLojas = () => String(process.env.WHATSAPP_CENTRAL_PARA_LOJAS || '').toLowerCase() !== 'false';
+const gatewayDasLojas = () => ({
+  evoUrl: String(process.env.EVOLUTION_LOJAS_URL || process.env.EVOLUTION_API_URL || '').replace(/\/+$/, ''),
+  evoKey: process.env.EVOLUTION_LOJAS_KEY || process.env.EVOLUTION_API_KEY || '',
+});
+const instanciaDoDono = (donoId) => `firecheck_loja_${donoId}`;
+
+function lerJson(v, padrao) {
+  if (v == null) return padrao;
+  if (typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch { return padrao; }
+}
+
+/** O dono (admin) da loja: é nele que mora a conexão e a lista de números. */
+async function donoDaLoja(store) {
+  const { rows } = await pool.query(
+    `SELECT id, whatsapp_loja, wa_destinos FROM users
+      WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role IN ('admin', 'master')
+      ORDER BY (role = 'admin') DESC, id ASC LIMIT 1`,
+    [store]
+  );
+  return rows[0] || null;
+}
+
+// Um minuto de memória por loja: um checklist dispara vários avisos seguidos.
+const memoriaDaInstancia = new Map();
+async function instanciaDaLoja(store) {
+  const chave = String(store || '').trim().toLowerCase();
+  if (!chave) return null;
+  const lembrado = memoriaDaInstancia.get(chave);
+  if (lembrado && Date.now() - lembrado.em < 60_000) return lembrado.valor;
+  let valor = null;
+  try {
+    const dono = await donoDaLoja(store);
+    const conexao = lerJson(dono?.whatsapp_loja, null);
+    const { evoUrl, evoKey } = gatewayDasLojas();
+    if (conexao?.instancia && conexao.conectado && evoUrl && evoKey) valor = { evoUrl, evoKey, evoInstance: conexao.instancia };
+  } catch (e) {
+    console.error('[WhatsApp da loja] não consegui ler a conexão:', e.message);
+  }
+  memoriaDaInstancia.set(chave, { em: Date.now(), valor });
+  return valor;
+}
+
+async function marcarConexaoDaLoja(store, mudanca) {
+  memoriaDaInstancia.delete(String(store || '').trim().toLowerCase());
+  try {
+    const dono = await donoDaLoja(store);
+    if (!dono) return;
+    const atual = lerJson(dono.whatsapp_loja, {}) || {};
+    await pool.query('UPDATE users SET whatsapp_loja = $1 WHERE id = $2', [JSON.stringify({ ...atual, ...mudanca }), dono.id]);
+  } catch (e) {
+    console.error('[WhatsApp da loja] não consegui gravar o estado:', e.message);
+  }
+}
+
+/** Os números a mais que a loja cadastrou para receber os avisos: [{ nome, numero }]. */
+function lerDestinos(v) {
+  const lista = lerJson(v, []);
+  return (Array.isArray(lista) ? lista : [])
+    .map(d => ({ nome: String(d?.nome || '').trim().slice(0, 60), numero: numeroWhatsapp(String(d?.numero || '')).numero }))
+    .filter(d => d.numero)
+    .slice(0, 10);
+}
+
+/**
+ * A lista de quem recebe (dono e gestores, como antes) mais os números extras
+ * da loja. O extra segue as escolhas do DONO na aba Notificações (as colunas
+ * wa_* que a consulta trouxe) e não recebe push: não tem aplicativo.
+ */
+async function comNumerosExtras(store, pessoas) {
+  try {
+    const dono = await donoDaLoja(store);
+    const extras = lerDestinos(dono?.wa_destinos);
+    if (!extras.length) return pessoas;
+    const modelo = pessoas.find(p => p.role === 'admin' || p.role === 'master') || pessoas[0] || {};
+    const escolhas = Object.fromEntries(Object.entries(modelo).filter(([k]) => k.startsWith('wa_')));
+    const jaRecebem = new Set(pessoas.map(p => numeroWhatsapp(String(p.whatsapp_phone || p.phone || '')).numero).filter(Boolean));
+    return [
+      ...pessoas,
+      ...extras.filter(d => !jaRecebem.has(d.numero)).map(d => ({
+        ...escolhas, name: d.nome || 'Contato da loja', role: 'extra', fcm_token: null,
+        phone: d.numero, whatsapp_phone: d.numero, whatsapp_active: true,
+      })),
+    ];
+  } catch (e) {
+    console.error('[WhatsApp da loja] não consegui ler os números extras:', e.message);
+    return pessoas;
+  }
+}
+
+async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instancia, loja }) {
+  if (loja && !instancia) {
+    const daLoja = await instanciaDaLoja(loja);
+    if (daLoja) {
+      const r = await enviarWhatsappPor({ telefone, texto, contexto: `${contexto} · WhatsApp da loja`, ...daLoja });
+      if (r.ok) return { ...r, pelaLoja: true };
+      // Instância fechada ou apagada no servidor: a tela passa a mostrar
+      // "desconectado" e o aviso tenta o número do sistema (se ainda vale).
+      if (r.status === 404 || /closed|not.?open|not.?connected|does not exist|n[ãa]o existe|disconnect/i.test(r.detalhe || '')) {
+        await marcarConexaoDaLoja(loja, { conectado: false, desconectadoEm: new Date().toISOString() });
+      }
+      if (!centralCobreLojas()) return r;
+    } else if (!centralCobreLojas()) {
+      const motivo = 'O WhatsApp da loja não está conectado. Conecte em Notificações › WhatsApp da loja.';
+      console.error(`[${contexto}] ${motivo} (${loja})`);
+      return { ok: false, motivo };
+    }
+  }
+  return enviarWhatsappPor({
+    telefone, texto, contexto,
+    evoUrl: process.env.EVOLUTION_API_URL,
+    evoKey: process.env.EVOLUTION_API_KEY,
+    evoInstance: instancia || process.env.EVOLUTION_INSTANCE || 'firecheck',
+  });
+}
+
+async function enviarWhatsappPor({ telefone, texto, contexto, evoUrl, evoKey, evoInstance }) {
 
   if (!evoUrl || !evoKey) {
     const motivo = 'A integração de WhatsApp não está configurada no servidor (EVOLUTION_API_URL/EVOLUTION_API_KEY).';
@@ -1303,12 +1430,13 @@ async function avisarEnvioConsciente(store, employeeName, itens) {
   const justificativas = itens.filter(i => i.justificativa).map(i => `"${i.justificativa}"`);
 
   try {
-    const { rows: chefes } = await pool.query(
-      `SELECT id, name, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_checklist_reprovado
+    const { rows: soChefes } = await pool.query(
+      `SELECT id, name, role, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_checklist_reprovado
          FROM users
         WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master' OR role = 'gestor')`,
       [store]
     );
+    const chefes = await comNumerosExtras(store, soChefes);
 
     for (const chefe of chefes) {
       if (chefe.fcm_token) {
@@ -1347,6 +1475,7 @@ async function avisarEnvioConsciente(store, employeeName, itens) {
           telefone: numero,
           texto: texto,
           contexto: 'Envio consciente',
+          loja: store,
         });
       }
     }
@@ -1368,12 +1497,13 @@ async function avisarOcorrencia(store, registro) {
     : `${registro.employee_name}: ${String(registro.descricao || '').slice(0, 110)}`;
 
   try {
-    const { rows: donos } = await pool.query(
-      `SELECT id, name, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_ocorrencia, wa_descarte
+    const { rows: soDonos } = await pool.query(
+      `SELECT id, name, role, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_ocorrencia, wa_descarte
          FROM users
         WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master' OR role = 'gestor')`,
       [store]
     );
+    const donos = await comNumerosExtras(store, soDonos);
 
     for (const dono of donos) {
       const querEste = ehDescarte ? dono.wa_descarte !== false : dono.wa_ocorrencia !== false;
@@ -1420,6 +1550,7 @@ async function avisarOcorrencia(store, registro) {
           telefone: numero,
           texto: texto,
           contexto: 'Ocorrência',
+          loja: store,
         });
       }
     }
@@ -1901,6 +2032,10 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_tolerancia INTEGER DEFAULT 15");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_active BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_phone VARCHAR(50)");
+      // WhatsApp da própria loja (instância no servidor de WhatsApp) e os números
+      // extras que recebem os avisos — moram no dono. Ver enviarWhatsapp.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_loja JSONB");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_destinos TEXT");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_atraso BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_reprovado BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_atrasado BOOLEAN DEFAULT TRUE");
@@ -2767,6 +2902,7 @@ export default async function handler(req, res) {
                   telefone: fullPhone,
                   texto: msg,
                   contexto: 'Shopping',
+                  loja: store,
                 });
               }
             }
@@ -4400,10 +4536,11 @@ export default async function handler(req, res) {
             const hasWarnings = hasAiWarnings || stockDiscrepancies.length > 0;
 
              // 1. Notificação para os Donos e Gestores (Admin/Master/Gestor)
-             const { rows: adminDetails } = await pool.query(
-               "SELECT phone, whatsapp_active, whatsapp_phone, wa_checklist_reprovado, wa_checklist_aprovado, name FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+             const { rows: soAdmins } = await pool.query(
+               "SELECT phone, role, whatsapp_active, whatsapp_phone, wa_checklist_reprovado, wa_checklist_aprovado, name FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
                [store]
              );
+             const adminDetails = await comNumerosExtras(store, soAdmins);
              for (const adm of adminDetails) {
                const isWhatsappActive = adm.whatsapp_active !== false;
                const targetPhone = adm.whatsapp_phone || adm.phone;
@@ -4427,6 +4564,7 @@ export default async function handler(req, res) {
                      telefone: fullPhone,
                      texto: successMsg,
                      contexto: 'WhatsApp Admin Aprovado',
+                     loja: store,
                    });
                  }
 
@@ -4451,6 +4589,7 @@ export default async function handler(req, res) {
                      telefone: fullPhone,
                      texto: textMsg,
                      contexto: 'WhatsApp Admin',
+                     loja: store,
                    });
                  }
                }
@@ -4481,6 +4620,7 @@ export default async function handler(req, res) {
                   telefone: fullPhone,
                   texto: textMsg,
                   contexto: 'WhatsApp Funcionario',
+                  loja: store,
                 });
               }
             }
@@ -4584,10 +4724,11 @@ export default async function handler(req, res) {
           if (ausentes.length === 0) continue;
 
           // Buscar gestores/admins da loja para notificar
-          const { rows: recipients } = await pool.query(
-            "SELECT fcm_token, name, whatsapp_active, whatsapp_phone, phone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+          const { rows: soRecipients } = await pool.query(
+            "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
             [storeName]
           );
+          const recipients = await comNumerosExtras(storeName, soRecipients);
 
           const listaAusentes = ausentes.map(a => `  • ${a.name}`).join('\n');
           const textMsg = `🚨 *FireCheck - Alerta de Ausência/Falta*\n\n` +
@@ -4624,6 +4765,7 @@ export default async function handler(req, res) {
                 telefone: fullPhone,
                 texto: textMsg,
                 contexto: 'WhatsApp Ausencia',
+                loja: storeName,
               });
             }
             alertasEnviados++;
@@ -4756,7 +4898,7 @@ export default async function handler(req, res) {
               const contaDaLoja = adminRows.find(r => r.role === 'admin' || r.role === 'master') || adminRows[0];
               if (!contaEmDia(contaDaLoja)) continue;
 
-              for (const adminData of adminRows) {
+              for (const adminData of await comNumerosExtras(cl.store, adminRows)) {
                 const isWaChecklistAtrasadoActive = adminData.wa_checklist_atrasado !== false;
                 const isWhatsappActive = adminData.whatsapp_active !== false;
                 const targetPhone = adminData.whatsapp_phone || adminData.phone;
@@ -4778,6 +4920,7 @@ export default async function handler(req, res) {
                       telefone: fullPhone,
                       texto: textMsg,
                       contexto: 'Cron WhatsApp Atraso',
+                      loja: cl.store,
                     })
                   );
 
@@ -6363,6 +6506,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
                   telefone: fullPhone,
                   texto: textMsg,
                   contexto: 'WhatsApp Ponto Funcionario',
+                  loja: store,
                 });
               }
             }
@@ -6378,12 +6522,16 @@ A mensagem é lida pelo próprio funcionário, no celular:
             
             if (configData && configData.isWorkday) {
               // Buscar todos os destinatários da loja (admin, master, gestor)
-              const { rows: recipients } = await pool.query(
-                "SELECT fcm_token, name, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+              const { rows: soRecipients } = await pool.query(
+                "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
                 [store]
               );
+              const recipients = await comNumerosExtras(store, soRecipients);
 
-              const tolerancia = configData.ponto_tolerancia || 15;
+              // A tolerância da ESCALA do funcionário (getEmployeeScheduleForDay
+              // devolve `tolerancia`); lia `ponto_tolerancia`, que não vem dali,
+              // e o aviso usava sempre 15 min.
+              const tolerancia = Number(configData.tolerancia ?? configData.ponto_tolerancia ?? 15) || 15;
 
               // Calcular hora atual no timezone da loja
               const agora = new Date();
@@ -6455,6 +6603,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
                           telefone: fullPhone,
                           texto: textMsg,
                           contexto: 'WhatsApp Atraso Admin',
+                          loja: store,
                         });
                       }
                     } catch (waAtrasoErr) {
@@ -6557,6 +6706,129 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // rota de conexão devolve o QR Code e, na v2, também um código de oito
     // dígitos para digitar no WhatsApp — que é bem mais fácil de usar pelo
     // celular do que apontar a câmera para outra tela.
+    // ── WhatsApp DA LOJA: conectar pelo QR, estado, números que recebem ─────
+    //
+    //   GET    /api/whatsapp-loja             → { conectado, numero, destinos, centralCobre, podeMexer }
+    //   POST   /api/whatsapp-loja/conectar    → { conectado } ou { qr, codigo }
+    //   POST   /api/whatsapp-loja/desconectar
+    //   PUT    /api/whatsapp-loja/destinos    { destinos: [{ nome, numero }] }
+    //
+    // Só o dono (admin) conecta, desconecta e muda os números; o gestor vê.
+    // Ver enviarWhatsapp: o aviso de loja sai pela instância dela.
+    if (url.includes('/api/whatsapp-loja')) {
+      const autorLoja = await autenticarComLojaAtual(req);
+      if (!autorLoja) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (!['admin', 'gestor'].includes(autorLoja.role)) return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+      const podeMexer = autorLoja.role === 'admin';
+      const dono = await donoDaLoja(autorLoja.store);
+      if (!dono) return res.status(404).json({ error: 'Loja não encontrada.' });
+      const { evoUrl, evoKey } = gatewayDasLojas();
+      const instancia = instanciaDoDono(dono.id);
+      const cabecalhos = { 'Content-Type': 'application/json', apikey: evoKey };
+      const conexao = lerJson(dono.whatsapp_loja, null) || {};
+      const lerCorpo = async (resp) => { const bruto = await resp.text(); try { return JSON.parse(bruto); } catch { return { bruto }; } };
+
+      /** Pergunta ao servidor se a instância da loja está aberta e grava o que mudou. */
+      const conferirEstado = async () => {
+        if (!evoUrl || !evoKey || !conexao.instancia) return { conectado: false };
+        try {
+          const r = await fetch(`${evoUrl}/instance/connectionState/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(10000) });
+          if (r.status === 404) return { conectado: false, apagada: true };
+          const c = await lerCorpo(r);
+          const aberto = (c?.instance?.state || c?.state) === 'open';
+          let numero = conexao.numero || null;
+          if (aberto && !numero) {
+            // O número que conectou: a Evolution dá o "dono" da instância na listagem.
+            const f = await fetch(`${evoUrl}/instance/fetchInstances?instanceName=${encodeURIComponent(instancia)}`, { headers: cabecalhos, signal: AbortSignal.timeout(10000) }).catch(() => null);
+            const lista = f && f.ok ? await lerCorpo(f) : null;
+            const item = Array.isArray(lista) ? lista[0] : lista;
+            const jid = item?.ownerJid || item?.owner || item?.instance?.owner || item?.instance?.ownerJid || '';
+            numero = String(jid).split('@')[0].replace(/\D/g, '') || null;
+          }
+          if (aberto !== !!conexao.conectado || numero !== (conexao.numero || null)) {
+            await marcarConexaoDaLoja(autorLoja.store, aberto
+              ? { instancia, conectado: true, numero, conectadoEm: conexao.conectadoEm || new Date().toISOString() }
+              : { conectado: false, desconectadoEm: new Date().toISOString() });
+          }
+          return { conectado: aberto, numero };
+        } catch (e) {
+          // Servidor de WhatsApp fora: devolve o último estado conhecido.
+          console.error('[WhatsApp da loja] estado:', e.message);
+          return { conectado: !!conexao.conectado, numero: conexao.numero || null, semResposta: true };
+        }
+      };
+
+      if (method === 'GET') {
+        const estado = await conferirEstado();
+        return res.status(200).json({
+          ...estado,
+          destinos: lerDestinos(dono.wa_destinos),
+          centralCobre: centralCobreLojas(),
+          podeMexer,
+        });
+      }
+
+      if (!podeMexer) return res.status(403).json({ error: 'Só o dono da loja muda o WhatsApp da loja.' });
+
+      if (url.includes('/api/whatsapp-loja/destinos') && method === 'PUT') {
+        const entrada = Array.isArray(req.body?.destinos) ? req.body.destinos : [];
+        if (entrada.length > 10) return res.status(400).json({ error: 'No máximo 10 números.' });
+        const invalidos = entrada.filter(d => String(d?.numero || '').trim() && !numeroWhatsapp(String(d.numero)).numero);
+        if (invalidos.length) return res.status(400).json({ error: `Número inválido: ${invalidos.map(d => d.numero).join(', ')}. Use DDD + número.` });
+        const destinos = lerDestinos(entrada);
+        await pool.query('UPDATE users SET wa_destinos = $1 WHERE id = $2', [JSON.stringify(destinos), dono.id]);
+        return res.status(200).json({ ok: true, destinos });
+      }
+
+      if (!evoUrl || !evoKey) return res.status(200).json({ ok: false, motivo: 'O servidor de WhatsApp não está configurado.' });
+
+      if (url.includes('/api/whatsapp-loja/conectar') && method === 'POST') {
+        try {
+          let estado = await fetch(`${evoUrl}/instance/connectionState/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(10000) });
+          if (estado.status === 404) {
+            const criar = await fetch(`${evoUrl}/instance/create`, {
+              method: 'POST', headers: cabecalhos, signal: AbortSignal.timeout(15000),
+              body: JSON.stringify({ instanceName: instancia, qrcode: true, integration: 'WHATSAPP-BAILEYS' }),
+            });
+            if (!criar.ok) {
+              const c = await lerCorpo(criar);
+              const detalhe = c?.response?.message || c?.message || c?.bruto || '';
+              console.error(`[WhatsApp da loja] criar ${instancia} (HTTP ${criar.status}): ${JSON.stringify(detalhe).slice(0, 200)}`);
+              return res.status(200).json({ ok: false, motivo: 'O servidor de WhatsApp não aceitou criar a conexão da loja. Tente de novo em alguns segundos.' });
+            }
+          } else {
+            const c = await lerCorpo(estado);
+            if ((c?.instance?.state || c?.state) === 'open') {
+              await marcarConexaoDaLoja(autorLoja.store, { instancia, conectado: true });
+              return res.status(200).json({ ok: true, conectado: true });
+            }
+          }
+          await marcarConexaoDaLoja(autorLoja.store, { instancia, conectado: false, pedidoEm: new Date().toISOString() });
+          const r = await fetch(`${evoUrl}/instance/connect/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(15000) });
+          const c = await lerCorpo(r);
+          if ((c?.instance?.state || c?.state) === 'open') return res.status(200).json({ ok: true, conectado: true });
+          const qrBruto = c?.base64 || c?.qrcode?.base64 || null;
+          const qr = qrBruto ? (String(qrBruto).startsWith('data:') ? qrBruto : `data:image/png;base64,${qrBruto}`) : null;
+          const codigo = c?.pairingCode || c?.qrcode?.pairingCode || null;
+          if (!qr && !codigo) return res.status(200).json({ ok: false, motivo: 'O servidor não devolveu o QR Code desta vez. Tente de novo em alguns segundos.' });
+          return res.status(200).json({ ok: true, conectado: false, qr, codigo });
+        } catch (e) {
+          console.error('[WhatsApp da loja] conectar:', e.message);
+          return res.status(200).json({ ok: false, motivo: `Não foi possível falar com o servidor de WhatsApp (${e.message}).` });
+        }
+      }
+
+      if (url.includes('/api/whatsapp-loja/desconectar') && method === 'POST') {
+        for (const [verbo, caminho] of [['DELETE', `/instance/logout/${instancia}`], ['DELETE', `/instance/delete/${instancia}`]]) {
+          await fetch(`${evoUrl}${caminho}`, { method: verbo, headers: cabecalhos, signal: AbortSignal.timeout(10000) }).catch(() => null);
+        }
+        await marcarConexaoDaLoja(autorLoja.store, { instancia: null, conectado: false, numero: null, desconectadoEm: new Date().toISOString() });
+        return res.status(200).json({ ok: true });
+      }
+
+      return res.status(405).json({ error: 'Método não suportado.' });
+    }
+
     if (url.includes('/api/whatsapp/parear') && method === 'POST') {
       const autorPar = await autenticarComLojaAtual(req);
       if (!autorPar) return res.status(401).json({ error: 'Token inválido ou ausente.' });
@@ -6695,7 +6967,8 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // Se a conexão do sistema está caida, o envio falharia com uma mensagem
       // muito mais obscura. Melhor dizer logo qual é o problema — e que não é
       // o número de quem está testando.
-      const conexao = await estadoWhatsapp();
+      // (Com o WhatsApp da loja conectado o teste sai por ele: o do sistema não importa.)
+      const conexao = (await instanciaDaLoja(eu.store)) ? { conhecido: false } : await estadoWhatsapp();
       if (conexao.conhecido && !conexao.conectado) {
         return res.status(200).json({ ok: false, motivo: conexao.motivo, numero });
       }
@@ -6709,6 +6982,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
           `*${eu.store || 'sua loja'}* está funcionando e os alertas vão chegar neste número.\n\n` +
           `_Mensagem enviada por você mesmo, pelo botão de teste no painel._`,
         contexto: 'Teste do lojista',
+        loja: eu.store,
       });
 
       if (!resultado.ok) {

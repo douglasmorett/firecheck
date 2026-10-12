@@ -8,6 +8,7 @@ import { vendeNoApp } from '../vendaNoApp';
 import PWAInstall from '../components/PWAInstall';
 import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
+import WhatsappDaLoja from '../components/WhatsappDaLoja';
 
 const getAuthHeaders = () => ({
   'Content-Type': 'application/json',
@@ -3128,14 +3129,17 @@ export default function AdminDashboard() {
              <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gerencie de forma personalizada todos os alertas enviados no WhatsApp e Push.</p>
           </div>
 
+          {/* O WhatsApp da loja (quem envia) e os números extras (quem recebe). */}
+          <WhatsappDaLoja />
+
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
               {/* Configurações Gerais do WhatsApp */}
               <div className="card" style={{ padding: '24px', flex: 1, minWidth: '320px' }}>
                  <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
-                    📲 Conexão do WhatsApp
+                    📲 Seu número para receber os avisos
                  </h3>
                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
-                    Defina o número de telefone que receberá os alertas do sistema.
+                    Defina o número de telefone em que <strong>você</strong> recebe os alertas.
                  </p>
                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.95rem' }}>
