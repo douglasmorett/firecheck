@@ -30,7 +30,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       - name: Build Web Project
-        run: npm run build
+        run: npm run build && node scripts/app-sem-videos.mjs
 
       - name: Capacitor Sync
         run: |
