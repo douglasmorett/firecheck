@@ -47,3 +47,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
 
 }
+
+/// A tela do app começa ABAIXO da barra de status do iPhone.
+///
+/// O WebView do Capacitor ocupa a tela inteira: cabeçalhos e janelas do
+/// FireCheck ficavam sob o relógio e a bateria, e o X da central de tutoriais
+/// não recebia o toque. O `contentInset` do capacitor.config não basta — a
+/// página rola por código (scrollTo) e volta para baixo do relógio. Aqui o
+/// próprio WebView é posicionado depois da área segura de cima; a faixa da
+/// barra de status fica com a cor de fundo do app. (Main.storyboard usa esta
+/// classe.)
+class MainViewController: CAPBridgeViewController {
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = UIColor(red: 0xF4 / 255.0, green: 0xF4 / 255.0, blue: 0xF5 / 255.0, alpha: 1)
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        guard let webView = webView else { return }
+        let topo = view.safeAreaInsets.top
+        webView.frame = CGRect(x: 0, y: topo, width: view.bounds.width, height: view.bounds.height - topo)
+    }
+}
