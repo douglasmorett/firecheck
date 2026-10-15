@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { arquivosDoTutorial } from '../../tutoriais/telas';
 
 /**
@@ -6,6 +7,9 @@ import { arquivosDoTutorial } from '../../tutoriais/telas';
  *
  * - Os arquivos moram no servidor do FireHub (outra origem): crossOrigin
  *   "anonymous" é o que deixa o navegador carregar a legenda de lá.
+ * - No app (iPhone/Android) o vídeo vai SEM crossOrigin e a legenda chega por
+ *   fetch, como blob local: o <video> com CORS não tocava no WKWebView do
+ *   iPhone (origem capacitor://localhost), e vídeo não precisa de CORS.
  * - Legenda ligada de saída — loja e cozinha são barulhentas, e o `default`
  *   do <track> não basta em todo navegador.
  * - Sem internet ou vídeo fora do ar: o aviso aparece em cima do vídeo, com
@@ -17,6 +21,23 @@ export default function VideoDoTutorial({
   const [erro, setErro] = useState(false);
   const [tentativa, setTentativa] = useState(0);
   const arquivos = arquivosDoTutorial(tutorial);
+  const noApp = Capacitor.isNativePlatform();
+  const [legendaLocal, setLegendaLocal] = useState(null);
+
+  useEffect(() => {
+    if (!noApp) return undefined;
+    let url = null;
+    let vivo = true;
+    fetch(arquivos.legendas)
+      .then((r) => (r.ok ? r.blob() : null))
+      .then((b) => {
+        if (!b || !vivo) return;
+        url = URL.createObjectURL(new Blob([b], { type: 'text/vtt' }));
+        setLegendaLocal(url);
+      })
+      .catch(() => {});
+    return () => { vivo = false; if (url) URL.revokeObjectURL(url); };
+  }, [noApp, arquivos.legendas]);
 
   return (
     <div className={tutorial.emPe ? 'fc-tut-palco em-pe' : 'fc-tut-palco'}>
@@ -26,7 +47,7 @@ export default function VideoDoTutorial({
         className={tutorial.emPe ? 'fc-tut-video em-pe' : 'fc-tut-video'}
         src={arquivos.video}
         poster={arquivos.capa}
-        crossOrigin="anonymous"
+        crossOrigin={noApp ? undefined : 'anonymous'}
         controls
         autoPlay={autoPlay}
         playsInline
@@ -48,7 +69,9 @@ export default function VideoDoTutorial({
         onEnded={onEnded}
         onError={() => setErro(true)}
       >
-        <track kind="subtitles" src={arquivos.legendas} srcLang="pt" label="Português" default />
+        {(!noApp || legendaLocal) && (
+          <track kind="subtitles" src={noApp ? legendaLocal : arquivos.legendas} srcLang="pt" label="Português" default />
+        )}
       </video>
 
       {erro && (
