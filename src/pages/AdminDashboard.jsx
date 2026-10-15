@@ -5818,7 +5818,7 @@ export default function AdminDashboard() {
                   barrado; os antigos ficam explicados em vez de abrir em branco. */}
               {(!Array.isArray(selectedSubmission.tasks) || selectedSubmission.tasks.length === 0) && (
                 <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                  Este envio não tem nenhuma resposta. O funcionário finalizou o checklist sem nenhuma tarefa atribuída a ele — confira, em Gerenciar Checklists, para quem as tarefas deste checklist estão atribuídas.
+                  Este envio não tem nenhuma resposta: o funcionário abriu um checklist que não estava liberado para ele e tocou em Finalizar. O sistema agora não deixa mais enviar assim — pode dar baixa neste registro.
                 </div>
               )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

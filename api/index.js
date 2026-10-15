@@ -2848,10 +2848,13 @@ export default async function handler(req, res) {
 
         // ── Enviar Notificação WhatsApp para os Donos/Gestores ──
         try {
-          const { rows: admins } = await pool.query(
+          const { rows: gestores } = await pool.query(
             "SELECT * FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master' OR role = 'gestor') AND whatsapp_active = TRUE",
             [store]
           );
+          // O alerta de estoque abaixo do mínimo também vai para os números
+          // extras da aba Notificações, como os demais avisos da loja.
+          const admins = await comNumerosExtras(store, gestores);
 
           if (admins.length > 0) {
             const { rows: listInfo } = await pool.query('SELECT title FROM shopping_lists WHERE id = $1', [shoppingListId]);
