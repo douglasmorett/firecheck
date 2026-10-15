@@ -54,13 +54,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 /// FireCheck ficavam sob o relógio e a bateria, e o X da central de tutoriais
 /// não recebia o toque. O contentInset do capacitor.config não basta — a
 /// página rola por código (scrollTo) e volta para baixo do relógio. No
-/// Capacitor o WebView É a view da tela (loadView), então mexer no frame dele
+/// Capacitor o WebView É a view da tela (loadView, que é final), então mexer no frame dele
 /// desloca tudo: aqui ele vai para dentro de uma view que o contém, presa à
 /// área segura de cima. A faixa da barra de status fica com o fundo do app.
 /// (Main.storyboard usa esta classe.)
 class MainViewController: CAPBridgeViewController {
-    override func loadView() {
-        super.loadView()
+    override func capacitorDidLoad() {
+        super.capacitorDidLoad()
         guard let webView = view else { return }
         let fundo = UIView()
         fundo.backgroundColor = UIColor(red: 0xF4 / 255.0, green: 0xF4 / 255.0, blue: 0xF5 / 255.0, alpha: 1)
