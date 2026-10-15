@@ -10,6 +10,7 @@ import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
 import WhatsappDaLoja from '../components/WhatsappDaLoja';
 import { respostaDaTarefa } from '../utils/respostaDaTarefa';
+import EstoqueDaLista from '../components/EstoqueDaLista';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 import { centralAbreSozinha, lerUsuario } from '../tutoriais/telas';
@@ -603,6 +604,7 @@ export default function AdminDashboard() {
   const [shoppingSubmissions, setShoppingSubmissions] = useState([]);
   const [selectedShoppingSubModal, setSelectedShoppingSubModal] = useState(null);
   const [showShoppingModal, setShowShoppingModal] = useState(false);
+  const [estoqueAberto, setEstoqueAberto] = useState(null);
   const [editingShopping, setEditingShopping] = useState(null);
   const [newShopping, setNewShopping] = useState({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] });
   const [isSavingShopping, setIsSavingShopping] = useState(false);
@@ -4993,6 +4995,12 @@ export default function AdminDashboard() {
                       👤 Atribuído: {typeof list.assigned_to === 'object' ? list.assigned_to.join(', ') : list.assigned_to}
                     </div>
                   )}
+                  {!isFuncionario && (
+                    <button className="btn-secondary" onClick={() => setEstoqueAberto(list)}
+                      style={{ marginTop: '14px', width: '100%', padding: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <Package size={16}/> Estoque: entradas e saídas
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -5072,6 +5080,10 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+
+          {estoqueAberto && (
+            <EstoqueDaLista lista={estoqueAberto} onFechar={() => setEstoqueAberto(null)} onMudou={fetchShoppingLists} />
+          )}
 
           {/* Modal de Detalhes da Submissão de Compras */}
           {selectedShoppingSubModal && (

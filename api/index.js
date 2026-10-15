@@ -769,6 +769,62 @@ async function comNumerosExtras(store, pessoas) {
   }
 }
 
+// ── Estoque: movimentações ──────────────────────────────────────────────────
+//
+// Além da contagem diária da equipe (que GRAVA o saldo contado), o estoque
+// recebe entradas de mercadoria e saídas. Cada mudança de saldo vira uma linha
+// aqui. A linha guarda o NOME do item e a lista, não só o id: editar a lista
+// apaga e recria os itens com ids novos, e o histórico não pode se perder.
+let movimentosProntos = false;
+async function garantirMovimentosDeEstoque() {
+  if (movimentosProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS estoque_movimentos (
+      id SERIAL PRIMARY KEY,
+      store VARCHAR(255) NOT NULL,
+      shopping_list_id INTEGER,
+      item_nome VARCHAR(255) NOT NULL,
+      unidade VARCHAR(50),
+      tipo VARCHAR(20) NOT NULL,
+      quantidade DECIMAL(12,3),
+      saldo_antes DECIMAL(12,3),
+      saldo_depois DECIMAL(12,3),
+      custo_unitario DECIMAL(12,2),
+      observacao TEXT,
+      usuario VARCHAR(255),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_estoque_mov_lista ON estoque_movimentos(shopping_list_id, created_at DESC)');
+  movimentosProntos = true;
+}
+
+/** Aviso de item que ficou abaixo do mínimo depois de uma saída. */
+async function avisarEstoqueAbaixoDoMinimo(store, item, saldo, usuario) {
+  try {
+    const { rows: gestores } = await pool.query(
+      "SELECT * FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master' OR role = 'gestor') AND whatsapp_active = TRUE",
+      [store]
+    );
+    const destinos = await comNumerosExtras(store, gestores);
+    const unidade = item.unit || 'un';
+    const falta = (parseFloat(item.min_stock) - saldo).toFixed(1);
+    const texto = `🛒 *FireCheck - Estoque abaixo do mínimo*\n\n` +
+      `🔴 *${item.name}*\n` +
+      `   • Saldo agora: *${saldo} ${unidade}*\n` +
+      `   • Mínimo: *${item.min_stock} ${unidade}*\n` +
+      `   • 🚨 *Faltam: ${falta} ${unidade}*\n\n` +
+      `🏪 Loja: *${store}*\n👤 Saída lançada por: *${usuario}*`;
+    for (const d of destinos) {
+      const fone = String(d.whatsapp_phone || d.phone || '').replace(/\D/g, '');
+      if (!fone) continue;
+      await enviarWhatsapp({ telefone: numeroWhatsapp(fone).numero || fone, texto, contexto: 'Estoque', loja: store });
+    }
+  } catch (e) {
+    console.error('[Estoque] Erro ao avisar estoque baixo:', e.message);
+  }
+}
+
 async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instancia, loja }) {
   if (loja && !instancia) {
     const daLoja = await instanciaDaLoja(loja);
@@ -2842,12 +2898,27 @@ export default async function handler(req, res) {
         // Atualizar estoque atual nos itens — SÓ itens da própria lista já
         // validada acima: item.id vem do corpo e, solto, atualizava o
         // shopping_items de qualquer outra loja.
+        //
+        // A contagem também entra no histórico de movimentações, com o saldo
+        // de antes: é o que mostra a diferença entre o que entrou e o que a
+        // equipe encontrou na prateleira.
+        await garantirMovimentosDeEstoque().catch(e => console.error('[Estoque] tabela:', e.message));
         for (const item of (items || [])) {
           if (item.id && item.currentStock !== null && item.currentStock !== undefined) {
-            await pool.query(
-              'UPDATE shopping_items SET current_stock = $1 WHERE id = $2 AND shopping_list_id = $3',
+            const { rows: contado } = await pool.query(
+              `UPDATE shopping_items si SET current_stock = $1
+                 FROM (SELECT current_stock AS antes FROM shopping_items WHERE id = $2) a
+               WHERE si.id = $2 AND si.shopping_list_id = $3
+               RETURNING a.antes, si.name, si.unit`,
               [parseFloat(item.currentStock), item.id, shoppingListId]
             );
+            if (contado.length > 0) {
+              await pool.query(
+                `INSERT INTO estoque_movimentos (store, shopping_list_id, item_nome, unidade, tipo, quantidade, saldo_antes, saldo_depois, usuario)
+                 VALUES ($1, $2, $3, $4, 'contagem', $5, $6, $5, $7)`,
+                [store, shoppingListId, contado[0].name, contado[0].unit, parseFloat(item.currentStock), contado[0].antes, employeeName || authUser.name || 'Equipe']
+              ).catch(e => console.error('[Estoque] histórico da contagem:', e.message));
+            }
           }
         }
 
@@ -2931,6 +3002,76 @@ export default async function handler(req, res) {
         if (listId) { q += ' AND ss.shopping_list_id = $2'; params.push(listId); }
         q += ' ORDER BY ss.created_at DESC LIMIT 50';
         const { rows } = await pool.query(q, params);
+        return res.status(200).json(rows);
+      }
+
+      // ── Estoque: lançar entrada ou saída de um item ──
+      if (url.includes('/api/shopping/movimento') && !url.includes('/api/shopping/movimentos') && method === 'POST') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        const { itemId, tipo, quantidade, custoUnitario, observacao } = req.body || {};
+        if (!['entrada', 'saida'].includes(tipo)) return res.status(400).json({ error: 'Tipo deve ser entrada ou saída.' });
+        const qtd = parseFloat(String(quantidade ?? '').replace(',', '.'));
+        if (!Number.isFinite(qtd) || qtd <= 0) return res.status(400).json({ error: 'Informe uma quantidade maior que zero.' });
+        const custo = custoUnitario === '' || custoUnitario == null ? null : parseFloat(String(custoUnitario).replace(',', '.'));
+        if (custo !== null && (!Number.isFinite(custo) || custo < 0)) return res.status(400).json({ error: 'Custo inválido.' });
+
+        // O item não guarda a loja; a lista guarda. Sem o JOIN, um itemId
+        // qualquer mexia no estoque de outro cliente.
+        const { rows: achado } = authUser.role === 'master'
+          ? await pool.query('SELECT si.*, sl.store AS loja FROM shopping_items si JOIN shopping_lists sl ON sl.id = si.shopping_list_id WHERE si.id = $1', [itemId])
+          : await pool.query(
+              'SELECT si.*, sl.store AS loja FROM shopping_items si JOIN shopping_lists sl ON sl.id = si.shopping_list_id WHERE si.id = $1 AND LOWER(TRIM(sl.store)) = LOWER(TRIM($2))',
+              [itemId, authUser.store]
+            );
+        if (achado.length === 0) return res.status(404).json({ error: 'Item não encontrado nesta loja.' });
+        const item = achado[0];
+        const lojaDoItem = item.loja;
+
+        const delta = tipo === 'entrada' ? qtd : -qtd;
+        // Saída maior que o saldo deixaria o estoque negativo: quase sempre é
+        // contagem desatualizada, e o certo é a equipe recontar.
+        const { rows: atualizado } = await pool.query(
+          `UPDATE shopping_items SET current_stock = COALESCE(current_stock, 0) + $1::numeric
+            WHERE id = $2 AND ($1::numeric >= 0 OR COALESCE(current_stock, 0) + $1::numeric >= 0)
+            RETURNING current_stock`,
+          [delta, item.id]
+        );
+        if (atualizado.length === 0) {
+          return res.status(400).json({ error: `Saída maior que o saldo (${parseFloat(item.current_stock || 0)} ${item.unit || 'un'}). Confira a contagem do estoque.` });
+        }
+        const antes = item.current_stock === null ? 0 : parseFloat(item.current_stock);
+        const depois = parseFloat(atualizado[0].current_stock);
+
+        const { rows: quem } = await pool.query('SELECT name FROM users WHERE id = $1', [authUser.id]).catch(() => ({ rows: [] }));
+        const usuario = (quem[0]?.name || '').trim() || authUser.email || 'Gestor';
+        await garantirMovimentosDeEstoque();
+        const { rows: mov } = await pool.query(
+          `INSERT INTO estoque_movimentos (store, shopping_list_id, item_nome, unidade, tipo, quantidade, saldo_antes, saldo_depois, custo_unitario, observacao, usuario)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+          [lojaDoItem, item.shopping_list_id, item.name, item.unit, tipo, qtd, antes, depois, custo, String(observacao || '').trim().slice(0, 300) || null, usuario]
+        );
+
+        // Só avisa quando ESTA saída cruzou o mínimo: quem já estava abaixo
+        // recebeu o aviso na contagem, e repetir a cada saída vira ruído.
+        const minimo = parseFloat(item.min_stock || 0);
+        if (tipo === 'saida' && minimo > 0 && depois < minimo && antes >= minimo) {
+          await avisarEstoqueAbaixoDoMinimo(lojaDoItem, item, depois, usuario);
+        }
+        return res.status(200).json({ success: true, saldo: depois, movimento: mov[0] });
+      }
+
+      // ── Estoque: histórico de movimentações de uma lista ──
+      if (url.includes('/api/shopping/movimentos') && method === 'GET') {
+        if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        const listId = searchParams.get('listId');
+        if (!listId) return res.status(400).json({ error: 'listId obrigatório.' });
+        await garantirMovimentosDeEstoque();
+        const { rows } = authUser.role === 'master'
+          ? await pool.query('SELECT * FROM estoque_movimentos WHERE shopping_list_id = $1 ORDER BY created_at DESC, id DESC LIMIT 200', [listId])
+          : await pool.query(
+              'SELECT * FROM estoque_movimentos WHERE shopping_list_id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) ORDER BY created_at DESC, id DESC LIMIT 200',
+              [listId, authUser.store]
+            );
         return res.status(200).json(rows);
       }
 
