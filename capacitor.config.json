@@ -11,6 +11,8 @@
     "webContentsDebuggingEnabled": false
   },
   "ios": {
-    "allowsLinkPreview": false
+    "allowsLinkPreview": false,
+    "contentInset": "always",
+    "backgroundColor": "#F4F4F5"
   }
 }
