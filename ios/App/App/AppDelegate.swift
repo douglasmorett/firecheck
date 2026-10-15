@@ -52,21 +52,26 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 ///
 /// O WebView do Capacitor ocupa a tela inteira: cabeçalhos e janelas do
 /// FireCheck ficavam sob o relógio e a bateria, e o X da central de tutoriais
-/// não recebia o toque. O `contentInset` do capacitor.config não basta — a
-/// página rola por código (scrollTo) e volta para baixo do relógio. Aqui o
-/// próprio WebView é posicionado depois da área segura de cima; a faixa da
-/// barra de status fica com a cor de fundo do app. (Main.storyboard usa esta
-/// classe.)
+/// não recebia o toque. O contentInset do capacitor.config não basta — a
+/// página rola por código (scrollTo) e volta para baixo do relógio. No
+/// Capacitor o WebView É a view da tela (loadView), então mexer no frame dele
+/// desloca tudo: aqui ele vai para dentro de uma view que o contém, presa à
+/// área segura de cima. A faixa da barra de status fica com o fundo do app.
+/// (Main.storyboard usa esta classe.)
 class MainViewController: CAPBridgeViewController {
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0xF4 / 255.0, green: 0xF4 / 255.0, blue: 0xF5 / 255.0, alpha: 1)
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        guard let webView = webView else { return }
-        let topo = view.safeAreaInsets.top
-        webView.frame = CGRect(x: 0, y: topo, width: view.bounds.width, height: view.bounds.height - topo)
+    override func loadView() {
+        super.loadView()
+        guard let webView = view else { return }
+        let fundo = UIView()
+        fundo.backgroundColor = UIColor(red: 0xF4 / 255.0, green: 0xF4 / 255.0, blue: 0xF5 / 255.0, alpha: 1)
+        view = fundo
+        fundo.addSubview(webView)
+        webView.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: fundo.safeAreaLayoutGuide.topAnchor),
+            webView.bottomAnchor.constraint(equalTo: fundo.bottomAnchor),
+            webView.leadingAnchor.constraint(equalTo: fundo.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: fundo.trailingAnchor),
+        ])
     }
 }
