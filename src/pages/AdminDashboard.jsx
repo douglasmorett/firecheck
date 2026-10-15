@@ -183,6 +183,16 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// "Verificado por Fulana em 15/10/2026 às 16:02". Baixas antigas, de antes de
+// a hora ser gravada, saem só com o nome.
+const textoDaBaixa = (s) => {
+  const quando = s?.resolved_at ? new Date(s.resolved_at) : null;
+  const hora = quando && !isNaN(quando)
+    ? ` em ${quando.toLocaleDateString('pt-BR')} às ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : '';
+  return `Verificado por ${s?.resolved_by || 'gestor'}${hora}`;
+};
+
 const BarPct = ({ pct, color }) => (
   <div style={{ height: '6px', backgroundColor: '#1A1C23', borderRadius: '100px', overflow: 'hidden', width: '100%' }}>
     <div style={{ width: `${pct}%`, height: '100%', backgroundColor: color || 'var(--primary)', transition: 'width 0.5s ease' }} />
@@ -586,6 +596,7 @@ export default function AdminDashboard() {
   const [newDateInput, setNewDateInput] = useState('');
   const [isSavingVehicle, setIsSavingVehicle] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState('todos');
+  const [filtroBaixa, setFiltroBaixa] = useState('todos');
   // -- Compras / Estoque --
   const [shoppingLists, setShoppingLists] = useState([]);
   const [shoppingSubmissions, setShoppingSubmissions] = useState([]);
@@ -1863,10 +1874,18 @@ export default function AdminDashboard() {
         headers: getAuthHeaders(),
         body: JSON.stringify({ id, resolvedBy: userProfile?.name || 'Admin' })
       });
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, resolved: true, resolved_by: userProfile?.name || 'Admin' } : s));
-        setShowSubmissionModal(false);
+        const baixa = {
+          resolved: true,
+          resolved_by: data.resolved_by || userProfile?.name || 'Gestor',
+          resolved_at: data.resolved_at || new Date().toISOString(),
+        };
+        setSubmissions(prev => prev.map(s => s.id === id ? { ...s, ...baixa } : s));
+        setSelectedSubmission(prev => (prev && prev.id === id ? { ...prev, ...baixa } : prev));
         fetchData(); // Atualiza os cards do topo
+      } else {
+        alert(data.error || 'Não foi possível dar baixa. Tente novamente.');
       }
     } catch (e) { console.error('Erro ao resolver submissão:', e); }
   };
@@ -3495,12 +3514,31 @@ export default function AdminDashboard() {
                 <option value="consultorio">Consultório / Clínicas</option>
                 <option value="veiculo">Frota / Veicular</option>
               </select>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Últimas 24h</span>
+              <select
+                value={filtroBaixa}
+                onChange={e => setFiltroBaixa(e.target.value)}
+                aria-label="Filtrar por baixa"
+                style={{
+                  backgroundColor: 'var(--bg-color)',
+                  color: 'var(--text-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              >
+                <option value="todos">Todos</option>
+                <option value="pendentes">Aguardando baixa</option>
+                <option value="verificados">Verificados</option>
+              </select>
             </div>
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {(() => {
               const filteredSubmissions = submissions.filter(s => {
+                if (filtroBaixa === 'pendentes' && s.resolved) return false;
+                if (filtroBaixa === 'verificados' && !s.resolved) return false;
                 if (categoryFilter === 'todos') return true;
                 const cl = checklists?.find(c => c.id === s.checklist_id);
                 return cl && cl.category === categoryFilter;
@@ -3546,7 +3584,7 @@ export default function AdminDashboard() {
                       {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
                       <div style={{ flex: 1 }}>
                         <h4 style={{ fontSize: '1rem', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {checklists?.find(c => c.id === s.checklist_id)?.title || 'Checklist Concluído'}
+                          {checklists?.find(c => c.id === s.checklist_id)?.title || s.checklist_title || 'Checklist Concluído'}
                           {checklists?.find(c => c.id === s.checklist_id)?.category === 'veiculo' && (
                             <span style={{ fontSize: '0.7rem', padding: '2px 6px', backgroundColor: 'rgba(255, 69, 0, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }}>
                               🚗 Veicular
@@ -3571,6 +3609,20 @@ export default function AdminDashboard() {
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                         <StatusBadge status={status} />
+                        {/* A baixa do gestor: sem ela a lista não dizia quais
+                            checklists já tinham sido conferidos. */}
+                        {s.resolved ? (
+                          <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', maxWidth: '260px', textAlign: 'right' }}>
+                            ✔ {textoDaBaixa(s)}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleResolveSubmission(s.id); }}
+                            style={{ fontSize: '0.75rem', padding: '4px 10px', backgroundColor: 'transparent', color: 'var(--success)', border: '1px solid var(--success)', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            Dar baixa
+                          </button>
+                        )}
                         {(status === 'pendente' || status === 'falha') && (
                           <button 
                             onClick={(e) => handleReprocessAudit(e, s.id)}
@@ -5749,7 +5801,7 @@ export default function AdminDashboard() {
               {selectedSubmission.selfie && <img src={selectedSubmission.selfie} alt="Selfie" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '3px solid var(--primary)' }} />}
               <div>
                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>
-                   {checklists?.find(c => c.id === selectedSubmission.checklist_id)?.title || 'Detalhes da Auditoria'}
+                   {checklists?.find(c => c.id === selectedSubmission.checklist_id)?.title || selectedSubmission.checklist_title || 'Detalhes da Auditoria'}
                 </h2>
                 <p style={{ color: 'var(--text-muted)' }}>{selectedSubmission.employee_name} · {selectedSubmission.store}</p>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -5761,8 +5813,16 @@ export default function AdminDashboard() {
 
             <div style={{ padding: '32px', overflowY: 'auto', flex: 1, minHeight: 0 }}>
               <h3 style={{ marginBottom: '20px', fontSize: '1.1rem' }}>Respostas do Checklist</h3>
+              {/* Envio feito quando o checklist abria "0 de 0" para o funcionário
+                  (todas as tarefas atribuídas a outra pessoa). Hoje o envio vazio é
+                  barrado; os antigos ficam explicados em vez de abrir em branco. */}
+              {(!Array.isArray(selectedSubmission.tasks) || selectedSubmission.tasks.length === 0) && (
+                <div style={{ padding: '16px', borderRadius: '10px', backgroundColor: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', fontSize: '0.9rem', color: 'var(--text-main)' }}>
+                  Este envio não tem nenhuma resposta. O funcionário finalizou o checklist sem nenhuma tarefa atribuída a ele — confira, em Gerenciar Checklists, para quem as tarefas deste checklist estão atribuídas.
+                </div>
+              )}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {selectedSubmission.tasks.map((task, idx) => {
+                {(Array.isArray(selectedSubmission.tasks) ? selectedSubmission.tasks : []).map((task, idx) => {
                   const feedback = selectedSubmission.feedback_info?.[task.id];
                   return (
                     <div key={task.id} style={{ padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
@@ -5843,12 +5903,12 @@ export default function AdminDashboard() {
                </button>
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 2, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
-                    Finalizar Ocorrência (Ciente)
+                    ✓ Dar baixa (marcar como verificado)
                  </button>
                )}
                {selectedSubmission.resolved && (
                  <div style={{ flex: 2, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    ✓ Ocorrência Resolvida
+                    ✓ {textoDaBaixa(selectedSubmission)}
                  </div>
                )}
             </div>

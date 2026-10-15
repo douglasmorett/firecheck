@@ -851,6 +851,13 @@ export default function ChecklistExecution() {
     // dentro do bloco isImpersonating, então "Exigir assinatura" e "Exigir selfie"
     // não tinham efeito nenhum em uso de verdade.
     if (!shoppingListId) {
+      // Checklist com todas as tarefas atribuídas a outra pessoa abre como
+      // "0 de 0" para este funcionário. Finalizar assim gravava um envio sem
+      // nenhuma resposta, que o gestor abria em branco na auditoria.
+      if (tasks.length === 0) {
+        alert('Nenhuma tarefa deste checklist está atribuída a você. Peça ao gestor para revisar o checklist antes de finalizar.');
+        return;
+      }
       const semFoto = tasks.filter(t => t.requirePhoto && !t.photo && (!t.photos || t.photos.length === 0));
       if (semFoto.length > 0) {
         alert('É obrigatório enviar a foto das tarefas exigidas antes de finalizar.');

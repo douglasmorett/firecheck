@@ -4284,6 +4284,12 @@ export default async function handler(req, res) {
         // submissão dentro da loja de outro cliente.
         const store = autorFinalize.role === 'master' ? await lojaCanonica(req.body.store || autorFinalize.store) : autorFinalize.store;
 
+        // Envio sem nenhuma tarefa (checklist inteiro atribuído a outra pessoa,
+        // aberto como "0 de 0") virava uma auditoria em branco no painel.
+        if (!Array.isArray(tasks) || tasks.length === 0) {
+          return res.status(400).json({ message: 'Este checklist não tem nenhuma tarefa para você. Peça ao gestor para revisar as atribuições.' });
+        }
+
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
           "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
@@ -5007,7 +5013,10 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       
-      let queryStr = 'SELECT cs.*, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id';
+      // checklist_title: o painel buscava o título na lista de checklists da
+      // loja e, quando não achava (checklist apagado ou fora da lista), a
+      // auditoria aparecia sem nome.
+      let queryStr = 'SELECT cs.*, ck.title as checklist_title, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id LEFT JOIN checklists ck ON ck.id = cs.checklist_id';
       let queryParams = [];
       const condicoes = [];
       if (store) {
@@ -5034,8 +5043,8 @@ export default async function handler(req, res) {
       const idPedido = searchParams.get('id');
       if (idPedido) {
         const { rows: um } = await pool.query(
-          `SELECT cs.*, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color
-           FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id
+          `SELECT cs.*, ck.title as checklist_title, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color
+           FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id LEFT JOIN checklists ck ON ck.id = cs.checklist_id
            WHERE cs.id = $1${store ? ' AND LOWER(cs.store) = LOWER($2)' : ''}`,
           store ? [idPedido, store] : [idPedido]
         );
@@ -5723,22 +5732,32 @@ Responda APENAS com JSON válido.`;
       if (method === 'POST') {
         const autorResolve = await autenticarComLojaAtual(req);
         if (!autorResolve) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+        // Dar baixa é conferência do gestor: o funcionário não pode marcar o
+        // próprio checklist como verificado.
+        if (!['admin', 'master', 'gestor'].includes(autorResolve.role)) {
+          return res.status(403).json({ error: 'Somente o administrador ou gestor pode dar baixa.' });
+        }
         const { id } = req.body;
         if (!id) return res.status(400).json({ error: 'id é obrigatório.' });
         await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255)');
+        // A hora da baixa aparece no painel ("Verificado por X em ...").
+        await pool.query('ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ');
 
         // Quem resolveu é quem está logado, não o que o corpo diz. O campo
         // resolvedBy vinha do cliente e ia direto para o banco: dava para
         // encerrar uma pendência assinando com o nome de outra pessoa.
-        const resolvedBy = autorResolve.name || autorResolve.email || 'Gestor';
+        // O token nem sempre traz o nome, e aí o painel mostrava o e-mail do
+        // dono em "Verificado por". O nome vem do cadastro.
+        const { rows: quemResolve } = await pool.query('SELECT name FROM users WHERE id = $1', [autorResolve.id]).catch(() => ({ rows: [] }));
+        const resolvedBy = (quemResolve[0]?.name || '').trim() || autorResolve.name || autorResolve.email || 'Gestor';
 
         // O WHERE levava só o id. Um id de outra loja era aceito do mesmo jeito,
         // e a pendência dela sumia do painel do dono.
         const alvo = autorResolve.role === 'master'
-          ? await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1 RETURNING id', [id, resolvedBy])
-          : await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2 WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($3)) RETURNING id', [id, resolvedBy, autorResolve.store]);
+          ? await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2, resolved_at = NOW() WHERE id = $1 RETURNING id, resolved_by, resolved_at', [id, resolvedBy])
+          : await pool.query('UPDATE checklist_submissions SET resolved = true, resolved_by = $2, resolved_at = NOW() WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($3)) RETURNING id, resolved_by, resolved_at', [id, resolvedBy, autorResolve.store]);
         if (alvo.rowCount === 0) return res.status(404).json({ error: 'Registro não encontrado nesta loja.' });
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, resolved_by: alvo.rows[0].resolved_by, resolved_at: alvo.rows[0].resolved_at });
       }
     }
     // ── Integração com o FireHub ───────────────────────────────────────────────
