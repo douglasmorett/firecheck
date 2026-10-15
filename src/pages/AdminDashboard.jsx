@@ -190,7 +190,7 @@ const textoDaBaixa = (s) => {
   const hora = quando && !isNaN(quando)
     ? ` em ${quando.toLocaleDateString('pt-BR')} às ${quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
     : '';
-  return `Verificado por ${s?.resolved_by || 'gestor'}${hora}`;
+  return `Verificado por ${s?.resolved_by_nome || s?.resolved_by || 'gestor'}${hora}`;
 };
 
 const BarPct = ({ pct, color }) => (

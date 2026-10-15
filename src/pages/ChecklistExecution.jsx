@@ -386,7 +386,15 @@ export default function ChecklistExecution() {
                 })
                 .catch(() => {});
             }
+          } else {
+            // O checklist do link não está entre os liberados para este
+            // funcionário (atribuído a outra pessoa, fora do dia). A tela ficava
+            // em "Carregando..." sem tarefas e com o botão Finalizar, e o toque
+            // gravava uma auditoria vazia, sem checklist, no painel do gestor.
+            setTitle('Checklist indisponível para você');
           }
+        } else {
+          setTitle('Checklist indisponível para você');
         }
         setLoading(false);
       })
@@ -1328,6 +1336,11 @@ export default function ChecklistExecution() {
         </div>
       </header>
 
+      {!loading && !isReadOnly && tasks.length === 0 && (
+        <div className="card" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)', marginBottom: '16px' }}>
+          Nenhuma tarefa deste checklist está liberada para você agora. Volte para a lista ou peça ao gestor para revisar as atribuições.
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {tasks.map((task, index) => {
           // "Não" numa pergunta Sim/Não é resposta dada: o card ganha o visto
@@ -1837,7 +1850,7 @@ export default function ChecklistExecution() {
           gap: '8px'
         }} 
         onClick={handleFinish}
-        disabled={isReadOnly || isSubmitting}
+        disabled={isReadOnly || isSubmitting || (!loading && tasks.length === 0)}
       >
         {isReadOnly ? '🔒 Somente visualização' : aguardandoConferencia ? 'Conferindo as fotos…' : isSubmitting ? 'Enviando…' : (
           isImpersonating ? (

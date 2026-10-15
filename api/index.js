@@ -5013,10 +5013,12 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       
+      // resolved_by_nome: baixas antigas gravaram o e-mail de quem deu baixa;
+      // o painel mostra o nome do cadastro no lugar.
       // checklist_title: o painel buscava o título na lista de checklists da
       // loja e, quando não achava (checklist apagado ou fora da lista), a
       // auditoria aparecia sem nome.
-      let queryStr = 'SELECT cs.*, ck.title as checklist_title, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id LEFT JOIN checklists ck ON ck.id = cs.checklist_id';
+      let queryStr = 'SELECT cs.*, ck.title as checklist_title, (SELECT TRIM(ru.name) FROM users ru WHERE LOWER(ru.email) = LOWER(cs.resolved_by) AND LENGTH(TRIM(ru.name)) > 0 LIMIT 1) as resolved_by_nome, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id LEFT JOIN checklists ck ON ck.id = cs.checklist_id';
       let queryParams = [];
       const condicoes = [];
       if (store) {
@@ -5043,7 +5045,7 @@ export default async function handler(req, res) {
       const idPedido = searchParams.get('id');
       if (idPedido) {
         const { rows: um } = await pool.query(
-          `SELECT cs.*, ck.title as checklist_title, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color
+          `SELECT cs.*, ck.title as checklist_title, (SELECT TRIM(ru.name) FROM users ru WHERE LOWER(ru.email) = LOWER(cs.resolved_by) AND LENGTH(TRIM(ru.name)) > 0 LIMIT 1) as resolved_by_nome, v.plate as vehicle_plate, v.model as vehicle_model, v.brand as vehicle_brand, v.color as vehicle_color
            FROM checklist_submissions cs LEFT JOIN vehicles v ON cs.vehicle_id = v.id LEFT JOIN checklists ck ON ck.id = cs.checklist_id
            WHERE cs.id = $1${store ? ' AND LOWER(cs.store) = LOWER($2)' : ''}`,
           store ? [idPedido, store] : [idPedido]
