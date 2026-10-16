@@ -154,6 +154,34 @@ const PERMISSION_LABELS = {
   perm_notificacoes: '🔔 Notificações',
 };
 
+// O que vai para o servidor em `permissions`: o gestor leva o quadro todo; o
+// funcionário, só o estoque na tela dele (o servidor confere em
+// podeMovimentarEstoque); os outros papéis, nada.
+const permissoesParaSalvar = (role, perms) => {
+  if (role === 'gestor') return perms || DEFAULT_GESTOR_PERMISSIONS;
+  if (role === 'funcionario') return { perm_estoque: perms?.perm_estoque === true };
+  return null;
+};
+
+// Pedido da Pet Nature (16/10/2026): a gerente usa a tela simples do
+// funcionário (ponto e checklists) e precisa dar entrada e saída no estoque,
+// sem o painel inteiro do gestor.
+function PermissaoDeEstoqueDoFuncionario({ ligada, onChange }) {
+  return (
+    <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(8, 145, 178, 0.05)', border: '1px solid rgba(8, 145, 178, 0.2)', borderRadius: '12px' }}>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+        <input type="checkbox" checked={ligada} onChange={e => onChange(e.target.checked)} style={{ marginTop: '3px' }} />
+        <span>
+          <strong style={{ color: '#0891b2' }}>📦 Controle de estoque na tela do funcionário</strong>
+          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+            Pode dar entrada e saída de mercadoria e ver o histórico das listas de compras, sem acesso ao painel do gestor.
+          </span>
+        </span>
+      </label>
+    </div>
+  );
+}
+
 const TAB_PERMISSION_MAP = {
   checklists: 'perm_checklists',
   equipe: 'perm_equipe', 
@@ -1977,7 +2005,7 @@ export default function AdminDashboard() {
           name: editingUser.name,
           phone: editingUser.phone,
           role: editingUser.role,
-          permissions: editingUser.role === 'gestor' ? (editingUser.permissions || DEFAULT_GESTOR_PERMISSIONS) : null,
+          permissions: permissoesParaSalvar(editingUser.role, editingUser.permissions),
           ponto_hora_entrada: editingUser.ponto_hora_entrada || undefined,
           ponto_hora_saida: editingUser.ponto_hora_saida || undefined,
           ponto_tolerancia: editingUser.ponto_tolerancia != null ? editingUser.ponto_tolerancia : undefined,
@@ -5725,7 +5753,7 @@ export default function AdminDashboard() {
                     setNewUser({
                       ...newUser, 
                       role,
-                      permissions: role === 'gestor' ? (newUser.permissions || {...DEFAULT_GESTOR_PERMISSIONS}) : null
+                      permissions: role === 'gestor' ? getSafeGestorPermissions(newUser.permissions) : permissoesParaSalvar(role, newUser.permissions)
                     });
                   }}>
                     {isMaster && <option value="admin">Dono (Cliente)</option>}
@@ -5772,6 +5800,13 @@ export default function AdminDashboard() {
                   )}
                 </div>
               </div>
+
+              {newUser.role === 'funcionario' && (
+                <PermissaoDeEstoqueDoFuncionario
+                  ligada={newUser.permissions?.perm_estoque === true}
+                  onChange={v => setNewUser({ ...newUser, permissions: { perm_estoque: v } })}
+                />
+              )}
 
               {newUser.role === 'gestor' && (
                 <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
@@ -6169,7 +6204,7 @@ export default function AdminDashboard() {
                   setEditingUser({
                     ...editingUser, 
                     role,
-                    permissions: role === 'gestor' ? (editingUser.permissions || {...DEFAULT_GESTOR_PERMISSIONS}) : null
+                    permissions: role === 'gestor' ? getSafeGestorPermissions(editingUser.permissions) : permissoesParaSalvar(role, editingUser.permissions)
                   });
                 }}>
                   {isMaster && <option value="admin">Dono (Cliente)</option>}
@@ -6182,6 +6217,13 @@ export default function AdminDashboard() {
                   {isMaster && <option value="master">Gestor Master</option>}
                 </select>
               </div>
+
+              {editingUser.role === 'funcionario' && (
+                <PermissaoDeEstoqueDoFuncionario
+                  ligada={editingUser.permissions?.perm_estoque === true}
+                  onChange={v => setEditingUser({ ...editingUser, permissions: { ...(editingUser.permissions || {}), perm_estoque: v } })}
+                />
+              )}
 
               {editingUser.role === 'gestor' && (
                 <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>

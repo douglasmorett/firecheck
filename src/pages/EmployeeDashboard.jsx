@@ -6,6 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
+import EstoqueDaLista from '../components/EstoqueDaLista';
 
 // O dia operacional é o de SÃO PAULO — a MESMA régua do ChecklistExecution,
 // que grava o rascunho sob esta chave. Com toISOString() (UTC), das 21h à
@@ -110,6 +111,10 @@ export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const [checklists, setChecklists] = useState([]);
   const [shoppingLists, setShoppingLists] = useState([]);
+  // Entrada e saída de estoque na tela simples: o gestor liga no cadastro
+  // (permissions.perm_estoque) e o servidor confere de novo a cada lançamento.
+  const [podeEstoque, setPodeEstoque] = useState(false);
+  const [estoqueAberto, setEstoqueAberto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -243,6 +248,8 @@ export default function EmployeeDashboard() {
         })
         .then(r => { handle401(r, navigate); return r.json(); })
         .then(users => {
+          const eu = Array.isArray(users) ? users.find(u => String(u.id) === String(profile.id)) : null;
+          setPodeEstoque(eu?.perm_estoque === true);
           const admin = Array.isArray(users) ? users.find(u => u.role === 'admin' || u.role === 'master') : null;
           if (admin && (admin.ponto_active || admin.status === 'trial')) {
              setHasPonto(true);
@@ -1042,6 +1049,39 @@ export default function EmployeeDashboard() {
           </section>
         );
       })()}
+
+      {/* 📦 CONTROLE DE ESTOQUE — só com a permissão ligada pelo gestor */}
+      {podeEstoque && shoppingLists.length > 0 && (
+        <section style={{ marginBottom: '32px' }}>
+          <h4 style={{ fontSize: '0.9rem', color: '#0891b2', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+            <Package size={18} color="#0891b2" /> Controle de Estoque
+          </h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {shoppingLists.map(list => (
+              <button
+                key={list.id}
+                type="button"
+                onClick={() => setEstoqueAberto(list)}
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '16px', border: '1px solid #e2e8f0', backgroundColor: 'white', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+              >
+                <span>
+                  <span style={{ display: 'block', fontSize: '1rem', fontWeight: '700', color: '#0f172a' }}>{list.title}</span>
+                  <span style={{ display: 'block', fontSize: '0.8rem', color: Number(list.below_min_count) > 0 ? '#dc2626' : '#64748b', marginTop: '4px' }}>
+                    {Number(list.below_min_count) > 0 ? `${list.below_min_count} abaixo do mínimo · ` : ''}{list.item_count || 0} itens
+                  </span>
+                </span>
+                <span style={{ padding: '8px 14px', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#0891b2', color: 'white', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+                  Entradas e saídas
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {estoqueAberto && (
+        <EstoqueDaLista lista={estoqueAberto} onFechar={() => setEstoqueAberto(null)} onMudou={() => userProfile && fetchShoppingLists(userProfile)} />
+      )}
 
       <section style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>

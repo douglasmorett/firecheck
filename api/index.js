@@ -825,6 +825,32 @@ async function avisarEstoqueAbaixoDoMinimo(store, item, saldo, usuario) {
   }
 }
 
+/** A coluna permissions é TEXT e já foi gravada com JSON dentro de JSON. */
+function lerPermissoes(bruto) {
+  try {
+    let p = bruto;
+    for (let i = 0; i < 2 && typeof p === 'string'; i++) p = JSON.parse(p);
+    return p && typeof p === 'object' && !Array.isArray(p) ? p : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Quem lança entrada e saída de estoque: dono, gestor e master sempre; o
+ * funcionário só com "perm_estoque" ligada no cadastro dele. É a gerente que
+ * usa a tela simples do funcionário e só precisa do estoque, sem o painel do
+ * gestor (pedido da Pet Nature, 16/10/2026). Lida do banco e não do token:
+ * desligar a permissão vale na hora.
+ */
+async function podeMovimentarEstoque(authUser) {
+  if (!authUser) return false;
+  if (['admin', 'master', 'gestor'].includes(authUser.role)) return true;
+  if (authUser.role !== 'funcionario') return false;
+  const { rows } = await pool.query('SELECT permissions FROM users WHERE id = $1', [authUser.id]);
+  return lerPermissoes(rows[0]?.permissions).perm_estoque === true;
+}
+
 async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instancia, loja }) {
   if (loja && !instancia) {
     const daLoja = await instanciaDaLoja(loja);
@@ -3008,6 +3034,7 @@ export default async function handler(req, res) {
       // ── Estoque: lançar entrada ou saída de um item ──
       if (url.includes('/api/shopping/movimento') && !url.includes('/api/shopping/movimentos') && method === 'POST') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        if (!(await podeMovimentarEstoque(authUser))) return res.status(403).json({ error: 'Sem permissão para lançar no estoque. Peça ao gestor para liberar.' });
         const { itemId, tipo, quantidade, custoUnitario, observacao } = req.body || {};
         if (!['entrada', 'saida'].includes(tipo)) return res.status(400).json({ error: 'Tipo deve ser entrada ou saída.' });
         const qtd = parseFloat(String(quantidade ?? '').replace(',', '.'));
@@ -3065,6 +3092,7 @@ export default async function handler(req, res) {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
         const listId = searchParams.get('listId');
         if (!listId) return res.status(400).json({ error: 'listId obrigatório.' });
+        if (!(await podeMovimentarEstoque(authUser))) return res.status(403).json({ error: 'Sem permissão para ver o estoque.' });
         await garantirMovimentosDeEstoque();
         const { rows } = authUser.role === 'master'
           ? await pool.query('SELECT * FROM estoque_movimentos WHERE shopping_list_id = $1 ORDER BY created_at DESC, id DESC LIMIT 200', [listId])
@@ -3886,6 +3914,22 @@ export default async function handler(req, res) {
           return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
         }
 
+        // Funcionário só mexe no próprio cadastro, e sem cargo nem permissões:
+        // sem esta trava ele se promovia a gestor (ou ligava o próprio acesso
+        // ao estoque) mandando role/permissions no corpo. Nenhuma tela do
+        // funcionário edita usuário.
+        if (authUser.role === 'funcionario') {
+          if (String(user.id) !== String(authUser.id)) {
+            return res.status(403).json({ error: 'Sem permissão para editar outros usuários.' });
+          }
+          const mudouCargo = role !== undefined && role !== user.role;
+          const mudouPermissoes = permissions !== undefined &&
+            JSON.stringify(lerPermissoes(permissions)) !== JSON.stringify(lerPermissoes(user.permissions));
+          if (mudouCargo || mudouPermissoes) {
+            return res.status(403).json({ error: 'Só o gestor altera cargo e permissões.' });
+          }
+        }
+
         // Gestor não pode alterar campos sensíveis de um admin
         if (authUser.role === 'gestor' && user.role === 'admin') {
           // Gestor pode editar dados básicos do admin mas não campos de controle
@@ -4315,7 +4359,10 @@ export default async function handler(req, res) {
           }
         }
         
-        const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions) : null;
+        // Funcionário tem uma permissão só: o estoque na tela dele (podeMovimentarEstoque).
+        const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions)
+          : (role === 'funcionario' && permissions) ? JSON.stringify({ perm_estoque: lerPermissoes(permissions).perm_estoque === true })
+          : null;
         // O colaborador entra na loja já existente: herda a chave e também o rótulo
         // dela. Sem o rótulo, ele veria a chave da conta no lugar do nome da empresa.
         const { rows: rotuloDaLoja } = await pool.query(
@@ -4364,6 +4411,8 @@ export default async function handler(req, res) {
         // conseguia bater o ponto.
         return res.status(200).json(rows.map(u => ({
           id: u.id, name: u.name, role: u.role, photo: u.photo, store: u.store,
+          // Da própria ficha, só se o estoque está liberado na tela dele.
+          ...(String(u.id) === String(authUser.id) ? { perm_estoque: lerPermissoes(u.permissions).perm_estoque === true } : {}),
           ...((u.role === 'admin' || u.role === 'master')
             ? { ponto_active: u.ponto_active === true, ...(u.status === 'trial' ? { status: 'trial' } : {}) }
             : {}),
