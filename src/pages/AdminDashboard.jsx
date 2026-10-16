@@ -9,6 +9,7 @@ import PWAInstall from '../components/PWAInstall';
 import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
 import WhatsappDaLoja from '../components/WhatsappDaLoja';
+import { respostaDaTarefa } from '../utils/respostaDaTarefa';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 import { centralAbreSozinha, lerUsuario } from '../tutoriais/telas';
@@ -1492,6 +1493,10 @@ export default function AdminDashboard() {
     }
   };
 
+  // O texto da resposta vai para dentro do HTML do PDF: escapar evita que um
+  // "<" digitado pelo funcionário quebre o relatório.
+  const escaparHtml = (v) => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
   const handleExportPDF = (submission) => {
     const cl = checklists?.find(c => c.id === submission.checklist_id);
     const completedTasks = submission.tasks?.filter(t => t.done)?.length || 0;
@@ -1578,6 +1583,10 @@ export default function AdminDashboard() {
           }
           .status-sim { background-color: #d1fae5; color: #065f46; }
           .status-nao { background-color: #fee2e2; color: #991b1b; }
+          .status-neutro { background-color: #f3f4f6; color: #111827; max-width: 60%; text-align: right; }
+          .lista-itens { list-style: none; padding: 0; margin: 8px 0 0; font-size: 13px; }
+          .lista-itens li { padding: 2px 0; }
+          .lista-itens li.faltou { color: #991b1b; }
           .evidence-grid {
             display: grid;
             grid-template-columns: auto 1fr;
@@ -1631,7 +1640,7 @@ export default function AdminDashboard() {
         </div>
 
         <div class="meta-info">
-          <div class="meta-item"><strong>Checklist:</strong> ${cl?.title || 'N/A'}</div>
+          <div class="meta-item"><strong>Checklist:</strong> ${cl?.title || submission.checklist_title || 'N/A'}</div>
           <div class="meta-item"><strong>Unidade/Loja:</strong> ${submission.store}</div>
           <div class="meta-item"><strong>Responsável:</strong> ${submission.employee_name}</div>
           <div class="meta-item"><strong>Data/Hora de Envio:</strong> ${new Date(submission.created_at).toLocaleString('pt-BR')} (Horário de Brasília)</div>
@@ -1642,16 +1651,24 @@ export default function AdminDashboard() {
         <div class="section-title">Respostas e Auditoria</div>
         ${submission.tasks.map((task, idx) => {
           const feedback = submission.feedback_info?.[task.id];
+          // A resposta em texto: o PDF reduzia toda tarefa a Sim/Não, e a lista
+          // de itens, o número e o texto livre nem apareciam.
+          const resposta = respostaDaTarefa(task);
           const hasPhoto = task.photos && task.photos.length > 0 || task.photo;
           const photos = task.photos || (task.photo ? [task.photo] : []);
           return `
             <div class="task-card">
               <div class="task-header">
                 <div>${idx + 1}. ${task.text}</div>
-                <span class="status-badge ${task.done ? 'status-sim' : 'status-nao'}">
-                  ${task.done ? 'Sim' : 'Não'}
+                <span class="status-badge ${resposta.tom === 'ok' ? 'status-sim' : resposta.tom === 'falha' ? 'status-nao' : 'status-neutro'}">
+                  ${escaparHtml(resposta.itens ? `${resposta.itens.filter(i => i.marcado).length} de ${resposta.itens.length}` : resposta.texto)}
                 </span>
               </div>
+              ${resposta.itens ? `
+                <ul class="lista-itens">
+                  ${resposta.itens.map(i => `<li class="${i.marcado ? 'marcado' : 'faltou'}">${i.marcado ? '✔' : '✘'} ${escaparHtml(i.nome)}</li>`).join('')}
+                </ul>
+              ` : ''}
               ${hasPhoto || feedback ? `
                 <div class="evidence-grid">
                   ${hasPhoto ? `
@@ -5828,17 +5845,35 @@ export default function AdminDashboard() {
                     <div key={task.id} style={{ padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                         <h4 style={{ fontSize: '1rem', margin: 0, flex: 1 }}>{idx + 1}. {task.text}</h4>
-                        <span style={{ 
-                          padding: '4px 12px', 
-                          borderRadius: '20px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 'bold',
-                          backgroundColor: task.done === true ? 'rgba(16, 185, 129, 0.1)' : task.done === false ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255,255,255,0.05)',
-                          color: task.done === true ? 'var(--success)' : task.done === false ? 'var(--error)' : 'var(--text-muted)'
-                        }}>
-                          {task.done === true ? 'Sim' : task.done === false ? 'Não' : (task.done || 'N/A')}
-                        </span>
+                        {(() => {
+                          const r = respostaDaTarefa(task);
+                          return (
+                            <span style={{
+                              padding: '4px 12px',
+                              borderRadius: '20px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              marginLeft: '8px',
+                              textAlign: 'right',
+                              backgroundColor: r.tom === 'ok' ? 'rgba(16, 185, 129, 0.1)' : r.tom === 'falha' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(120,130,145,0.12)',
+                              color: r.tom === 'ok' ? 'var(--success)' : r.tom === 'falha' ? 'var(--error)' : 'var(--text-main)'
+                            }}>
+                              {r.itens ? `${r.itens.filter(i => i.marcado).length} de ${r.itens.length}` : r.texto}
+                            </span>
+                          );
+                        })()}
                       </div>
+                      {/* Lista de itens: cada opção com o nome, marcada ou não. Antes
+                          saíam as posições ("01234") no lugar dos nomes. */}
+                      {respostaDaTarefa(task).itens && (
+                        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {respostaDaTarefa(task).itens.map((i, k) => (
+                            <li key={k} style={{ fontSize: '0.88rem', color: i.marcado ? 'var(--text-main)' : 'var(--error)' }}>
+                              {i.marcado ? '✔' : '✘'} {i.nome}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
 
                       {/* O funcionário viu esta reprovação na tela e enviou assim
                           mesmo. A justificativa dele vem junto, quando escreveu. */}
@@ -5903,7 +5938,7 @@ export default function AdminDashboard() {
                </button>
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 2, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
-                    ✓ Dar baixa (marcar como verificado)
+                    ✓ Dar baixa
                  </button>
                )}
                {selectedSubmission.resolved && (
