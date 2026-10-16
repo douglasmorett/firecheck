@@ -2586,7 +2586,7 @@ export default async function handler(req, res) {
         // se comportavam como 'daily', e o lojista via todo dia um checklist que
         // configurou como semanal ou mensal. O mesmo valia para a "Data de
         // Execução", que era obrigatória e ignorada.
-        if (filterToday && (r.recurrence === 'weekly' || r.recurrence === 'monthly')) {
+        if (filterToday && ['weekly', 'monthly', 'quarterly', 'semiannual'].includes(r.recurrence)) {
           const ancora = ancoraDe(r);
           if (ancora) {
             const [aAno, aMes, aDia] = ancora.split('-').map(Number);
@@ -2599,6 +2599,11 @@ export default async function handler(req, res) {
               // cai no último dia, para o checklist não sumir naquele mês.
               const diaEsperado = Math.min(aDia, ultimoDiaDoMes);
               if (hDia !== diaEsperado) return null;
+              // Trimestral e semestral: o mesmo dia, a cada 3 ou 6 meses contados
+              // a partir do mês da data de referência (e nunca antes dela).
+              const aCada = r.recurrence === 'quarterly' ? 3 : r.recurrence === 'semiannual' ? 6 : 1;
+              const mesesDesde = (hAno * 12 + hMes) - (aAno * 12 + aMes);
+              if (aCada > 1 && (mesesDesde < 0 || mesesDesde % aCada !== 0)) return null;
             }
           }
         }
@@ -7407,7 +7412,7 @@ Você pode executar AÇÕES retornando JSON com o campo "action". As ações dis
 
 ${isAdmin ? `
 AÇÕES DE ADMIN:
-1. CRIAR CHECKLIST: {"action": "create_checklist", "title": "Nome", "tasks": [{"text": "tarefa", "type": "boolean"}], "recurrence": "daily|weekdays|weekly|monthly|unique", "weekdays": ["seg","ter",...], "category": "geral"}
+1. CRIAR CHECKLIST: {"action": "create_checklist", "title": "Nome", "tasks": [{"text": "tarefa", "type": "boolean"}], "recurrence": "daily|weekdays|weekly|monthly|quarterly|semiannual|unique", "weekdays": ["seg","ter",...], "category": "geral"}
    - Tipos de task: boolean (sim/não), check (checkbox), rating (1-5 estrelas), numeric (número), multiple (múltipla escolha com options), text (texto livre), itemlist (lista de itens com options)
    - Para multiple/itemlist, inclua o campo "options": ["opção1", "opção2", ...]
    - Máximo 15 tarefas, mínimo 3

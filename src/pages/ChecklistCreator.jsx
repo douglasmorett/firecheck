@@ -36,7 +36,13 @@ const RECURRENCE_OPTIONS = [
   { value: 'weekdays', label: 'Dias Alternados — escolha os dias' },
   { value: 'weekly',   label: 'Semanal — repete toda semana' },
   { value: 'monthly',  label: 'Mensal — repete todo mês' },
+  { value: 'quarterly',  label: 'Trimestral — repete a cada 3 meses' },
+  { value: 'semiannual', label: 'Semestral — repete a cada 6 meses' },
 ];
+
+// Recorrências presas a um dia do mês: a data escolhida define o dia e o mês
+// em que começa a contar.
+const POR_DIA_DO_MES = { monthly: 1, quarterly: 3, semiannual: 6 };
 
 const WEEKDAY_OPTIONS = [
   { value: 'seg', label: 'Seg' },
@@ -643,7 +649,7 @@ export default function ChecklistCreator() {
             {/* A data também aparece em Semanal e Mensal: é ela que define em qual
                 dia da semana ou dia do mês o checklist se repete. Sem informá-la, a
                 referência vira a data de criação, o que o lojista não tem como adivinhar. */}
-            {(recurrence === '' || recurrence === 'weekly' || recurrence === 'monthly') && (
+            {(recurrence === '' || recurrence === 'weekly' || POR_DIA_DO_MES[recurrence]) && (
               <div style={{ marginTop: '10px' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   📅 {recurrence === '' ? 'Data de Execução' : 'A partir de qual data'}
@@ -665,6 +671,12 @@ export default function ChecklistCreator() {
                     {recurrence === '' && `📌 Aparece a partir de ${new Date(scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}, até ser concluído.`}
                     {recurrence === 'weekly' && `🔁 Repete toda ${new Date(scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long' })}.`}
                     {recurrence === 'monthly' && `🔁 Repete todo dia ${new Date(scheduledDate + 'T12:00:00').getDate()} de cada mês (em meses mais curtos, no último dia).`}
+                    {(recurrence === 'quarterly' || recurrence === 'semiannual') && (() => {
+                      const d = new Date(scheduledDate + 'T12:00:00');
+                      const passo = POR_DIA_DO_MES[recurrence];
+                      const meses = Array.from({ length: 12 / passo }, (_, i) => new Date(2000, (d.getMonth() + i * passo) % 12, 1).toLocaleDateString('pt-BR', { month: 'long' }));
+                      return `🔁 Repete no dia ${d.getDate()} a cada ${passo} meses (${meses.join(', ')}), a partir de ${d.toLocaleDateString('pt-BR')}.`;
+                    })()}
                   </span>
                 )}
                 {!scheduledDate && recurrence !== '' && (
@@ -1217,7 +1229,7 @@ export default function ChecklistCreator() {
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', gap: '12px' }}>
                           <span>🏪 {cl.store || 'Sem loja'}</span>
                           <span>📋 {(cl.tasks || []).length} tarefa{(cl.tasks || []).length !== 1 ? 's' : ''}</span>
-                          {cl.recurrence && <span>🔄 {cl.recurrence === 'daily' ? 'Diário' : cl.recurrence === 'weekly' ? 'Semanal' : cl.recurrence === 'weekdays' ? 'Dias alternados' : cl.recurrence}</span>}
+                          {cl.recurrence && <span>🔄 {cl.recurrence === 'daily' ? 'Diário' : cl.recurrence === 'weekly' ? 'Semanal' : cl.recurrence === 'weekdays' ? 'Dias alternados' : cl.recurrence === 'monthly' ? 'Mensal' : cl.recurrence === 'quarterly' ? 'Trimestral' : cl.recurrence === 'semiannual' ? 'Semestral' : cl.recurrence}</span>}
                         </div>
                       </div>
                       <Copy size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginLeft: '12px' }} />

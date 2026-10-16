@@ -40,7 +40,7 @@ const STATS = {
 const AUDITORIAS = [];
 const CHECKLISTS_MOCK = []; // Placeholder para quando não houver conexão
 
-const RECURRENCE_LABEL = { daily: '📅 Diário', weekly: '📅 Semanal', monthly: '📅 Mensal', '': '—' };
+const RECURRENCE_LABEL = { daily: '📅 Diário', weekly: '📅 Semanal', monthly: '📅 Mensal', quarterly: '📅 Trimestral', semiannual: '📅 Semestral', '': '—' };
 
 const ALERTAS_IA = [];
 
