@@ -8,6 +8,7 @@ import { rotulosDoDia, horaDaBatida, minutosTrabalhados, formatarMinutos } from 
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 import EstoqueSimples from '../components/EstoqueSimples';
+import { LOJAS, lojaDoAparelho } from '../lojasDoApp';
 
 // O dia operacional é o de SÃO PAULO — a MESMA régua do ChecklistExecution,
 // que grava o rascunho sob esta chave. Com toISOString() (UTC), das 21h à
@@ -739,9 +740,15 @@ export default function EmployeeDashboard() {
           </div>
           <div>
             <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Acesse pelo celular!</h4>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>Notificações via WhatsApp. Instale o webapp para acesso rápido.</p>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{lojaDoAparelho() ? `Baixe o app FireCheck grátis na ${LOJAS[lojaDoAparelho()].nome}.` : 'Notificações via WhatsApp. Instale o webapp para acesso rápido.'}</p>
           </div>
         </div>
+        {lojaDoAparelho() ? (
+          <a href={LOJAS[lojaDoAparelho()].url} target="_blank" rel="noopener noreferrer" className="btn"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0, textDecoration: 'none', color: '#fff' }}>
+            <Download size={16} /> Baixar app
+          </a>
+        ) : (
         <button 
           // Antes procurava [data-pwa-install] e chamava .click() nele — mas o
           // atributo está numa <div>, não num botão, e o componente nem renderiza
@@ -764,6 +771,7 @@ export default function EmployeeDashboard() {
         >
           <Download size={16} /> WebApp
         </button>
+        )}
       </div>
       )}
 

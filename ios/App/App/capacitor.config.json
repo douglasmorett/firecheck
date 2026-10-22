@@ -11,9 +11,21 @@
 		"webContentsDebuggingEnabled": false
 	},
 	"ios": {
-		"allowsLinkPreview": false
+		"allowsLinkPreview": false,
+		"backgroundColor": "#F4F4F5"
+	},
+	"plugins": {
+		"CapacitorUpdater": {
+			"autoUpdate": false,
+			"statsUrl": "",
+			"appReadyTimeout": 10000,
+			"autoDeleteFailed": true,
+			"autoDeletePrevious": true,
+			"resetWhenUpdate": true
+		}
 	},
 	"packageClassList": [
-		"PushNotificationsPlugin"
+		"PushNotificationsPlugin",
+		"CapacitorUpdaterPlugin"
 	]
 }

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
+import BaixarOApp from '../components/BaixarOApp';
+import { mostrarBaixarOApp } from '../lojasDoApp';
 import { esquecerCentralFechada } from '../tutoriais/telas';
 
 export default function Login() {
@@ -215,6 +217,13 @@ export default function Login() {
             </button>
           </p>
         </div>
+        )}
+
+        {mostrarBaixarOApp() && (
+          <div style={{ marginTop: '24px', textAlign: 'center' }}>
+            <p style={{ margin: '0 0 10px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Use o FireCheck pelo aplicativo:</p>
+            <BaixarOApp />
+          </div>
         )}
 
         <div style={{ marginTop: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>

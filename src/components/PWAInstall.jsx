@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Download, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { LOJAS, lojaDoAparelho } from '../lojasDoApp';
 
 export default function PWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -50,6 +51,25 @@ export default function PWAInstall() {
   if (isInstalled || dismissed) return null;
 
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  // No celular, o app da loja (Play/App Store) no lugar do atalho do navegador.
+  const loja = lojaDoAparelho();
+
+  if (loja) {
+    return (
+      <a href={LOJAS[loja].url} target="_blank" rel="noopener noreferrer"
+        style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255, 77, 0, 0.08)', color: 'var(--text-main)', border: '1px solid rgba(255, 77, 0, 0.25)', padding: '14px 18px', borderRadius: '12px', marginBottom: '24px', width: '100%', textDecoration: 'none' }}>
+        <Download size={20} color="#ff4d00" />
+        <span style={{ flex: 1 }}>
+          <span style={{ display: 'block', fontWeight: '700', fontSize: '0.95rem' }}>Baixar o app FireCheck</span>
+          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Grátis na {LOJAS[loja].nome}</span>
+        </span>
+        <button onClick={(e) => { e.preventDefault(); handleDismiss(); }} title="Fechar"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', display: 'flex' }}>
+          <X size={18} />
+        </button>
+      </a>
+    );
+  }
 
   return (
     <>
