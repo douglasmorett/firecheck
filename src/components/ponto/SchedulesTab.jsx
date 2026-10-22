@@ -34,8 +34,10 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
       type: sch.type || 'fixed',
       hora_entrada: sch.hora_entrada || '08:00',
       hora_saida: sch.hora_saida || '18:00',
-      intervalo_inicio: sch.intervalo_inicio || '12:00',
-      intervalo_fim: sch.intervalo_fim || '13:00',
+      // O que está gravado: com '12:00' de reserva, quem tirou o almoço da
+      // escala o via voltar sozinho na próxima edição.
+      intervalo_inicio: sch.intervalo_inicio || '',
+      intervalo_fim: sch.intervalo_fim || '',
       tolerancia: sch.tolerancia ?? 15,
       color: sch.color || '#3B82F6',
       weekdays: parsedWd
@@ -161,6 +163,9 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '500' }}>
                 <Clock size={16} color="var(--primary)" /> {sch.hora_entrada} às {sch.hora_saida}
+                {sch.intervalo_inicio && sch.intervalo_fim && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>· almoço {sch.intervalo_inicio} às {sch.intervalo_fim}</span>
+                )}
               </div>
 
               {sch.type === '12x36' ? (
@@ -246,6 +251,21 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
                   <label className="input-label">Horário de Saída (Padrão)</label>
                   <input type="time" className="input-field" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
                 </div>
+              </div>
+
+              {/* O intervalo já era gravado (12:00–13:00 fixo, escondido) mas não
+                  aparecia na tela: o gestor não tinha onde dizer o horário de
+                  almoço. Ele desconta das horas esperadas no banco de horas e faz
+                  a 2ª batida do dia aparecer como "Saída almoço". */}
+              <div>
+                <label className="input-label">Horário de Almoço / Intervalo</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <input type="time" className="input-field" aria-label="Início do almoço" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
+                  <input type="time" className="input-field" aria-label="Fim do almoço" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>
+                  Saída e volta do almoço. Deixe em branco se a jornada não tem intervalo.
+                </p>
               </div>
 
               {scheduleForm.type === 'fixed' && (

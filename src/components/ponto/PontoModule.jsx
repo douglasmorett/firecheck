@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Settings, Clock, UserCheck } from 'lucide-react';
+import { Users, Calendar, Settings, Clock, UserCheck, Scale, CalendarCheck } from 'lucide-react';
 import API_URL from '../../api';
 
 // Sub-components
@@ -7,6 +7,8 @@ import EmployeesTab from './EmployeesTab';
 import EmployeeProfile from './EmployeeProfile';
 import SchedulesTab from './SchedulesTab';
 import SettingsTab from './SettingsTab';
+import BancoHorasTab from './BancoHorasTab';
+import AbonosTab from './AbonosTab';
 
 export default function PontoModule({ userProfile }) {
   const [activeTab, setActiveTab] = useState('employees'); // 'employees', 'schedules', 'settings'
@@ -113,7 +115,7 @@ export default function PontoModule({ userProfile }) {
       </div>
 
       {/* Navegação de Abas Internas */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px' }}>
+      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px', overflowX: 'auto' }}>
         <button 
           onClick={() => setActiveTab('employees')}
           style={{
@@ -136,6 +138,22 @@ export default function PontoModule({ userProfile }) {
         >
           <Calendar size={18} /> Escalas de Trabalho
         </button>
+        {/* Banco de horas (saldo parcial + impressão por funcionário) e
+            atestados/feriados: pedidos da Pet Nature para implantar o ponto. */}
+        {[['banco', <Scale size={18} />, 'Banco de Horas'], ['abonos', <CalendarCheck size={18} />, 'Atestados e Feriados']].map(([chave, icone, nome]) => (
+          <button
+            key={chave}
+            onClick={() => setActiveTab(chave)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '500', whiteSpace: 'nowrap',
+              padding: '12px 4px', borderBottom: activeTab === chave ? '3px solid var(--primary)' : '3px solid transparent',
+              color: activeTab === chave ? 'var(--primary)' : 'var(--text-muted)',
+              display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
+            }}
+          >
+            {icone} {nome}
+          </button>
+        ))}
         <button 
           onClick={() => setActiveTab('settings')}
           style={{
@@ -172,6 +190,12 @@ export default function PontoModule({ userProfile }) {
               userProfile={userProfile} 
               onSchedulesChanged={refreshAll} 
             />
+          )}
+          {activeTab === 'banco' && (
+            <BancoHorasTab employees={employees} userProfile={userProfile} />
+          )}
+          {activeTab === 'abonos' && (
+            <AbonosTab employees={employees} />
           )}
           {activeTab === 'settings' && (
             <SettingsTab 

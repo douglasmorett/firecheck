@@ -4,6 +4,7 @@ import { Flame, LogOut, CheckCircle, Clock, ArrowRight, ClipboardList, User, Ref
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
+import { rotulosDoDia, horaDaBatida, minutosTrabalhados, formatarMinutos } from '../utils/pontoBatidas';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 import EstoqueSimples from '../components/EstoqueSimples';
@@ -822,27 +823,53 @@ export default function EmployeeDashboard() {
               const isFolga = wd && !wd.is_workday;
               const ent = (wd && wd.hora_entrada) || mySchedule.hora_entrada;
               const sai = (wd && wd.hora_saida) || mySchedule.hora_saida;
+              const almIni = (wd && wd.intervalo_inicio) || mySchedule.intervalo_inicio;
+              const almFim = (wd && wd.intervalo_fim) || mySchedule.intervalo_fim;
 
               return (
                 <div style={{ marginBottom: '20px', padding: '12px', backgroundColor: 'var(--bg-secondary)', borderRadius: '12px' }}>
                   <h5 style={{ margin: '0 0 4px 0', color: mySchedule.color || 'var(--primary)' }}>{mySchedule.name}</h5>
                   <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    {isFolga ? '📅 Folga' : `⏰ ${ent} às ${sai}`}
+                    {isFolga ? '📅 Folga' : `⏰ ${ent} às ${sai}${almIni && almFim ? ` · almoço ${almIni} às ${almFim}` : ''}`}
                   </p>
                 </div>
               );
             })()}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
-              <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>
-                <h3 style={{ fontSize: '1.5rem', margin: 0, color: pontoData.entrada ? 'var(--success)' : 'var(--text-muted)' }}>{pontoData.entrada || '--:--'}</h3>
-              </div>
-              <div style={{ borderLeft: '1px solid var(--border-color)' }}></div>
-              <div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Saída</p>
-                <h3 style={{ fontSize: '1.5rem', margin: 0, color: pontoData.saida ? 'var(--success)' : 'var(--text-muted)' }}>{pontoData.saida || '--:--'}</h3>
-              </div>
-            </div>
+            {/* Todas as batidas do dia, na ordem. Antes só a 1ª entrada e a 1ª
+                saída: quem almoça via a saída do almoço como "Saída" e a volta
+                e a saída do turno sumiam. */}
+            {(() => {
+              const batidas = Array.isArray(pontoData.records) ? pontoData.records : [];
+              if (batidas.length === 0) {
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: '32px', marginBottom: '24px' }}>
+                    <div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>Entrada</p>
+                      <h3 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-muted)' }}>--:--</h3>
+                    </div>
+                  </div>
+                );
+              }
+              const rotulos = rotulosDoDia(batidas, { comAlmoco: pontoData.comAlmoco, emAndamento: true });
+              const total = minutosTrabalhados(batidas);
+              return (
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '12px 24px' }}>
+                    {batidas.map((b, i) => (
+                      <div key={b.id || i}>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 4px 0' }}>{rotulos[i]}</p>
+                        <h3 style={{ fontSize: '1.5rem', margin: 0, color: b.type === 'entrada' ? 'var(--success)' : '#f59e0b' }}>{horaDaBatida(b) || '--:--'}</h3>
+                      </div>
+                    ))}
+                  </div>
+                  {total > 0 && (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '12px 0 0 0' }}>
+                      Trabalhado hoje: <strong style={{ color: 'var(--text-main)' }}>{formatarMinutos(total)}</strong>
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             
             <button 
               onClick={() => { if(!isImpersonating) navigate('/ponto'); }} 

@@ -1,6 +1,32 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert, Edit2, Trash2, Repeat, Scale, CalendarCheck } from 'lucide-react';
 import API_URL from '../../api';
+import AbonoForm from './AbonoForm';
+import { rotulosDoDia, minutosTrabalhados, formatarMinutos } from '../../utils/pontoBatidas';
+
+const cabecalhos = (json) => ({
+  ...(json ? { 'Content-Type': 'application/json' } : {}),
+  'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '')
+});
+const dataBR = (d) => (d ? d.split('-').reverse().join('/') : '');
+const comSinal = (min) => (min > 0 ? '+' : '') + formatarMinutos(min);
+
+// Janela por cima da ficha. .modal-overlay não tem CSS no app: o estilo vai aqui.
+function Janela({ titulo, onFechar, children }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', padding: '16px' }}>
+      <div className="card animate-fade-up modal-janela" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', borderRadius: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{titulo}</h3>
+          <button onClick={onFechar} style={{ background: 'var(--bg-main)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex' }}>
+            <X size={18} color="var(--text-muted)" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function EmployeeProfile({ employee, onBack, schedules, userProfile, pontoRecords, onUpdateEmployee, mesSelecionado, onMesChange }) {
   const [viewMode, setViewMode] = useState('list');
@@ -126,6 +152,89 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
     setSavingNewSchedule(false);
   };
 
+  // ── Banco de horas do mês (servidor) e correção de batidas pelo gestor ──
+  // Antes, batida errada (saída batida como entrada) só se corrigia pelo
+  // suporte: a API tinha PUT/DELETE em /api/ponto/record, mas nenhum botão.
+  const hojeLoja = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  const comAlmoco = !!(scheduleObj?.intervalo_inicio && scheduleObj?.intervalo_fim);
+  const [saldoFunc, setSaldoFunc] = useState(null);
+  const [batidaEmEdicao, setBatidaEmEdicao] = useState(null);
+  const [salvandoBatida, setSalvandoBatida] = useState(false);
+  const [erroBatida, setErroBatida] = useState('');
+  const [abonoDia, setAbonoDia] = useState(null);
+
+  const carregarSaldo = useCallback(async () => {
+    const [a, m] = filterMonth.split('-').map(Number);
+    const fimMes = `${filterMonth}-${String(new Date(a, m, 0).getDate()).padStart(2, '0')}`;
+    try {
+      const res = await fetch(`${API_URL}/api/ponto/saldo?userId=${employee.id}&inicio=${filterMonth}-01&fim=${fimMes}`, { headers: cabecalhos() });
+      if (!res.ok) { setSaldoFunc(null); return; }
+      const d = await res.json();
+      setSaldoFunc(d.funcionarios?.[0] || null);
+    } catch {
+      setSaldoFunc(null);
+    }
+  }, [filterMonth, employee.id]);
+
+  useEffect(() => { carregarSaldo(); }, [carregarSaldo, pontoRecords.length]);
+
+  const depoisDeAlterar = () => { onUpdateEmployee(); carregarSaldo(); };
+
+  const abrirNovaBatida = () => {
+    setErroBatida('');
+    setBatidaEmEdicao({ modo: 'nova', type: 'entrada', date: hojeLoja.startsWith(filterMonth) ? hojeLoja : `${filterMonth}-01`, time: '', notes: '' });
+  };
+
+  const abrirEdicao = (rec) => {
+    const m = String(rec.timestamp || '').match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+    setErroBatida('');
+    setBatidaEmEdicao({ modo: 'editar', id: rec.id, type: rec.type, date: m ? m[1] : '', time: rec.hora_local || (m ? m[2] : ''), notes: '' });
+  };
+
+  const salvarBatida = async () => {
+    const b = batidaEmEdicao;
+    if (!b.date || !b.time) { setErroBatida('Informe a data e a hora.'); return; }
+    setSalvandoBatida(true);
+    setErroBatida('');
+    // Hora de parede da loja, sem fuso — é como o ponto grava.
+    const timestamp = `${b.date}T${b.time}:00`;
+    try {
+      const res = b.modo === 'nova'
+        ? await fetch(`${API_URL}/api/ponto/manual`, {
+            method: 'POST', headers: cabecalhos(true),
+            body: JSON.stringify({ userId: employee.id, userName: employee.name, store: userProfile.store, type: b.type, timestamp, notes: b.notes || 'Batida lançada pelo gestor' })
+          })
+        : await fetch(`${API_URL}/api/ponto/record`, {
+            method: 'PUT', headers: cabecalhos(true),
+            body: JSON.stringify({ id: b.id, type: b.type, timestamp, notes: b.notes || 'Corrigida pelo gestor' })
+          });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErroBatida(d.error || 'Não foi possível salvar.'); setSalvandoBatida(false); return; }
+      setBatidaEmEdicao(null);
+      depoisDeAlterar();
+    } catch {
+      setErroBatida('Erro de conexão.');
+    }
+    setSalvandoBatida(false);
+  };
+
+  const trocarTipo = async (rec) => {
+    const novo = rec.type === 'entrada' ? 'saida' : 'entrada';
+    const res = await fetch(`${API_URL}/api/ponto/record`, {
+      method: 'PUT', headers: cabecalhos(true),
+      body: JSON.stringify({ id: rec.id, type: novo, notes: `Tipo corrigido pelo gestor (era ${rec.type === 'entrada' ? 'entrada' : 'saída'})` })
+    });
+    if (res.ok) depoisDeAlterar();
+    else alert((await res.json().catch(() => ({}))).error || 'Não foi possível corrigir a batida.');
+  };
+
+  const excluirBatida = async (rec, nome, hora) => {
+    if (!window.confirm(`Excluir a batida "${nome}" das ${hora}? Isso não pode ser desfeito.`)) return;
+    const res = await fetch(`${API_URL}/api/ponto/record?id=${rec.id}`, { method: 'DELETE', headers: cabecalhos() });
+    if (res.ok) depoisDeAlterar();
+    else alert((await res.json().catch(() => ({}))).error || 'Não foi possível excluir a batida.');
+  };
+
   const filteredRecords = pontoRecords.filter(r => {
     // O mês sai do texto do timestamp (hora de parede da loja): passar por
     // new Date() deslocava -3h e a batida da madrugada do dia 1 caía no mês
@@ -183,9 +292,17 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
       
       if (isProjectedWorkday && workedThatDay && scheduleObj && scheduleObj.type === 'fixed') {
         const wdInfo = Array.isArray(wds) ? wds.find(w => w.weekday === currentDate.getDay()) : null;
-        if (wdInfo && wdInfo.hora_entrada) {
-           const dayRecords = filteredRecords.filter(r => r.timestamp.split('T')[0] === currentDateStr);
-           const entrada = Array.isArray(dayRecords) ? dayRecords.find(r => r.type === 'entrada') : null;
+        // O dia da semana costuma vir sem horário próprio (a tela não o pede):
+        // vale o da escala. Sem isso o atraso nunca era contado.
+        const horaEntradaDoDia = (wdInfo && wdInfo.hora_entrada) || scheduleObj.hora_entrada;
+        if (wdInfo && horaEntradaDoDia) {
+           // A 1ª entrada do dia. Os registros vêm do mais novo para o mais
+           // antigo: o find() pegava a VOLTA DO ALMOÇO e todo dia com almoço
+           // virava atraso.
+           const dayRecords = filteredRecords
+             .filter(r => r.timestamp.split('T')[0] === currentDateStr)
+             .sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+           const entrada = dayRecords.find(r => r.type === 'entrada');
            if (entrada) {
              // O timestamp guarda a hora de parede da loja com um 'Z' postiço:
              // new Date() deslocava a batida ~3h para trás e nenhum atraso real
@@ -195,7 +312,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                || String(entrada.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1];
              if (horaBatida) {
                const [bh, bm] = horaBatida.split(':').map(Number);
-               const [h, m] = wdInfo.hora_entrada.split(':').map(Number);
+               const [h, m] = horaEntradaDoDia.split(':').map(Number);
                const diffMins = (bh * 60 + bm) - (h * 60 + m);
                if (diffMins > (scheduleObj.tolerancia || 15)) {
                  atrasos++;
@@ -206,6 +323,29 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
       }
     }
   }
+
+  // Faltas do servidor quando há escala salva: ele já desconta atestado,
+  // falta justificada e feriado. A conta acima fica para a escala ainda não salva.
+  const faltasDoMes = saldoFunc && !saldoFunc.sem_escala ? saldoFunc.totais.faltas : faltasProjetadas;
+
+  // O dia como o servidor o vê (horas, abono, falta), por data.
+  const infoDoDia = {};
+  (saldoFunc?.dias || []).forEach(d => { infoDoDia[d.data] = d; });
+
+  // Extrato agrupado por dia, batidas em ordem de horário — é o que dá nome a
+  // cada uma (Entrada, Saída almoço, Volta do almoço, Saída). Dias sem batida
+  // entram quando há falta ou abono, para o gestor abonar dali mesmo.
+  const registrosPorDia = {};
+  filteredRecords.forEach(r => {
+    const dia = String(r.timestamp || '').slice(0, 10);
+    if (!registrosPorDia[dia]) registrosPorDia[dia] = [];
+    registrosPorDia[dia].push(r);
+  });
+  Object.values(registrosPorDia).forEach(l => l.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp))));
+  const diasDoExtrato = [...new Set([
+    ...Object.keys(registrosPorDia),
+    ...Object.values(infoDoDia).filter(d => d.abono || d.falta).map(d => d.data),
+  ])].sort().reverse();
 
   const renderCalendar = () => {
     const [year, month] = filterMonth.split('-').map(Number);
@@ -250,8 +390,14 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
       let bgColor = 'var(--bg-main)';
       let color = 'var(--text-main)';
       let border = '1px solid var(--border-color)';
+      // Atestado/feriado lançado: o dia sai marcado, não como falta.
+      const abonoDoDia = infoDoDia[currentDateStr]?.abono || null;
 
-      if (hasRecords) {
+      if (abonoDoDia && !hasRecords) {
+        bgColor = 'rgba(59, 130, 246, 0.08)';
+        border = '1px solid rgba(59, 130, 246, 0.3)';
+        color = '#3B82F6';
+      } else if (hasRecords) {
         bgColor = 'rgba(16, 185, 129, 0.08)';
         border = '1px solid rgba(16, 185, 129, 0.2)';
         color = '#10B981';
@@ -259,7 +405,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         bgColor = 'rgba(59, 130, 246, 0.03)';
         color = 'var(--text-muted)';
         border = '1px dashed var(--border-color)';
-      } else if (currentDate < new Date() && !hasRecords && isProjectedWorkday) {
+      } else if (currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia) {
         bgColor = 'rgba(239, 68, 68, 0.05)';
         border = '1px solid rgba(239, 68, 68, 0.3)';
         color = '#EF4444';
@@ -274,8 +420,9 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
           <span style={{ fontWeight: '600', fontSize: '1rem', alignSelf: 'flex-start' }}>{d}</span>
           <div style={{ flex: 1 }}></div>
           {hasRecords && <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}><CheckCircle size={12}/> Presente</span>}
-          {(!hasRecords && !isProjectedWorkday) && <span style={{ fontSize: '0.7rem', color: '#3B82F6' }}>Folga</span>}
-          {(currentDate < new Date() && !hasRecords && isProjectedWorkday) && <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>Falta</span>}
+          {abonoDoDia && <span style={{ fontSize: '0.7rem', fontWeight: '600', color: '#3B82F6' }}>{abonoDoDia.rotulo}</span>}
+          {(!hasRecords && !isProjectedWorkday && !abonoDoDia) && <span style={{ fontSize: '0.7rem', color: '#3B82F6' }}>Folga</span>}
+          {(currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia) && <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>Falta</span>}
         </div>
       );
     }
@@ -414,7 +561,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Stats Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
             <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(16, 185, 129, 0.05))' }}>
               <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <CalendarDays size={28} color="#10B981" />
@@ -441,14 +588,28 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
               </div>
               <div>
                 <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Faltas Projetadas</p>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: '#EF4444' }}>{faltasProjetadas}</h3>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: '#EF4444' }}>{faltasDoMes}</h3>
+              </div>
+            </div>
+
+            {/* Banco de horas do mês: trabalhado (sem o almoço) menos o esperado da escala. */}
+            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(59, 130, 246, 0.05))' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Scale size={28} color="#3B82F6" />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Banco de Horas</p>
+                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: !saldoFunc || saldoFunc.totais.saldo_min === null ? 'var(--text-muted)' : saldoFunc.totais.saldo_min < 0 ? '#EF4444' : '#10B981' }}>
+                  {!saldoFunc ? '—' : saldoFunc.totais.saldo_min === null ? 'Sem escala' : comSinal(saldoFunc.totais.saldo_min)}
+                </h3>
+                {saldoFunc && <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Trabalhado: {formatarMinutos(saldoFunc.totais.trabalhado_min)}</p>}
               </div>
             </div>
           </div>
 
           <div className="card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
             {/* Header da Tabela/Calendário */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '24px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
               <div style={{ display: 'flex', gap: '12px', backgroundColor: 'var(--bg-card)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
                 <button 
                   onClick={() => setViewMode('list')}
@@ -482,85 +643,117 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                   style={{ padding: '6px 8px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '1rem', outline: 'none' }}
                 />
               </div>
+
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <button className="btn-secondary" onClick={abrirNovaBatida} style={{ padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Plus size={16} /> Adicionar batida
+                </button>
+                <button className="btn-secondary" onClick={() => setAbonoDia(hojeLoja)} style={{ padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <CalendarCheck size={16} /> Lançar atestado/abono
+                </button>
+              </div>
             </div>
 
             <div style={{ padding: '30px' }}>
               {/* View Mode: Calendário */}
               {viewMode === 'calendar' && renderCalendar()}
 
-              {/* View Mode: Lista de Logs */}
+              {/* View Mode: Lista de Logs (agrupada por dia) */}
               {viewMode === 'list' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {filteredRecords.length === 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  {diasDoExtrato.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
                       <Clock size={48} color="var(--border-color)" style={{ marginBottom: '16px' }} />
                       <h3 style={{ margin: '0 0 8px 0' }}>Nenhum ponto batido</h3>
                       <p style={{ margin: 0 }}>O funcionário não registrou presença neste mês.</p>
                     </div>
                   ) : (
-                    filteredRecords.map((rec) => {
-                      // A API entrega data_local e hora_local já no fuso da loja.
-                      // Reconverter aqui com new Date() deslocava o extrato em 3
-                      // horas, porque o timestamp guardado não carrega fuso.
-                      const dt = new Date(rec.timestamp);
-                      const dataStr = rec.data_local || dt.toLocaleDateString('pt-BR');
-                      const horaStr = rec.hora_local
-                        || (String(rec.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1])
-                        || dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                      const isEntrada = rec.type === 'entrada';
-                      
+                    diasDoExtrato.map((dia) => {
+                      const registros = registrosPorDia[dia] || [];
+                      const info = infoDoDia[dia] || null;
+                      const emAndamento = dia === hojeLoja;
+                      const rotulos = rotulosDoDia(registros, { comAlmoco, emAndamento });
+                      const trabalhado = info ? info.trabalhado_min : minutosTrabalhados(registros);
+                      const mostraSaldo = info && info.saldo_min !== null && !info.em_andamento && (info.saldo_min !== 0 || registros.length > 0);
+                      const selo = (texto, cor) => (
+                        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', backgroundColor: `${cor}1A`, color: cor }}>{texto}</span>
+                      );
                       return (
-                        <div key={rec.id} className="hover-lift" style={{ 
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '20px', border: '1px solid var(--border-color)', borderRadius: '16px',
-                          backgroundColor: 'var(--bg-card)', position: 'relative', overflow: 'hidden'
-                        }}>
-                          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '6px', backgroundColor: isEntrada ? '#10B981' : '#F59E0B' }}></div>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '20px', paddingLeft: '8px' }}>
-                            <div style={{ position: 'relative' }}>
-                              {/* A coluna no banco é selfie_url; rec.selfie era sempre
-                                  indefinido e TODA selfie do extrato aparecia quebrada. */}
-                              <img
-                                src={rec.selfie_url || rec.selfie}
-                                alt="Selfie"
-                                style={{ width: '70px', height: '70px', borderRadius: '16px', objectFit: 'cover', border: '2px solid var(--border-color)', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }} 
-                              />
-                              <div style={{ 
-                                position: 'absolute', bottom: '-8px', right: '-8px', width: '28px', height: '28px', 
-                                backgroundColor: isEntrada ? '#10B981' : '#F59E0B', borderRadius: '50%', 
-                                display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid var(--bg-card)' 
-                              }}>
-                                {isEntrada ? <ArrowLeft size={14} color="white" style={{ transform: 'rotate(-45deg)' }} /> : <ArrowLeft size={14} color="white" style={{ transform: 'rotate(135deg)' }} />}
-                              </div>
-                            </div>
-                            
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: '700' }}>{isEntrada ? 'Entrada Registrada' : 'Saída Registrada'}</h4>
-                                <span style={{ fontSize: '0.9rem', backgroundColor: isEntrada ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', color: isEntrada ? '#10B981' : '#F59E0B', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold' }}>
-                                  {horaStr}
-                                </span>
-                              </div>
-                              <p style={{ margin: '8px 0 0 0', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <CalendarIcon size={16} color="var(--primary)" /> {dataStr}
-                              </p>
+                        <div key={dia}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                            <h4 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <CalendarIcon size={16} color="var(--primary)" /> {dataBR(dia)}
+                            </h4>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem' }}>
+                              {info?.abono && selo(info.abono.rotulo + (info.abono.observacao ? ` · ${info.abono.observacao}` : ''), '#3B82F6')}
+                              {info?.falta && selo('Falta', '#EF4444')}
+                              {info?.falta && (
+                                <button className="btn-secondary" onClick={() => setAbonoDia(dia)} style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem' }}>Abonar</button>
+                              )}
+                              {info?.incompleto && selo('Batida faltando', '#F59E0B')}
+                              {registros.length > 0 && <span style={{ color: 'var(--text-muted)' }}>Trabalhado: <strong style={{ color: 'var(--text-main)' }}>{formatarMinutos(trabalhado)}</strong></span>}
+                              {mostraSaldo && <strong style={{ color: info.saldo_min < 0 ? '#EF4444' : '#10B981' }}>{comSinal(info.saldo_min)}</strong>}
                             </div>
                           </div>
-                          
-                          <div style={{ maxWidth: '350px', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', justifyContent: 'flex-end', backgroundColor: 'var(--bg-main)', padding: '10px 14px', borderRadius: '12px' }}>
-                              <MapPin size={16} style={{ marginTop: '2px', flexShrink: 0, color: 'var(--primary)' }} />
-                              <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textAlign: 'left' }}>
-                                {rec.address}
-                              </span>
-                            </div>
-                            {rec.accuracy && (
-                              <span style={{ fontSize: '0.8rem', color: rec.accuracy > 100 ? '#F59E0B' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', paddingRight: '4px' }}>
-                                <CheckCircle size={12} color={rec.accuracy > 100 ? '#F59E0B' : '#10B981'} />
-                                Precisão de {Math.round(rec.accuracy)} metros
-                              </span>
-                            )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {registros.map((rec, i) => {
+                              // A API entrega hora_local já no fuso da loja.
+                              // Reconverter com new Date() deslocava o extrato em 3 horas.
+                              const horaStr = rec.hora_local
+                                || (String(rec.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1])
+                                || '--:--';
+                              const isEntrada = rec.type === 'entrada';
+                              const cor = isEntrada ? '#10B981' : '#F59E0B';
+                              const foto = rec.selfie_url || rec.selfie;
+                              const botao = { background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' };
+                              return (
+                                <div key={rec.id} style={{
+                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap',
+                                  padding: '14px 16px', border: '1px solid var(--border-color)', borderRadius: '14px',
+                                  backgroundColor: 'var(--bg-card)', position: 'relative', overflow: 'hidden'
+                                }}>
+                                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '6px', backgroundColor: cor }}></div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '8px', minWidth: 0 }}>
+                                    {/* A coluna no banco é selfie_url. Batida lançada pelo gestor não tem foto. */}
+                                    {foto ? (
+                                      <img src={foto} alt="Selfie" style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid var(--border-color)', flexShrink: 0 }} />
+                                    ) : (
+                                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', backgroundColor: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                        <Clock size={22} color="var(--text-muted)" />
+                                      </div>
+                                    )}
+                                    <div style={{ minWidth: 0 }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>{rotulos[i]}</h4>
+                                        <span style={{ fontSize: '0.9rem', backgroundColor: `${cor}1A`, color: cor, padding: '3px 10px', borderRadius: '20px', fontWeight: 'bold' }}>{horaStr}</span>
+                                      </div>
+                                      {rec.is_manual && (
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#F59E0B' }}>
+                                          Ajustada{rec.edited_by ? ` por ${rec.edited_by}` : ''}{rec.notes ? ` · ${rec.notes}` : ''}
+                                        </p>
+                                      )}
+                                      {rec.address && (
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '360px' }}>
+                                          <MapPin size={12} style={{ flexShrink: 0 }} /> {rec.address}{rec.accuracy ? ` · ±${Math.round(rec.accuracy)} m` : ''}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                    <button style={botao} title={`Trocar para ${isEntrada ? 'saída' : 'entrada'}`} onClick={() => trocarTipo(rec)}>
+                                      <Repeat size={14} /> Virar {isEntrada ? 'saída' : 'entrada'}
+                                    </button>
+                                    <button style={botao} title="Corrigir horário" onClick={() => abrirEdicao(rec)}>
+                                      <Edit2 size={14} /> Horário
+                                    </button>
+                                    <button style={{ ...botao, background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444' }} title="Excluir batida" onClick={() => excluirBatida(rec, rotulos[i], horaStr)}>
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -573,6 +766,54 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
 
         </div>
       </div>
+
+      {/* Corrigir ou lançar batida (gestor) */}
+      {batidaEmEdicao && (
+        <Janela titulo={batidaEmEdicao.modo === 'nova' ? 'Adicionar batida esquecida' : 'Corrigir batida'} onFechar={() => setBatidaEmEdicao(null)}>
+          {erroBatida && <div style={{ color: 'var(--error)', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px 12px', borderRadius: '10px', marginBottom: '14px', fontSize: '0.9rem' }}>{erroBatida}</div>}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div>
+              <label className="input-label">Tipo</label>
+              <select className="input-field" value={batidaEmEdicao.type} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, type: e.target.value })}>
+                <option value="entrada">Entrada (início do turno ou volta do almoço)</option>
+                <option value="saida">Saída (almoço ou fim do turno)</option>
+              </select>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="input-label">Data</label>
+                <input type="date" className="input-field" value={batidaEmEdicao.date} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, date: e.target.value })} />
+              </div>
+              <div>
+                <label className="input-label">Hora</label>
+                <input type="time" className="input-field" value={batidaEmEdicao.time} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, time: e.target.value })} />
+              </div>
+            </div>
+            <div>
+              <label className="input-label">Motivo (fica registrado no espelho)</label>
+              <input type="text" className="input-field" placeholder="Ex.: esqueceu de bater a volta do almoço" value={batidaEmEdicao.notes} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, notes: e.target.value })} />
+            </div>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button type="button" className="btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={() => setBatidaEmEdicao(null)}>Cancelar</button>
+              <button type="button" className="btn-primary" style={{ flex: 1, padding: '12px' }} onClick={salvarBatida} disabled={salvandoBatida}>
+                {salvandoBatida ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </Janela>
+      )}
+
+      {/* Atestado/abono deste funcionário */}
+      {abonoDia && (
+        <Janela titulo="Lançar atestado ou abono" onFechar={() => setAbonoDia(null)}>
+          <AbonoForm
+            funcionarioFixo={employee}
+            dataInicial={abonoDia}
+            onSalvo={() => { setAbonoDia(null); carregarSaldo(); }}
+            onCancelar={() => setAbonoDia(null)}
+          />
+        </Janela>
+      )}
 
       {/* Modal de Nova Escala */}
       {showScheduleModal && (
@@ -621,6 +862,15 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                 <div>
                   <label className="input-label" style={{ fontSize: '0.9rem' }}>Horário Saída Padrão</label>
                   <input type="time" className="input-field" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
+                </div>
+                {/* Almoço visível também aqui (era gravado 12:00–13:00 sem aparecer). */}
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Saída para Almoço</label>
+                  <input type="time" className="input-field" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
+                </div>
+                <div>
+                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Volta do Almoço</label>
+                  <input type="time" className="input-field" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
                 </div>
               </div>
               {scheduleForm.type === 'fixed' && (

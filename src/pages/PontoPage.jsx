@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Camera, Clock, CheckCircle, AlertTriangle, LogOut, Flame, Navigation, Smartphone, ArrowLeft, RefreshCw, X, Calendar, ShieldAlert } from 'lucide-react';
 import API_URL from '../api';
+import { rotulosDoDia, proximaBatida } from '../utils/pontoBatidas';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 
 const getAuthHeaders = () => ({
@@ -71,6 +72,8 @@ export default function PontoPage() {
 
   // Registros do dia
   const [todayRecords, setTodayRecords] = useState([]);
+  // A escala de hoje tem almoço: a 2ª batida é "Saída almoço" (vem de /api/ponto/today).
+  const [comAlmoco, setComAlmoco] = useState(false);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [mySchedule, setMySchedule] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
@@ -202,6 +205,7 @@ export default function PontoPage() {
       const data = await res.json();
       if (data && Array.isArray(data.records)) {
         setTodayRecords(data.records);
+        setComAlmoco(!!data.comAlmoco);
       }
     } catch (err) {
       console.error('Erro ao buscar registros:', err);
@@ -423,7 +427,7 @@ export default function PontoPage() {
         return;
       }
       // Sucesso
-      setToast(type === 'entrada' ? '✅ Entrada registrada com sucesso!' : '✅ Saída registrada com sucesso!');
+      setToast(`✅ ${nomeDaBatida(type)} registrada com sucesso!`);
       setSelfieData(null);
       setTimeout(() => setToast(null), 4000);
       await fetchTodayRecords();
@@ -476,6 +480,12 @@ export default function PontoPage() {
   };
 
   const canRegister = latitude && longitude && accuracy <= 200 && selfieData && !submitting;
+  // Quem almoça bate quatro vezes. Os dois botões continuam (para corrigir um
+  // engano ou fechar o turno da madrugada), mas o da próxima batida esperada
+  // leva o nome dela — "Saída almoço", "Volta do almoço" — e o outro fica apagado.
+  const proxima = proximaBatida(todayRecords, { comAlmoco });
+  const nomeDaBatida = (tipo) => (tipo === proxima.tipo ? proxima.rotulo : (tipo === 'entrada' ? 'Entrada' : 'Saída'));
+  const rotulosDeHoje = rotulosDoDia(todayRecords, { comAlmoco, emAndamento: true });
 
   // ─── Loading ───
   if (!user || !pontoAllowed) {
@@ -643,12 +653,14 @@ export default function PontoPage() {
         
         const ent = (wd && wd.hora_entrada) || mySchedule.hora_entrada;
         const sai = (wd && wd.hora_saida) || mySchedule.hora_saida;
+        const almIni = (wd && wd.intervalo_inicio) || mySchedule.intervalo_inicio;
+        const almFim = (wd && wd.intervalo_fim) || mySchedule.intervalo_fim;
         return (
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', padding: '10px' }}><Clock size={20} color="#10b981" /></div>
             <div style={{ flex: 1 }}>
               <h4 style={{ margin: 0, fontSize: '0.95rem' }}>{mySchedule.name}</h4>
-              <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Horário de hoje: <strong>{ent} às {sai}</strong></p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>Horário de hoje: <strong>{ent} às {sai}</strong>{almIni && almFim && <> · almoço <strong>{almIni} às {almFim}</strong></>}</p>
             </div>
           </div>
         );
@@ -955,11 +967,11 @@ export default function PontoPage() {
             fontSize: '1rem', fontWeight: '700', display: 'flex',
             flexDirection: 'column', alignItems: 'center', gap: '8px',
             boxShadow: (canRegister && !isImpersonating) ? '0 6px 24px rgba(16, 185, 129, 0.3)' : 'none',
-            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? 1 : 0.6,
+            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? (proxima.tipo === 'entrada' ? 1 : 0.55) : 0.6,
           }}
         >
           <Clock size={28} />
-          Registrar Entrada
+          Registrar {nomeDaBatida('entrada')}
           {isImpersonating && <span style={{ fontSize: '0.75rem', fontWeight: 'normal' }}>🔒 Simulação</span>}
         </button>
 
@@ -974,11 +986,11 @@ export default function PontoPage() {
             fontSize: '1rem', fontWeight: '700', display: 'flex',
             flexDirection: 'column', alignItems: 'center', gap: '8px',
             boxShadow: (canRegister && !isImpersonating) ? '0 6px 24px rgba(239, 68, 68, 0.3)' : 'none',
-            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? 1 : 0.6,
+            transition: 'all 0.2s ease', opacity: (canRegister && !isImpersonating) ? (proxima.tipo === 'saida' ? 1 : 0.55) : 0.6,
           }}
         >
           <LogOut size={28} />
-          Registrar Saída
+          Registrar {nomeDaBatida('saida')}
           {isImpersonating && <span style={{ fontSize: '0.75rem', fontWeight: 'normal' }}>🔒 Simulação</span>}
         </button>
       </div>
@@ -1091,9 +1103,8 @@ export default function PontoPage() {
                 <div style={{ flex: 1 }}>
                   <p style={{
                     margin: 0, fontSize: '0.9rem', fontWeight: '600',
-                    textTransform: 'capitalize',
                   }}>
-                    {record.type === 'entrada' ? 'Entrada' : 'Saída'}
+                    {rotulosDeHoje[index] || (record.type === 'entrada' ? 'Entrada' : 'Saída')}
                   </p>
                   {record.address && (
                     <p style={{
