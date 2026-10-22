@@ -2115,6 +2115,384 @@ async function sincronizarDescartesComFirehub(store, idNovo) {
   await Promise.all(pendentes.map(d => enviarDescarteAoFirehub(integ, d, prazo)));
 }
 
+// ── Fechamento do ponto para o e-mail do contador ────────────────────────────
+//
+// A tela de Configurações do ponto sempre teve "E-mail do Contador" e
+// "Fechamento e Envio Automático", mas nada lia esses campos: a folha só chegava
+// à contabilidade se o dono lembrasse de exportar e mandar. Pedido do Douglas:
+// "deveria ir automática para o contador no e-mail cadastrado".
+//
+// O cron /api/cron/ponto-fechamento roda toda manhã. Para cada loja, no fuso
+// dela, vê se um período de fechamento terminou (users.fechamento_dia do dono,
+// a mesma régua de inicioDoPeriodoDeFechamento) e manda ao contador o espelho em
+// PDF (uma página por funcionário) e a planilha em CSV. Os números são os de
+// calcularBancoDeHoras — os mesmos da aba Banco de horas —, nada é recalculado.
+//
+// ponto_fechamentos_enviados guarda cada envio, com UNIQUE(store, inicio, fim):
+// o cron só reivindica um período que nunca saiu ou cuja última tentativa
+// falhou. O mesmo fechamento não chega duas vezes sozinho ao contador.
+let fechamentosProntos = false;
+async function garantirFechamentosEnviados() {
+  if (fechamentosProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ponto_fechamentos_enviados (
+      id SERIAL PRIMARY KEY,
+      store VARCHAR(255) NOT NULL,
+      inicio DATE NOT NULL,
+      fim DATE NOT NULL,
+      para TEXT,
+      status VARCHAR(20) NOT NULL,
+      motivo TEXT,
+      enviado_em TIMESTAMPTZ DEFAULT NOW(),
+      enviado_por TEXT,
+      UNIQUE (store, inicio, fim)
+    )
+  `);
+  fechamentosProntos = true;
+}
+
+// O cron olha até 5 dias para trás, e não só "ontem": se a rodada de um dia
+// falhar (cron fora, provedor de e-mail fora), o fechamento sai no dia seguinte
+// em vez de se perder até alguém perceber. Período mais velho que isso não sai
+// sozinho — o dono usa o botão "Enviar agora".
+const DIAS_PARA_O_FECHAMENTO_SAIR = 5;
+
+/** Último dia do período de fechamento que contém `dia` (o par de inicioDoPeriodoDeFechamento). */
+function fimDoPeriodoDeFechamento(fechamentoDia, dia) {
+  const [a, m, d] = dia.split('-').map(Number);
+  const n = Number(String(fechamentoDia || '').replace('dia_', ''));
+  if (!Number.isInteger(n) || n <= 1 || n > 28) return new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(a, d > n ? m : m - 1, n)).toISOString().slice(0, 10);
+}
+
+/** O último período que já terminou antes de `hoje`. */
+function ultimoPeriodoFechado(fechamentoDia, hoje) {
+  const fim = somarDias(inicioDoPeriodoDeFechamento(fechamentoDia, hoje), -1);
+  return { inicio: inicioDoPeriodoDeFechamento(fechamentoDia, fim), fim };
+}
+
+/** "a@x.com; b@y.com" → ['a@x.com', 'b@y.com']. Aceita vírgula, ponto e vírgula ou espaço. */
+function emailsDoContador(texto) {
+  const lista = String(texto || '').split(/[\s,;]+/).map(e => e.trim().toLowerCase()).filter(Boolean);
+  return [...new Set(lista)].filter(e => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)).slice(0, 5);
+}
+
+// Formatação igual à da aba Banco de horas (src/utils/pontoBatidas.js e
+// BancoHorasTab.jsx). Copiada, não importada: a imagem do Coolify leva só a
+// pasta api/ (ver Dockerfile), e um import de ../src quebraria o container.
+function horasDoPonto(min) {
+  if (min === null || min === undefined) return '—';
+  const sinal = min < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(min));
+  return `${sinal}${Math.floor(abs / 60)}h${String(abs % 60).padStart(2, '0')}`;
+}
+const saldoDoPonto = (min) => (min === null || min === undefined ? '—' : (min > 0 ? '+' : '') + horasDoPonto(min));
+const dataBRdoPonto = (d) => d.split('-').reverse().join('/');
+const SEMANA_DO_PONTO = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/** "01/10 a 31/10/2026" (ou com os dois anos, quando o período vira o ano). */
+function textoDoPeriodo(inicio, fim) {
+  const i = dataBRdoPonto(inicio), f = dataBRdoPonto(fim);
+  return inicio.slice(0, 4) === fim.slice(0, 4) ? `${i.slice(0, 5)} a ${f}` : `${i} a ${f}`;
+}
+
+/** Uma linha do espelho, já em texto — a mesma para o PDF e para o CSV. */
+function linhaDoEspelho(d) {
+  const tipos = d.batidas.map(b => b.type);
+  const batidas = d.batidas.map((b, i) => {
+    // Mesmos nomes de rotulosDoDia: dia encerrado com só duas batidas é jornada
+    // sem almoço, e a 2ª é a saída do turno.
+    const nome = b.type === 'entrada'
+      ? (i === 2 && tipos[0] === 'entrada' && tipos[1] === 'saida' ? 'Volta do almoço' : 'Entrada')
+      : (i === 1 && tipos[0] === 'entrada' && tipos.length > 2 ? 'Saída almoço' : 'Saída');
+    return `${nome} ${b.hora}${b.is_manual ? '*' : ''}`;
+  });
+  let ocorrencia = '';
+  if (d.abono) ocorrencia = d.abono.rotulo + (d.abono.observacao ? ` (${d.abono.observacao})` : '');
+  else if (d.em_andamento) ocorrencia = 'Em andamento';
+  else if (d.falta) ocorrencia = 'Falta';
+  else if (d.incompleto) ocorrencia = 'Batida faltando';
+  else if (d.folga) ocorrencia = d.batidas.length ? 'Folga trabalhada' : 'Folga';
+  const [a, m, dd] = d.data.split('-').map(Number);
+  return {
+    data: dataBRdoPonto(d.data),
+    semana: SEMANA_DO_PONTO[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()],
+    batidas,
+    trabalhado: d.trabalhado_min ? horasDoPonto(d.trabalhado_min) : '',
+    esperado: d.esperado_min ? horasDoPonto(d.esperado_min) : '',
+    abonado: d.abonado_min ? horasDoPonto(d.abonado_min) : '',
+    saldo: d.saldo_min !== null && (d.saldo_min !== 0 || d.trabalhado_min) ? saldoDoPonto(d.saldo_min) : '',
+    ocorrencia,
+  };
+}
+
+/** Planilha do fechamento: uma linha por funcionário e dia, mais a linha de total de cada um. */
+function csvDoFechamento(dados) {
+  // Excel em português: ";" separa as colunas e o BOM faz os acentos abrirem
+  // certos. Célula que começa com = + - @ o Excel lê como fórmula ("-0h30" vira
+  // #NOME?): o saldo negativo vai com o sinal de menos tipográfico e o positivo
+  // sem o "+", para abrir como texto.
+  const celula = (v) => {
+    let t = String(v ?? '');
+    if (/^-\d/.test(t)) t = '−' + t.slice(1);
+    else if (/^\+\d/.test(t)) t = t.slice(1);
+    if (/^[=+\-@]/.test(t)) t = "'" + t;
+    return `"${t.replace(/"/g, '""')}"`;
+  };
+  const linhas = [['Funcionário', 'Escala', 'Data', 'Dia', 'Batidas', 'Trabalhado', 'Esperado', 'Abonado', 'Saldo', 'Ocorrência']];
+  for (const f of dados.funcionarios) {
+    const escala = f.escala || 'Sem escala vinculada';
+    for (const d of f.dias) {
+      const l = linhaDoEspelho(d);
+      linhas.push([f.nome, escala, l.data, l.semana, l.batidas.join(' · '), l.trabalhado, l.esperado, l.abonado, l.saldo, l.ocorrencia]);
+    }
+    const t = f.totais;
+    linhas.push([f.nome, escala, 'Total do período', '', '', horasDoPonto(t.trabalhado_min), horasDoPonto(t.esperado_min),
+      horasDoPonto(t.abonado_min), saldoDoPonto(t.saldo_min), `${t.faltas} falta(s)`]);
+  }
+  return Buffer.from('﻿' + linhas.map(l => l.map(celula).join(';')).join('\r\n') + '\r\n', 'utf8');
+}
+
+/** Espelho de ponto em PDF: uma seção (uma ou mais páginas) por funcionário, como a impressão da aba Banco de horas. */
+async function pdfDoFechamento(dados, { loja, inicio, fim, parcial, tz }) {
+  // Import sob demanda: o pdfkit só carrega na rota que gera o fechamento.
+  const { default: PDFDocument } = await import('pdfkit');
+  const doc = new PDFDocument({ size: 'A4', margin: 36, info: { Title: `Espelho de ponto — ${loja} — ${textoDoPeriodo(inicio, fim)}`, Author: 'FireCheck' } });
+  const partes = [];
+  doc.on('data', (p) => partes.push(p));
+  const pronto = new Promise((ok, falha) => { doc.on('end', () => ok(Buffer.concat(partes))); doc.on('error', falha); });
+
+  const X = doc.page.margins.left;
+  const LARGURA = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const COLUNAS = [['Data', 66], ['Batidas', 178], ['Trabalhado', 48], ['Esperado', 44], ['Abonado', 42], ['Saldo', 40]];
+  COLUNAS.push(['Ocorrência', LARGURA - COLUNAS.reduce((s, c) => s + c[1], 0)]);
+  const fundoDaPagina = () => doc.page.height - doc.page.margins.bottom;
+  const emitido = new Date().toLocaleString('pt-BR', { timeZone: tz });
+  // Página que continua o funcionário diz de quem é: folha solta não fica sem dono.
+  let deQuem = '';
+  const novaPagina = () => {
+    doc.addPage();
+    doc.font('Helvetica').fontSize(8).fillColor('#6b7280').text(`${deQuem} · continuação`, X, doc.page.margins.top);
+    doc.y += 4;
+  };
+
+  const desenharLinha = (valores, negrito, fundo) => {
+    const fonte = () => doc.font(negrito ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5);
+    fonte();
+    const altura = Math.max(...valores.map((v, i) => doc.heightOfString(String(v || ' '), { width: COLUNAS[i][1] - 6 }))) + 6;
+    if (doc.y + altura > fundoDaPagina()) {
+      novaPagina();
+      desenharLinha(COLUNAS.map(c => c[0]), true, '#f3f4f6');
+      fonte();
+    }
+    const y = doc.y;
+    if (fundo) doc.rect(X, y, LARGURA, altura).fill(fundo);
+    doc.fillColor('#111827');
+    let x = X;
+    valores.forEach((v, i) => { doc.text(String(v ?? ''), x + 3, y + 3, { width: COLUNAS[i][1] - 6 }); x += COLUNAS[i][1]; });
+    doc.moveTo(X, y + altura).lineTo(X + LARGURA, y + altura).lineWidth(0.5).strokeColor('#d1d5db').stroke();
+    doc.x = X;
+    doc.y = y + altura;
+  };
+
+  dados.funcionarios.forEach((f, n) => {
+    if (n > 0) doc.addPage();
+    deQuem = f.nome;
+    doc.fillColor('#111827').font('Helvetica-Bold').fontSize(14).text('Espelho de Ponto e Banco de Horas', X, doc.page.margins.top);
+    doc.moveDown(0.3).font('Helvetica').fontSize(9.5)
+      .text(`${loja} · Período: ${dataBRdoPonto(inicio)} a ${dataBRdoPonto(fim)}${parcial ? ' (parcial)' : ''}`)
+      .text(`Colaborador: ${f.nome} · ${f.escala ? `Escala: ${f.escala}` : 'Sem escala vinculada (sem horas esperadas nem saldo)'}`);
+    doc.moveDown(0.6);
+    desenharLinha(COLUNAS.map(c => c[0]), true, '#f3f4f6');
+    let temManual = false;
+    for (const d of f.dias) {
+      const l = linhaDoEspelho(d);
+      if (d.batidas.some(b => b.is_manual)) temManual = true;
+      desenharLinha([`${l.semana} ${l.data}`, l.batidas.join(' · '), l.trabalhado, l.esperado, l.abonado, l.saldo, l.ocorrencia], false, null);
+    }
+
+    // Totais, nota e assinaturas não se separam numa quebra de página.
+    if (doc.y + 180 > fundoDaPagina()) novaPagina();
+    doc.y += 12;
+    const t = f.totais;
+    const totais = [
+      ['Horas trabalhadas', horasDoPonto(t.trabalhado_min)],
+      ['Horas esperadas', horasDoPonto(t.esperado_min)],
+      ['Horas abonadas (atestado/feriado)', horasDoPonto(t.abonado_min)],
+      ['Saldo do banco de horas', saldoDoPonto(t.saldo_min)],
+      ['Faltas', String(t.faltas)],
+      ['Dias com batida faltando', String(t.dias_incompletos)],
+    ];
+    for (const [rotulo, valor] of totais) {
+      const y = doc.y;
+      doc.fillColor('#111827').font(rotulo.startsWith('Saldo') ? 'Helvetica-Bold' : 'Helvetica').fontSize(9)
+        .text(rotulo, X, y, { width: 200 })
+        .text(valor, X + 200, y, { width: 70, align: 'right' });
+      doc.y = y + 14;
+    }
+    if (temManual) {
+      doc.font('Helvetica').fontSize(7.5).fillColor('#6b7280').text('* batida lançada ou corrigida pelo gestor.', X, doc.y + 4);
+    }
+    const yAssinatura = doc.y + 44;
+    doc.moveTo(X, yAssinatura).lineTo(X + 220, yAssinatura)
+      .moveTo(X + LARGURA - 220, yAssinatura).lineTo(X + LARGURA, yAssinatura)
+      .lineWidth(0.7).strokeColor('#111827').stroke();
+    doc.fillColor('#111827').font('Helvetica').fontSize(8.5)
+      .text(f.nome, X, yAssinatura + 4, { width: 220, align: 'center' })
+      .text('Responsável', X + LARGURA - 220, yAssinatura + 4, { width: 220, align: 'center' });
+    doc.fontSize(7).fillColor('#6b7280')
+      .text(`FireCheck · emitido em ${emitido}${parcial ? ' · parcial, sujeito a ajustes até o fechamento' : ''}.`, X, yAssinatura + 30, { width: LARGURA });
+  });
+  doc.end();
+  return pronto;
+}
+
+const escHtml = (t) => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/** Corpo do e-mail: resumo por funcionário; o dia a dia vai nos anexos. */
+function htmlDoFechamento(dados, { loja, inicio, fim, parcial }) {
+  const td = 'padding:6px 10px;border-bottom:1px solid #e5e7eb;';
+  const linhas = dados.funcionarios.map(f => {
+    const t = f.totais;
+    const cor = t.saldo_min === null ? '#6b7280' : t.saldo_min < 0 ? '#dc2626' : '#059669';
+    return `<tr>
+      <td style="${td}">${escHtml(f.nome)}${f.sem_escala ? '<br><span style="font-size:11px;color:#6b7280">sem escala vinculada</span>' : ''}</td>
+      <td style="${td}text-align:right">${horasDoPonto(t.trabalhado_min)}</td>
+      <td style="${td}text-align:right">${horasDoPonto(t.esperado_min)}</td>
+      <td style="${td}text-align:right">${horasDoPonto(t.abonado_min)}</td>
+      <td style="${td}text-align:right;font-weight:bold;color:${cor}">${saldoDoPonto(t.saldo_min)}</td>
+      <td style="${td}text-align:right">${t.faltas}</td>
+    </tr>`;
+  }).join('');
+  const incompletos = dados.funcionarios.filter(f => f.totais.dias_incompletos > 0).length;
+  const th = 'padding:6px 10px;background:#f3f4f6;text-align:right;font-size:12px;';
+  return `<!doctype html><html lang="pt-BR"><body style="font-family:Arial,Helvetica,sans-serif;color:#111827;margin:0;padding:24px">
+  <h2 style="margin:0 0 4px 0;font-size:18px">${parcial ? 'Ponto parcial' : 'Fechamento do ponto'} — ${escHtml(loja)}</h2>
+  <p style="margin:0 0 16px 0;color:#4b5563">Período: ${dataBRdoPonto(inicio)} a ${dataBRdoPonto(fim)}${parcial ? ' (parcial, o período ainda não fechou)' : ''}</p>
+  <table style="border-collapse:collapse;font-size:13px;min-width:480px">
+    <thead><tr><th style="${th}text-align:left">Funcionário</th><th style="${th}">Trabalhadas</th><th style="${th}">Esperadas</th><th style="${th}">Abonadas</th><th style="${th}">Saldo</th><th style="${th}">Faltas</th></tr></thead>
+    <tbody>${linhas}</tbody>
+  </table>
+  ${incompletos ? `<p style="color:#b45309;font-size:13px">${incompletos} funcionário(s) com dia de batida faltando: as horas desses dias não entram no total até o gestor corrigir.</p>` : ''}
+  <p style="font-size:13px">O espelho de ponto completo (dia a dia, com as batidas, abonos e totais de cada funcionário) vai anexo em <strong>PDF</strong>, e as mesmas linhas em <strong>CSV</strong> para abrir no Excel.</p>
+  <p style="font-size:12px;color:#6b7280">Horas abonadas: atestado, falta justificada e feriado lançados pelo gestor. Para responder, é só responder este e-mail — a resposta vai para a loja.</p>
+  <p style="font-size:12px;color:#6b7280">Enviado automaticamente pelo FireCheck.</p>
+</body></html>`;
+}
+
+// O FireCheck não tinha envio de e-mail. Resend por fetch, sem SDK: o domínio
+// firehubfood.com.br já está verificado no Resend do grupo. RESEND_API_URL só
+// existe para o teste local apontar para um servidor falso.
+async function enviarEmail({ para, assunto, html, anexos = [], responderPara }) {
+  const chave = process.env.RESEND_API_KEY;
+  if (!chave) {
+    console.warn('[E-mail] RESEND_API_KEY ausente — e-mail não enviado:', assunto);
+    return { ok: false, motivo: 'O envio de e-mail não está configurado no servidor (RESEND_API_KEY).' };
+  }
+  try {
+    const r = await fetch(process.env.RESEND_API_URL || 'https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${chave}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: process.env.EMAIL_FROM || 'FireCheck <noreply@firehubfood.com.br>',
+        to: para,
+        subject: assunto,
+        html,
+        ...(responderPara ? { reply_to: responderPara } : {}),
+        attachments: anexos.map(a => ({ filename: a.nome, content: a.conteudo.toString('base64') })),
+      }),
+      signal: AbortSignal.timeout(20000),
+    });
+    const corpo = await r.json().catch(() => ({}));
+    if (!r.ok) return { ok: false, motivo: `O provedor de e-mail recusou o envio (${r.status}${corpo.message ? `: ${corpo.message}` : ''}).` };
+    return { ok: true, id: corpo.id || null };
+  } catch (e) {
+    return { ok: false, motivo: `Não foi possível falar com o provedor de e-mail (${e.message}).` };
+  }
+}
+
+/**
+ * Monta e manda o fechamento de [inicio, fim] ao contador da loja.
+ * automatico: o cron só manda se o período nunca saiu (ou se a última tentativa
+ * falhou). O envio pelo botão manda sempre — é o dono pedindo de novo.
+ */
+async function enviarFechamentoDoPonto({ store, inicio, fim, parcial = false, enviadoPor, automatico = false }) {
+  await garantirFechamentosEnviados();
+  // Dono com e-mail do contador primeiro: é o cadastro que a tela de Configurações grava.
+  const { rows: donos } = await pool.query(
+    `SELECT store, COALESCE(NULLIF(TRIM(store_name), ''), store) AS loja, email, timezone, contador_email
+       FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master')
+      ORDER BY (role = 'admin') DESC, (COALESCE(TRIM(contador_email), '') <> '') DESC, id LIMIT 1`,
+    [store]
+  );
+  const dono = donos[0];
+  if (!dono) return { ok: false, status: 'erro', motivo: 'Loja não encontrada.' };
+  const para = emailsDoContador(dono.contador_email);
+  if (para.length === 0) {
+    return { ok: false, status: 'sem_email', motivo: 'Nenhum e-mail de contador cadastrado: preencha "E-mail do Contador" em Configurações Gerais do ponto e salve.' };
+  }
+  const loja = dono.store;
+  // Envio que falhou não apaga o registro de um envio que deu certo do mesmo período.
+  const registrar = (status, motivo) => pool.query(
+    `INSERT INTO ponto_fechamentos_enviados (store, inicio, fim, para, status, motivo, enviado_em, enviado_por)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+     ON CONFLICT (store, inicio, fim) DO UPDATE
+        SET para = EXCLUDED.para, status = EXCLUDED.status, motivo = EXCLUDED.motivo, enviado_em = NOW(), enviado_por = EXCLUDED.enviado_por
+      WHERE NOT (ponto_fechamentos_enviados.status = 'enviado' AND EXCLUDED.status <> 'enviado')`,
+    [loja, inicio, fim, para.join(', '), status, motivo || null, enviadoPor || null]
+  );
+
+  if (automatico) {
+    // Reivindica o período antes de montar: duas rodadas do cron ao mesmo tempo
+    // não mandam o mesmo fechamento duas vezes. 'enviando' parado há mais de 15
+    // minutos é uma rodada que morreu no meio, e pode ser retomado.
+    const { rows } = await pool.query(
+      `INSERT INTO ponto_fechamentos_enviados (store, inicio, fim, para, status, enviado_por)
+       VALUES ($1, $2, $3, $4, 'enviando', $5)
+       ON CONFLICT (store, inicio, fim) DO UPDATE
+          SET status = 'enviando', para = EXCLUDED.para, motivo = NULL, enviado_em = NOW(), enviado_por = EXCLUDED.enviado_por
+        WHERE ponto_fechamentos_enviados.status = 'erro'
+           OR (ponto_fechamentos_enviados.status = 'enviando' AND ponto_fechamentos_enviados.enviado_em < NOW() - INTERVAL '15 minutes')
+       RETURNING id`,
+      [loja, inicio, fim, para.join(', '), enviadoPor || null]
+    );
+    if (rows.length === 0) return { ok: false, status: 'ja_enviado', motivo: 'Este período já foi enviado ao contador.' };
+  }
+
+  try {
+    const tz = dono.timezone || 'America/Sao_Paulo';
+    const dados = await calcularBancoDeHoras(pool, loja, { inicio, fim, tz });
+    if (!dados.funcionarios.some(f => f.dias.some(d => d.batidas.length > 0))) {
+      const motivo = 'Nenhuma batida de ponto no período: não há o que mandar ao contador.';
+      if (automatico) await registrar('ignorado', motivo);
+      return { ok: false, status: 'ignorado', motivo };
+    }
+    const nomeDaLoja = dono.loja;
+    const sufixo = `${String(nomeDaLoja).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'loja'}-${inicio}-a-${fim}`;
+    const pdf = await pdfDoFechamento(dados, { loja: nomeDaLoja, inicio, fim, parcial, tz });
+    const envio = await enviarEmail({
+      para,
+      assunto: `${parcial ? 'Ponto parcial' : 'Fechamento do ponto'} — ${nomeDaLoja} — ${textoDoPeriodo(inicio, fim)}`,
+      html: htmlDoFechamento(dados, { loja: nomeDaLoja, inicio, fim, parcial }),
+      anexos: [
+        { nome: `espelho-ponto-${sufixo}.pdf`, conteudo: pdf },
+        { nome: `ponto-${sufixo}.csv`, conteudo: csvDoFechamento(dados) },
+      ],
+      responderPara: dono.email || undefined,
+    });
+    await registrar(envio.ok ? 'enviado' : 'erro', envio.ok ? null : envio.motivo);
+    if (!envio.ok) console.error('[Fechamento do ponto]', loja, inicio, fim, envio.motivo);
+    return envio.ok
+      ? { ok: true, status: 'enviado', para, inicio, fim }
+      : { ok: false, status: 'erro', motivo: envio.motivo };
+  } catch (e) {
+    console.error('[Fechamento do ponto]', loja, inicio, fim, e);
+    const motivo = `Erro ao montar o fechamento: ${e.message}`;
+    await registrar('erro', motivo).catch(() => {});
+    return { ok: false, status: 'erro', motivo };
+  }
+}
+
 
 export default async function handler(req, res) {
   // ── CORS Restrito ──
@@ -5302,6 +5680,41 @@ export default async function handler(req, res) {
       }
     }
 
+    // ── Cron do fechamento do ponto: espelho para o e-mail do contador ──
+    // Roda de manhã (vercel.json). Ver enviarFechamentoDoPonto.
+    if (url.includes('/api/cron/ponto-fechamento')) {
+      if (!autorizarChamadaInterna(req, res)) return;
+      try {
+        // Sem a chave do Resend nada sai — e não se grava "erro" em toda loja:
+        // quando a chave entrar, os períodos dos últimos dias ainda saem.
+        if (!process.env.RESEND_API_KEY) {
+          console.warn('[Fechamento do ponto] RESEND_API_KEY ausente — nenhum fechamento enviado.');
+          return res.status(200).json({ success: false, motivo: 'O envio de e-mail não está configurado no servidor (RESEND_API_KEY).' });
+        }
+        const { rows: lojas } = await pool.query(
+          `SELECT DISTINCT ON (LOWER(TRIM(store))) store, fechamento_dia, timezone, status, created_at, expiration_date, trial_ends_at
+             FROM users
+            WHERE role = 'admin' AND store IS NOT NULL AND (ponto_active = TRUE OR status = 'trial')
+              AND COALESCE(TRIM(contador_email), '') <> ''
+            ORDER BY LOWER(TRIM(store)), id`
+        );
+        const resultados = [];
+        for (const loja of lojas) {
+          // Teste vencido, plano expirado, pendente ou bloqueada: nada sai em nome da loja.
+          if (!contaEmDia(loja)) continue;
+          const hoje = new Date().toLocaleDateString('en-CA', { timeZone: loja.timezone || 'America/Sao_Paulo' });
+          const periodo = ultimoPeriodoFechado(loja.fechamento_dia, hoje);
+          if (somarDias(periodo.fim, DIAS_PARA_O_FECHAMENTO_SAIR) < hoje) continue;
+          const r = await enviarFechamentoDoPonto({ store: loja.store, ...periodo, enviadoPor: 'automático', automatico: true });
+          if (r.status !== 'ja_enviado') resultados.push({ store: loja.store, ...periodo, status: r.status, motivo: r.motivo || null });
+        }
+        return res.status(200).json({ success: true, lojas: lojas.length, resultados });
+      } catch (cronErr) {
+        console.error('Erro no cron de fechamento do ponto:', cronErr);
+        return res.status(500).json({ error: cronErr.message });
+      }
+    }
+
     if (url.includes('/api/cron/checklists-delayed')) {
       if (!autorizarChamadaInterna(req, res)) return;
       try {
@@ -6954,6 +7367,61 @@ A mensagem é lida pelo próprio funcionário, no celular:
       const userId = searchParams.get('userId') ? Number(searchParams.get('userId')) : null;
       const saldo = await calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz });
       return res.status(200).json({ ...saldo, fechamento_dia: donos[0]?.fechamento_dia || 'ultimo_dia' });
+    }
+
+    // ── Fechamento para o contador: situação (GET) e "Enviar agora" (POST) ──
+    // GET: para quem vai, quando sai o próximo automático e os últimos envios.
+    // POST { periodo: 'fechado' | 'parcial' }: o último período fechado (o que o
+    // contador usa na folha) ou o período atual até ontem.
+    if (url.includes('/api/ponto/fechamento')) {
+      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode ver e enviar o fechamento do ponto.' });
+      }
+      await garantirFechamentosEnviados();
+      const lojaPedida = authPonto.role === 'master' ? (searchParams.get('store') || req.body?.store || authPonto.store) : authPonto.store;
+      const { rows: donos } = await pool.query(
+        `SELECT store, timezone, fechamento_dia, contador_email FROM users
+          WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master')
+          ORDER BY (role = 'admin') DESC, (COALESCE(TRIM(contador_email), '') <> '') DESC, id LIMIT 1`,
+        [lojaPedida]
+      );
+      if (donos.length === 0) return res.status(404).json({ error: 'Loja não encontrada.' });
+      const dono = donos[0];
+      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: dono.timezone || 'America/Sao_Paulo' });
+      const atual = { inicio: inicioDoPeriodoDeFechamento(dono.fechamento_dia, hoje), fim: fimDoPeriodoDeFechamento(dono.fechamento_dia, hoje) };
+      const fechado = ultimoPeriodoFechado(dono.fechamento_dia, hoje);
+      const ontem = somarDias(hoje, -1);
+      const parcial = ontem >= atual.inicio ? { inicio: atual.inicio, fim: ontem } : null;
+
+      if (method === 'GET') {
+        const { rows: historico } = await pool.query(
+          `SELECT to_char(inicio, 'YYYY-MM-DD') AS inicio, to_char(fim, 'YYYY-MM-DD') AS fim, para, status, motivo, enviado_em, enviado_por
+             FROM ponto_fechamentos_enviados WHERE LOWER(TRIM(store)) = LOWER(TRIM($1))
+            ORDER BY enviado_em DESC LIMIT 10`,
+          [dono.store]
+        );
+        return res.status(200).json({
+          para: emailsDoContador(dono.contador_email),
+          fechamento_dia: dono.fechamento_dia || 'ultimo_dia',
+          periodo_atual: atual,
+          proximo_envio: somarDias(atual.fim, 1),
+          ultimo_fechado: fechado,
+          parcial,
+          envio_configurado: !!process.env.RESEND_API_KEY,
+          historico,
+        });
+      }
+
+      if (method === 'POST') {
+        const periodo = req.body?.periodo === 'parcial' ? parcial : fechado;
+        if (!periodo) return res.status(400).json({ error: 'O período atual começou hoje: ainda não há dias para mandar.' });
+        const r = await enviarFechamentoDoPonto({
+          store: dono.store, ...periodo, parcial: periodo === parcial, enviadoPor: authPonto.email || authPonto.role,
+        });
+        if (!r.ok) return res.status(400).json({ error: r.motivo, status: r.status });
+        return res.status(200).json({ success: true, ...r });
+      }
+      return res.status(405).json({ error: 'Método não suportado.' });
     }
 
     // ── Abonos e feriados (lançados pelo gestor) ──────────────────────
