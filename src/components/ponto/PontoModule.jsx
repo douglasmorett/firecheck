@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Settings, Clock, UserCheck, Scale, CalendarCheck } from 'lucide-react';
+import { Users, Calendar, Settings, Clock, UserCheck, Scale, CalendarCheck, ScanFace } from 'lucide-react';
 import API_URL from '../../api';
 
 // Sub-components
@@ -9,6 +9,7 @@ import SchedulesTab from './SchedulesTab';
 import SettingsTab from './SettingsTab';
 import BancoHorasTab from './BancoHorasTab';
 import AbonosTab from './AbonosTab';
+import PontoDaLojaTab from './PontoDaLojaTab';
 
 export default function PontoModule({ userProfile }) {
   const [activeTab, setActiveTab] = useState('employees'); // 'employees', 'schedules', 'settings'
@@ -140,7 +141,7 @@ export default function PontoModule({ userProfile }) {
         </button>
         {/* Banco de horas (saldo parcial + impressão por funcionário) e
             atestados/feriados: pedidos da Pet Nature para implantar o ponto. */}
-        {[['banco', <Scale size={18} />, 'Banco de Horas'], ['abonos', <CalendarCheck size={18} />, 'Atestados e Feriados']].map(([chave, icone, nome]) => (
+        {[['banco', <Scale size={18} />, 'Banco de Horas'], ['abonos', <CalendarCheck size={18} />, 'Atestados e Feriados'], ['loja', <ScanFace size={18} />, 'Ponto da Loja']].map(([chave, icone, nome]) => (
           <button
             key={chave}
             onClick={() => setActiveTab(chave)}
@@ -197,6 +198,8 @@ export default function PontoModule({ userProfile }) {
           {activeTab === 'abonos' && (
             <AbonosTab employees={employees} />
           )}
+          {/* Tablet da loja como relógio de ponto, com reconhecimento facial. */}
+          {activeTab === 'loja' && <PontoDaLojaTab />}
           {activeTab === 'settings' && (
             <SettingsTab 
               userProfile={userProfile} 

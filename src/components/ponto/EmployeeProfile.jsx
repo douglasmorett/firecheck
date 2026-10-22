@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert, Edit2, Trash2, Repeat, Scale, CalendarCheck } from 'lucide-react';
 import API_URL from '../../api';
 import AbonoForm from './AbonoForm';
+import RostoDoFuncionario from './RostoDoFuncionario';
 import { rotulosDoDia, minutosTrabalhados, formatarMinutos } from '../../utils/pontoBatidas';
 
 const cabecalhos = (json) => ({
@@ -140,6 +141,18 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         body: JSON.stringify({ ...scheduleForm, store: userProfile.store })
       });
       if (res.ok) {
+        // O botão diz "Criar Escala e Vincular", mas só criava: a escala nova
+        // não ficava ligada ao funcionário, e quem confiava no botão saía da
+        // ficha com ele sem escala (sem atraso, falta nem banco de horas).
+        const nova = await res.json().catch(() => null);
+        if (nova?.id) {
+          setSelectedSchedule(String(nova.id));
+          await fetch(`${API_URL}/api/users/${employee.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') },
+            body: JSON.stringify({ schedule_id: nova.id })
+          }).catch(() => {});
+        }
         setShowScheduleModal(false);
         onUpdateEmployee();
       } else {
@@ -555,6 +568,9 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
               </button>
             </div>
           </div>
+
+          {/* Rosto para o ponto da loja (tablet com reconhecimento facial) e como ele bate ponto. */}
+          <RostoDoFuncionario employee={employee} />
         </div>
 
         {/* Main Area: Relatórios e Filtros */}
@@ -728,6 +744,10 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                                         <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>{rotulos[i]}</h4>
                                         <span style={{ fontSize: '0.9rem', backgroundColor: `${cor}1A`, color: cor, padding: '3px 10px', borderRadius: '20px', fontWeight: 'bold' }}>{horaStr}</span>
                                       </div>
+                                      {/* Batida do tablet da loja (reconhecimento facial), não do celular dele. */}
+                                      {rec.origem === 'quiosque' && (
+                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#8B5CF6', fontWeight: 600 }}>Ponto da loja (rosto)</p>
+                                      )}
                                       {rec.is_manual && (
                                         <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#F59E0B' }}>
                                           Ajustada{rec.edited_by ? ` por ${rec.edited_by}` : ''}{rec.notes ? ` · ${rec.notes}` : ''}

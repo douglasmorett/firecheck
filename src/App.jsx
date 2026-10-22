@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import React, { Component, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import React, { Component, useEffect, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
@@ -17,6 +17,11 @@ import RenewPlan from './pages/RenewPlan';
 import ThankYou from './pages/ThankYou';
 import ResellerPage from './pages/ResellerPage';
 import CentralDeTutoriais from './components/tutoriais/CentralDeTutoriais';
+import { lerQuiosque } from './utils/quiosque';
+
+// O ponto da loja carrega o reconhecimento facial: fica num pedaço à parte
+// do app, que só baixa quem abre essa tela.
+const PontoDaLojaPage = lazy(() => import('./pages/PontoDaLojaPage'));
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -168,11 +173,24 @@ function RouteTracker() {
   return null;
 }
 
+// Aparelho em modo "ponto da loja" (tablet da recepção) não sai dessa tela:
+// qualquer outro endereço volta para ela. Sair do modo pede a senha do
+// dono/gestor, na própria tela do ponto da loja.
+function TravaDoPontoDaLoja() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (location.pathname !== '/ponto-loja' && lerQuiosque()) navigate('/ponto-loja', { replace: true });
+  }, [location.pathname, navigate]);
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
       <Router>
         <RouteTracker />
+        <TravaDoPontoDaLoja />
         {/* Tutoriais em vídeo: abre sozinha uma vez depois do login e pelo botão "Tutoriais em vídeo" */}
         <CentralDeTutoriais />
         <Routes>
@@ -204,6 +222,7 @@ function App() {
           {/* Visão do Funcionário na Loja */}
           <Route path="/funcionario" element={<EmployeeDashboard />} />
           <Route path="/ponto" element={<PontoPage />} />
+          <Route path="/ponto-loja" element={<Suspense fallback={null}><PontoDaLojaPage /></Suspense>} />
           <Route path="/execucao/:id" element={<ChecklistExecution />} />
           <Route path="/execucao/veiculo/:vehicleId" element={<ChecklistExecution />} />
           <Route path="/execucao/compras/:shoppingListId" element={<ShoppingExecution />} />
