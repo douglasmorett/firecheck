@@ -1495,10 +1495,21 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     abonos.find(a => a.user_id === uid && a.data <= dia && a.data_fim >= dia) ||
     abonos.find(a => a.user_id === null && a.tipo === 'feriado' && a.data <= dia && a.data_fim >= dia) || null;
 
+  // A primeira batida de cada um: antes dela a pessoa não usava o ponto (a loja
+  // está começando, ou ela entrou depois) e o dia não é falta. A Pet Nature
+  // começou a testar no meio de outubro e via o mês inteiro como falta.
+  const { rows: primeiras } = await pool.query(
+    `SELECT user_id, to_char(MIN(timestamp), 'YYYY-MM-DD') AS dia FROM ponto_records
+      WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND ($2::int IS NULL OR user_id = $2) GROUP BY user_id`,
+    [store, userId || null]
+  );
+  const comecouEm = Object.fromEntries(primeiras.map(r => [r.user_id, r.dia]));
+
   const dias = inicio <= ultimoDia ? diasEntre(inicio, ultimoDia) : [];
   const resultado = [];
   for (const p of pessoas) {
     const minhas = batidas.filter(b => b.user_id === p.id);
+    const primeiroDia = comecouEm[p.id] || null;
     if (!userId && p.role === 'admin' && !minhas.some(b => b.dia >= inicio && b.dia <= ultimoDia)) continue;
     const escala = await carregarEscalaDoFuncionario(pool, p.id);
     const temEscala = !!escala?.schedule;
@@ -1526,6 +1537,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     const linhas = [];
     const tot = { trabalhado: 0, esperado: 0, abonado: 0, saldo: 0, faltas: 0, diasAbonados: 0, incompletos: 0 };
     for (const dia of dias) {
+      if (!primeiroDia || dia < primeiroDia) continue;
       let jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
       // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados
       // a partir do "último dia trabalhado" da ficha (mesma regra da tela).
