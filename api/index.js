@@ -1244,63 +1244,76 @@ async function checkAndResetQuota(pool, userId, quotaResetDate) {
   return false;
 }
 
-async function getEmployeeScheduleForDay(pool, userId, date) {
-  const { rows: users } = await pool.query('SELECT store, schedule_id, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE id = $1', [userId]);
-  if (users.length === 0) return { isWorkday: true };
+// A escala do funcionário é lida do banco UMA vez e o dia é calculado em
+// memória (jornadaNoDia). Antes eram três consultas por dia: o banco de horas
+// de um mês para a equipe inteira viraria centenas de idas ao Neon.
+async function carregarEscalaDoFuncionario(pool, userId) {
+  const { rows: users } = await pool.query('SELECT store, schedule_id, ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia, ponto_last_worked_day FROM users WHERE id = $1', [userId]);
+  if (users.length === 0) return null;
   const user = users[0];
-
+  let schedule = null;
+  let weekdays = [];
   if (user.schedule_id) {
     const { rows: schedules } = await pool.query('SELECT * FROM work_schedules WHERE id = $1', [user.schedule_id]);
     if (schedules.length > 0) {
-      const schedule = schedules[0];
-      // O parâmetro chega ora como Date, ora como texto 'YYYY-MM-DD'.
-      // Para o texto, lê as partes direto: new Date('2026-08-23') é meia-noite UTC
-      // e em UTC-3 getDay() devolveria o dia anterior.
-      // Date vira ANTES o dia 'YYYY-MM-DD' de São Paulo: com getDay() direto
-      // (UTC na Vercel), a batida das 22h caía na escala de AMANHÃ — saída de
-      // sexta 22:10 era cobrada contra o horário de sábado.
-      const texto = date instanceof Date
-        ? date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
-        : String(date).slice(0, 10);
-      const [aa, mm, dd] = texto.split('-').map(Number);
-      const jsDay = (aa && mm && dd) // 0 = domingo
-        ? new Date(Date.UTC(aa, mm - 1, dd)).getUTCDay()
-        : new Date(date).getDay();
-      const weekdayIndex = jsDay === 0 ? 7 : jsDay;
-      // A tela grava domingo como 0 (convenção do JavaScript), mas esta consulta
-      // procurava só por 7: a linha de domingo nunca era encontrada e o dia caía
-      // no tratamento de folga, mesmo quando o gestor o marcava como trabalho.
-      // Aceita os dois índices para funcionar com o que já está gravado.
-      const indicesDoDia = jsDay === 0 ? [0, 7] : [jsDay];
-      const { rows: weekdays } = await pool.query(
-        'SELECT * FROM schedule_weekdays WHERE schedule_id = $1 AND weekday = ANY($2::int[]) ORDER BY weekday DESC LIMIT 1',
-        [schedule.id, indicesDoDia]
-      );
-      
-      if (weekdays.length > 0) {
-        const wd = weekdays[0];
-        if (!wd.is_workday) return { isWorkday: false };
-        return {
-          isWorkday: true,
-          horaEntrada: wd.hora_entrada || schedule.hora_entrada,
-          horaSaida: wd.hora_saida || schedule.hora_saida,
-          intervaloInicio: wd.intervalo_inicio || schedule.intervalo_inicio,
-          intervaloFim: wd.intervalo_fim || schedule.intervalo_fim,
-          tolerancia: schedule.tolerancia
-        };
-      } else {
-        if (weekdayIndex === 6 && !schedule.saturday_active) return { isWorkday: false };
-        if (weekdayIndex === 7 && !schedule.sunday_active) return { isWorkday: false };
-        return {
-          isWorkday: true,
-          horaEntrada: schedule.hora_entrada,
-          horaSaida: schedule.hora_saida,
-          intervaloInicio: schedule.intervalo_inicio,
-          intervaloFim: schedule.intervalo_fim,
-          tolerancia: schedule.tolerancia
-        };
-      }
+      schedule = schedules[0];
+      ({ rows: weekdays } = await pool.query('SELECT * FROM schedule_weekdays WHERE schedule_id = $1', [schedule.id]));
     }
+  }
+  let admin = null;
+  if (!schedule && !(user.ponto_hora_entrada && user.ponto_hora_saida)) {
+    const { rows: admins } = await pool.query("SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [user.store]);
+    admin = admins[0] || null;
+  }
+  return { user, schedule, weekdays, admin };
+}
+
+function jornadaNoDia({ user, schedule, weekdays, admin }, date) {
+  if (schedule) {
+    // O parâmetro chega ora como Date, ora como texto 'YYYY-MM-DD'.
+    // Para o texto, lê as partes direto: new Date('2026-08-23') é meia-noite UTC
+    // e em UTC-3 getDay() devolveria o dia anterior.
+    // Date vira ANTES o dia 'YYYY-MM-DD' de São Paulo: com getDay() direto
+    // (UTC na Vercel), a batida das 22h caía na escala de AMANHÃ — saída de
+    // sexta 22:10 era cobrada contra o horário de sábado.
+    const texto = date instanceof Date
+      ? date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
+      : String(date).slice(0, 10);
+    const [aa, mm, dd] = texto.split('-').map(Number);
+    const jsDay = (aa && mm && dd) // 0 = domingo
+      ? new Date(Date.UTC(aa, mm - 1, dd)).getUTCDay()
+      : new Date(date).getDay();
+    const weekdayIndex = jsDay === 0 ? 7 : jsDay;
+    // A tela grava domingo como 0 (convenção do JavaScript), mas esta consulta
+    // procurava só por 7: a linha de domingo nunca era encontrada e o dia caía
+    // no tratamento de folga, mesmo quando o gestor o marcava como trabalho.
+    // Aceita os dois índices (e, havendo os dois, fica com o 7, como antes).
+    const indicesDoDia = jsDay === 0 ? [0, 7] : [jsDay];
+    const wd = (weekdays || [])
+      .filter(w => indicesDoDia.includes(Number(w.weekday)))
+      .sort((a, b) => Number(b.weekday) - Number(a.weekday))[0];
+
+    if (wd) {
+      if (!wd.is_workday) return { isWorkday: false };
+      return {
+        isWorkday: true,
+        horaEntrada: wd.hora_entrada || schedule.hora_entrada,
+        horaSaida: wd.hora_saida || schedule.hora_saida,
+        intervaloInicio: wd.intervalo_inicio || schedule.intervalo_inicio,
+        intervaloFim: wd.intervalo_fim || schedule.intervalo_fim,
+        tolerancia: schedule.tolerancia
+      };
+    }
+    if (weekdayIndex === 6 && !schedule.saturday_active) return { isWorkday: false };
+    if (weekdayIndex === 7 && !schedule.sunday_active) return { isWorkday: false };
+    return {
+      isWorkday: true,
+      horaEntrada: schedule.hora_entrada,
+      horaSaida: schedule.hora_saida,
+      intervaloInicio: schedule.intervalo_inicio,
+      intervaloFim: schedule.intervalo_fim,
+      tolerancia: schedule.tolerancia
+    };
   }
 
   if (user.ponto_hora_entrada && user.ponto_hora_saida) {
@@ -1311,10 +1324,8 @@ async function getEmployeeScheduleForDay(pool, userId, date) {
        tolerancia: user.ponto_tolerancia || 15
      };
   }
-  
-  const { rows: admins } = await pool.query("SELECT ponto_hora_entrada, ponto_hora_saida, ponto_tolerancia FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [user.store]);
-  if (admins.length > 0) {
-    const admin = admins[0];
+
+  if (admin) {
     return {
        isWorkday: true,
        horaEntrada: admin.ponto_hora_entrada || '08:00',
@@ -1324,6 +1335,243 @@ async function getEmployeeScheduleForDay(pool, userId, date) {
   }
 
   return { isWorkday: true, horaEntrada: '08:00', horaSaida: '18:00', tolerancia: 15 };
+}
+
+async function getEmployeeScheduleForDay(pool, userId, date) {
+  const escala = await carregarEscalaDoFuncionario(pool, userId);
+  if (!escala) return { isWorkday: true };
+  return jornadaNoDia(escala, date);
+}
+
+// ── Ponto: abonos (atestado, falta justificada, folga compensada) e feriados ──
+//
+// A Pet Nature perguntou onde lançar o atestado e o feriado: até aqui não havia
+// lugar, e o dia virava "falta" no espelho. Uma linha por lançamento; user_id
+// NULL é feriado da loja inteira. data_fim cobre o atestado de vários dias.
+const TIPOS_DE_ABONO = {
+  atestado: 'Atestado',
+  falta_justificada: 'Falta justificada',
+  folga_compensada: 'Folga compensada',
+  feriado: 'Feriado',
+};
+let abonosProntos = false;
+async function garantirAbonosDePonto() {
+  if (abonosProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ponto_abonos (
+      id SERIAL PRIMARY KEY,
+      store VARCHAR(255) NOT NULL,
+      user_id INTEGER,
+      user_name VARCHAR(255),
+      tipo VARCHAR(30) NOT NULL,
+      data DATE NOT NULL,
+      data_fim DATE,
+      observacao TEXT,
+      arquivo_url TEXT,
+      criado_por TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_ponto_abonos_loja_data ON ponto_abonos(store, data)');
+  abonosProntos = true;
+}
+
+const minutosDoRelogio = (hhmm) => {
+  const m = String(hhmm || '').match(/^(\d{1,2}):(\d{2})/);
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+/** Minutos que a escala espera no dia: entrada→saída menos o almoço. */
+function minutosEsperadosDaJornada(j) {
+  if (!j || !j.isWorkday) return 0;
+  const ent = minutosDoRelogio(j.horaEntrada);
+  const sai = minutosDoRelogio(j.horaSaida);
+  if (ent === null || sai === null) return 0;
+  let total = sai - ent;
+  if (total <= 0) total += 24 * 60; // turno que vira a meia-noite (ex.: 19:00 às 07:00)
+  const ini = minutosDoRelogio(j.intervaloInicio);
+  const fim = minutosDoRelogio(j.intervaloFim);
+  if (ini !== null && fim !== null && fim > ini) total -= (fim - ini);
+  return Math.max(0, total);
+}
+
+/** Dias 'YYYY-MM-DD' de inicio a fim, inclusive. */
+function diasEntre(inicio, fim) {
+  const dias = [];
+  const [a1, m1, d1] = inicio.split('-').map(Number);
+  const [a2, m2, d2] = fim.split('-').map(Number);
+  for (let t = Date.UTC(a1, m1 - 1, d1); t <= Date.UTC(a2, m2 - 1, d2); t += 86400000) {
+    dias.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return dias;
+}
+
+const somarDias = (dia, n) => {
+  const [a, m, d] = dia.split('-').map(Number);
+  return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
+};
+
+/**
+ * Início do período de fechamento que contém `hoje`.
+ * 'ultimo_dia' e 'dia_1' fecham o mês do calendário (1 ao último dia).
+ * 'dia_N' (N > 1) fecha no dia N: o período vai do dia N+1 do mês anterior
+ * até o dia N — é como a folha "fecha dia 20" costuma funcionar.
+ */
+function inicioDoPeriodoDeFechamento(fechamentoDia, hoje) {
+  const [a, m, d] = hoje.split('-').map(Number);
+  const n = Number(String(fechamentoDia || '').replace('dia_', ''));
+  if (!Number.isInteger(n) || n <= 1 || n > 28) return `${hoje.slice(0, 7)}-01`;
+  if (d > n) return new Date(Date.UTC(a, m - 1, n + 1)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(a, m - 2, n + 1)).toISOString().slice(0, 10);
+}
+
+/**
+ * Banco de horas de um período, dia a dia, por funcionário.
+ *
+ * Horas trabalhadas = soma dos pares entrada→saída. Com quatro batidas
+ * (entrada, saída almoço, volta do almoço, saída) o almoço fica de fora sozinho.
+ * O par é casado em sequência, não por dia: quem entra 18h e sai 02h tem as
+ * 8 horas contadas no dia da ENTRADA.
+ *
+ * Esperado = jornada da escala (entrada→saída menos o intervalo). Sem escala
+ * vinculada não há o que esperar: o saldo sai nulo em vez de inventar 10 h/dia.
+ * Atestado, falta justificada e feriado zeram o esperado do dia (abonado);
+ * folga compensada mantém o esperado — é a folga paga com o banco de horas.
+ * O dia de hoje, antes do horário de saída, fica "em andamento" e fora do saldo.
+ */
+async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
+  await garantirAbonosDePonto();
+  const hoje = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  const agoraMin = minutosDoRelogio(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }));
+  const ultimoDia = fim > hoje ? hoje : fim;
+
+  const { rows: pessoas } = userId
+    ? await pool.query("SELECT id, name, role FROM users WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2))", [userId, store])
+    : await pool.query("SELECT id, name, role FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role IN ('funcionario', 'gestor', 'admin') ORDER BY name", [store]);
+
+  // Um dia antes do início: a saída da madrugada do 1º dia fecha o turno da véspera.
+  const { rows: batidas } = await pool.query(
+    `SELECT id, user_id, type, notes, is_manual, edited_by,
+            to_char(timestamp, 'YYYY-MM-DD') AS dia, to_char(timestamp, 'HH24:MI') AS hora,
+            EXTRACT(EPOCH FROM timestamp)::float AS seg
+       FROM ponto_records
+      WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND timestamp::date BETWEEN $2 AND $3
+        AND ($4::int IS NULL OR user_id = $4)
+      ORDER BY timestamp ASC`,
+    [store, somarDias(inicio, -1), somarDias(ultimoDia, 1), userId || null]
+  );
+  const { rows: abonos } = await pool.query(
+    `SELECT id, user_id, tipo, observacao, arquivo_url, to_char(data, 'YYYY-MM-DD') AS data,
+            to_char(COALESCE(data_fim, data), 'YYYY-MM-DD') AS data_fim
+       FROM ponto_abonos
+      WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND data <= $3 AND COALESCE(data_fim, data) >= $2`,
+    [store, inicio, ultimoDia]
+  );
+  const abonoDoDia = (uid, dia) =>
+    abonos.find(a => a.user_id === uid && a.data <= dia && a.data_fim >= dia) ||
+    abonos.find(a => a.user_id === null && a.tipo === 'feriado' && a.data <= dia && a.data_fim >= dia) || null;
+
+  const dias = inicio <= ultimoDia ? diasEntre(inicio, ultimoDia) : [];
+  const resultado = [];
+  for (const p of pessoas) {
+    const minhas = batidas.filter(b => b.user_id === p.id);
+    if (!userId && p.role === 'admin' && !minhas.some(b => b.dia >= inicio && b.dia <= ultimoDia)) continue;
+    const escala = await carregarEscalaDoFuncionario(pool, p.id);
+    const temEscala = !!escala?.schedule;
+
+    // Pares entrada→saída, em sequência. Turno de mais de 16 h é batida
+    // esquecida, não jornada: o par não conta e o dia fica "incompleto".
+    const trabalhadoPorDia = {};
+    const incompletos = new Set();
+    let aberta = null;
+    for (const b of minhas) {
+      if (b.type === 'entrada') {
+        if (aberta) incompletos.add(aberta.dia);
+        aberta = b;
+      } else if (b.type === 'saida') {
+        if (aberta && b.seg - aberta.seg <= 16 * 3600) {
+          trabalhadoPorDia[aberta.dia] = (trabalhadoPorDia[aberta.dia] || 0) + Math.round((b.seg - aberta.seg) / 60);
+        } else {
+          incompletos.add(aberta ? aberta.dia : b.dia);
+        }
+        aberta = null;
+      }
+    }
+    if (aberta && aberta.dia !== hoje) incompletos.add(aberta.dia);
+
+    const linhas = [];
+    const tot = { trabalhado: 0, esperado: 0, abonado: 0, saldo: 0, faltas: 0, diasAbonados: 0, incompletos: 0 };
+    for (const dia of dias) {
+      let jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
+      // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados
+      // a partir do "último dia trabalhado" da ficha (mesma regra da tela).
+      if (escala?.schedule?.type === '12x36') {
+        const base = escala.user.ponto_last_worked_day
+          ? new Date(escala.user.ponto_last_worked_day).toISOString().slice(0, 10) : null;
+        const s = escala.schedule;
+        const diff = base ? Math.round((Date.parse(dia) - Date.parse(base)) / 86400000) : 0;
+        jornada = { isWorkday: !base || Math.abs(diff) % 2 === 0, horaEntrada: s.hora_entrada, horaSaida: s.hora_saida, intervaloInicio: s.intervalo_inicio, intervaloFim: s.intervalo_fim };
+      }
+      const doDia = minhas.filter(b => b.dia === dia);
+      const trabalhado = trabalhadoPorDia[dia] || 0;
+      const emAndamento = dia === hoje && jornada.isWorkday && agoraMin !== null
+        && agoraMin < (minutosDoRelogio(jornada.horaSaida) ?? 24 * 60);
+      const esperado = temEscala ? minutosEsperadosDaJornada(jornada) : 0;
+      const abono = abonoDoDia(p.id, dia);
+      const abonado = abono && abono.tipo !== 'folga_compensada' ? esperado : 0;
+      const falta = temEscala && esperado > 0 && doDia.length === 0 && !abono && !emAndamento;
+      const saldo = temEscala && !emAndamento ? trabalhado - (esperado - abonado) : null;
+      linhas.push({
+        data: dia,
+        batidas: doDia.map(({ id, type, hora, notes, is_manual, edited_by }) => ({ id, type, hora, notes, is_manual, edited_by })),
+        trabalhado_min: trabalhado,
+        esperado_min: temEscala ? esperado : null,
+        abonado_min: abonado,
+        saldo_min: saldo,
+        folga: temEscala && !jornada.isWorkday,
+        falta,
+        incompleto: incompletos.has(dia),
+        em_andamento: emAndamento,
+        abono: abono ? { id: abono.id, tipo: abono.tipo, rotulo: TIPOS_DE_ABONO[abono.tipo] || abono.tipo, observacao: abono.observacao, arquivo_url: abono.arquivo_url, feriado: abono.user_id === null } : null,
+      });
+      if (emAndamento) continue;
+      tot.trabalhado += trabalhado;
+      if (temEscala) {
+        tot.esperado += esperado;
+        tot.abonado += abonado;
+        tot.saldo += saldo;
+      }
+      if (falta) tot.faltas++;
+      if (abono) tot.diasAbonados++;
+      if (incompletos.has(dia)) tot.incompletos++;
+    }
+    resultado.push({
+      user_id: p.id,
+      nome: p.name,
+      escala: escala?.schedule ? escala.schedule.name : null,
+      sem_escala: !temEscala,
+      totais: {
+        trabalhado_min: tot.trabalhado,
+        esperado_min: temEscala ? tot.esperado : null,
+        abonado_min: temEscala ? tot.abonado : 0,
+        saldo_min: temEscala ? tot.saldo : null,
+        faltas: tot.faltas,
+        dias_abonados: tot.diasAbonados,
+        dias_incompletos: tot.incompletos,
+      },
+      dias: linhas,
+    });
+  }
+  return { inicio, fim: ultimoDia, hoje, funcionarios: resultado };
+}
+
+/** "Entrada", "Saída almoço", "Volta do almoço" ou "Saída", pela posição no dia. */
+function rotuloDaBatida(tiposAnteriores, tipo, comAlmoco) {
+  const n = tiposAnteriores.length;
+  if (tipo === 'entrada') {
+    return n === 2 && tiposAnteriores[0] === 'entrada' && tiposAnteriores[1] === 'saida' ? 'Volta do almoço' : 'Entrada';
+  }
+  return n === 1 && tiposAnteriores[0] === 'entrada' && comAlmoco ? 'Saída almoço' : 'Saída';
 }
 
 // A IA estar fora do ar diz respeito ao serviço, não à foto que se tentou
@@ -4910,10 +5158,24 @@ export default async function handler(req, res) {
           );
           const quemBateu = new Set(pontoHoje.map(r => r.user_id));
 
+          // Feriado da loja ou atestado/abono lançado para hoje: não é ausência.
+          // Sem isto, quem estava de atestado gerava "não bateu ponto" o dia todo.
+          let abonadosHoje = new Set();
+          try {
+            await garantirAbonosDePonto();
+            const { rows: abonosHoje } = await pool.query(
+              'SELECT user_id FROM ponto_abonos WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND data <= $2 AND COALESCE(data_fim, data) >= $2',
+              [storeName, today]
+            );
+            if (abonosHoje.some(a => a.user_id === null)) continue; // feriado
+            abonadosHoje = new Set(abonosHoje.map(a => a.user_id));
+          } catch (e) { console.error('[Ausência] abonos:', e.message); }
+
           // Filtrar quem faltou
           const ausentes = [];
           for (const emp of employees) {
             if (quemBateu.has(emp.id)) continue;
+            if (abonadosHoje.has(emp.id)) continue;
             
             const configData = await getEmployeeScheduleForDay(pool, emp.id, agora);
             if (!configData.isWorkday) continue;
@@ -6524,12 +6786,16 @@ A mensagem é lida pelo próprio funcionário, no celular:
       );
       const entrada = rows.find(r => r.type === 'entrada');
       const saida = rows.find(r => r.type === 'saida');
+      // Com intervalo na escala de hoje, a 2ª batida é "Saída almoço" (e não a
+      // saída do turno). A tela usa isto para dar nome às batidas e ao botão.
+      const jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today).catch(() => null);
       return res.status(200).json({
         entrada: entrada ? entrada.hora_local : null,
         saida: saida ? saida.hora_local : null,
         entradaRecord: entrada || null,
         saidaRecord: saida || null,
         records: rows,
+        comAlmoco: !!(jornadaHoje?.intervaloInicio && jornadaHoje?.intervaloFim),
         timezone: tz
       });
     }
@@ -6561,6 +6827,19 @@ A mensagem é lida pelo próprio funcionário, no celular:
         csv += `"${r.user_name}","${tipoStr}","${r.data_local}","${r.hora_local}","${origemStr}","${notesStr}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
         csv += '\n';
       });
+      // Atestados, faltas justificadas e feriados lançados pelo gestor vão
+      // junto: sem eles, o contador via o dia vazio e descontava como falta.
+      await garantirAbonosDePonto();
+      const { rows: abonosDoMes } = await pool.query(
+        `SELECT user_name, tipo, observacao, to_char(data, 'DD/MM/YYYY') AS de, to_char(COALESCE(data_fim, data), 'DD/MM/YYYY') AS ate
+           FROM ponto_abonos WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND data <= $3 AND COALESCE(data_fim, data) >= $2 ORDER BY data`,
+        [store, startDate, endDate]
+      );
+      abonosDoMes.forEach(a => {
+        const quem = a.user_name || 'Toda a equipe';
+        const quando = a.de === a.ate ? a.de : `${a.de} a ${a.ate}`;
+        csv += `"${quem.replace(/"/g, "'")}","${TIPOS_DE_ABONO[a.tipo] || a.tipo}","${quando}","","Lançamento do gestor","${(a.observacao || '').replace(/"/g, "'")}","","",""\n`;
+      });
       res.setHeader('Content-Type', 'text/csv; charset=utf-8');
       res.setHeader('Content-Disposition', `attachment; filename=folha-ponto-${store}-${month}.csv`);
       return res.status(200).send(csv);
@@ -6573,10 +6852,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar ponto manual.' });
       }
-      const { userId, userName, store, type, timestamp, notes, editedBy } = req.body;
+      const { userId, userName, store, type, timestamp, notes } = req.body;
       if (!userId || !userName || !store || !type || !timestamp) {
         return res.status(400).json({ error: 'userId, userName, store, type e timestamp são obrigatórios' });
       }
+      if (!['entrada', 'saida'].includes(type)) return res.status(400).json({ error: 'type deve ser entrada ou saida' });
       // O alvo tem que ser da MINHA loja: userId é sequencial e, solto,
       // alcançava o ponto de funcionário de outra empresa.
       if (authPonto.role !== 'master') {
@@ -6588,9 +6868,97 @@ A mensagem é lida pelo próprio funcionário, no celular:
       const { rows } = await pool.query(
         `INSERT INTO ponto_records (user_id, user_name, store, type, timestamp, is_manual, notes, edited_by)
          VALUES ($1, $2, $3, $4, $5, TRUE, $6, $7) RETURNING *`,
-        [userId, userName, store, type, timestamp, notes || 'Ajuste manual pelo gestor', editedBy || 'Gestor']
+        // Quem lançou é quem está logado (como no PUT de /api/ponto/record):
+        // o nome vindo do corpo deixava assinar o ajuste como outra pessoa.
+        [userId, userName, store, type, timestamp, notes || 'Ajuste manual pelo gestor', authPonto.email || 'Gestor']
       );
       return res.status(200).json({ success: true, record: rows[0] });
+    }
+
+    // ── Banco de horas: saldo parcial por funcionário ─────────────────
+    // A Pet Nature pediu "emitir saldo parcial do banco de horas" e imprimir
+    // a folha de cada um. Padrão: do início do período de fechamento da loja
+    // (users.fechamento_dia do dono) até hoje.
+    if (url.includes('/api/ponto/saldo') && method === 'GET') {
+      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode ver o banco de horas.' });
+      }
+      const store = authPonto.role === 'master' ? (searchParams.get('store') || authPonto.store) : authPonto.store;
+      const { rows: donos } = await pool.query(
+        "SELECT timezone, fechamento_dia FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') ORDER BY (role = 'admin') DESC LIMIT 1",
+        [store]
+      );
+      const tz = donos[0]?.timezone || 'America/Sao_Paulo';
+      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+      const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+      const inicio = ehData(searchParams.get('inicio')) ? searchParams.get('inicio') : inicioDoPeriodoDeFechamento(donos[0]?.fechamento_dia, hoje);
+      const fim = ehData(searchParams.get('fim')) ? searchParams.get('fim') : hoje;
+      if (inicio > fim) return res.status(400).json({ error: 'A data inicial é depois da final.' });
+      if (diasEntre(inicio, fim).length > 186) return res.status(400).json({ error: 'Escolha um período de até 6 meses.' });
+      const userId = searchParams.get('userId') ? Number(searchParams.get('userId')) : null;
+      const saldo = await calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz });
+      return res.status(200).json({ ...saldo, fechamento_dia: donos[0]?.fechamento_dia || 'ultimo_dia' });
+    }
+
+    // ── Abonos e feriados (lançados pelo gestor) ──────────────────────
+    if (url.includes('/api/ponto/abonos')) {
+      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar abonos e feriados.' });
+      }
+      await garantirAbonosDePonto();
+      const store = authPonto.role === 'master' ? (searchParams.get('store') || req.body?.store || authPonto.store) : authPonto.store;
+
+      if (method === 'GET') {
+        const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+        const inicio = ehData(searchParams.get('inicio')) ? searchParams.get('inicio') : '1900-01-01';
+        const fim = ehData(searchParams.get('fim')) ? searchParams.get('fim') : '2999-12-31';
+        const { rows } = await pool.query(
+          `SELECT id, user_id, user_name, tipo, observacao, arquivo_url, criado_por,
+                  to_char(data, 'YYYY-MM-DD') AS data, to_char(data_fim, 'YYYY-MM-DD') AS data_fim
+             FROM ponto_abonos
+            WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND data <= $3 AND COALESCE(data_fim, data) >= $2
+            ORDER BY data DESC, id DESC`,
+          [store, inicio, fim]
+        );
+        return res.status(200).json(rows.map(r => ({ ...r, rotulo: TIPOS_DE_ABONO[r.tipo] || r.tipo })));
+      }
+
+      if (method === 'POST') {
+        const { tipo, userId, data, dataFim, observacao, arquivo } = req.body || {};
+        if (!TIPOS_DE_ABONO[tipo]) return res.status(400).json({ error: 'Tipo inválido.' });
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) return res.status(400).json({ error: 'Informe a data.' });
+        const ate = /^\d{4}-\d{2}-\d{2}$/.test(dataFim || '') && dataFim !== data ? dataFim : null;
+        if (ate && ate < data) return res.status(400).json({ error: 'A data final é antes da inicial.' });
+        let alvo = { id: null, name: null };
+        if (tipo !== 'feriado') {
+          if (!userId) return res.status(400).json({ error: 'Escolha o funcionário.' });
+          const { rows: u } = await pool.query('SELECT id, name, store FROM users WHERE id = $1', [userId]);
+          if (u.length === 0 || !mesmaLoja(u[0].store, store)) {
+            return res.status(403).json({ error: 'Funcionário não encontrado nesta loja.' });
+          }
+          alvo = u[0];
+        }
+        // Foto/PDF do atestado: o mesmo upload das selfies do ponto.
+        let arquivoUrl = null;
+        if (arquivo && String(arquivo).startsWith('data:')) {
+          arquivoUrl = await uploadImage(arquivo, `atestados/${store}`).catch(() => null);
+        }
+        const { rows } = await pool.query(
+          `INSERT INTO ponto_abonos (store, user_id, user_name, tipo, data, data_fim, observacao, arquivo_url, criado_por)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+          [store, alvo.id, alvo.name, tipo, data, ate, observacao || null, arquivoUrl, authPonto.email || 'Gestor']
+        );
+        return res.status(200).json({ success: true, id: rows[0].id });
+      }
+
+      if (method === 'DELETE') {
+        const id = searchParams.get('id') || req.body?.id;
+        if (!id) return res.status(400).json({ error: 'id é obrigatório' });
+        const r = await pool.query('DELETE FROM ponto_abonos WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) RETURNING id', [id, store]);
+        if (r.rowCount === 0) return res.status(404).json({ error: 'Lançamento não encontrado nesta loja.' });
+        return res.status(200).json({ success: true });
+      }
+      return res.status(405).json({ error: 'Método não suportado.' });
     }
 
     // ── Edição ou Exclusão de Registro de Ponto ───────────────────────
@@ -6615,6 +6983,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         if (!podeEditarPonto) return res.status(403).json({ error: 'Sem permissão para editar registros de ponto.' });
         const { id, type, timestamp, notes } = req.body;
         if (!id) return res.status(400).json({ error: 'id do registro é obrigatório' });
+        if (type && !['entrada', 'saida'].includes(type)) return res.status(400).json({ error: 'type deve ser entrada ou saida' });
 
         // Quem editou é quem está logado. O campo vinha do corpo da requisição:
         // dava para assinar a correção com o nome de outra pessoa, justamente no
@@ -6692,6 +7061,21 @@ A mensagem é lida pelo próprio funcionário, no celular:
           [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo]
         );
 
+        // Batidas anteriores de hoje e a jornada do dia: dizem se esta é a
+        // "Saída almoço"/"Volta do almoço" (comprovante) e qual horário vale
+        // para o aviso de atraso. Falha aqui não pode derrubar a batida.
+        let tiposAnterioresHoje = [];
+        let jornadaHoje = null;
+        try {
+          const { rows: antes } = await pool.query(
+            'SELECT type FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 AND id <> $3 ORDER BY timestamp ASC',
+            [userId, today, rows[0].id]
+          );
+          tiposAnterioresHoje = antes.map(r => r.type);
+          jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today);
+        } catch (e) { console.error('Erro ao ler a jornada do dia (ponto):', e.message); }
+        const rotuloBatida = rotuloDaBatida(tiposAnterioresHoje, type, !!(jornadaHoje?.intervaloInicio && jornadaHoje?.intervaloFim));
+
         // ── Enviar Comprovante de Ponto via WhatsApp para o Funcionário ──
         try {
           const evoUrl = process.env.EVOLUTION_API_URL;
@@ -6718,7 +7102,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
                 const textMsg = `⏰ *FireCheck - Comprovante de Ponto*\n\n` +
                   `Colaborador: *${userName}*\n` +
                   `Loja: *${store}*\n` +
-                  `Tipo: *${type === 'entrada' ? '📥 Entrada' : '📤 Saída'}*\n` +
+                  `Tipo: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
                   `Data: *${dataAtual}*\n` +
                   `Hora: *${horaAtual}*\n\n` +
                   `Seu ponto foi registrado com sucesso! ✅`;
@@ -6739,8 +7123,8 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
         if (store) {
           try {
-            const configData = await getEmployeeScheduleForDay(pool, userId, new Date());
-            
+            const configData = jornadaHoje || await getEmployeeScheduleForDay(pool, userId, today);
+
             if (configData && configData.isWorkday) {
               // Buscar todos os destinatários da loja (admin, master, gestor)
               const { rows: soRecipients } = await pool.query(
@@ -6763,7 +7147,20 @@ A mensagem é lida pelo próprio funcionário, no celular:
               let isAtrasado = false;
               let detalheMsg = '';
 
-              if (type === 'entrada') {
+              // Só a 1ª entrada do dia é comparada com o horário de entrada. A
+              // volta do almoço (3ª batida) é entrada também, e às 13h "passava
+              // da tolerância de 08:00": todo almoço virava alerta de atraso.
+              // Ela é medida contra o fim do intervalo da escala, quando há.
+              const jaEntrouHoje = tiposAnterioresHoje.includes('entrada');
+              if (type === 'entrada' && jaEntrouHoje) {
+                if (rotuloBatida === 'Volta do almoço' && configData.intervaloFim) {
+                  const [hCfg, mCfg] = configData.intervaloFim.split(':').map(Number);
+                  if (atualMinutos > hCfg * 60 + mCfg + tolerancia) {
+                    isAtrasado = true;
+                    detalheMsg = `voltou do almoço às ${horaAtual} (tolerância: ${configData.intervaloFim} + ${tolerancia}min)`;
+                  }
+                }
+              } else if (type === 'entrada') {
                 const horaEntradaCfg = configData.horaEntrada || '08:00';
                 const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
                 const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
@@ -6816,7 +7213,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
                         
                         const textMsg = `⏰ *FireCheck - Alerta de Ponto Fora do Horário*\n\n` +
                           `O colaborador *${userName}* registrou o ponto com atraso na loja *${store}*.\n\n` +
-                          `Tipo de Registro: *${type === 'entrada' ? '📥 Entrada' : '📤 Saída'}*\n` +
+                          `Tipo de Registro: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
                           `Horário Registrado: *${horaAtual}*\n` +
                           `Detalhe: *${detalheMsg}* ⚠️`;
                           
