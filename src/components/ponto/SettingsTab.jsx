@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Clock, CheckCircle } from 'lucide-react';
 import API_URL from '../../api';
+import FechamentoContador from './FechamentoContador';
 
 export default function SettingsTab({ userProfile }) {
   const [pontoHoraEntrada, setPontoHoraEntrada] = useState('08:00');
@@ -12,6 +13,8 @@ export default function SettingsTab({ userProfile }) {
   
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
+  // Muda a cada gravação: o quadro de envio ao contador relê o e-mail e o dia de fechamento salvos.
+  const [versaoSalva, setVersaoSalva] = useState(0);
 
   useEffect(() => {
     if (userProfile) {
@@ -44,6 +47,7 @@ export default function SettingsTab({ userProfile }) {
       });
       if (res.ok) {
         setToast('Configurações salvas com sucesso!');
+        setVersaoSalva(v => v + 1);
         setTimeout(() => setToast(''), 3000);
       }
     } catch (err) {
@@ -123,7 +127,7 @@ export default function SettingsTab({ userProfile }) {
              </div>
              <div>
                 <label className="input-label">E-mail do Contador</label>
-                <input type="email" className="input-field" placeholder="contabilidade@empresa.com.br" value={contadorEmail} onChange={e => setContadorEmail(e.target.value)} />
+                <input type="email" multiple className="input-field" placeholder="contabilidade@empresa.com.br" value={contadorEmail} onChange={e => setContadorEmail(e.target.value)} />
              </div>
              <div>
                 <label className="input-label">Fechamento e Envio Automático</label>
@@ -137,6 +141,7 @@ export default function SettingsTab({ userProfile }) {
              <button className="btn-secondary" onClick={handleSave} disabled={saving} style={{ marginTop: '8px', padding: '12px' }}>
                {saving ? 'Salvando...' : 'Salvar Automação'}
              </button>
+             <FechamentoContador userProfile={userProfile} versao={versaoSalva} />
           </div>
        </div>
     </div>

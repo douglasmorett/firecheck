@@ -6,6 +6,7 @@
   ],
   "crons": [
     { "path": "/api/cron/ponto-ausencia", "schedule": "0 10,14 * * 1-6" },
-    { "path": "/api/cron/checklists-delayed", "schedule": "*/30 * * * *" }
+    { "path": "/api/cron/checklists-delayed", "schedule": "*/30 * * * *" },
+    { "path": "/api/cron/ponto-fechamento", "schedule": "0 11 * * *" }
   ]
 }
