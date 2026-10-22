@@ -1565,6 +1565,23 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
   return { inicio, fim: ultimoDia, hoje, funcionarios: resultado };
 }
 
+/**
+ * A 2ª batida de agora é a saída para o almoço? Só se a escala tem intervalo e
+ * ainda falta mais de 1 hora para o fim da jornada. As escalas antigas têm
+ * 12:00–13:00 gravado sem o lojista ter escolhido (o campo era escondido): sem
+ * esta folga, quem não bate almoço via "Saída almoço" ao ir embora.
+ */
+function almocoAgora(jornada, tz) {
+  if (!jornada?.intervaloInicio || !jornada?.intervaloFim) return false;
+  const paraMin = (h) => { const m = String(h || '').match(/^(\d{1,2}):(\d{2})/); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+  const fim = paraMin(jornada.horaSaida);
+  const inicio = paraMin(jornada.horaEntrada);
+  // Sem horário de saída, ou turno que vira a noite: vale só a escala.
+  if (fim === null || (inicio !== null && fim <= inicio)) return true;
+  const agora = paraMin(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz || 'America/Sao_Paulo' }));
+  return agora < fim - 60;
+}
+
 /** "Entrada", "Saída almoço", "Volta do almoço" ou "Saída", pela posição no dia. */
 function rotuloDaBatida(tiposAnteriores, tipo, comAlmoco) {
   const n = tiposAnteriores.length;
@@ -6786,8 +6803,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
       );
       const entrada = rows.find(r => r.type === 'entrada');
       const saida = rows.find(r => r.type === 'saida');
-      // Com intervalo na escala de hoje, a 2ª batida é "Saída almoço" (e não a
-      // saída do turno). A tela usa isto para dar nome às batidas e ao botão.
+      // Com intervalo na escala de hoje e longe do fim da jornada, a 2ª batida é
+      // "Saída almoço" (e não a saída do turno). A tela usa isto para dar nome
+      // às batidas e ao botão (ver almocoAgora).
       const jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today).catch(() => null);
       return res.status(200).json({
         entrada: entrada ? entrada.hora_local : null,
@@ -6795,7 +6813,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         entradaRecord: entrada || null,
         saidaRecord: saida || null,
         records: rows,
-        comAlmoco: !!(jornadaHoje?.intervaloInicio && jornadaHoje?.intervaloFim),
+        comAlmoco: almocoAgora(jornadaHoje, tz),
         timezone: tz
       });
     }
@@ -7074,7 +7092,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
           tiposAnterioresHoje = antes.map(r => r.type);
           jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today);
         } catch (e) { console.error('Erro ao ler a jornada do dia (ponto):', e.message); }
-        const rotuloBatida = rotuloDaBatida(tiposAnterioresHoje, type, !!(jornadaHoje?.intervaloInicio && jornadaHoje?.intervaloFim));
+        const rotuloBatida = rotuloDaBatida(tiposAnterioresHoje, type, almocoAgora(jornadaHoje, tz));
 
         // ── Enviar Comprovante de Ponto via WhatsApp para o Funcionário ──
         try {
