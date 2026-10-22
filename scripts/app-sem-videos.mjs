@@ -20,4 +20,6 @@ const varrer = (dir) => {
 varrer(pasta);
 // O pacote de atualização (scripts/pacote-do-app.mjs) é para baixar, não para ir dentro do app.
 rmSync(join(pasta, "ota"), { recursive: true, force: true });
+// Os modelos do rosto o app baixa do site (src/utils/rosto.js), não leva dentro.
+rmSync(join(pasta, "modelos-rosto"), { recursive: true, force: true });
 console.log(`vídeos removidos: ${(total / 1048576).toFixed(1)} MB`);

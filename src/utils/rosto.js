@@ -9,6 +9,8 @@
 // O descritor é um vetor de 128 números; dois rostos da mesma pessoa ficam a
 // uma distância euclidiana pequena (abaixo de ~0,6). Só o descritor vai para
 // o servidor — a foto do cadastro não é guardada.
+import { Capacitor } from '@capacitor/core';
+import API_URL from '../api';
 
 export const MODELO_DO_ROSTO = 'face-api 1.7.15 (tiny + 68 + recognition)';
 
@@ -36,7 +38,12 @@ export function carregarReconhecimento() {
         await faceapi.tf.setBackend('cpu');
         await faceapi.tf.ready();
       }
-      const base = `${import.meta.env.BASE_URL || '/'}modelos-rosto`;
+      // No app nativo os modelos vêm do site: a atualização pelo ar
+      // (scripts/pacote-do-app.mjs) não leva os 6,8 MB a cada versão, e o
+      // WebView guarda em cache depois da primeira vez. CORS em vercel.json.
+      const base = Capacitor.isNativePlatform()
+        ? `${API_URL}/modelos-rosto`
+        : `${import.meta.env.BASE_URL || '/'}modelos-rosto`;
       await Promise.all([
         faceapi.nets.tinyFaceDetector.loadFromUri(base),
         faceapi.nets.faceLandmark68Net.loadFromUri(base),
