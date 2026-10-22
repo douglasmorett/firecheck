@@ -18,6 +18,7 @@
     "@capacitor/ios": "^7.6.7",
     "@capacitor/push-notifications": "^7.0.7",
     "@google/generative-ai": "^0.21.0",
+    "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^4.19.2",

@@ -74,6 +74,9 @@ export default function PontoPage() {
   const [todayRecords, setTodayRecords] = useState([]);
   // A escala de hoje tem almoço: a 2ª batida é "Saída almoço" (vem de /api/ponto/today).
   const [comAlmoco, setComAlmoco] = useState(false);
+  // Como o gestor deixou este funcionário bater ponto (ficha › Ponto da loja).
+  // 'loja' = só no tablet da loja, pelo rosto: aqui os botões ficam travados.
+  const [modo, setModo] = useState('ambos');
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [mySchedule, setMySchedule] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(true);
@@ -206,6 +209,7 @@ export default function PontoPage() {
       if (data && Array.isArray(data.records)) {
         setTodayRecords(data.records);
         setComAlmoco(!!data.comAlmoco);
+        if (data.modo) setModo(data.modo);
       }
     } catch (err) {
       console.error('Erro ao buscar registros:', err);
@@ -479,7 +483,7 @@ export default function PontoPage() {
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const canRegister = latitude && longitude && accuracy <= 200 && selfieData && !submitting;
+  const canRegister = latitude && longitude && accuracy <= 200 && selfieData && !submitting && modo !== 'loja';
   // Quem almoça bate quatro vezes. Os dois botões continuam (para corrigir um
   // engano ou fechar o turno da madrugada), mas o da próxima batida esperada
   // leva o nome dela — "Saída almoço", "Volta do almoço" — e o outro fica apagado.
@@ -951,6 +955,15 @@ export default function PontoPage() {
         )}
       </div>
 
+      {modo === 'loja' && (
+        <div style={{
+          backgroundColor: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.35)',
+          borderRadius: '12px', padding: '14px 18px', marginBottom: '20px', fontSize: '0.9rem',
+        }}>
+          <strong>Seu ponto é batido no ponto da loja.</strong> Use o tablet da loja: olhe para a câmera e confirme. Se precisar bater por aqui, fale com o seu gestor.
+        </div>
+      )}
+
       {/* ═══ Botões de Registro ═══ */}
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px',
@@ -996,7 +1009,7 @@ export default function PontoPage() {
       </div>
 
       {/* Requisitos pendentes */}
-      {!canRegister && !submitting && (
+      {!canRegister && !submitting && modo !== 'loja' && (
         <div style={{
           backgroundColor: 'rgba(234, 179, 8, 0.06)', borderRadius: '10px',
           padding: '12px 16px', marginBottom: '24px',

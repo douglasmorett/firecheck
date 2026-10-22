@@ -1627,6 +1627,349 @@ function rotuloDaBatida(tiposAnteriores, tipo, comAlmoco) {
   return n === 1 && tiposAnteriores[0] === 'entrada' && comAlmoco ? 'Saída almoço' : 'Saída';
 }
 
+// ── Ponto da loja: reconhecimento facial num aparelho compartilhado ─────────
+//
+// Douglas, 22/10/2026: "ativar por reconhecimento facial através de uma foto
+// do funcionário, porque aí não precisa ficar relogando em cada conta pra
+// bater ponto". Desenho combinado em 11/10: o gestor cadastra o rosto (com o
+// consentimento do funcionário, LGPD — biometria é dado sensível), um tablet
+// da loja vira "ponto da loja" com um token próprio, e a comparação é feita
+// no aparelho.
+//
+// O servidor guarda só o DESCRITOR (128 números que a rede neural tira do
+// rosto), nunca a foto do cadastro. E não confia no aparelho: a batida do
+// quiosque traz o descritor do rosto de agora e o servidor compara de novo
+// com o cadastrado antes de gravar (ver /api/quiosque/bater).
+let pontoFacialPronto = false;
+async function garantirPontoFacial() {
+  if (pontoFacialPronto) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ponto_rostos (
+      user_id INTEGER PRIMARY KEY,
+      store VARCHAR(255) NOT NULL,
+      descritor JSONB NOT NULL,
+      modelo VARCHAR(60) NOT NULL,
+      consentimento_texto TEXT NOT NULL,
+      consentimento_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      cadastrado_por VARCHAR(255),
+      cadastrado_em TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  // O token em si fica só no aparelho; aqui vai o hash (vazou o banco, não
+  // vazou acesso ao ponto de ninguém).
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ponto_quiosques (
+      id SERIAL PRIMARY KEY,
+      store VARCHAR(255) NOT NULL,
+      nome VARCHAR(80) NOT NULL,
+      token_hash CHAR(64) NOT NULL UNIQUE,
+      criado_por VARCHAR(255),
+      criado_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ultimo_uso_em TIMESTAMPTZ,
+      revogado_em TIMESTAMPTZ,
+      revogado_por VARCHAR(255)
+    )
+  `);
+  // De onde veio a batida: 'app' (conta do funcionário) ou 'quiosque'. Nulo
+  // é batida antiga, do app.
+  await pool.query('ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS origem VARCHAR(20)');
+  await pool.query('ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS quiosque_id INTEGER');
+  await pool.query('ALTER TABLE ponto_records ADD COLUMN IF NOT EXISTS rosto_distancia REAL');
+  // Como o funcionário bate ponto: 'conta', 'loja' ou 'ambos' (nulo = ambos,
+  // que é o que valia antes: a própria conta, e o quiosque só com rosto cadastrado).
+  await pool.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_modo VARCHAR(10)');
+  pontoFacialPronto = true;
+}
+
+// O texto que o funcionário autoriza fica gravado junto do cadastro (o que
+// ele leu naquele dia, mesmo que o texto mude depois). A tela mostra este
+// mesmo texto, que vem do GET /api/rostos.
+function termoDoRosto(loja) {
+  return `Autorizo a empresa${loja ? ` ${loja}` : ''} a usar a biometria do meu rosto somente para registrar o meu ponto ` +
+    'no aparelho da loja. A foto do cadastro não fica guardada: fica só um código numérico do rosto, ' +
+    'que é apagado quando eu sair da empresa ou pedir ao gestor. Se eu não autorizar, continuo batendo o ponto ' +
+    'pela minha própria conta. (LGPD, art. 11: dado pessoal sensível, com consentimento específico.)';
+}
+
+const MODOS_DE_PONTO = ['conta', 'loja', 'ambos'];
+const modoDePonto = (v) => (MODOS_DE_PONTO.includes(v) ? v : 'ambos');
+
+// Distância euclidiana entre descritores do face-api: abaixo de ~0,6 costuma
+// ser a mesma pessoa. O aparelho exige 0,45 (com folga para o segundo
+// colocado, ver src/utils/rosto.js); o servidor, que confere de novo o rosto
+// que o aparelho mandou, aceita até 0,5.
+const LIMIAR_DO_ROSTO_NO_SERVIDOR = 0.5;
+// No cadastro, "este rosto já é de outra pessoa da loja" só abaixo de 0,4:
+// é a foto trocada (a mesma pessoa fica a ~0,1–0,3). Sósias legítimos ficam
+// acima disso e podem ser cadastrados — o aparelho exige folga entre os dois.
+const ROSTO_REPETIDO = 0.4;
+function descritorValido(d) {
+  return Array.isArray(d) && d.length === 128 && d.every(v => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) < 2);
+}
+function distanciaDosRostos(a, b) {
+  let soma = 0;
+  for (let i = 0; i < 128; i++) soma += (a[i] - b[i]) ** 2;
+  return Math.sqrt(soma);
+}
+
+/**
+ * Quem pode mexer no ponto da loja (escalas, rosto, quiosque, espelho): dono,
+ * master e o gestor com "Controle de ponto" ligado nas permissões dele. A aba
+ * já sumia da tela do gestor sem perm_ponto, mas o servidor não olhava.
+ * Lida do banco, não do token: desligar a permissão vale na hora. Gestor sem
+ * nada gravado tem tudo ligado (DEFAULT_GESTOR_PERMISSIONS do painel).
+ */
+async function podeGerirPonto(authUser) {
+  if (!authUser) return false;
+  if (['admin', 'master'].includes(authUser.role)) return true;
+  if (authUser.role !== 'gestor') return false;
+  const { rows } = await pool.query('SELECT role, permissions FROM users WHERE id = $1', [authUser.id]);
+  if (rows[0]?.role !== 'gestor') return false;
+  return lerPermissoes(rows[0].permissions).perm_ponto !== false;
+}
+
+/**
+ * O aparelho em modo "ponto da loja". O token dele não é um JWT: nenhuma
+ * outra rota o aceita (authenticateToken falha) e ele só serve para as rotas
+ * /api/quiosque. Revogado, a próxima chamada já volta 401.
+ */
+async function quiosqueDoToken(req) {
+  const token = String(req.headers['authorization'] || '').split(' ')[1] || '';
+  if (!token.startsWith('fcq_')) return null;
+  await garantirPontoFacial();
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  const { rows } = await pool.query(
+    'SELECT id, store, nome FROM ponto_quiosques WHERE token_hash = $1 AND revogado_em IS NULL',
+    [hash]
+  );
+  if (rows.length === 0) return null;
+  pool.query('UPDATE ponto_quiosques SET ultimo_uso_em = NOW() WHERE id = $1', [rows[0].id]).catch(() => {});
+  return rows[0];
+}
+
+/**
+ * Grava uma batida e manda o que vem junto (comprovante no WhatsApp do
+ * funcionário, aviso de atraso para a chefia). Era o miolo do POST /api/ponto;
+ * virou função para o ponto da loja (/api/quiosque/bater) gravar do mesmo
+ * jeito — sem isso, quem batesse no tablet não receberia o comprovante.
+ */
+async function registrarBatidaDePonto(res, { userId, userName, store, type, latitude, longitude, accuracy, selfie, address, deviceInfo, origem = 'app', quiosqueId = null, distancia = null }) {
+  // Buscar timezone da loja para cálculos de data consistentes
+  let tz = 'America/Sao_Paulo';
+  if (store) {
+    const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
+    if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+  }
+  // Calcular data de hoje no timezone da loja
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+  // Verificar sequência: a primeira batida do dia precisa ser entrada
+  if (type === 'saida') {
+    const { rows: entradas } = await pool.query(
+      "SELECT * FROM ponto_records WHERE user_id = $1 AND type = 'entrada' AND timestamp::date = $2",
+      [userId, today]
+    );
+    if (entradas.length === 0) {
+      // Turno que cruza a meia-noite: quem entrou ontem 18h e sai hoje
+      // 02h não tem entrada "de hoje" — mas tem um turno em aberto (a
+      // última batida dele é uma entrada sem saída). Exigir entrada do
+      // dia deixava o noturno sem conseguir registrar a saída.
+      const { rows: ultima } = await pool.query(
+        "SELECT type FROM ponto_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 1",
+        [userId]
+      );
+      const turnoAberto = ultima.length > 0 && ultima[0].type === 'entrada';
+      if (!turnoAberto) return res.status(400).json({ error: 'Registre a entrada antes da saída.' });
+    }
+  }
+  // Upload selfie se houver
+  let selfieUrl = null;
+  if (selfie && selfie.startsWith('data:image')) {
+    try { selfieUrl = await uploadImage(selfie, `ponto/${store}`); } catch (e) { console.error('Erro upload selfie ponto:', e); }
+  }
+  const { rows } = await pool.query(
+    `INSERT INTO ponto_records (user_id, user_name, store, type, latitude, longitude, accuracy, selfie_url, address, device_info, origem, quiosque_id, rosto_distancia)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+    [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo, origem, quiosqueId, distancia]
+  );
+
+  // Batidas anteriores de hoje e a jornada do dia: dizem se esta é a
+  // "Saída almoço"/"Volta do almoço" (comprovante) e qual horário vale
+  // para o aviso de atraso. Falha aqui não pode derrubar a batida.
+  let tiposAnterioresHoje = [];
+  let jornadaHoje = null;
+  try {
+    const { rows: antes } = await pool.query(
+      'SELECT type FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 AND id <> $3 ORDER BY timestamp ASC',
+      [userId, today, rows[0].id]
+    );
+    tiposAnterioresHoje = antes.map(r => r.type);
+    jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today);
+  } catch (e) { console.error('Erro ao ler a jornada do dia (ponto):', e.message); }
+  const rotuloBatida = rotuloDaBatida(tiposAnterioresHoje, type, almocoAgora(jornadaHoje, tz));
+
+  // ── Enviar Comprovante de Ponto via WhatsApp para o Funcionário ──
+  try {
+    const evoUrl = process.env.EVOLUTION_API_URL;
+    const evoKey = process.env.EVOLUTION_API_KEY;
+
+    if (evoUrl && evoKey) {
+      const { rows: empDetails } = await pool.query(
+        "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE id = $1",
+        [userId]
+      );
+      if (empDetails.length > 0) {
+        const emp = empDetails[0];
+        const isWhatsappActive = emp.whatsapp_active !== false;
+        const targetPhone = emp.whatsapp_phone || emp.phone;
+
+        if (isWhatsappActive && targetPhone) {
+          const cleanPhone = targetPhone.replace(/\D/g, '');
+          const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
+
+          const agora = new Date();
+          const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+          const dataAtual = agora.toLocaleDateString('pt-BR', { timeZone: tz });
+
+          const textMsg = `⏰ *FireCheck - Comprovante de Ponto*\n\n` +
+            `Colaborador: *${userName}*\n` +
+            `Loja: *${store}*\n` +
+            `Tipo: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
+            `Data: *${dataAtual}*\n` +
+            `Hora: *${horaAtual}*\n\n` +
+            `Seu ponto foi registrado com sucesso! ✅`;
+
+          await enviarWhatsapp({
+            telefone: fullPhone,
+            texto: textMsg,
+            contexto: 'WhatsApp Ponto Funcionario',
+            loja: store,
+          });
+        }
+      }
+    }
+  } catch (pontoWaErr) {
+    console.error('Erro ao enviar comprovante de ponto via WhatsApp:', pontoWaErr);
+  }
+
+  // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
+  if (store) {
+    try {
+      const configData = jornadaHoje || await getEmployeeScheduleForDay(pool, userId, today);
+
+      if (configData && configData.isWorkday) {
+        // Buscar todos os destinatários da loja (admin, master, gestor)
+        const { rows: soRecipients } = await pool.query(
+          "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
+          [store]
+        );
+        const recipients = await comNumerosExtras(store, soRecipients);
+
+        // A tolerância da ESCALA do funcionário (getEmployeeScheduleForDay
+        // devolve `tolerancia`); lia `ponto_tolerancia`, que não vem dali,
+        // e o aviso usava sempre 15 min.
+        const tolerancia = Number(configData.tolerancia ?? configData.ponto_tolerancia ?? 15) || 15;
+
+        // Calcular hora atual no timezone da loja
+        const agora = new Date();
+        const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+        const [hAtual, mAtual] = horaAtual.split(':').map(Number);
+        const atualMinutos = hAtual * 60 + mAtual;
+
+        let isAtrasado = false;
+        let detalheMsg = '';
+
+        // Só a 1ª entrada do dia é comparada com o horário de entrada. A
+        // volta do almoço (3ª batida) é entrada também, e às 13h "passava
+        // da tolerância de 08:00": todo almoço virava alerta de atraso.
+        // Ela é medida contra o fim do intervalo da escala, quando há.
+        const jaEntrouHoje = tiposAnterioresHoje.includes('entrada');
+        if (type === 'entrada' && jaEntrouHoje) {
+          if (rotuloBatida === 'Volta do almoço' && configData.intervaloFim) {
+            const [hCfg, mCfg] = configData.intervaloFim.split(':').map(Number);
+            if (atualMinutos > hCfg * 60 + mCfg + tolerancia) {
+              isAtrasado = true;
+              detalheMsg = `voltou do almoço às ${horaAtual} (tolerância: ${configData.intervaloFim} + ${tolerancia}min)`;
+            }
+          }
+        } else if (type === 'entrada') {
+          const horaEntradaCfg = configData.horaEntrada || '08:00';
+          const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
+          const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+
+          if (atualMinutos > limiteMinutos) {
+            isAtrasado = true;
+            detalheMsg = `registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`;
+          }
+        } else if (type === 'saida') {
+          const horaSaidaCfg = configData.horaSaida || '18:00';
+          const [hCfg, mCfg] = horaSaidaCfg.split(':').map(Number);
+          const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
+
+          if (atualMinutos > limiteMinutos) {
+            isAtrasado = true;
+            detalheMsg = `registrou saída às ${horaAtual} (tolerância: ${horaSaidaCfg} + ${tolerancia}min)`;
+          }
+        }
+
+        if (isAtrasado) {
+          for (const adminData of recipients) {
+            const isWaPontoAtrasoActive = adminData.wa_ponto_atraso !== false;
+            if (isWaPontoAtrasoActive) {
+              const adminToken = adminData.fcm_token;
+
+              // 1. Enviar Push
+              if (adminToken) {
+                await admin.messaging().send({
+                  token: adminToken,
+                  notification: {
+                    title: '⏰ Ponto Fora do Horário',
+                    body: `${userName} ${detalheMsg}`
+                  },
+                  data: { url: '/admin' },
+                  apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+                }).catch(e => console.error('[Push Ponto Atraso] Erro:', e.message));
+              }
+
+              // 2. Enviar WhatsApp
+              try {
+                const evoUrl = process.env.EVOLUTION_API_URL;
+                const evoKey = process.env.EVOLUTION_API_KEY;
+                
+                const isWhatsappActive = adminData.whatsapp_active !== false;
+                const targetPhone = adminData.whatsapp_phone || adminData.phone;
+                
+                if (evoUrl && evoKey && isWhatsappActive && targetPhone) {
+                  const cleanPhone = targetPhone.replace(/\D/g, '');
+                  const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
+                  
+                  const textMsg = `⏰ *FireCheck - Alerta de Ponto Fora do Horário*\n\n` +
+                    `O colaborador *${userName}* registrou o ponto com atraso na loja *${store}*.\n\n` +
+                    `Tipo de Registro: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
+                    `Horário Registrado: *${horaAtual}*\n` +
+                    `Detalhe: *${detalheMsg}* ⚠️`;
+                    
+                  await enviarWhatsapp({
+                    telefone: fullPhone,
+                    texto: textMsg,
+                    contexto: 'WhatsApp Atraso Admin',
+                    loja: store,
+                  });
+                }
+              } catch (waAtrasoErr) {
+                console.error('Erro ao enviar WhatsApp de atraso para o admin:', waAtrasoErr);
+              }
+            }
+          }
+        }
+      }
+    } catch (pushErr) {
+      console.error('Erro ao processar push/wa de atraso de ponto:', pushErr);
+    }
+  }
+
+  return res.status(200).json({ success: true, record: rows[0] });
+}
+
 // A IA estar fora do ar diz respeito ao serviço, não à foto que se tentou
 // auditar. Estas falhas voltam sozinhas e não podem consumir as tentativas de
 // uma submissão — uma foto ilegível, sim; crédito acabado, não.
@@ -4202,6 +4545,10 @@ export default async function handler(req, res) {
           }
         }
         await pool.query('DELETE FROM users WHERE id = $1', [id]);
+        // A biometria sai junto com a pessoa (LGPD: dado sensível não fica
+        // guardado depois que o funcionário deixa a empresa).
+        await garantirPontoFacial();
+        await pool.query('DELETE FROM ponto_rostos WHERE user_id = $1', [id]);
         return res.status(200).json({ success: true });
       }
       if (method === 'PUT') {
@@ -4518,7 +4865,15 @@ export default async function handler(req, res) {
         }
         return res.status(200).json(rows);
       }
-      
+
+      // Ler a escala todo funcionário lê (a tela de bater ponto mostra o horário
+      // do dia). Criar, mudar e apagar é do gestor: as rotas não olhavam o papel
+      // e qualquer funcionário logado alterava ou apagava as escalas da loja —
+      // e com elas o cálculo de atraso, falta e banco de horas de todo mundo.
+      if (['POST', 'PUT', 'DELETE'].includes(method) && !(await podeGerirPonto(authUser))) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode alterar as escalas.' });
+      }
+
       if (method === 'POST') {
         const { name, type, hora_entrada, hora_saida, intervalo_inicio, intervalo_fim, tolerancia, cycle_work_days, cycle_off_days, saturday_active, sunday_active, color, weekdays } = req.body;
         const { rows } = await pool.query(
@@ -6788,6 +7143,281 @@ A mensagem é lida pelo próprio funcionário, no celular:
       }
     }
 
+    // ── Rosto do funcionário (o gestor cadastra, na ficha do ponto) ──────
+    //   GET    /api/rostos               → { termo, funcionarios: [{ user_id, nome, ponto_modo, rosto }] }
+    //   POST   /api/rostos               { userId, descritor[128], consentimento: true, modelo }
+    //   DELETE /api/rostos?userId=
+    //   PUT    /api/rostos/modo          { userId, modo: 'conta' | 'loja' | 'ambos' }
+    // (O nome não começa com /api/ponto de propósito: aquele bloco abaixo
+    // pega tudo que contém "/api/ponto".)
+    if (url.includes('/api/rostos')) {
+      const gestorRosto = await autenticarComLojaAtual(req);
+      if (!gestorRosto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+      if (!(await podeGerirPonto(gestorRosto))) return res.status(403).json({ error: 'Somente o administrador ou gestor cadastra o rosto da equipe.' });
+      const store = lojaPermitida(gestorRosto, searchParams.get('store') || req.body?.store);
+      if (!store) return res.status(403).json({ error: 'Você só pode mexer na equipe da sua própria loja.' });
+      await garantirPontoFacial();
+      const alvoDaLoja = async (id) => {
+        if (!id) return null;
+        const { rows } = await pool.query('SELECT id, name, store, role FROM users WHERE id = $1', [id]);
+        return rows[0] && rows[0].role !== 'master' && mesmaLoja(rows[0].store, store) ? rows[0] : null;
+      };
+
+      if (method === 'GET') {
+        const { rows } = await pool.query(
+          `SELECT u.id AS user_id, u.name AS nome, u.ponto_modo, r.cadastrado_em, r.cadastrado_por
+             FROM users u LEFT JOIN ponto_rostos r ON r.user_id = u.id
+            WHERE LOWER(TRIM(u.store)) = LOWER(TRIM($1)) AND u.role <> 'master'
+            ORDER BY u.name`,
+          [store]
+        );
+        const { rows: nomeDaLoja } = await pool.query("SELECT store_name FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1", [store]);
+        return res.status(200).json({
+          termo: termoDoRosto(nomeDaLoja[0]?.store_name || store),
+          funcionarios: rows.map(r => ({
+            user_id: r.user_id,
+            nome: r.nome,
+            ponto_modo: modoDePonto(r.ponto_modo),
+            rosto: r.cadastrado_em ? { cadastrado_em: r.cadastrado_em, cadastrado_por: r.cadastrado_por } : null,
+          })),
+        });
+      }
+
+      if (url.includes('/api/rostos/modo') && method === 'PUT') {
+        const { userId, modo } = req.body || {};
+        if (!MODOS_DE_PONTO.includes(modo)) return res.status(400).json({ error: 'Escolha como o funcionário bate o ponto.' });
+        const alvo = await alvoDaLoja(userId);
+        if (!alvo) return res.status(404).json({ error: 'Funcionário não encontrado nesta loja.' });
+        // "Só no ponto da loja" sem rosto cadastrado trancaria a pessoa fora
+        // do ponto: nem a conta dela, nem o tablet aceitariam a batida.
+        if (modo === 'loja') {
+          const { rows: temRosto } = await pool.query('SELECT 1 FROM ponto_rostos WHERE user_id = $1', [alvo.id]);
+          if (temRosto.length === 0) return res.status(400).json({ error: 'Cadastre o rosto antes de deixar o funcionário só no ponto da loja.' });
+        }
+        await pool.query('UPDATE users SET ponto_modo = $1 WHERE id = $2', [modo, alvo.id]);
+        return res.status(200).json({ success: true, ponto_modo: modo });
+      }
+
+      if (method === 'POST') {
+        const { userId, descritor, consentimento, modelo } = req.body || {};
+        if (consentimento !== true) return res.status(400).json({ error: 'Marque que o funcionário leu e autorizou o uso do rosto.' });
+        if (!descritorValido(descritor)) return res.status(400).json({ error: 'Não deu para ler o rosto desta foto. Tire outra, de frente e com boa luz.' });
+        const alvo = await alvoDaLoja(userId);
+        if (!alvo) return res.status(404).json({ error: 'Funcionário não encontrado nesta loja.' });
+        // O mesmo rosto em duas pessoas faria o tablet bater o ponto na errada
+        // (foto trocada na hora do cadastro, por exemplo).
+        const { rows: outros } = await pool.query(
+          `SELECT r.user_id, u.name, r.descritor FROM ponto_rostos r JOIN users u ON u.id = r.user_id
+            WHERE LOWER(TRIM(r.store)) = LOWER(TRIM($1)) AND r.user_id <> $2`,
+          [alvo.store, alvo.id]
+        );
+        const repetido = outros.find(o => distanciaDosRostos(descritor, typeof o.descritor === 'string' ? JSON.parse(o.descritor) : o.descritor) < ROSTO_REPETIDO);
+        if (repetido) return res.status(409).json({ error: `Este rosto é muito parecido com o de ${repetido.name}, que já está cadastrado. Confira se a foto é mesmo de ${alvo.name}.` });
+        const { rows: nomeDaLoja } = await pool.query("SELECT store_name FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1", [alvo.store]);
+        const { rows } = await pool.query(
+          `INSERT INTO ponto_rostos (user_id, store, descritor, modelo, consentimento_texto, consentimento_em, cadastrado_por, cadastrado_em)
+           VALUES ($1, $2, $3, $4, $5, NOW(), $6, NOW())
+           ON CONFLICT (user_id) DO UPDATE SET store = EXCLUDED.store, descritor = EXCLUDED.descritor, modelo = EXCLUDED.modelo,
+             consentimento_texto = EXCLUDED.consentimento_texto, consentimento_em = NOW(),
+             cadastrado_por = EXCLUDED.cadastrado_por, cadastrado_em = NOW()
+           RETURNING cadastrado_em, cadastrado_por`,
+          [alvo.id, alvo.store, JSON.stringify(descritor), String(modelo || 'face-api').slice(0, 60),
+           termoDoRosto(nomeDaLoja[0]?.store_name || alvo.store), gestorRosto.email || 'Gestor']
+        );
+        return res.status(200).json({ success: true, rosto: rows[0] });
+      }
+
+      if (method === 'DELETE') {
+        const alvo = await alvoDaLoja(searchParams.get('userId') || req.body?.userId);
+        if (!alvo) return res.status(404).json({ error: 'Funcionário não encontrado nesta loja.' });
+        await pool.query('DELETE FROM ponto_rostos WHERE user_id = $1', [alvo.id]);
+        // Sem rosto, "só no ponto da loja" deixaria a pessoa sem ter onde
+        // bater: volta a valer a própria conta.
+        await pool.query("UPDATE users SET ponto_modo = NULL WHERE id = $1 AND ponto_modo = 'loja'", [alvo.id]);
+        return res.status(200).json({ success: true });
+      }
+      return res.status(405).json({ error: 'Método não suportado.' });
+    }
+
+    // ── Ponto da loja: aparelhos e batida pelo rosto ─────────────────
+    //   (gestor, token de login)
+    //   GET    /api/quiosque/aparelhos          → aparelhos ativos da loja
+    //   POST   /api/quiosque/aparelhos          { nome } → { token } (só aparece aqui)
+    //   DELETE /api/quiosque/aparelhos?id=      revoga
+    //   (aparelho, token do quiosque "fcq_...")
+    //   GET    /api/quiosque/rostos             → { loja, aparelho, funcionarios: [{ id, nome, descritor }] }
+    //   GET    /api/quiosque/proxima?userId=    → { tipo, rotulo }
+    //   POST   /api/quiosque/bater              { userId, descritor, selfie, latitude, longitude, accuracy, address, deviceInfo }
+    //   POST   /api/quiosque/sair               { email, senha } do dono/gestor; revoga o aparelho
+    if (url.includes('/api/quiosque')) {
+      await garantirPontoFacial();
+
+      if (url.includes('/api/quiosque/aparelhos')) {
+        const gestorQ = await autenticarComLojaAtual(req);
+        if (!gestorQ) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+        if (!(await podeGerirPonto(gestorQ))) return res.status(403).json({ error: 'Somente o administrador ou gestor cuida do ponto da loja.' });
+        const store = gestorQ.store;
+        if (method === 'GET') {
+          const { rows } = await pool.query(
+            `SELECT id, nome, criado_por, criado_em, ultimo_uso_em FROM ponto_quiosques
+              WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND revogado_em IS NULL ORDER BY criado_em DESC`,
+            [store]
+          );
+          return res.status(200).json(rows);
+        }
+        if (method === 'POST') {
+          const nome = String(req.body?.nome || '').trim().slice(0, 80) || 'Ponto da loja';
+          const token = 'fcq_' + crypto.randomBytes(32).toString('hex');
+          const hash = crypto.createHash('sha256').update(token).digest('hex');
+          const { rows } = await pool.query(
+            'INSERT INTO ponto_quiosques (store, nome, token_hash, criado_por) VALUES ($1, $2, $3, $4) RETURNING id, nome',
+            [store, nome, hash, gestorQ.email || 'Gestor']
+          );
+          return res.status(200).json({ ...rows[0], token, store });
+        }
+        if (method === 'DELETE') {
+          const id = searchParams.get('id') || req.body?.id;
+          const r = await pool.query(
+            `UPDATE ponto_quiosques SET revogado_em = NOW(), revogado_por = $3
+              WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) AND revogado_em IS NULL RETURNING id`,
+            [id, store, gestorQ.email || 'Gestor']
+          );
+          if (r.rowCount === 0) return res.status(404).json({ error: 'Aparelho não encontrado nesta loja.' });
+          return res.status(200).json({ success: true });
+        }
+        return res.status(405).json({ error: 'Método não suportado.' });
+      }
+
+      const aparelho = await quiosqueDoToken(req);
+      if (!aparelho) return res.status(401).json({ error: 'Este aparelho não é mais o ponto da loja. Peça ao gestor para ativar de novo.', quiosqueRevogado: true });
+
+      // A loja precisa estar em dia e com o ponto ligado — a mesma regra que
+      // barra o login do funcionário quando a conta da empresa está suspensa.
+      const { rows: donos } = await pool.query(
+        `SELECT status, expiration_date, trial_ends_at, created_at, ponto_active, timezone, store_name FROM users
+          WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role IN ('admin', 'master') ORDER BY (role = 'admin') DESC LIMIT 1`,
+        [aparelho.store]
+      );
+      const dono = donos[0];
+
+      if (url.includes('/api/quiosque/sair') && method === 'POST') {
+        // Sair do modo quiosque pede a senha de quem manda na loja: o tablet
+        // fica na recepção, e o funcionário não pode transformá-lo de volta
+        // num aparelho comum (nem apagar o ponto da loja) sozinho.
+        // Mesmo freio do login: por origem e por "conta" (aqui, o aparelho).
+        const chave = rateLimitKey(origemDaRequisicao(req), `quiosque:${aparelho.id}`);
+        if (!checkRateLimit(chave)) return res.status(429).json({ error: 'Muitas tentativas. Aguarde alguns minutos.' });
+        const { email, senha } = req.body || {};
+        const { rows: quem } = await pool.query('SELECT id, email, password, role, store, permissions FROM users WHERE LOWER(email) = LOWER($1)', [String(email || '').trim()]);
+        const u = quem[0];
+        let confere = false;
+        if (u && u.password && senha) {
+          confere = u.password.startsWith('$2') ? await bcrypt.compare(String(senha), u.password) : String(senha) === u.password;
+        }
+        const daLoja = u && (u.role === 'master' || mesmaLoja(u.store, aparelho.store));
+        if (!confere || !daLoja || !(await podeGerirPonto({ id: u.id, role: u.role }))) {
+          registerLoginFailure(chave);
+          return res.status(403).json({ error: 'E-mail ou senha do dono/gestor da loja não conferem.' });
+        }
+        limparFreioDaConta(chave);
+        await pool.query('UPDATE ponto_quiosques SET revogado_em = NOW(), revogado_por = $2 WHERE id = $1', [aparelho.id, u.email]);
+        return res.status(200).json({ success: true });
+      }
+
+      if (!dono || !contaEmDia(dono) || !(dono.ponto_active || dono.status === 'trial')) {
+        return res.status(403).json({ error: 'O ponto desta loja não está ativo. Fale com o dono da loja.' });
+      }
+      const tz = dono.timezone || 'America/Sao_Paulo';
+
+      // O funcionário que o aparelho diz ter reconhecido: tem que ser desta
+      // loja, ter rosto cadastrado e bater no ponto da loja.
+      const funcionarioDoQuiosque = async (id) => {
+        if (!id) return null;
+        const { rows } = await pool.query(
+          `SELECT u.id, u.name, u.store, u.role, u.ponto_modo, r.descritor
+             FROM users u JOIN ponto_rostos r ON r.user_id = u.id
+            WHERE u.id = $1`,
+          [id]
+        );
+        const f = rows[0];
+        if (!f || f.role === 'master' || !mesmaLoja(f.store, aparelho.store) || modoDePonto(f.ponto_modo) === 'conta') return null;
+        return f;
+      };
+
+      // A próxima batida pelo que já foi batido: hoje termina em entrada →
+      // saída; nada hoje mas um turno aberto há menos de 16 h (noturno que
+      // passou da meia-noite) → saída; senão, entrada.
+      const proximaDoFuncionario = async (userId) => {
+        const hoje = new Date().toLocaleDateString('en-CA', { timeZone: tz });
+        const { rows: deHoje } = await pool.query(
+          'SELECT type FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 ORDER BY timestamp ASC',
+          [userId, hoje]
+        );
+        const tipos = deHoje.map(r => r.type);
+        let tipo = tipos.length > 0 && tipos[tipos.length - 1] === 'entrada' ? 'saida' : 'entrada';
+        if (tipos.length === 0) {
+          const { rows: ultima } = await pool.query(
+            `SELECT type, timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '16 hours' AS recente
+               FROM ponto_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 1`,
+            [userId]
+          );
+          if (ultima[0]?.type === 'entrada' && ultima[0].recente) tipo = 'saida';
+        }
+        const jornada = await getEmployeeScheduleForDay(pool, userId, hoje).catch(() => null);
+        return { tipo, rotulo: rotuloDaBatida(tipos, tipo, almocoAgora(jornada, tz)) };
+      };
+
+      if (url.includes('/api/quiosque/rostos') && method === 'GET') {
+        const { rows } = await pool.query(
+          `SELECT u.id, u.name AS nome, r.descritor
+             FROM users u JOIN ponto_rostos r ON r.user_id = u.id
+            WHERE LOWER(TRIM(u.store)) = LOWER(TRIM($1)) AND u.role <> 'master'
+              AND COALESCE(u.ponto_modo, 'ambos') <> 'conta'`,
+          [aparelho.store]
+        );
+        return res.status(200).json({ loja: dono.store_name || aparelho.store, aparelho: aparelho.nome, funcionarios: rows });
+      }
+
+      if (url.includes('/api/quiosque/proxima') && method === 'GET') {
+        const f = await funcionarioDoQuiosque(searchParams.get('userId'));
+        if (!f) return res.status(404).json({ error: 'Funcionário não encontrado no ponto da loja.' });
+        return res.status(200).json(await proximaDoFuncionario(f.id));
+      }
+
+      if (url.includes('/api/quiosque/bater') && method === 'POST') {
+        const { userId, descritor, selfie, latitude, longitude, accuracy, address, deviceInfo } = req.body || {};
+        const f = await funcionarioDoQuiosque(userId);
+        if (!f) return res.status(404).json({ error: 'Funcionário não encontrado no ponto da loja.' });
+        // Segunda conferência, aqui: o aparelho pode ter sido adulterado, e o
+        // id sozinho deixaria bater o ponto de qualquer colega da loja.
+        if (!descritorValido(descritor)) return res.status(400).json({ error: 'Rosto não lido. Olhe para a câmera e tente de novo.' });
+        const cadastrado = typeof f.descritor === 'string' ? JSON.parse(f.descritor) : f.descritor;
+        const distancia = distanciaDosRostos(descritor, cadastrado);
+        if (!(distancia <= LIMIAR_DO_ROSTO_NO_SERVIDOR)) {
+          return res.status(403).json({ error: 'O rosto não confere com o cadastro. Chegue mais perto ou use a sua própria conta.' });
+        }
+        // Dois toques no Confirmar (ou duas pessoas na fila e o mesmo rosto
+        // de novo) não podem virar entrada e saída no mesmo minuto.
+        const { rows: recente } = await pool.query(
+          `SELECT 1 FROM ponto_records WHERE user_id = $1 AND timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '60 seconds' LIMIT 1`,
+          [f.id]
+        );
+        if (recente.length > 0) return res.status(409).json({ error: `${f.name}, o seu ponto acabou de ser registrado.` });
+        const { tipo, rotulo } = await proximaDoFuncionario(f.id);
+        // GPS do tablet é opcional: o aparelho foi autorizado pelo gestor e
+        // fica na loja; tablet sem GPS (só Wi-Fi) não pode travar o ponto.
+        const temGps = Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude)) && latitude !== null && longitude !== null;
+        return registrarBatidaDePonto(res, {
+          userId: f.id, userName: f.name, store: f.store, type: tipo,
+          latitude: temGps ? latitude : null, longitude: temGps ? longitude : null, accuracy: temGps ? accuracy : null,
+          selfie, address: address || null,
+          deviceInfo: JSON.stringify({ ...(deviceInfo && typeof deviceInfo === 'object' ? deviceInfo : {}), quiosque: aparelho.nome, rotulo }),
+          origem: 'quiosque', quiosqueId: aparelho.id, distancia: Math.round(distancia * 1000) / 1000,
+        });
+      }
+      return res.status(404).json({ error: 'Rota do ponto da loja não encontrada.' });
+    }
+
     // ── CONTROLE DE PONTO ────────────────────────────────────────────
     // Todo este bloco estava sem verificação de token: qualquer um batia ponto
     // por qualquer funcionário, lia o espelho de qualquer loja e exportava o
@@ -6845,7 +7475,12 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // "Saída almoço" (e não a saída do turno). A tela usa isto para dar nome
       // às batidas e ao botão (ver almocoAgora).
       const jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today).catch(() => null);
+      // Como ele bate ponto (ficha do gestor): 'loja' esconde o botão de bater
+      // pela própria conta e manda para o tablet.
+      await garantirPontoFacial();
+      const { rows: modoDele } = await pool.query('SELECT ponto_modo FROM users WHERE id = $1', [userId]);
       return res.status(200).json({
+        modo: modoDePonto(modoDele[0]?.ponto_modo),
         entrada: entrada ? entrada.hora_local : null,
         saida: saida ? saida.hora_local : null,
         entradaRecord: entrada || null,
@@ -6857,6 +7492,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
     }
 
     if (url.includes('/api/ponto/export')) {
+      // A folha da loja inteira (horários, GPS e endereço de todos) é do
+      // gestor. Sem esta checagem, qualquer funcionário logado baixava o CSV.
+      if (!(await podeGerirPonto(authPonto))) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode exportar a folha de ponto.' });
+      }
       const store = searchParams.get('store');
       const month = searchParams.get('month'); // yyyy-mm
       if (!store || !month) return res.status(400).json({ error: 'store e month obrigatórios' });
@@ -6878,7 +7518,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       let csv = 'Funcionário,Tipo,Data,Horário,Origem,Justificativa/Observação,Latitude,Longitude,Endereço\n';
       rows.forEach(r => {
         const tipoStr = r.type === 'entrada' ? 'Entrada' : (r.type === 'saida' ? 'Saída' : r.type);
-        const origemStr = r.is_manual ? 'Ajuste Manual (Gestor)' : 'Aplicativo (Selfie/GPS)';
+        const origemStr = r.is_manual ? 'Ajuste Manual (Gestor)' : r.origem === 'quiosque' ? 'Ponto da loja (rosto)' : 'Aplicativo (Selfie/GPS)';
         const notesStr = (r.notes || '').replace(/"/g, "'");
         csv += `"${r.user_name}","${tipoStr}","${r.data_local}","${r.hora_local}","${origemStr}","${notesStr}","${r.latitude || ''}","${r.longitude || ''}","${(r.address || '').replace(/"/g, "'")}"`;
         csv += '\n';
@@ -6905,7 +7545,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/ponto/manual') && method === 'POST') {
       // Lançar batida manual é ato de chefia — sem esta checagem, o próprio
       // funcionário fabricava o espelho de ponto que a contabilidade assina.
-      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+      if (!(await podeGerirPonto(authPonto))) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar ponto manual.' });
       }
       const { userId, userName, store, type, timestamp, notes } = req.body;
@@ -6936,7 +7576,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // a folha de cada um. Padrão: do início do período de fechamento da loja
     // (users.fechamento_dia do dono) até hoje.
     if (url.includes('/api/ponto/saldo') && method === 'GET') {
-      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+      if (!(await podeGerirPonto(authPonto))) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode ver o banco de horas.' });
       }
       const store = authPonto.role === 'master' ? (searchParams.get('store') || authPonto.store) : authPonto.store;
@@ -6958,7 +7598,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     // ── Abonos e feriados (lançados pelo gestor) ──────────────────────
     if (url.includes('/api/ponto/abonos')) {
-      if (!['admin', 'master', 'gestor'].includes(authPonto?.role)) {
+      if (!(await podeGerirPonto(authPonto))) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar abonos e feriados.' });
       }
       await garantirAbonosDePonto();
@@ -7020,7 +7660,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // ── Edição ou Exclusão de Registro de Ponto ───────────────────────
     if (url.includes('/api/ponto/record')) {
       // Corrigir marcação é ato de chefia, e fica registrado em edited_by.
-      const podeEditarPonto = ['admin', 'master', 'gestor'].includes(authPonto?.role);
+      const podeEditarPonto = await podeGerirPonto(authPonto);
 
       // O UPDATE e o DELETE levavam só o id, e o id é sequencial. Amarrar à loja
       // do token é o que impede alcançar o ponto de outra empresa. Duas consultas
@@ -7072,229 +7712,28 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // em nome de outro (o espelho vai para a contabilidade). Ajuste em nome
         // de terceiro é papel de /api/ponto/manual, que exige chefia.
         const userId = authPonto.id;
-        const { rows: euMesmo } = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+        await garantirPontoFacial();
+        const { rows: euMesmo } = await pool.query('SELECT name, ponto_modo FROM users WHERE id = $1', [userId]);
         const userName = euMesmo[0]?.name || authPonto.email || 'Colaborador';
         if (!userId || !store || !type) return res.status(400).json({ error: 'userId, store e type obrigatórios' });
         if (!['entrada', 'saida'].includes(type)) return res.status(400).json({ error: 'type deve ser entrada ou saida' });
+        // O gestor escolheu, na ficha, que este funcionário bate só no ponto
+        // da loja (tablet com reconhecimento facial).
+        if (modoDePonto(euMesmo[0]?.ponto_modo) === 'loja') {
+          return res.status(403).json({ error: 'Seu ponto é batido no ponto da loja (reconhecimento facial), não pela sua conta. Fale com o seu gestor se precisar mudar.' });
+        }
         // Validar GPS
         if (!latitude || !longitude) return res.status(400).json({ error: 'Geolocalização obrigatória. Ative o GPS.' });
         if (accuracy && accuracy > 200) return res.status(400).json({ error: `Precisão do GPS muito baixa (${Math.round(accuracy)}m). Vá para um local aberto.` });
-        // Buscar timezone da loja para cálculos de data consistentes
-        let tz = 'America/Sao_Paulo';
-        if (store) {
-          const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-          if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
-        }
-        // Calcular data de hoje no timezone da loja
-        const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
-        // Verificar sequência: a primeira batida do dia precisa ser entrada
-        if (type === 'saida') {
-          const { rows: entradas } = await pool.query(
-            "SELECT * FROM ponto_records WHERE user_id = $1 AND type = 'entrada' AND timestamp::date = $2",
-            [userId, today]
-          );
-          if (entradas.length === 0) {
-            // Turno que cruza a meia-noite: quem entrou ontem 18h e sai hoje
-            // 02h não tem entrada "de hoje" — mas tem um turno em aberto (a
-            // última batida dele é uma entrada sem saída). Exigir entrada do
-            // dia deixava o noturno sem conseguir registrar a saída.
-            const { rows: ultima } = await pool.query(
-              "SELECT type FROM ponto_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 1",
-              [userId]
-            );
-            const turnoAberto = ultima.length > 0 && ultima[0].type === 'entrada';
-            if (!turnoAberto) return res.status(400).json({ error: 'Registre a entrada antes da saída.' });
-          }
-        }
-        // Upload selfie se houver
-        let selfieUrl = null;
-        if (selfie && selfie.startsWith('data:image')) {
-          try { selfieUrl = await uploadImage(selfie, `ponto/${store}`); } catch (e) { console.error('Erro upload selfie ponto:', e); }
-        }
-        const { rows } = await pool.query(
-          `INSERT INTO ponto_records (user_id, user_name, store, type, latitude, longitude, accuracy, selfie_url, address, device_info)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-          [userId, userName, store, type, latitude, longitude, accuracy, selfieUrl, address, deviceInfo]
-        );
-
-        // Batidas anteriores de hoje e a jornada do dia: dizem se esta é a
-        // "Saída almoço"/"Volta do almoço" (comprovante) e qual horário vale
-        // para o aviso de atraso. Falha aqui não pode derrubar a batida.
-        let tiposAnterioresHoje = [];
-        let jornadaHoje = null;
-        try {
-          const { rows: antes } = await pool.query(
-            'SELECT type FROM ponto_records WHERE user_id = $1 AND timestamp::date = $2 AND id <> $3 ORDER BY timestamp ASC',
-            [userId, today, rows[0].id]
-          );
-          tiposAnterioresHoje = antes.map(r => r.type);
-          jornadaHoje = await getEmployeeScheduleForDay(pool, userId, today);
-        } catch (e) { console.error('Erro ao ler a jornada do dia (ponto):', e.message); }
-        const rotuloBatida = rotuloDaBatida(tiposAnterioresHoje, type, almocoAgora(jornadaHoje, tz));
-
-        // ── Enviar Comprovante de Ponto via WhatsApp para o Funcionário ──
-        try {
-          const evoUrl = process.env.EVOLUTION_API_URL;
-          const evoKey = process.env.EVOLUTION_API_KEY;
-
-          if (evoUrl && evoKey) {
-            const { rows: empDetails } = await pool.query(
-              "SELECT phone, whatsapp_active, whatsapp_phone FROM users WHERE id = $1",
-              [userId]
-            );
-            if (empDetails.length > 0) {
-              const emp = empDetails[0];
-              const isWhatsappActive = emp.whatsapp_active !== false;
-              const targetPhone = emp.whatsapp_phone || emp.phone;
-
-              if (isWhatsappActive && targetPhone) {
-                const cleanPhone = targetPhone.replace(/\D/g, '');
-                const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
-
-                const agora = new Date();
-                const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
-                const dataAtual = agora.toLocaleDateString('pt-BR', { timeZone: tz });
-
-                const textMsg = `⏰ *FireCheck - Comprovante de Ponto*\n\n` +
-                  `Colaborador: *${userName}*\n` +
-                  `Loja: *${store}*\n` +
-                  `Tipo: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
-                  `Data: *${dataAtual}*\n` +
-                  `Hora: *${horaAtual}*\n\n` +
-                  `Seu ponto foi registrado com sucesso! ✅`;
-
-                await enviarWhatsapp({
-                  telefone: fullPhone,
-                  texto: textMsg,
-                  contexto: 'WhatsApp Ponto Funcionario',
-                  loja: store,
-                });
-              }
-            }
-          }
-        } catch (pontoWaErr) {
-          console.error('Erro ao enviar comprovante de ponto via WhatsApp:', pontoWaErr);
-        }
-
-        // ── Push e WhatsApp para admin se funcionário registrou entrada/saída fora da tolerância ──
-        if (store) {
-          try {
-            const configData = jornadaHoje || await getEmployeeScheduleForDay(pool, userId, today);
-
-            if (configData && configData.isWorkday) {
-              // Buscar todos os destinatários da loja (admin, master, gestor)
-              const { rows: soRecipients } = await pool.query(
-                "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone, wa_ponto_atraso FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
-                [store]
-              );
-              const recipients = await comNumerosExtras(store, soRecipients);
-
-              // A tolerância da ESCALA do funcionário (getEmployeeScheduleForDay
-              // devolve `tolerancia`); lia `ponto_tolerancia`, que não vem dali,
-              // e o aviso usava sempre 15 min.
-              const tolerancia = Number(configData.tolerancia ?? configData.ponto_tolerancia ?? 15) || 15;
-
-              // Calcular hora atual no timezone da loja
-              const agora = new Date();
-              const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
-              const [hAtual, mAtual] = horaAtual.split(':').map(Number);
-              const atualMinutos = hAtual * 60 + mAtual;
-
-              let isAtrasado = false;
-              let detalheMsg = '';
-
-              // Só a 1ª entrada do dia é comparada com o horário de entrada. A
-              // volta do almoço (3ª batida) é entrada também, e às 13h "passava
-              // da tolerância de 08:00": todo almoço virava alerta de atraso.
-              // Ela é medida contra o fim do intervalo da escala, quando há.
-              const jaEntrouHoje = tiposAnterioresHoje.includes('entrada');
-              if (type === 'entrada' && jaEntrouHoje) {
-                if (rotuloBatida === 'Volta do almoço' && configData.intervaloFim) {
-                  const [hCfg, mCfg] = configData.intervaloFim.split(':').map(Number);
-                  if (atualMinutos > hCfg * 60 + mCfg + tolerancia) {
-                    isAtrasado = true;
-                    detalheMsg = `voltou do almoço às ${horaAtual} (tolerância: ${configData.intervaloFim} + ${tolerancia}min)`;
-                  }
-                }
-              } else if (type === 'entrada') {
-                const horaEntradaCfg = configData.horaEntrada || '08:00';
-                const [hCfg, mCfg] = horaEntradaCfg.split(':').map(Number);
-                const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
-
-                if (atualMinutos > limiteMinutos) {
-                  isAtrasado = true;
-                  detalheMsg = `registrou entrada às ${horaAtual} (tolerância: ${horaEntradaCfg} + ${tolerancia}min)`;
-                }
-              } else if (type === 'saida') {
-                const horaSaidaCfg = configData.horaSaida || '18:00';
-                const [hCfg, mCfg] = horaSaidaCfg.split(':').map(Number);
-                const limiteMinutos = hCfg * 60 + mCfg + tolerancia;
-
-                if (atualMinutos > limiteMinutos) {
-                  isAtrasado = true;
-                  detalheMsg = `registrou saída às ${horaAtual} (tolerância: ${horaSaidaCfg} + ${tolerancia}min)`;
-                }
-              }
-
-              if (isAtrasado) {
-                for (const adminData of recipients) {
-                  const isWaPontoAtrasoActive = adminData.wa_ponto_atraso !== false;
-                  if (isWaPontoAtrasoActive) {
-                    const adminToken = adminData.fcm_token;
-
-                    // 1. Enviar Push
-                    if (adminToken) {
-                      await admin.messaging().send({
-                        token: adminToken,
-                        notification: {
-                          title: '⏰ Ponto Fora do Horário',
-                          body: `${userName} ${detalheMsg}`
-                        },
-                        data: { url: '/admin' },
-                        apns: { payload: { aps: { sound: 'default', badge: 1 } } }
-                      }).catch(e => console.error('[Push Ponto Atraso] Erro:', e.message));
-                    }
-
-                    // 2. Enviar WhatsApp
-                    try {
-                      const evoUrl = process.env.EVOLUTION_API_URL;
-                      const evoKey = process.env.EVOLUTION_API_KEY;
-                      
-                      const isWhatsappActive = adminData.whatsapp_active !== false;
-                      const targetPhone = adminData.whatsapp_phone || adminData.phone;
-                      
-                      if (evoUrl && evoKey && isWhatsappActive && targetPhone) {
-                        const cleanPhone = targetPhone.replace(/\D/g, '');
-                        const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
-                        
-                        const textMsg = `⏰ *FireCheck - Alerta de Ponto Fora do Horário*\n\n` +
-                          `O colaborador *${userName}* registrou o ponto com atraso na loja *${store}*.\n\n` +
-                          `Tipo de Registro: *${type === 'entrada' ? '📥' : '📤'} ${rotuloBatida}*\n` +
-                          `Horário Registrado: *${horaAtual}*\n` +
-                          `Detalhe: *${detalheMsg}* ⚠️`;
-                          
-                        await enviarWhatsapp({
-                          telefone: fullPhone,
-                          texto: textMsg,
-                          contexto: 'WhatsApp Atraso Admin',
-                          loja: store,
-                        });
-                      }
-                    } catch (waAtrasoErr) {
-                      console.error('Erro ao enviar WhatsApp de atraso para o admin:', waAtrasoErr);
-                    }
-                  }
-                }
-              }
-            }
-          } catch (pushErr) {
-            console.error('Erro ao processar push/wa de atraso de ponto:', pushErr);
-          }
-        }
-
-        return res.status(200).json({ success: true, record: rows[0] });
+        return registrarBatidaDePonto(res, { userId, userName, store, type, latitude, longitude, accuracy, selfie, address, deviceInfo });
       }
       // GET — listar registros
+      // O espelho da loja inteira (selfies, GPS e endereço de cada batida) é
+      // do gestor: funcionário só vê as próprias batidas, por /api/ponto/today.
+      // Antes, qualquer conta da loja listava as fotos e a localização dos colegas.
+      if (!(await podeGerirPonto(authPonto))) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode ver o espelho de ponto da loja.' });
+      }
       const store = searchParams.get('store');
       const date = searchParams.get('date');
       const month = searchParams.get('month');
