@@ -714,7 +714,7 @@ async function instanciaDaLoja(store) {
     const dono = await donoDaLoja(store);
     const conexao = lerJson(dono?.whatsapp_loja, null);
     const { evoUrl, evoKey } = gatewayDasLojas();
-    if (conexao?.instancia && conexao.conectado && evoUrl && evoKey) valor = { evoUrl, evoKey, evoInstance: conexao.instancia };
+    if (conexao?.instancia && conexao.conectado && evoUrl && evoKey) valor = { evoUrl, evoKey, evoInstance: conexao.instancia, comFalha: !!conexao.ultimaFalhaEm };
   } catch (e) {
     console.error('[WhatsApp da loja] não consegui ler a conexão:', e.message);
   }
@@ -837,6 +837,21 @@ function lerPermissoes(bruto) {
 }
 
 /**
+ * O que aparece na tela simples de cada funcionário. Douglas, 22/10/2026: "no
+ * cadastro da equipe eu tenho que conseguir selecionar o que aparece para
+ * aquele funcionário e o que não". Cada seção vem ligada (era o que todo mundo
+ * via até aqui); o gestor desliga o que não serve. A entrada e saída de
+ * estoque (perm_estoque) é o contrário: começa desligada.
+ */
+const TELA_DO_FUNCIONARIO = ['tela_ponto', 'tela_checklists', 'tela_compras', 'tela_ocorrencia', 'tela_descarte'];
+function permissoesDoFuncionario(bruto) {
+  const p = lerPermissoes(bruto);
+  const saida = { perm_estoque: p.perm_estoque === true };
+  for (const chave of TELA_DO_FUNCIONARIO) saida[chave] = p[chave] !== false;
+  return saida;
+}
+
+/**
  * Quem lança entrada e saída de estoque: dono, gestor e master sempre; o
  * funcionário só com "perm_estoque" ligada no cadastro dele. É a gerente que
  * usa a tela simples do funcionário e só precisa do estoque, sem o painel do
@@ -855,12 +870,21 @@ async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instanci
   if (loja && !instancia) {
     const daLoja = await instanciaDaLoja(loja);
     if (daLoja) {
-      const r = await enviarWhatsappPor({ telefone, texto, contexto: `${contexto} · WhatsApp da loja`, ...daLoja });
-      if (r.ok) return { ...r, pelaLoja: true };
+      const { comFalha, ...gateway } = daLoja;
+      const r = await enviarWhatsappPor({ telefone, texto, contexto: `${contexto} · WhatsApp da loja`, ...gateway });
+      if (r.ok) {
+        if (comFalha) await marcarConexaoDaLoja(loja, { ultimaFalhaEm: null, ultimaFalha: null, ultimaFalhaPara: null });
+        return { ...r, pelaLoja: true };
+      }
       // Instância fechada ou apagada no servidor: a tela passa a mostrar
       // "desconectado" e o aviso tenta o número do sistema (se ainda vale).
       if (r.status === 404 || /closed|not.?open|not.?connected|does not exist|n[ãa]o existe|disconnect/i.test(r.detalhe || '')) {
         await marcarConexaoDaLoja(loja, { conectado: false, desconectadoEm: new Date().toISOString() });
+      } else {
+        // A sessão pode dizer "open" e mesmo assim não entregar nada (Pet Nature,
+        // 20–22/10/2026: "Conectado" na tela e os avisos parados). A falha fica
+        // gravada para a tela Notificações mostrar, em vez de silêncio.
+        await marcarConexaoDaLoja(loja, { ultimaFalhaEm: new Date().toISOString(), ultimaFalha: r.motivo || null, ultimaFalhaPara: numeroWhatsapp(telefone).numero || null });
       }
       if (!centralCobreLojas()) return r;
     } else if (!centralCobreLojas()) {
@@ -4103,7 +4127,9 @@ export default async function handler(req, res) {
           }
         }
         
-        const finalPermissions = permissions !== undefined ? (typeof permissions === 'string' ? permissions : JSON.stringify(permissions)) : user.permissions;
+        const finalPermissions = permissions === undefined ? user.permissions
+          : (role !== undefined ? role : user.role) === 'funcionario' ? JSON.stringify(permissoesDoFuncionario(permissions))
+          : (typeof permissions === 'string' ? permissions : JSON.stringify(permissions));
         let finalPhoto = user.photo;
         if (req.body.photo && req.body.photo.startsWith('data:image')) {
             finalPhoto = await uploadImage(req.body.photo, 'users/' + finalStore);
@@ -4359,9 +4385,9 @@ export default async function handler(req, res) {
           }
         }
         
-        // Funcionário tem uma permissão só: o estoque na tela dele (podeMovimentarEstoque).
+        // Funcionário: o que aparece na tela dele e o estoque (permissoesDoFuncionario).
         const permissionsJson = (role === 'gestor' && permissions) ? JSON.stringify(permissions)
-          : (role === 'funcionario' && permissions) ? JSON.stringify({ perm_estoque: lerPermissoes(permissions).perm_estoque === true })
+          : (role === 'funcionario' && permissions) ? JSON.stringify(permissoesDoFuncionario(permissions))
           : null;
         // O colaborador entra na loja já existente: herda a chave e também o rótulo
         // dela. Sem o rótulo, ele veria a chave da conta no lugar do nome da empresa.
@@ -4411,8 +4437,8 @@ export default async function handler(req, res) {
         // conseguia bater o ponto.
         return res.status(200).json(rows.map(u => ({
           id: u.id, name: u.name, role: u.role, photo: u.photo, store: u.store,
-          // Da própria ficha, só se o estoque está liberado na tela dele.
-          ...(String(u.id) === String(authUser.id) ? { perm_estoque: lerPermissoes(u.permissions).perm_estoque === true } : {}),
+          // Da própria ficha, só o que aparece na tela dele e se o estoque está liberado.
+          ...(String(u.id) === String(authUser.id) ? permissoesDoFuncionario(u.permissions) : {}),
           ...((u.role === 'admin' || u.role === 'master')
             ? { ponto_active: u.ponto_active === true, ...(u.status === 'trial' ? { status: 'trial' } : {}) }
             : {}),
@@ -6944,9 +6970,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
       const dono = await donoDaLoja(autorLoja.store);
       if (!dono) return res.status(404).json({ error: 'Loja não encontrada.' });
       const { evoUrl, evoKey } = gatewayDasLojas();
-      const instancia = instanciaDoDono(dono.id);
       const cabecalhos = { 'Content-Type': 'application/json', apikey: evoKey };
       const conexao = lerJson(dono.whatsapp_loja, null) || {};
+      // A instância em uso é a gravada: ela muda de nome a cada conexão nova
+      // (ver /conectar). Sem nada gravado, o nome-base da loja.
+      const instancia = conexao.instancia || instanciaDoDono(dono.id);
       const lerCorpo = async (resp) => { const bruto = await resp.text(); try { return JSON.parse(bruto); } catch { return { bruto }; } };
 
       /** Pergunta ao servidor se a instância da loja está aberta e grava o que mudou. */
@@ -6983,6 +7011,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         const estado = await conferirEstado();
         return res.status(200).json({
           ...estado,
+          ...(estado.conectado && conexao.ultimaFalhaEm ? { ultimaFalhaEm: conexao.ultimaFalhaEm, ultimaFalha: conexao.ultimaFalha || null, ultimaFalhaPara: conexao.ultimaFalhaPara || null } : {}),
           destinos: lerDestinos(dono.wa_destinos),
           centralCobre: centralCobreLojas(),
           podeMexer,
@@ -7003,34 +7032,52 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
       if (!evoUrl || !evoKey) return res.status(200).json({ ok: false, motivo: 'O servidor de WhatsApp não está configurado.' });
 
+      // Apaga uma instância no servidor: logout e delete, sem esperar sucesso.
+      // A Evolution recusa o delete de uma sessão que ela ainda acha "aberta".
+      const apagarInstancia = async (nome) => {
+        for (const [verbo, caminho] of [['DELETE', `/instance/logout/${nome}`], ['DELETE', `/instance/delete/${nome}`]]) {
+          await fetch(`${evoUrl}${caminho}`, { method: verbo, headers: cabecalhos, signal: AbortSignal.timeout(10000) }).catch(() => null);
+        }
+      };
+
       if (url.includes('/api/whatsapp-loja/conectar') && method === 'POST') {
         try {
-          let estado = await fetch(`${evoUrl}/instance/connectionState/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(10000) });
-          if (estado.status === 404) {
-            const criar = await fetch(`${evoUrl}/instance/create`, {
-              method: 'POST', headers: cabecalhos, signal: AbortSignal.timeout(15000),
-              body: JSON.stringify({ instanceName: instancia, qrcode: true, integration: 'WHATSAPP-BAILEYS' }),
-            });
-            if (!criar.ok) {
-              const c = await lerCorpo(criar);
-              const detalhe = c?.response?.message || c?.message || c?.bruto || '';
-              console.error(`[WhatsApp da loja] criar ${instancia} (HTTP ${criar.status}): ${JSON.stringify(detalhe).slice(0, 200)}`);
-              return res.status(200).json({ ok: false, motivo: 'O servidor de WhatsApp não aceitou criar a conexão da loja. Tente de novo em alguns segundos.' });
-            }
-          } else {
-            const c = await lerCorpo(estado);
-            if ((c?.instance?.state || c?.state) === 'open') {
-              await marcarConexaoDaLoja(autorLoja.store, { instancia, conectado: true });
-              return res.status(200).json({ ok: true, conectado: true });
-            }
+          // Já está de pé e a tela sabe disso: nada a fazer — a não ser que o
+          // dono peça um QR novo ("novo": a sessão diz aberta, mas não entrega).
+          if (req.body?.novo !== true && conexao.instancia && conexao.conectado) {
+            const estado = await fetch(`${evoUrl}/instance/connectionState/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(10000) });
+            const c = estado.ok ? await lerCorpo(estado) : null;
+            if ((c?.instance?.state || c?.state) === 'open') return res.status(200).json({ ok: true, conectado: true });
           }
-          await marcarConexaoDaLoja(autorLoja.store, { instancia, conectado: false, pedidoEm: new Date().toISOString() });
-          const r = await fetch(`${evoUrl}/instance/connect/${instancia}`, { headers: cabecalhos, signal: AbortSignal.timeout(15000) });
-          const c = await lerCorpo(r);
-          if ((c?.instance?.state || c?.state) === 'open') return res.status(200).json({ ok: true, conectado: true });
-          const qrBruto = c?.base64 || c?.qrcode?.base64 || null;
+          // Conectar SEMPRE começa do zero, numa instância com nome novo. Antes
+          // reaproveitava a mesma: quando a sessão tinha morrido do lado do
+          // WhatsApp mas a Evolution ainda a dava como "open" (e recusava
+          // apagá-la), o botão "passava direto" para conectado, sem QR Code, e
+          // nenhum aviso saía (Pet Nature, 21–22/10/2026).
+          const velhas = [...new Set([conexao.instancia, conexao.instanciaAntiga, instanciaDoDono(dono.id)].filter(Boolean))];
+          for (const nome of velhas) await apagarInstancia(nome);
+          const nova = `${instanciaDoDono(dono.id)}_${Date.now().toString(36)}`;
+          const criar = await fetch(`${evoUrl}/instance/create`, {
+            method: 'POST', headers: cabecalhos, signal: AbortSignal.timeout(15000),
+            body: JSON.stringify({ instanceName: nova, qrcode: true, integration: 'WHATSAPP-BAILEYS' }),
+          });
+          const criada = await lerCorpo(criar);
+          if (!criar.ok) {
+            const detalhe = criada?.response?.message || criada?.message || criada?.bruto || '';
+            console.error(`[WhatsApp da loja] criar ${nova} (HTTP ${criar.status}): ${JSON.stringify(detalhe).slice(0, 200)}`);
+            return res.status(200).json({ ok: false, motivo: 'O servidor de WhatsApp não aceitou criar a conexão da loja. Tente de novo em alguns segundos.' });
+          }
+          await marcarConexaoDaLoja(autorLoja.store, { instancia: nova, instanciaAntiga: null, conectado: false, numero: null, ultimaFalhaEm: null, ultimaFalha: null, ultimaFalhaPara: null, pedidoEm: new Date().toISOString() });
+          // O create da Evolution v2 já devolve o QR; o connect é a segunda chance.
+          let qrBruto = criada?.qrcode?.base64 || criada?.base64 || null;
+          let codigo = criada?.qrcode?.pairingCode || criada?.pairingCode || null;
+          if (!qrBruto && !codigo) {
+            const r = await fetch(`${evoUrl}/instance/connect/${nova}`, { headers: cabecalhos, signal: AbortSignal.timeout(15000) });
+            const c = await lerCorpo(r);
+            qrBruto = c?.base64 || c?.qrcode?.base64 || null;
+            codigo = c?.pairingCode || c?.qrcode?.pairingCode || null;
+          }
           const qr = qrBruto ? (String(qrBruto).startsWith('data:') ? qrBruto : `data:image/png;base64,${qrBruto}`) : null;
-          const codigo = c?.pairingCode || c?.qrcode?.pairingCode || null;
           if (!qr && !codigo) return res.status(200).json({ ok: false, motivo: 'O servidor não devolveu o QR Code desta vez. Tente de novo em alguns segundos.' });
           return res.status(200).json({ ok: true, conectado: false, qr, codigo });
         } catch (e) {
@@ -7040,10 +7087,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
       }
 
       if (url.includes('/api/whatsapp-loja/desconectar') && method === 'POST') {
-        for (const [verbo, caminho] of [['DELETE', `/instance/logout/${instancia}`], ['DELETE', `/instance/delete/${instancia}`]]) {
-          await fetch(`${evoUrl}${caminho}`, { method: verbo, headers: cabecalhos, signal: AbortSignal.timeout(10000) }).catch(() => null);
-        }
-        await marcarConexaoDaLoja(autorLoja.store, { instancia: null, conectado: false, numero: null, desconectadoEm: new Date().toISOString() });
+        await apagarInstancia(instancia);
+        // O nome fica guardado: se a Evolution não apagou, a próxima conexão apaga.
+        await marcarConexaoDaLoja(autorLoja.store, { instancia: null, instanciaAntiga: instancia, conectado: false, numero: null, ultimaFalhaEm: null, ultimaFalha: null, ultimaFalhaPara: null, desconectadoEm: new Date().toISOString() });
         return res.status(200).json({ ok: true });
       }
 

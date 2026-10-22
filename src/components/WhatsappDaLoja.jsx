@@ -76,11 +76,13 @@ export default function WhatsappDaLoja() {
     }, 3000);
   };
 
-  const conectar = async () => {
+  // novo = true: QR Code novo mesmo com a tela dizendo "Conectado" (a sessão
+  // pode estar aberta no servidor e não entregar nada).
+  const conectar = async (novo = false) => {
     setOcupado(true);
     setAviso(null);
     try {
-      const r = await fetch(`${API_URL}/api/whatsapp-loja/conectar`, { method: 'POST', headers: cabecalhos(), body: '{}' });
+      const r = await fetch(`${API_URL}/api/whatsapp-loja/conectar`, { method: 'POST', headers: cabecalhos(), body: JSON.stringify({ novo }) });
       const j = await r.json().catch(() => ({}));
       if (!j.ok) {
         setAviso({ ok: false, texto: j.motivo || j.error || 'Não deu para gerar o QR Code.' });
@@ -166,16 +168,30 @@ export default function WhatsappDaLoja() {
         </div>
       ))}
 
+      {estado.conectado && estado.ultimaFalhaEm && (
+        <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '10px', fontSize: '0.86rem', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#b91c1c', lineHeight: 1.5 }}>
+          <strong>⚠️ O último aviso não saiu</strong>
+          {' '}({new Date(estado.ultimaFalhaEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          {estado.ultimaFalhaPara ? `, para ${formatarNumero(estado.ultimaFalhaPara)}` : ''}): {estado.ultimaFalha || 'o servidor de WhatsApp recusou o envio.'}
+          {' '}Se os avisos pararam para todo mundo, clique em <strong>Conectar de novo</strong> e leia o QR Code com o celular da loja.
+        </div>
+      )}
+
       {podeMexer && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '16px' }}>
           {!estado.conectado ? (
-            <button className="btn" onClick={conectar} disabled={ocupado} style={{ padding: '12px 18px', borderRadius: '8px', backgroundColor: VERDE, opacity: ocupado ? 0.7 : 1 }}>
+            <button className="btn" onClick={() => conectar()} disabled={ocupado} style={{ padding: '12px 18px', borderRadius: '8px', backgroundColor: VERDE, opacity: ocupado ? 0.7 : 1 }}>
               {ocupado ? 'Gerando o QR Code...' : qr ? 'Gerar outro QR Code' : 'Conectar o WhatsApp da loja'}
             </button>
           ) : (
-            <button className="btn-secondary" onClick={desconectar} disabled={ocupado} style={{ padding: '12px 18px', borderRadius: '8px' }}>
-              Desconectar
-            </button>
+            <>
+              <button className="btn-secondary" onClick={() => conectar(true)} disabled={ocupado} style={{ padding: '12px 18px', borderRadius: '8px' }}>
+                {ocupado ? 'Gerando o QR Code...' : 'Conectar de novo (novo QR Code)'}
+              </button>
+              <button className="btn-secondary" onClick={desconectar} disabled={ocupado} style={{ padding: '12px 18px', borderRadius: '8px' }}>
+                Desconectar
+              </button>
+            </>
           )}
         </div>
       )}

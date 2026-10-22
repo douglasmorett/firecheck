@@ -154,30 +154,53 @@ const PERMISSION_LABELS = {
   perm_notificacoes: '🔔 Notificações',
 };
 
+// O que aparece na tela simples do funcionário (Douglas, 22/10/2026: "no
+// cadastro da equipe eu tenho que conseguir selecionar o que aparece para aquele
+// funcionário e o que não"). Ligado por padrão — era o que todos viam —, menos
+// a entrada e saída de estoque, que o gestor libera. O servidor guarda as mesmas
+// chaves (permissoesDoFuncionario) e confere o estoque em podeMovimentarEstoque.
+const TELA_DO_FUNCIONARIO = [
+  { chave: 'tela_ponto', rotulo: '⏰ Bater ponto', ajuda: 'O card "Meu ponto" (só aparece se a loja tem o ponto).' },
+  { chave: 'tela_checklists', rotulo: '📋 Checklists', ajuda: 'Os checklists atribuídos a ele.' },
+  { chave: 'tela_compras', rotulo: '🛒 Conferência de estoque', ajuda: 'As listas de compras para contar o que tem na loja.' },
+  { chave: 'perm_estoque', rotulo: '📦 Entrada e saída de estoque', ajuda: 'Lança a mercadoria que chegou e o que saiu, numa tela simples, sem o painel do gestor.', padrao: false },
+  { chave: 'tela_ocorrencia', rotulo: '⚠️ Registrar ocorrência', ajuda: 'O botão para avisar o que fugiu da rotina.' },
+  { chave: 'tela_descarte', rotulo: '🗑️ Registrar descarte', ajuda: 'O botão para lançar perda e descarte.' },
+];
+
+const telaDoFuncionario = (perms) => Object.fromEntries(
+  TELA_DO_FUNCIONARIO.map(({ chave, padrao = true }) => [chave, padrao ? perms?.[chave] !== false : perms?.[chave] === true])
+);
+
 // O que vai para o servidor em `permissions`: o gestor leva o quadro todo; o
-// funcionário, só o estoque na tela dele (o servidor confere em
-// podeMovimentarEstoque); os outros papéis, nada.
+// funcionário, o que aparece na tela dele; os outros papéis, nada.
 const permissoesParaSalvar = (role, perms) => {
   if (role === 'gestor') return perms || DEFAULT_GESTOR_PERMISSIONS;
-  if (role === 'funcionario') return { perm_estoque: perms?.perm_estoque === true };
+  if (role === 'funcionario') return telaDoFuncionario(perms);
   return null;
 };
 
-// Pedido da Pet Nature (16/10/2026): a gerente usa a tela simples do
-// funcionário (ponto e checklists) e precisa dar entrada e saída no estoque,
-// sem o painel inteiro do gestor.
-function PermissaoDeEstoqueDoFuncionario({ ligada, onChange }) {
+function TelaDoFuncionario({ perms, onChange }) {
+  const atual = telaDoFuncionario(perms);
   return (
     <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(8, 145, 178, 0.05)', border: '1px solid rgba(8, 145, 178, 0.2)', borderRadius: '12px' }}>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
-        <input type="checkbox" checked={ligada} onChange={e => onChange(e.target.checked)} style={{ marginTop: '3px' }} />
-        <span>
-          <strong style={{ color: '#0891b2' }}>📦 Controle de estoque na tela do funcionário</strong>
-          <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-            Pode dar entrada e saída de mercadoria e ver o histórico das listas de compras, sem acesso ao painel do gestor.
-          </span>
-        </span>
+      <label className="input-label" style={{ display: 'block', color: '#0891b2', marginBottom: '4px', fontWeight: 'bold' }}>
+        👀 O que aparece na tela deste funcionário
       </label>
+      <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+        Desmarque o que ele não usa: a tela fica mais simples e direta.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        {TELA_DO_FUNCIONARIO.map(({ chave, rotulo, ajuda }) => (
+          <label key={chave} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+            <input type="checkbox" checked={atual[chave]} onChange={e => onChange({ ...atual, [chave]: e.target.checked })} style={{ marginTop: '3px' }} />
+            <span>
+              <strong style={{ fontSize: '0.9rem' }}>{rotulo}</strong>
+              <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>{ajuda}</span>
+            </span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
@@ -5802,9 +5825,9 @@ export default function AdminDashboard() {
               </div>
 
               {newUser.role === 'funcionario' && (
-                <PermissaoDeEstoqueDoFuncionario
-                  ligada={newUser.permissions?.perm_estoque === true}
-                  onChange={v => setNewUser({ ...newUser, permissions: { perm_estoque: v } })}
+                <TelaDoFuncionario
+                  perms={newUser.permissions}
+                  onChange={perms => setNewUser({ ...newUser, permissions: perms })}
                 />
               )}
 
@@ -6219,9 +6242,9 @@ export default function AdminDashboard() {
               </div>
 
               {editingUser.role === 'funcionario' && (
-                <PermissaoDeEstoqueDoFuncionario
-                  ligada={editingUser.permissions?.perm_estoque === true}
-                  onChange={v => setEditingUser({ ...editingUser, permissions: { ...(editingUser.permissions || {}), perm_estoque: v } })}
+                <TelaDoFuncionario
+                  perms={editingUser.permissions}
+                  onChange={perms => setEditingUser({ ...editingUser, permissions: perms })}
                 />
               )}
 

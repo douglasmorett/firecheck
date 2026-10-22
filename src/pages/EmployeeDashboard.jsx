@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
-import EstoqueDaLista from '../components/EstoqueDaLista';
+import EstoqueSimples from '../components/EstoqueSimples';
 
 // O dia operacional é o de SÃO PAULO — a MESMA régua do ChecklistExecution,
 // que grava o rascunho sob esta chave. Com toISOString() (UTC), das 21h à
@@ -114,6 +114,9 @@ export default function EmployeeDashboard() {
   // Entrada e saída de estoque na tela simples: o gestor liga no cadastro
   // (permissions.perm_estoque) e o servidor confere de novo a cada lançamento.
   const [podeEstoque, setPodeEstoque] = useState(false);
+  // O que aparece nesta tela: o gestor escolhe no cadastro do funcionário
+  // (permissions.tela_*). Tudo ligado até a ficha dizer o contrário.
+  const [tela, setTela] = useState({ tela_ponto: true, tela_checklists: true, tela_compras: true, tela_ocorrencia: true, tela_descarte: true });
   const [estoqueAberto, setEstoqueAberto] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState(null);
@@ -250,6 +253,7 @@ export default function EmployeeDashboard() {
         .then(users => {
           const eu = Array.isArray(users) ? users.find(u => String(u.id) === String(profile.id)) : null;
           setPodeEstoque(eu?.perm_estoque === true);
+          if (eu) setTela(t => Object.fromEntries(Object.keys(t).map(k => [k, eu[k] !== false])));
           const admin = Array.isArray(users) ? users.find(u => u.role === 'admin' || u.role === 'master') : null;
           if (admin && (admin.ponto_active || admin.status === 'trial')) {
              setHasPonto(true);
@@ -773,6 +777,7 @@ export default function EmployeeDashboard() {
           Antes a seção sumia em Modo Simulação, então o lojista que entrava para
           conhecer "a tela do funcionário" via exatamente o contrário do que
           existe de verdade. */}
+      {(tela.tela_ocorrencia || tela.tela_descarte) && (
       <section style={{ marginBottom: '32px' }}>
         {isImpersonating && (
           <p style={{ margin: '0 0 8px 0', fontSize: '0.78rem', color: '#b45309', fontWeight: 'bold' }}>
@@ -780,6 +785,7 @@ export default function EmployeeDashboard() {
           </p>
         )}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          {tela.tela_ocorrencia && (
           <button
             className="btn"
             onClick={() => { setTipoRegistro('ocorrencia'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
@@ -787,6 +793,8 @@ export default function EmployeeDashboard() {
           >
             <AlertCircle size={20} /> Registrar Ocorrência
           </button>
+          )}
+          {tela.tela_descarte && (
           <button
             className="btn"
             onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); carregarItensFirehub(); }}
@@ -794,10 +802,12 @@ export default function EmployeeDashboard() {
           >
             <Package size={20} /> Registrar Descarte
           </button>
+          )}
         </div>
       </section>
+      )}
 
-      {hasPonto && (
+      {hasPonto && tela.tela_ponto && (
         <section style={{ marginBottom: '32px' }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Clock size={16} /> Meu Ponto (Hoje)
@@ -968,7 +978,7 @@ export default function EmployeeDashboard() {
           return matchesUser(s.assigned_to);
         });
 
-        if (pendingShopping.length === 0) return null;
+        if (!tela.tela_compras || pendingShopping.length === 0) return null;
 
         return (
           <section style={{ marginBottom: '32px' }}>
@@ -1080,9 +1090,10 @@ export default function EmployeeDashboard() {
       )}
 
       {estoqueAberto && (
-        <EstoqueDaLista lista={estoqueAberto} onFechar={() => setEstoqueAberto(null)} onMudou={() => userProfile && fetchShoppingLists(userProfile)} />
+        <EstoqueSimples lista={estoqueAberto} onFechar={() => setEstoqueAberto(null)} onMudou={() => userProfile && fetchShoppingLists(userProfile)} />
       )}
 
+      {tela.tela_checklists && (
       <section style={{ marginBottom: '32px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1211,8 +1222,9 @@ export default function EmployeeDashboard() {
           )}
         </div>
       </section>
+      )}
 
-      {completedChecklists.length > 0 && (
+      {tela.tela_checklists && completedChecklists.length > 0 && (
         <section>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
