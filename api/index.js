@@ -3975,7 +3975,10 @@ export default async function handler(req, res) {
     if (url.includes('/api/webhooks/cakto')) {
       if (method === 'POST') {
         try {
-          const payload = req.body;
+          // Corpo sem Content-Type JSON chega como texto: sem isto o segredo do
+          // corpo some e a requisição volta 401.
+          let payload = req.body;
+          if (typeof payload === 'string') { try { payload = JSON.parse(payload); } catch { /* segue como veio */ } }
 
           // ── Autenticação do webhook ────────────────────────────────────────
           // Sem isto, qualquer POST da internet ativa um plano pago para si ou
@@ -4004,15 +4007,20 @@ export default async function handler(req, res) {
               'Defina CAKTO_WEBHOOK_SECRET na Vercel e o mesmo valor na Cakto para fechar.'
             );
           } else {
-            const enviado =
-              req.headers['x-cakto-signature'] ||
-              req.headers['x-webhook-secret'] ||
-              req.headers['x-hub-signature'] ||
-              String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') ||
-              searchParams.get('secret') ||
-              payload?.secret;
-            if (!comparaSegredo(String(enviado || ''), segredoWebhook)) {
-              console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada.');
+            // Vale se QUALQUER lugar trouxer o segredo. Antes pegava só o primeiro
+            // preenchido: a Cakto manda o segredo no corpo e, se um desses
+            // cabeçalhos viesse com outra coisa, o corpo nem era comparado e toda
+            // renovação voltava 401 (Batata da Paz 22/09, Pet Nature 03/10).
+            const candidatos = [
+              req.headers['x-cakto-signature'],
+              req.headers['x-webhook-secret'],
+              req.headers['x-hub-signature'],
+              String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, ''),
+              searchParams.get('secret'),
+              payload?.secret,
+            ].filter(Boolean);
+            if (!candidatos.some(c => comparaSegredo(String(c), segredoWebhook))) {
+              console.error('[CAKTO WEBHOOK] Assinatura inválida. Requisição recusada. Cabeçalhos:', Object.keys(req.headers).join(','), '| secret no corpo:', typeof payload?.secret);
               return res.status(401).json({ error: 'Assinatura inválida.' });
             }
           }
