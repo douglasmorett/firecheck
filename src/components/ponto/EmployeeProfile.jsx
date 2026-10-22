@@ -141,6 +141,18 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         body: JSON.stringify({ ...scheduleForm, store: userProfile.store })
       });
       if (res.ok) {
+        // O botão diz "Criar Escala e Vincular", mas só criava: a escala nova
+        // não ficava ligada ao funcionário, e quem confiava no botão saía da
+        // ficha com ele sem escala (sem atraso, falta nem banco de horas).
+        const nova = await res.json().catch(() => null);
+        if (nova?.id) {
+          setSelectedSchedule(String(nova.id));
+          await fetch(`${API_URL}/api/users/${employee.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('firecheck_token') || '') },
+            body: JSON.stringify({ schedule_id: nova.id })
+          }).catch(() => {});
+        }
         setShowScheduleModal(false);
         onUpdateEmployee();
       } else {
