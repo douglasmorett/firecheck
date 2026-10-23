@@ -27,7 +27,7 @@ const TIPOS = {
   saida: { rotulo: 'Saída', titulo: 'Saiu do estoque', pergunta: 'Quanto saiu?', cor: '#ef4444', fundo: 'rgba(239, 68, 68, 0.06)', Icone: Minus, obs: 'Motivo (opcional)', exemplo: 'Ex.: uso, perda, vencido' },
 };
 
-export default function EstoqueSimples({ lista, onFechar, onMudou }) {
+export default function EstoqueSimples({ lista, onFechar, onMudou, simulacao = false }) {
   const [tipo, setTipo] = useState('entrada');
   const [itens, setItens] = useState([]);
   const [valores, setValores] = useState({});
@@ -74,6 +74,11 @@ export default function EstoqueSimples({ lista, onFechar, onMudou }) {
 
   const confirmar = async () => {
     if (!preenchidos.length || salvando) return;
+    // Em simulação o token é o do dono: o lançamento entraria no estoque de verdade.
+    if (simulacao) {
+      alert('É assim que o colaborador lança. Como você está em Modo Simulação, nada foi gravado no estoque.');
+      return;
+    }
     setSalvando(true);
     setErros({});
     setFeito(null);

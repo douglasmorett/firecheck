@@ -5466,6 +5466,10 @@ export default async function handler(req, res) {
       // quem comprou até 30. A regra mora num lugar só, aqui.
       return res.status(200).json(rows.map(u => ({
         ...u,
+        // O Modo Simulação abre a tela do funcionário com o token do dono e lê
+        // daqui o que aparece para ele; sem isto, a simulação ignorava a ficha
+        // (Pet Nature, 22/10/2026: "Entrada e saída" marcada e nada aparecia).
+        ...(u.role === 'funcionario' ? permissoesDoFuncionario(u.permissions) : {}),
         colaboradores: Number(u.colaboradores || 0),
         colaboradores_limite: tetoDeColaboradores(u),
       })));

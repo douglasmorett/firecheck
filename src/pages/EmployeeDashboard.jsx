@@ -1125,7 +1125,7 @@ export default function EmployeeDashboard() {
       )}
 
       {estoqueAberto && (
-        <EstoqueSimples lista={estoqueAberto} onFechar={() => setEstoqueAberto(null)} onMudou={() => userProfile && fetchShoppingLists(userProfile)} />
+        <EstoqueSimples lista={estoqueAberto} simulacao={isImpersonating} onFechar={() => setEstoqueAberto(null)} onMudou={() => userProfile && fetchShoppingLists(userProfile)} />
       )}
 
       {tela.tela_checklists && (
