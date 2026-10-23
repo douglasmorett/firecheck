@@ -679,6 +679,12 @@ const testesWhatsapp = new Map();
 // sistema de bloqueio. WHATSAPP_CENTRAL_PARA_LOJAS=true religa o número do
 // sistema como reserva, se um dia for preciso.
 const centralCobreLojas = () => String(process.env.WHATSAPP_CENTRAL_PARA_LOJAS || '').toLowerCase() === 'true';
+// O número do sistema (EVOLUTION_INSTANCE) é o do atendimento do FireHub, que
+// já foi banido por envio automático. Douglas, 23/10/2026: "firecheck não deve
+// mandar nada também". Senha, cobrança, robô e alertas não saem por ele; só
+// WHATSAPP_DO_SISTEMA_ENVIA=true religa.
+const instanciaDoSistema = () => process.env.EVOLUTION_INSTANCE || 'firecheck';
+const sistemaEnvia = () => String(process.env.WHATSAPP_DO_SISTEMA_ENVIA || '').toLowerCase() === 'true';
 const gatewayDasLojas = () => ({
   evoUrl: String(process.env.EVOLUTION_LOJAS_URL || process.env.EVOLUTION_API_URL || '').replace(/\/+$/, ''),
   evoKey: process.env.EVOLUTION_LOJAS_KEY || process.env.EVOLUTION_API_KEY || '',
@@ -902,6 +908,11 @@ async function enviarWhatsapp({ telefone, texto, contexto = 'WhatsApp', instanci
 }
 
 async function enviarWhatsappPor({ telefone, texto, contexto, evoUrl, evoKey, evoInstance }) {
+  if (evoInstance === instanciaDoSistema() && !sistemaEnvia()) {
+    const motivo = 'O WhatsApp do sistema não envia mensagens.';
+    console.log(`[${contexto}] ${motivo}`);
+    return { ok: false, motivo };
+  }
 
   if (!evoUrl || !evoKey) {
     const motivo = 'A integração de WhatsApp não está configurada no servidor (EVOLUTION_API_URL/EVOLUTION_API_KEY).';
@@ -1080,6 +1091,7 @@ async function vigiarConexaoWhatsapp() {
   const suporte = process.env.EVOLUTION_SUPPORT_INSTANCE || 'evopdv';
   const principal = process.env.EVOLUTION_INSTANCE || 'firecheck';
   if (suporte === principal) return; // sem canal independente, o aviso não sai
+  if (!sistemaEnvia()) return; // desligado de propósito: nem religar nem alarmar
 
   let conexao = await estadoWhatsapp();
   console.log(`[Vigia da conexao] instância "${principal}": ${conexao.conectado ? 'conectada' : (conexao.motivo || 'estado desconhecido')}`);
@@ -8801,6 +8813,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
           // Função auxiliar para enviar resposta via WhatsApp
           const sendWAReply = async (text) => {
+            if (evoInstance === instanciaDoSistema() && !sistemaEnvia()) return;
             if (!evoUrl || !evoKey) {
               console.error('[WA Bot] EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurado.');
               return;
