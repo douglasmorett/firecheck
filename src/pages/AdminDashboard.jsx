@@ -11,6 +11,7 @@ import PontoModule from '../components/ponto/PontoModule';
 import WhatsappDaLoja from '../components/WhatsappDaLoja';
 import { respostaDaTarefa } from '../utils/respostaDaTarefa';
 import EstoqueDaLista from '../components/EstoqueDaLista';
+import CodigosDeAtivacao from '../components/CodigosDeAtivacao';
 import BotaoTutorial from '../components/tutoriais/BotaoTutorial';
 import BotaoTutoriaisEmVideo from '../components/tutoriais/BotaoTutoriaisEmVideo';
 import { centralAbreSozinha, lerUsuario } from '../tutoriais/telas';
@@ -2652,6 +2653,7 @@ export default function AdminDashboard() {
           {(isMaster ? [
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
             { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
+            { key: 'codigos',     label: 'Códigos de ativação', icon: <Lock size={18}/> },
           ] : [
             { key: 'auditoria',   label: 'Dashboard', icon: <Activity size={18}/> },
             { key: 'ponto',       label: 'Controle de Ponto IA', icon: <UserCheck size={18}/> },
@@ -3999,6 +4001,8 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Tab: Landing Page Analytics ─────────────────────────────────────── */}
+      {tab === 'codigos' && isMaster && <CodigosDeAtivacao addToast={addToast} />}
+
       {tab === 'quiz' && (
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>

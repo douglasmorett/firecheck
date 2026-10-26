@@ -215,6 +215,13 @@ export default function Login() {
             >
               Ver Planos e Assinar
             </button>
+            <br/>
+            <button
+              onClick={() => navigate('/ativar')}
+              style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: '500', cursor: 'pointer', padding: '8px 0', fontSize: '0.85rem' }}
+            >
+              Tenho um código de ativação
+            </button>
           </p>
         </div>
         )}

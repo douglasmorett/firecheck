@@ -297,6 +297,15 @@ export default function RenewPlan() {
       >
         <ShieldCheck size={14} /> Pagamento 100% seguro via Cakto. Acesso liberado automaticamente após confirmação.
       </div>
+
+      {/* Quem comprou pelo Mercado Livre renova com outro código, sem assinatura. */}
+      <button
+        className="btn-secondary"
+        onClick={() => navigate(`/ativar${email ? `?email=${encodeURIComponent(email)}` : ''}`)}
+        style={{ marginTop: '16px', padding: '10px 18px', fontSize: '0.85rem' }}
+      >
+        Tenho um código de ativação
+      </button>
     </div>
   );
 }

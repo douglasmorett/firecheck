@@ -14,6 +14,7 @@ import QuizFunnel from './pages/QuizFunnel';
 import TermsOfUse from './pages/TermsOfUse';
 import PontoPage from './pages/PontoPage';
 import RenewPlan from './pages/RenewPlan';
+import AtivarCodigo from './pages/AtivarCodigo';
 import ThankYou from './pages/ThankYou';
 import ResellerPage from './pages/ResellerPage';
 import CentralDeTutoriais from './components/tutoriais/CentralDeTutoriais';
@@ -213,6 +214,7 @@ function App() {
           {/* Tela de Login do Sistema */}
           <Route path="/login" element={<Login />} />
           <Route path="/renovar" element={<RenewPlan />} />
+          <Route path="/ativar" element={<AtivarCodigo />} />
           
           {/* Painel do Dono */}
           <Route path="/admin" element={<AdminDashboard />} />
