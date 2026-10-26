@@ -213,11 +213,10 @@ export default function LandingPage() {
             min-height: 450px;
           }
           .video-phone-mockup {
-            width: 280px; 
-            height: 580px; 
-            background: #000000; 
-            border: 12px solid #18181b; 
-            border-radius: 36px; 
+            width: 320px;
+            aspect-ratio: 9 / 16;
+            background: #ffffff;
+            border-radius: 24px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); 
             position: relative; 
             overflow: hidden;
@@ -278,10 +277,8 @@ export default function LandingPage() {
               margin-top: 24px; 
             }
             .video-phone-mockup {
-               width: 250px !important; /* Tamanho proporcional para celular sem precisar usar scale */
-               height: 520px !important;
-               border: 8px solid #18181b !important;
-               border-radius: 28px !important;
+               width: 270px !important; /* Tamanho proporcional para celular sem precisar usar scale */
+               border-radius: 20px !important;
                transform: none !important; /* Desativa scale instável */
                margin-bottom: 0px !important;
             }
@@ -317,11 +314,11 @@ export default function LandingPage() {
            <div className="hero-video-wrapper" style={{ position: 'relative' }}>
              <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '120%', height: '120%', background: 'radial-gradient(circle, rgba(255,77,0,0.15) 0%, transparent 60%)', filter: 'blur(50px)', zIndex: -1 }}></div>
              <div className="video-phone-mockup">
-               <div style={{ position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)', width: '120px', height: '24px', background: '#18181b', borderBottomLeftRadius: '16px', borderBottomRightRadius: '16px', zIndex: 50 }}></div>
                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                  <video 
                    ref={videoRef}
-                   src="/demo2.mp4" 
+                   src="/firecheck-checklist-clipe.mp4"
+                   poster="/firecheck-checklist-clipe-capa.jpg"
                    autoPlay
                    muted={!isVideoActive}
                    loop 
