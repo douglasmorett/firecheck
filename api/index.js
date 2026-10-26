@@ -5,6 +5,7 @@ import admin, { uploadImage } from './firebase-admin.js';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import { PRODUTOS, normalizarCodigo, garantirTabelasDeCodigos, gerarLote } from './_codigos-ativacao.js';
 
 // ── Segurança: Connection string via env var (NUNCA hardcoded) ──
 const pool = new Pool({
@@ -600,6 +601,86 @@ function getAiCreationLimit(plan) {
   if (p.includes('business') || p === 'anual') return 250;
   if (p === 'enterprise' || p === 'master' || p === 'trial') return 999999;
   return 50; // default/starter (mais barato)
+}
+
+// ── O que um código de ativação faz numa conta ───────────────────────────────
+//
+// A conta tem UM vencimento (expiration_date) para tudo; o ponto é a chave
+// ponto_active. Regras, para ninguém sair perdendo:
+//  - os dias entram DEPOIS do que a conta ainda tem (plano pago ou teste);
+//  - quem já tem o outro produto valendo vira Combo (checklists + ponto);
+//  - plano que já inclui o produto (combo, anual, enterprise) fica como está;
+//  - conta ativa sem vencimento continua sem vencimento;
+//  - nunca baixa o teto de colaboradores nem a cota de checklists.
+const fmtDia = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+const FALHAS_DE_CODIGO = 10; // códigos errados por origem em 15 minutos
+
+let codigosProntos = false;
+async function garantirCodigos() {
+  if (codigosProntos) return;
+  await garantirTabelasDeCodigos(pool);
+  codigosProntos = true;
+}
+
+function nomeDoPlano(plano) {
+  const p = String(plano || '').toLowerCase();
+  if (p.startsWith('combo')) return 'Combo (checklists + ponto)';
+  if (p.startsWith('checklists')) return 'Checklist inteligente';
+  if (p.startsWith('ponto')) return 'Controle de ponto do funcionário';
+  if (p === 'trial' || !p) return 'Teste grátis';
+  return p;
+}
+
+function fimDoTeste(conta) {
+  if (conta.trial_ends_at) return new Date(conta.trial_ends_at);
+  const fim = new Date(conta.created_at);
+  fim.setDate(fim.getDate() + 7);
+  return fim;
+}
+
+function codigoNaConta(conta, produto, dias, agora = new Date()) {
+  const plano = String(conta.plan || '').toLowerCase();
+  const semVencimento = conta.status === 'active' && !conta.expiration_date;
+  const pagoValendo = conta.status === 'active' && (semVencimento || new Date(conta.expiration_date) > agora);
+  const testeValendo = conta.status === 'trial' && !trialExpirado(conta);
+  const temPonto = pagoValendo && (conta.ponto_active === true || /^(ponto|combo)/.test(plano));
+  const temChecklists = pagoValendo && plano !== '' && plano !== 'trial' && !/^ponto/.test(plano);
+
+  // Assinatura da Cakto do MESMO produto: a próxima cobrança regrava o vencimento
+  // a partir do dia do pagamento, e os dias do código seriam pagos duas vezes.
+  const caktoDoMesmo = pagoValendo && (produto === 'checklists'
+    ? !!conta.cakto_subscription_id && !/^ponto/.test(plano)
+    : !!conta.cakto_ponto_subscription_id || (!!conta.cakto_subscription_id && /^(ponto|combo)/.test(plano)));
+
+  let plano_depois;
+  if (plano === 'enterprise' && pagoValendo) plano_depois = plano;
+  else if (pagoValendo && (plano.startsWith('combo') || (produto === 'checklists' ? plano.startsWith('checklists') : plano.startsWith('ponto')))) plano_depois = plano;
+  else if (produto === 'checklists') plano_depois = temPonto ? 'combo_mensal' : 'checklists_mensal';
+  else plano_depois = temChecklists ? 'combo_mensal' : 'ponto_mensal';
+
+  let base = agora;
+  if (pagoValendo && !semVencimento) base = new Date(conta.expiration_date);
+  else if (testeValendo) base = new Date(Math.max(fimDoTeste(conta).getTime(), agora.getTime()));
+  const validade_depois = semVencimento ? null : new Date(base.getTime() + dias * 86400000);
+
+  const ponto_depois = produto === 'ponto' || temPonto || plano_depois.startsWith('combo');
+  const ponto_limit = Math.max(Number(conta.ponto_limit) || 0, COLABORADORES_POR_PLANO[plano_depois] || 0, pagoValendo ? tetoDeColaboradores(conta) : 0);
+  const checklist_limit = Math.max(Number(conta.checklist_limit) || 0, getPlanLimit(plano_depois));
+
+  const nome = PRODUTOS[produto].nome;
+  const ate = validade_depois ? `até ${fmtDia(validade_depois)}` : 'sem data de vencimento, como já era';
+  let explicacao;
+  if (plano_depois.startsWith('combo') && !plano.startsWith('combo')) {
+    explicacao = `Você já tem ${produto === 'ponto' ? 'o Checklist inteligente' : 'o Controle de ponto'} valendo. Com este código a conta passa para o Combo (checklists + ponto), tudo ${ate}. Os dias que você já tinha continuam contando.`;
+  } else if (pagoValendo) {
+    explicacao = `Os ${dias} dias entram depois do vencimento atual${semVencimento ? '' : ` (${fmtDia(conta.expiration_date)})`}: ${nome} ${ate}.`;
+  } else if (testeValendo) {
+    explicacao = `Os dias de teste que ainda faltavam somam aos ${dias} do código: ${nome} ${ate}.`;
+  } else {
+    explicacao = `A conta volta a funcionar com o ${nome}, ${ate}.`;
+  }
+
+  return { plano_antes: conta.plan || null, plano_depois, validade_depois, ponto_depois, ponto_limit, checklist_limit, saiDoTeste: conta.status === 'trial', caktoDoMesmo, explicacao };
 }
 
 // ── Um telefone brasileiro no formato que o WhatsApp aceita ──────────────────
@@ -4748,6 +4829,193 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: error.message });
         }
       }
+    }
+
+    // ── Resgate do código de ativação (venda no Mercado Livre) ──────────────
+    //
+    // Sem token: quem resgata pode não ter conta, ou ter uma vencida (o login
+    // recusa conta vencida). Conta existente prova a senha aqui mesmo.
+    //
+    // Força bruta: cada código errado conta contra a origem, no banco; passou de
+    // FALHAS_DE_CODIGO em 15 minutos, espera. A senha errada cai no mesmo freio
+    // do login, para isto não virar um atalho de adivinhar senha.
+    if (url.includes('/api/ativar') && method === 'POST') {
+      await garantirCodigos();
+      const b = req.body || {};
+      const origem = origemDaRequisicao(req);
+      const recusa = (http, error) => res.status(http).json({ status: 'error', error });
+
+      const { rows: [{ n: falhas }] } = await pool.query(
+        "SELECT COUNT(*)::int AS n FROM codigos_ativacao_falhas WHERE origem = $1 AND criado_em > NOW() - INTERVAL '15 minutes'",
+        [origem]
+      );
+      if (falhas >= FALHAS_DE_CODIGO) return recusa(429, 'Muitas tentativas com código errado. Aguarde 15 minutos e tente de novo.');
+      const falhou = async (http, error) => {
+        await pool.query('INSERT INTO codigos_ativacao_falhas (origem) VALUES ($1)', [origem]);
+        await pool.query("DELETE FROM codigos_ativacao_falhas WHERE criado_em < NOW() - INTERVAL '1 day'");
+        return recusa(http, error);
+      };
+
+      const codigo = normalizarCodigo(b.codigo);
+      if (!codigo) return falhou(400, 'Esse não é um código do FireCheck. Ele tem o formato FC-CHK-XXXX-XXXX ou FC-PNT-XXXX-XXXX.');
+      const { rows: [cod] } = await pool.query('SELECT * FROM codigos_ativacao WHERE codigo = $1', [codigo]);
+      if (!cod) return falhou(404, 'Código não encontrado. Confira letra por letra o código que veio na sua compra.');
+      if (cod.usado_em) return falhou(409, `Este código já foi usado em ${fmtDia(cod.usado_em)}. Cada código ativa uma conta uma vez só.`);
+      if (b.produto && PRODUTOS[b.produto] && b.produto !== cod.produto) {
+        return recusa(409, `Este código é do ${PRODUTOS[cod.produto].nome}, não do ${PRODUTOS[b.produto].nome}. Confira se é o código da compra certa.`);
+      }
+      const produto = cod.produto;
+      const nomeDoProduto = PRODUTOS[produto].nome;
+
+      // Marca o código e grava a conta na MESMA transação: dois cliques (ou duas
+      // abas) com o mesmo código não ativam duas contas. Com max:1 na Vercel, o
+      // que precisa de pool.query (chave da loja, hash) vem antes do connect.
+      const aplicar = async (gravarConta) => {
+        const cliente = await pool.connect();
+        try {
+          await cliente.query('BEGIN');
+          const { rowCount } = await cliente.query('UPDATE codigos_ativacao SET usado_em = NOW() WHERE id = $1 AND usado_em IS NULL', [cod.id]);
+          if (rowCount === 0) { await cliente.query('ROLLBACK'); return null; }
+          const { conta, efeito } = await gravarConta(cliente);
+          await cliente.query(
+            `UPDATE codigos_ativacao SET usado_por_user_id = $2, usado_por_store = $3, usado_por_email = $4,
+                    plano_antes = $5, plano_depois = $6, validade_depois = $7 WHERE id = $1`,
+            [cod.id, conta.id, conta.store, conta.email, efeito.plano_antes, efeito.plano_depois, efeito.validade_depois]
+          );
+          await cliente.query('COMMIT');
+          return conta;
+        } catch (e) {
+          await cliente.query('ROLLBACK').catch(() => {});
+          throw e;
+        } finally {
+          cliente.release();
+        }
+      };
+      const entrou = (conta, efeito) => {
+        const { password: _, ...contaSemSenha } = conta;
+        const token = jwt.sign({ id: conta.id, email: conta.email, role: conta.role, store: conta.store }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+        console.log(`[CÓDIGO] ${codigo} (${produto}, ${cod.dias} dias) → ${conta.email}: ${efeito.plano_antes || 'conta nova'} → ${efeito.plano_depois}, até ${efeito.validade_depois ? fmtDia(efeito.validade_depois) : 'sem vencimento'}`);
+        return res.status(200).json({
+          status: 'success', token, user: contaSemSenha,
+          resumo: { produto, nomeDoProduto, dias: cod.dias, plano: efeito.plano_depois, nomeDoPlano: nomeDoPlano(efeito.plano_depois), validade: efeito.validade_depois, explicacao: efeito.explicacao },
+        });
+      };
+
+      if (b.modo === 'nova') {
+        const empresa = String(b.empresa || '').trim();
+        const nome = String(b.nome || '').trim();
+        const email = String(b.email || '').trim().toLowerCase();
+        const senha = String(b.senha || '');
+        const whatsapp = String(b.whatsapp || '').replace(/\D/g, '');
+        if (!empresa || !nome) return recusa(400, 'Preencha o nome da empresa e o seu nome.');
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return recusa(400, 'E-mail inválido.');
+        if (senha.length < 6) return recusa(400, 'A senha precisa ter pelo menos 6 caracteres.');
+        if (whatsapp.length < 10 || whatsapp.length > 13) return recusa(400, 'WhatsApp inválido: use DDD + número, ex.: 21999998888.');
+        const { rows: jaExiste } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        if (jaExiste.length > 0) return recusa(409, 'Este e-mail já tem conta no FireCheck. Escolha "Já tenho conta" e entre com a sua senha.');
+
+        const hash = await bcrypt.hash(senha, 12);
+        const chaveDaLoja = await gerarChaveDeLoja(empresa);
+        const efeito = codigoNaConta({ status: 'pending', plan: null }, produto, cod.dias);
+        let conta;
+        try {
+          conta = await aplicar(async (cliente) => {
+            const { rows: [nova] } = await cliente.query(
+              `INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, expiration_date, ponto_active, ponto_limit, checklist_limit)
+               VALUES ($1, $2, $3, 'admin', $4, $5, 'active', $6, $7, $8, $9, $10, $11) RETURNING *`,
+              [nome, email, hash, chaveDaLoja, empresa, whatsapp, efeito.plano_depois, efeito.validade_depois, efeito.ponto_depois, efeito.ponto_limit, efeito.checklist_limit]
+            );
+            return { conta: nova, efeito };
+          });
+        } catch (e) {
+          if (e.code === '23505') return recusa(409, 'Este e-mail já tem conta no FireCheck. Escolha "Já tenho conta" e entre com a sua senha.');
+          throw e;
+        }
+        if (!conta) return recusa(409, 'Este código acabou de ser usado. Cada código ativa uma conta uma vez só.');
+        return entrou(conta, efeito);
+      }
+
+      // ── Conta existente ──
+      const email = String(b.email || '').trim();
+      const senha = String(b.senha || '');
+      if (!email || !senha) return recusa(400, 'Informe o e-mail e a senha da sua conta.');
+      const rlKey = rateLimitKey(origem, email);
+      if (!checkRateLimit(rlKey)) {
+        const minutos = Math.max(1, Math.ceil(segundosDeEspera(rlKey) / 60));
+        return recusa(429, `Muitas tentativas de senha. Aguarde ${minutos} minuto${minutos > 1 ? 's' : ''} e tente novamente.`);
+      }
+      const { rows: [user] } = await pool.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      const senhaConfere = user && user.password && (user.password.startsWith('$2') ? await bcrypt.compare(senha, user.password) : senha === user.password);
+      if (!senhaConfere) {
+        registerLoginFailure(rlKey);
+        return recusa(401, 'E-mail ou senha incorretos.');
+      }
+      clearLoginFailures(rlKey);
+      limparFreioDaConta(rlKey);
+      if (user.role === 'master') return recusa(403, 'Conta master não usa código de ativação.');
+      if (user.role !== 'admin') return recusa(403, 'Só o dono da conta (quem cadastrou a empresa) pode ativar o código. Peça para ele entrar aqui.');
+
+      const efeito = codigoNaConta(user, produto, cod.dias);
+      if (efeito.caktoDoMesmo) {
+        return recusa(409, `Sua conta já paga o ${nomeDoProduto} pela assinatura do site. Para você não pagar duas vezes pelo mesmo período, o código NÃO foi usado e continua valendo: use em outra conta ou fale com o suporte do FireCheck para trocar a assinatura pelo código.`);
+      }
+      if (!b.confirmar) {
+        return res.status(200).json({
+          status: 'previa', produto, nomeDoProduto, dias: cod.dias,
+          antes: { plano: user.plan, nomeDoPlano: nomeDoPlano(user.plan), validade: user.status === 'trial' ? fimDoTeste(user) : user.expiration_date, status: user.status },
+          depois: { plano: efeito.plano_depois, nomeDoPlano: nomeDoPlano(efeito.plano_depois), validade: efeito.validade_depois },
+          explicacao: efeito.explicacao,
+        });
+      }
+      const conta = await aplicar(async (cliente) => {
+        const { rows: [atualizada] } = await cliente.query(
+          `UPDATE users SET status = 'active', plan = $2, expiration_date = $3, ponto_active = $4, ponto_limit = $5, checklist_limit = $6
+                  ${efeito.saiDoTeste ? ', checklists_used = 0, upgrade_alert_sent = FALSE' : ''}
+            WHERE id = $1 RETURNING *`,
+          [user.id, efeito.plano_depois, efeito.validade_depois, efeito.ponto_depois, efeito.ponto_limit, efeito.checklist_limit]
+        );
+        // A equipe criada no teste (ou com o pagamento pendente) guarda status
+        // próprio; sem isto a loja paga e os colaboradores continuam travados.
+        if (user.store) {
+          await cliente.query(
+            `UPDATE users SET status = 'active' WHERE LOWER(TRIM(store)) = LOWER(TRIM($1))
+               AND role IN ('gestor', 'funcionario', 'employee') AND status IN ('trial', 'pending')`,
+            [user.store]
+          );
+        }
+        return { conta: atualizada, efeito };
+      });
+      if (!conta) return recusa(409, 'Este código acabou de ser usado. Cada código ativa uma conta uma vez só.');
+      return entrou(conta, efeito);
+    }
+
+    // ── Lotes de códigos pela tela do master ──
+    if (url.includes('/api/codigos-ativacao')) {
+      const autor = await autenticarComLojaAtual(req);
+      if (!autor) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (autor.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+      await garantirCodigos();
+      if (method === 'POST') {
+        const { produto, quantidade, dias, lote } = req.body || {};
+        try {
+          const r = await gerarLote(pool, { produto, quantidade: Number(quantidade), dias: Number(dias || 30), lote, criadoPor: autor.email });
+          return res.status(200).json(r);
+        } catch (e) {
+          return res.status(400).json({ error: e.message });
+        }
+      }
+      const lote = searchParams.get('lote');
+      if (lote) {
+        const { rows } = await pool.query(
+          'SELECT codigo, produto, dias, usado_em, usado_por_email, usado_por_store FROM codigos_ativacao WHERE lote = $1 ORDER BY id',
+          [lote]
+        );
+        return res.status(200).json({ lote, codigos: rows });
+      }
+      const { rows } = await pool.query(`
+        SELECT lote, produto, dias, origem, COUNT(*)::int AS total, COUNT(usado_em)::int AS usados, MIN(criado_em) AS criado_em
+          FROM codigos_ativacao GROUP BY lote, produto, dias, origem ORDER BY MIN(criado_em) DESC LIMIT 100`);
+      return res.status(200).json({ lotes: rows });
     }
 
     if (url.includes('/api/signup')) {
