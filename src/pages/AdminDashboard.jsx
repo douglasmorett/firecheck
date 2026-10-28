@@ -3378,7 +3378,7 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Tab: Paywall Módulo Ponto ──────────────────── */}
-      {(vendeNoApp && tab === 'ponto' &&!userProfile?.ponto_active && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
+      {(vendeNoApp && tab === 'ponto' &&!userProfile?.ponto_active && !userProfile?.cobranca_firehub && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
         <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
             <UserCheck size={48} color="#3b82f6" />
@@ -3540,12 +3540,16 @@ export default function AdminDashboard() {
         <div className="card animate-fade-up" style={{ textAlign: 'center', padding: '60px 20px' }}>
            <Clock size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }}/>
            <h2 style={{ margin: '0 0 12px 0' }}>Controle de Ponto Bloqueado</h2>
-           <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto 24px' }}>Seu plano atual não inclui o módulo de Ponto Inteligente com reconhecimento facial e GPS.</p>
+           <p style={{ color: 'var(--text-muted)', maxWidth: '400px', margin: '0 auto 24px' }}>
+             {userProfile?.cobranca_firehub
+               ? 'O Controle de ponto está desligado. Para usar, ligue em Checklist e ponto, no painel do FireHub: a cobrança vem no boleto da mensalidade.'
+               : 'Seu plano atual não inclui o módulo de Ponto Inteligente com reconhecimento facial e GPS.'}
+           </p>
            {/* Levava para setTab('assinatura'), aba que não existe: a tela ficava em
                branco. Quem está aqui não tem o módulo de Ponto, então o produto certo
                é o Combo — o mesmo destino do botão "Combo Completo" usado na tela de
                limite de cota. */}
-           {vendeNoApp && (
+           {vendeNoApp && !userProfile?.cobranca_firehub && (
            <button
              className="btn"
              onClick={() => window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}
@@ -4260,8 +4264,16 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      {/* ── Tab: Checklist desligado no FireHub ─────────────────────────── */}
+      {(tab === 'checklists' && userProfile?.cobranca_firehub && userProfile?.checklists_active === false) && (
+        <div className="card animate-fade-up" style={{ textAlign: 'center', padding: '60px 20px' }}>
+           <ClipboardList size={48} color="var(--text-muted)" style={{ marginBottom: '16px' }}/>
+           <h2 style={{ margin: '0 0 12px 0' }}>Checklist desligado</h2>
+           <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto' }}>Para usar os checklists, ligue o Checklist em Checklist e ponto, no painel do FireHub. A cobrança vem no boleto da mensalidade.</p>
+        </div>
+      )}
       {/* ── Tab: Gerenciar Checklists ──────────────────────────────────── */}
-      {tab === 'checklists' && (
+      {tab === 'checklists' && !(userProfile?.cobranca_firehub && userProfile?.checklists_active === false) && (
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>

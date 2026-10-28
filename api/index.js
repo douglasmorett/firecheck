@@ -366,7 +366,13 @@ async function autenticarComLojaAtual(req) {
   if (!authUser || !authUser.id) return authUser;
   try {
     const { rows } = await pool.query(
-      'SELECT store, password_changed_at FROM users WHERE id = $1',
+      `SELECT u.store, u.password_changed_at, u.role, d.cobranca_firehub, d.status AS status_do_dono, d.firehub_sincronizado_em
+         FROM users u
+         LEFT JOIN LATERAL (
+           SELECT cobranca_firehub, status, firehub_sincronizado_em FROM users d
+            WHERE LOWER(TRIM(d.store)) = LOWER(TRIM(u.store)) AND d.role = 'admin' LIMIT 1
+         ) d ON TRUE
+        WHERE u.id = $1`,
       [authUser.id]
     );
     if (rows.length === 0) return null;
@@ -386,6 +392,16 @@ async function autenticarComLojaAtual(req) {
       // Um segundo de folga: o token emitido no mesmo instante da troca é o
       // token NOVO, e derrubá-lo deslogaria quem acabou de trocar a senha.
       if (authUser.iat < trocaEmSegundos - 1) return null;
+    }
+
+    // ── Conta paga pelo boleto do FireHub: desligou ou atrasou, para já ────
+    // Sem isto o token de 7 dias seguiria valendo depois do desligamento. A
+    // releitura é a cada poucos minutos, não a cada requisição.
+    if (rows[0].cobranca_firehub === true && rows[0].role !== 'master') {
+      let status = rows[0].status_do_dono;
+      const lidoEm = rows[0].firehub_sincronizado_em ? new Date(rows[0].firehub_sincronizado_em).getTime() : 0;
+      if (Date.now() - lidoEm > RELER_FIREHUB_MS) status = (await sincronizarComFirehub(rows[0].store)) || status;
+      if (status === 'blocked') return null;
     }
 
     if (rows[0].store) return { ...authUser, store: rows[0].store };
@@ -2443,6 +2459,138 @@ async function integracaoFirehubDaLoja(store) {
   return rows[0] || null;
 }
 
+// ── Módulos pagos pelo boleto do FireHub ────────────────────────────────────
+//
+// Douglas, 28/10/2026: o lojista do FireHub liga o Checklist e o Controle de
+// ponto no painel de lá e paga na mensalidade do FireHub (R$ 149 cada, os dois
+// R$ 197). O FireHub é a fonte da verdade: daqui só se PERGUNTA o que está
+// liberado (GET <url>/api/integracoes/firecheck/modulos, com a chave da
+// ligação) e se aplica na conta do dono. Sem cron e sem regra repetida: a
+// virada do mês e o bloqueio por mensalidade em aberto ("deixou de pagar
+// qualquer coisinha, bloqueia completo. Tudo junto.") saem da conta de lá.
+//
+// A conta que passa a seguir o FireHub fica com `cobranca_firehub`: sem
+// vencimento, plano e chaves (`ponto_active`, `checklists_active`) iguais ao
+// que está ligado lá. É relida no login e, com no máximo alguns minutos de
+// atraso, em toda requisição autenticada (autenticarComLojaAtual) — o token
+// vale 7 dias e o desligamento não pode esperar tudo isso.
+//
+// FireHub fora do ar: vale a última resposta gravada. A loja que já pagava
+// não pode parar por um tropeço do outro sistema.
+const RELER_FIREHUB_MS = 3 * 60 * 1000;
+const PRAZO_DA_LEITURA_FIREHUB_MS = 4000;
+
+async function lerModulosNoFirehub(integ) {
+  const urlFirehub = urlDoFirehubPermitida(integ.url);
+  if (!urlFirehub) return null;
+  try {
+    const resp = await fetch(`${urlFirehub}/api/integracoes/firecheck/modulos`, {
+      headers: { Authorization: `Bearer ${integ.chave}` },
+      signal: AbortSignal.timeout(PRAZO_DA_LEITURA_FIREHUB_MS),
+    });
+    if (!resp.ok) return { recusou: resp.status };
+    const corpo = await resp.json().catch(() => null);
+    return corpo && corpo.ok ? corpo : null;
+  } catch (e) {
+    console.error('[FireHub] não deu para ler os módulos:', e.message);
+    return null;
+  }
+}
+
+function planoDosModulos(checklists, ponto) {
+  if (checklists && ponto) return 'combo_mensal';
+  return checklists ? 'checklists_mensal' : 'ponto_mensal';
+}
+
+// Grava na linha do dono o que o FireHub respondeu. Devolve o status aplicado.
+async function aplicarModulosDoFirehub(store, m) {
+  const { rows } = await pool.query(
+    "SELECT id, role, status, cobranca_firehub FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') ORDER BY (role = 'admin') DESC LIMIT 1",
+    [store]
+  );
+  const dono = rows[0];
+  // O master não segue cobrança de ninguém.
+  if (!dono || dono.role === 'master') return null;
+  const checklists = m.checklists === true;
+  const ponto = m.ponto === true;
+  if (m.bloqueada === true || (!checklists && !ponto)) {
+    const motivo = m.bloqueada === true ? 'mensalidade' : 'desligado';
+    await pool.query(
+      "UPDATE users SET cobranca_firehub = TRUE, status = 'blocked', firehub_motivo = $2, firehub_sincronizado_em = NOW() WHERE id = $1",
+      [dono.id, motivo]
+    );
+    if (dono.status !== 'blocked') console.log(`[FireHub] loja "${store}" bloqueada pelo FireHub (${motivo}).`);
+    return 'blocked';
+  }
+  const plano = planoDosModulos(checklists, ponto);
+  await pool.query(
+    `UPDATE users SET cobranca_firehub = TRUE, status = 'active', expiration_date = NULL, firehub_motivo = NULL,
+            plan = $2, ponto_active = $3, checklists_active = $4, ponto_limit = $5, checklist_limit = $6,
+            firehub_sincronizado_em = NOW()
+      WHERE id = $1`,
+    [dono.id, plano, ponto, checklists, COLABORADORES_POR_PLANO[plano], getPlanLimit(plano)]
+  );
+  // A equipe cadastrada no teste ou com pagamento pendente entra junto (como no pagamento da Cakto).
+  await pool.query(
+    "UPDATE users SET status = 'active' WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role <> 'admin' AND role <> 'master' AND status IN ('trial', 'pending')",
+    [store]
+  );
+  if (dono.status !== 'active' || !dono.cobranca_firehub) console.log(`[FireHub] loja "${store}" liberada pelo FireHub: ${plano}.`);
+  return 'active';
+}
+
+// A ligação caiu numa conta que o FireHub pagava: sem ela, ninguém mais diz o
+// que está pago, então para (e volta ao conectar e ligar de novo lá).
+async function bloquearSemFirehub(store, motivo) {
+  const { rowCount } = await pool.query(
+    "UPDATE users SET status = 'blocked', firehub_motivo = $2, firehub_sincronizado_em = NOW() WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' AND cobranca_firehub = TRUE",
+    [store, motivo]
+  );
+  if (rowCount > 0) console.log(`[FireHub] loja "${store}" parada: ${motivo}.`);
+  return rowCount > 0 ? 'blocked' : null;
+}
+
+// Pergunta ao FireHub e aplica. `null` = não deu para perguntar ou a loja
+// nunca ligou módulo lá (a ligação é só do descarte): nada muda aqui.
+async function sincronizarComFirehub(store) {
+  const integ = await integracaoFirehubDaLoja(store);
+  if (!integ) return null;
+  const m = await lerModulosNoFirehub(integ);
+  if (m && m.recusou === 401) return bloquearSemFirehub(integ.store, 'desconectado');
+  if (!m || m.recusou || !m.peloFirehub) return null;
+  return aplicarModulosDoFirehub(integ.store, m);
+}
+
+// O mesmo que a régua do login diz, para a conta que segue o FireHub.
+function mensagemDoFirehub(motivo, ehDono) {
+  if (motivo === 'mensalidade') {
+    return ehDono
+      ? 'O FireCheck está bloqueado porque a mensalidade do FireHub está em aberto. Pague a fatura no painel do FireHub e ele volta sozinho em poucos minutos.'
+      : 'O FireCheck da sua empresa está bloqueado por pagamento em aberto. Avise o responsável pela loja.';
+  }
+  if (motivo === 'desligado' || motivo === 'desconectado') {
+    return ehDono
+      ? 'O FireCheck está desligado no FireHub. Para usar, ligue o Checklist ou o Controle de ponto em Checklist e ponto, no painel do FireHub.'
+      : 'O FireCheck da sua empresa está desligado. Avise o responsável pela loja.';
+  }
+  return null;
+}
+
+// Checklist desligado numa conta paga pelo FireHub (só o ponto ligado).
+async function checklistDesligadoNaLoja(store) {
+  if (!store) return false;
+  try {
+    const { rows } = await pool.query(
+      "SELECT cobranca_firehub, checklists_active FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+      [store]
+    );
+    return rows[0]?.cobranca_firehub === true && rows[0]?.checklists_active === false;
+  } catch {
+    return false;
+  }
+}
+const MENSAGEM_CHECKLIST_DESLIGADO = 'O Checklist não está ligado para esta loja. Para usar, ligue o Checklist em Checklist e ponto, no painel do FireHub.';
+
 // Quanto do teto de quatro segundos do registro o FireHub pode usar. Sobra um
 // fôlego para gravar o resultado antes de a resposta sair.
 const PRAZO_FIREHUB_MS = 3700;
@@ -3066,6 +3214,13 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_last_worked_day TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_subscription_id VARCHAR(100)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_ponto_subscription_id VARCHAR(100)");
+      // ── Módulos pagos pelo boleto do FireHub (sincronizarComFirehub) ──
+      // checklists_active só vale para quem segue o FireHub: as contas da Cakto
+      // e dos códigos nunca tiveram chave de checklist e continuam como estão.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cobranca_firehub BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_active BOOLEAN DEFAULT TRUE");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS firehub_motivo TEXT");
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS firehub_sincronizado_em TIMESTAMPTZ");
       // Migrar limites de ponto para planos existentes
       await pool.query("UPDATE users SET ponto_limit = 15 WHERE plan IN ('pro', 'pro_mensal', 'mensal') AND (ponto_limit IS NULL OR ponto_limit = 5)");
       await pool.query("UPDATE users SET ponto_limit = 50 WHERE plan IN ('business', 'business_mensal', 'anual') AND (ponto_limit IS NULL OR ponto_limit = 5)");
@@ -3480,6 +3635,28 @@ export default async function handler(req, res) {
             return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
           }
 
+          // ── Conta paga pelo boleto do FireHub: o que vale é o de lá, agora ──
+          if (user.role !== 'master' && user.store) {
+            const { rows: dono } = await pool.query(
+              "SELECT cobranca_firehub FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+              [user.store]
+            );
+            if (dono[0]?.cobranca_firehub === true) {
+              await sincronizarComFirehub(user.store);
+              const { rows: depois } = await pool.query(
+                "SELECT status, firehub_motivo FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+                [user.store]
+              );
+              const msg = depois[0]?.status === 'blocked' ? mensagemDoFirehub(depois[0].firehub_motivo, user.role === 'admin') : null;
+              if (msg) return res.status(403).json({ status: 'error', firehub: true, error: msg });
+              // O dono sai com o plano e as chaves que o FireHub acabou de dar.
+              if (user.role === 'admin') {
+                const { rows: relido } = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
+                if (relido[0]) Object.assign(user, relido[0]);
+              }
+            }
+          }
+
           // ── Verificação de Bloqueio ──────────────────────────
           // Funcionários herdam o status do admin da loja
           if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
@@ -3631,6 +3808,9 @@ export default async function handler(req, res) {
         // checklists, inclusive removendo a própria restrição de acesso.
         if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
           return res.status(403).json({ error: 'Somente o administrador ou gestor pode criar ou editar checklists.' });
+        }
+        if (authUser.role !== 'master' && await checklistDesligadoNaLoja(authUser.store)) {
+          return res.status(403).json({ checklistDesligado: true, error: MENSAGEM_CHECKLIST_DESLIGADO });
         }
 
         // A loja vem do token, nunca do corpo — exceto para master, que opera
@@ -4794,12 +4974,16 @@ export default async function handler(req, res) {
             // cancelamento era de OUTRA assinatura. Quem tem dois planos
             // (checklists e ponto) perdia o acesso ao cancelar apenas um.
             const { rows: contaAlvo } = await pool.query(
-              'SELECT id, cakto_subscription_id, cakto_ponto_subscription_id FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
+              'SELECT id, cakto_subscription_id, cakto_ponto_subscription_id, cobranca_firehub FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1',
               [customerEmail]
             );
 
             if (contaAlvo.length === 0) {
               console.warn(`[CAKTO] Cancelamento recebido para ${customerEmail}, mas a conta não existe.`);
+            } else if (contaAlvo[0].cobranca_firehub === true) {
+              // Quem paga pelo boleto do FireHub segue o FireHub: o cancelamento
+              // de uma assinatura antiga da Cakto não pode parar a loja.
+              console.log(`[CAKTO] ${customerEmail}: cancelamento ignorado, a conta é paga pelo FireHub.`);
             } else {
               const conta = contaAlvo[0];
               const idChecklists = conta.cakto_subscription_id;
@@ -5421,6 +5605,12 @@ export default async function handler(req, res) {
               return res.status(403).json({ error: `O campo ${campo} só pode ser alterado pelo suporte FireCheck.` });
             }
           }
+          // O módulo de ponto do DONO também é contrato (Cakto, código ou boleto
+          // do FireHub): sem esta trava, o próprio admin ligava o ponto pelo
+          // cadastro sem pagar. Comparado como sim/não: nulo e falso são o mesmo.
+          if (user.role === 'admin' && ponto_active !== undefined && Boolean(ponto_active) !== Boolean(user.ponto_active)) {
+            return res.status(403).json({ error: 'O módulo de ponto só pode ser ligado pelo suporte FireCheck ou pelo pagamento.' });
+          }
           // Data comparada como instante — o corpo manda texto e o banco
           // devolve Date; comparar como string acusaria mudança onde não há.
           if (expiration_date !== undefined && expiration_date !== null) {
@@ -5727,6 +5917,7 @@ export default async function handler(req, res) {
       }
       const { rows } = await pool.query(`
         SELECT u.id, u.name, u.email, u.role, u.store, COALESCE(u.store_name, u.store) AS store_name, u.plan, u.phone, u.status, u.created_at, u.expiration_date, u.camera_expiration, u.ponto_active, u.finance_active, u.checklist_limit, u.checklists_used, u.quota_reset_date, u.timezone, u.contador_email, u.fechamento_dia, u.ponto_hora_entrada, u.ponto_hora_saida, u.ponto_tolerancia, u.whatsapp_active, u.whatsapp_phone, u.wa_ponto_atraso, u.wa_checklist_reprovado, u.wa_checklist_atrasado, u.wa_ponto_diario, u.wa_checklist_aprovado, u.wa_ocorrencia, u.wa_descarte, u.schedule_id, u.ponto_last_worked_day, u.permissions, u.photo, u.trial_ends_at, u.ponto_limit,
+               u.cobranca_firehub, u.checklists_active, u.firehub_motivo,
                ws.name AS schedule_name, ws.color AS schedule_color,
                -- Quantas pessoas a loja tem cadastradas. É este número, e não o de
                -- checklists, que os planos limitam: a página de vendas anuncia
@@ -5753,7 +5944,11 @@ export default async function handler(req, res) {
           // Da própria ficha, só o que aparece na tela dele e se o estoque está liberado.
           ...(String(u.id) === String(authUser.id) ? permissoesDoFuncionario(u.permissions) : {}),
           ...((u.role === 'admin' || u.role === 'master')
-            ? { ponto_active: u.ponto_active === true, ...(u.status === 'trial' ? { status: 'trial' } : {}) }
+            ? {
+                ponto_active: u.ponto_active === true, ...(u.status === 'trial' ? { status: 'trial' } : {}),
+                // Conta paga pelo FireHub só com o ponto: a tela esconde os checklists.
+                ...(u.cobranca_firehub === true && u.checklists_active === false ? { checklists_active: false } : {}),
+              }
             : {}),
         })));
       }
@@ -5824,6 +6019,9 @@ export default async function handler(req, res) {
         // A loja sai do token. Antes vinha do corpo, então dava para lançar
         // submissão dentro da loja de outro cliente.
         const store = autorFinalize.role === 'master' ? await lojaCanonica(req.body.store || autorFinalize.store) : autorFinalize.store;
+        if (autorFinalize.role !== 'master' && await checklistDesligadoNaLoja(store)) {
+          return res.status(403).json({ checklistDesligado: true, error: MENSAGEM_CHECKLIST_DESLIGADO });
+        }
 
         // Envio sem nenhuma tarefa (checklist inteiro atribuído a outra pessoa,
         // aberto como "0 de 0") virava uma auditoria em branco no painel.
@@ -7358,6 +7556,88 @@ Responda APENAS com JSON válido.`;
     // tela daqui: não há token de usuário do FireCheck. conectar se prova com o
     // e-mail e a senha do dono; desconectar, com a chave que o próprio FireHub
     // gerou na ligação.
+    // ── Módulos pelo boleto do FireHub (sincronizarComFirehub) ─────────────────
+    //
+    // criar-conta: o FireHub cria a conta do dono que ainda não tem FireCheck.
+    // Não há senha para provar quem pede; a prova é a chave: daqui se pergunta
+    // ao FireHub (só firehubfood.com.br, urlDoFirehubPermitida) se ela é dele e
+    // de qual loja. A conta nasce parada ('desligado') e só funciona quando um
+    // módulo for ligado lá — senão seria uma conta sem vencimento de graça.
+    if (url.includes('/api/integracoes/firehub/criar-conta')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const { chave, firehubLojaId, urlDoFirehub } = req.body || {};
+      const idLojaFirehub = firehubLojaId != null ? String(firehubLojaId).trim() : '';
+      if (!idLojaFirehub) return res.status(400).json({ error: 'firehubLojaId é obrigatório.' });
+      if (typeof chave !== 'string' || chave.length < 32 || chave.length > 1000) return res.status(400).json({ error: 'chave inválida.' });
+      const urlFirehub = urlDoFirehubPermitida(urlDoFirehub);
+      if (!urlFirehub) return res.status(400).json({ error: 'urlDoFirehub não permitida.' });
+
+      const m = await lerModulosNoFirehub({ url: urlFirehub, chave });
+      if (!m || m.recusou || String(m.lojaId) !== idLojaFirehub) return res.status(401).json({ error: 'O FireHub não confirmou esta chave.' });
+      const email = String(m.email || '').trim().toLowerCase();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A loja do FireHub está sem e-mail válido.' });
+      const { rows: jaExiste } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      if (jaExiste.length > 0) {
+        return res.status(409).json({ contaExiste: true, error: `O e-mail ${email} já tem conta no FireCheck. Conecte com a senha dela no quadro "Conectar o FireCheck".` });
+      }
+      const { rows: ligada } = await pool.query('SELECT store FROM integracao_firehub WHERE firehub_loja_id = $1 LIMIT 1', [idLojaFirehub]);
+      if (ligada.length > 0) return res.status(409).json({ error: 'Esta loja do FireHub já está conectada a um FireCheck.' });
+
+      const nomeDaLoja = String(m.loja || '').trim().slice(0, 200) || 'Minha loja';
+      const senha = Array.from({ length: 10 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[crypto.randomInt(31)]).join('');
+      const hash = await bcrypt.hash(senha, 12);
+      const store = await gerarChaveDeLoja(nomeDaLoja);
+      try {
+        await pool.query(
+          `INSERT INTO users (name, email, password, role, store, store_name, status, cobranca_firehub, firehub_motivo, checklists_active, ponto_active)
+           VALUES ($1, $2, $3, 'admin', $4, $5, 'blocked', TRUE, 'desligado', FALSE, FALSE)`,
+          [nomeDaLoja, email, hash, store, nomeDaLoja]
+        );
+      } catch (e) {
+        if (e.code === '23505') return res.status(409).json({ contaExiste: true, error: `O e-mail ${email} já tem conta no FireCheck. Conecte com a senha dela.` });
+        throw e;
+      }
+      await pool.query(
+        `INSERT INTO integracao_firehub (store, firehub_loja_id, firehub_loja_nome, chave, url, conectado_por)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [store, idLojaFirehub, nomeDaLoja, chave, urlFirehub, email]
+      );
+      console.log(`[FireHub] conta "${store}" (${email}) criada pelo FireHub para a loja ${idLojaFirehub}.`);
+      return res.status(200).json({ ok: true, store, storeName: nomeDaLoja, email, senha });
+    }
+
+    // conta: o FireHub confere, antes de ligar um módulo, se ele já é pago
+    // pela Cakto (pagaria duas vezes). Mesma régua do código de ativação.
+    if (url.includes('/api/integracoes/firehub/conta')) {
+      if (method !== 'GET') return res.status(405).json({ error: 'Método não permitido.' });
+      const chave = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (chave.length < 32) return res.status(401).json({ error: 'Chave ausente ou inválida.' });
+      const { rows: integ } = await pool.query('SELECT store FROM integracao_firehub WHERE chave = $1 LIMIT 1', [chave]);
+      if (integ.length === 0) return res.status(401).json({ error: 'Ligação não encontrada.' });
+      const { rows: donos } = await pool.query(
+        "SELECT * FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') ORDER BY (role = 'admin') DESC LIMIT 1",
+        [integ[0].store]
+      );
+      const dono = donos[0];
+      if (!dono) return res.status(404).json({ error: 'A conta do FireCheck desta ligação não existe mais.' });
+      const pelaCakto = (produto) => !dono.cobranca_firehub && codigoNaConta(dono, produto, 0).caktoDoMesmo;
+      return res.status(200).json({
+        ok: true, store: dono.store, email: dono.email, status: dono.status,
+        cakto: { checklists: pelaCakto('checklists'), ponto: pelaCakto('ponto') },
+      });
+    }
+
+    // sincronizar: o FireHub avisa que algo mudou lá; daqui se relê na hora.
+    if (url.includes('/api/integracoes/firehub/sincronizar')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const chave = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (chave.length < 32) return res.status(401).json({ error: 'Chave ausente ou inválida.' });
+      const { rows: integ } = await pool.query('SELECT store FROM integracao_firehub WHERE chave = $1 LIMIT 1', [chave]);
+      if (integ.length === 0) return res.status(401).json({ error: 'Ligação não encontrada.' });
+      const status = await sincronizarComFirehub(integ[0].store);
+      return res.status(200).json({ ok: true, status });
+    }
+
     if (url.includes('/api/integracoes/firehub/conectar')) {
       if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
       const { email, senha, firehubLojaId, firehubLojaNome, chave, urlDoFirehub } = req.body || {};
@@ -7401,8 +7681,10 @@ Responda APENAS com JSON válido.`;
       }
       limparFreioDaConta(rlKey);
 
+      // Conta vencida ou bloqueada também conecta quando o dono vai ligar o
+      // módulo pelo boleto do FireHub: é exatamente para voltar a funcionar.
       const parada = await motivoDeContaParada(user);
-      if (parada) return res.status(403).json({ error: parada });
+      if (parada && (req.body || {}).paraLigarModulo !== true) return res.status(403).json({ error: parada });
 
       if (!['admin', 'master', 'gestor'].includes(user.role)) {
         return res.status(403).json({ error: 'Só o dono ou gestor do FireCheck pode conectar' });
@@ -7468,8 +7750,10 @@ Responda APENAS com JSON válido.`;
       if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
       const chave = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
       if (chave.length < 32) return res.status(401).json({ error: 'Chave ausente ou inválida.' });
-      const { rowCount } = await pool.query('DELETE FROM integracao_firehub WHERE chave = $1', [chave]);
-      if (rowCount > 0) console.log(`[FireHub] ${rowCount} ligação(ões) desfeita(s) pelo FireHub.`);
+      const { rows: desfeitas } = await pool.query('DELETE FROM integracao_firehub WHERE chave = $1 RETURNING store', [chave]);
+      if (desfeitas.length > 0) console.log(`[FireHub] ${desfeitas.length} ligação(ões) desfeita(s) pelo FireHub.`);
+      // Conta que o FireHub pagava: sem a ligação, ninguém mais diz o que está pago.
+      for (const d of desfeitas) await bloquearSemFirehub(d.store, 'desconectado');
       // Idempotente: sem ligação com esta chave também é sucesso.
       return res.status(200).json({ ok: true });
     }

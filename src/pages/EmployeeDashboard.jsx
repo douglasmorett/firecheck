@@ -257,6 +257,8 @@ export default function EmployeeDashboard() {
           setPodeEstoque(eu?.perm_estoque === true);
           if (eu) setTela(t => Object.fromEntries(Object.keys(t).map(k => [k, eu[k] !== false])));
           const admin = Array.isArray(users) ? users.find(u => u.role === 'admin' || u.role === 'master') : null;
+          // Loja paga pelo FireHub só com o ponto ligado: os checklists somem da tela.
+          if (admin && admin.checklists_active === false) setTela(t => ({ ...t, tela_checklists: false }));
           if (admin && (admin.ponto_active || admin.status === 'trial')) {
              setHasPonto(true);
              // Busca dados reais do ponto de hoje
