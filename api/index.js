@@ -2576,6 +2576,120 @@ function mensagemDoFirehub(motivo, ehDono) {
   return null;
 }
 
+// ── A mesma conta do FireHub (Douglas, 30/10/2026: "deveria usar a mesma
+// conta do FireHub, deveria ser só ativar mesmo") ─────────────────────────
+//
+// O dono de uma loja ligada ao FireHub entra aqui com o e-mail e a senha de
+// lá. A senha do FireHub NÃO é copiada para cá: quando a daqui não confere,
+// pergunta-se ao FireHub (POST <url>/api/integracoes/firecheck/senha, com a
+// chave da ligação), que só responde sobre o e-mail da própria loja. Trocou a
+// senha no FireHub, vale a nova na hora. FireHub fora do ar: só a senha daqui.
+// Só o dono (admin): gestor e funcionário têm login próprio do FireCheck.
+async function senhaDoFirehubConfere(user, senha) {
+  if (!user || user.role !== 'admin' || !user.store || !senha) return false;
+  const integ = await integracaoFirehubDaLoja(user.store);
+  const urlFirehub = integ && urlDoFirehubPermitida(integ.url);
+  if (!urlFirehub) return false;
+  try {
+    const resp = await fetch(`${urlFirehub}/api/integracoes/firecheck/senha`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${integ.chave}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: user.email, senha: String(senha) }),
+      signal: AbortSignal.timeout(PRAZO_DA_LEITURA_FIREHUB_MS),
+    });
+    if (!resp.ok) return false;
+    const corpo = await resp.json().catch(() => null);
+    return corpo?.confere === true;
+  } catch (e) {
+    console.error('[FireHub] não deu para conferir a senha:', e.message);
+    return false;
+  }
+}
+
+// O botão "Abrir o FireCheck" do painel do FireHub entra sem senha: o servidor
+// do FireHub pede um bilhete (/firehub/link-de-entrada, com a chave da ligação)
+// e o navegador o troca pelo login (/firehub/entrar). O bilhete vale 2 minutos
+// e é assinado com um segredo DERIVADO do JWT_SECRET: com o mesmo segredo ele
+// passaria por token de sessão em authenticateToken.
+const SEGREDO_DA_ENTRADA_PELO_FIREHUB = crypto.createHash('sha256').update(`${JWT_SECRET}:entrada-pelo-firehub`).digest('hex');
+
+// O que o login faz depois que a senha confere: a conta paga pelo FireHub
+// relê o que está ligado lá, a conta parada não entra e quem entra sai com o
+// token. Também é a régua da entrada pelo link do FireHub (/firehub/entrar),
+// que não tem senha. Devolve { status, corpo } para a rota responder.
+async function concluirLogin(user) {
+  // ── Conta paga pelo boleto do FireHub: o que vale é o de lá, agora ──
+  if (user.role !== 'master' && user.store) {
+    const { rows: dono } = await pool.query(
+      "SELECT cobranca_firehub FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+      [user.store]
+    );
+    if (dono[0]?.cobranca_firehub === true) {
+      await sincronizarComFirehub(user.store);
+      const { rows: depois } = await pool.query(
+        "SELECT status, firehub_motivo FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+        [user.store]
+      );
+      const msg = depois[0]?.status === 'blocked' ? mensagemDoFirehub(depois[0].firehub_motivo, user.role === 'admin') : null;
+      if (msg) return { status: 403, corpo: { status: 'error', firehub: true, error: msg } };
+      // O dono sai com o plano e as chaves que o FireHub acabou de dar.
+      if (user.role === 'admin') {
+        const { rows: relido } = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
+        if (relido[0]) Object.assign(user, relido[0]);
+      }
+    }
+  }
+
+  // ── Verificação de Bloqueio ──────────────────────────
+  // Funcionários herdam o status do admin da loja
+  if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
+    const { rows: admins } = await pool.query(
+      "SELECT status, created_at, expiration_date, trial_ends_at FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
+      [user.store]
+    );
+    if (admins.length > 0) {
+      const adm = admins[0];
+      if (adm.status === 'blocked') {
+        return { status: 403, corpo: { status: 'error', error: 'A conta da sua empresa foi suspensa. Entre em contato com o administrador.' } };
+      }
+      if (adm.status === 'pending') {
+        return { status: 403, corpo: { status: 'error', error: 'O pagamento da sua empresa está pendente. Solicite ao administrador que regularize.' } };
+      }
+      if (adm.status === 'trial' && trialExpirado(adm)) {
+        return { status: 403, corpo: { status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' } };
+      }
+      if (adm.status === 'active' && adm.expiration_date) {
+        if (new Date(adm.expiration_date) < new Date()) {
+          return { status: 403, corpo: { status: 'error', error: 'O plano da sua empresa expirou. Solicite renovação ao administrador.' } };
+        }
+      }
+    }
+  } else if (user.role !== 'master') {
+    if (user.status === 'blocked') {
+      return { status: 403, corpo: { status: 'error', error: 'Sua conta foi suspensa. Entre em contato pelo WhatsApp para regularizar.' } };
+    }
+    if (user.status === 'pending') {
+      return { status: 403, corpo: { status: 'error', error: 'Seu pagamento está pendente. Finalize o pagamento para acessar o sistema.' } };
+    }
+    if (user.status === 'trial' && trialExpirado(user)) {
+      return { status: 403, corpo: { status: 'error', plan_expired: true, error: 'Seu período de teste expirou. Assine um plano para continuar usando o FireCheck.' } };
+    }
+    if (user.status === 'active' && user.expiration_date) {
+      if (new Date(user.expiration_date) < new Date()) {
+        return { status: 403, corpo: { status: 'error', plan_expired: true, error: 'Seu plano expirou. Renove sua assinatura para continuar usando o sistema.' } };
+      }
+    }
+  }
+
+  // ── Gerar JWT Token ──
+  const tokenPayload = { id: user.id, email: user.email, role: user.role, store: user.store };
+  const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+
+  // ── Retornar SEM senha ──
+  const { password: _, ...safeUser } = user;
+  return { status: 200, corpo: { status: 'success', token, user: safeUser } };
+}
+
 // Checklist desligado numa conta paga pelo FireHub (só o ponto ligado).
 async function checklistDesligadoNaLoja(store) {
   if (!store) return false;
@@ -3630,87 +3744,22 @@ export default async function handler(req, res) {
             }
           }
 
+          // Dono de loja do FireHub: a senha de lá também entra (senhaDoFirehubConfere).
+          if (!passwordMatch) passwordMatch = await senhaDoFirehubConfere(user, password);
+
           if (!passwordMatch) {
             registerLoginFailure(rlKey);
             return res.status(401).json({ status: 'error', error: 'E-mail ou senha incorretos.' });
           }
 
-          // ── Conta paga pelo boleto do FireHub: o que vale é o de lá, agora ──
-          if (user.role !== 'master' && user.store) {
-            const { rows: dono } = await pool.query(
-              "SELECT cobranca_firehub FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
-              [user.store]
-            );
-            if (dono[0]?.cobranca_firehub === true) {
-              await sincronizarComFirehub(user.store);
-              const { rows: depois } = await pool.query(
-                "SELECT status, firehub_motivo FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
-                [user.store]
-              );
-              const msg = depois[0]?.status === 'blocked' ? mensagemDoFirehub(depois[0].firehub_motivo, user.role === 'admin') : null;
-              if (msg) return res.status(403).json({ status: 'error', firehub: true, error: msg });
-              // O dono sai com o plano e as chaves que o FireHub acabou de dar.
-              if (user.role === 'admin') {
-                const { rows: relido } = await pool.query('SELECT * FROM users WHERE id = $1', [user.id]);
-                if (relido[0]) Object.assign(user, relido[0]);
-              }
-            }
-          }
-
-          // ── Verificação de Bloqueio ──────────────────────────
-          // Funcionários herdam o status do admin da loja
-          if (user.role === 'funcionario' || user.role === 'employee' || user.role === 'gestor') {
-            const { rows: admins } = await pool.query(
-              "SELECT status, created_at, expiration_date, trial_ends_at FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') LIMIT 1",
-              [user.store]
-            );
-            if (admins.length > 0) {
-              const adm = admins[0];
-              if (adm.status === 'blocked') {
-                return res.status(403).json({ status: 'error', error: 'A conta da sua empresa foi suspensa. Entre em contato com o administrador.' });
-              }
-              if (adm.status === 'pending') {
-                return res.status(403).json({ status: 'error', error: 'O pagamento da sua empresa está pendente. Solicite ao administrador que regularize.' });
-              }
-              if (adm.status === 'trial' && trialExpirado(adm)) {
-                return res.status(403).json({ status: 'error', error: 'O período de teste da sua empresa expirou. Peça ao administrador para assinar um plano.' });
-              }
-              if (adm.status === 'active' && adm.expiration_date) {
-                if (new Date(adm.expiration_date) < new Date()) {
-                  return res.status(403).json({ status: 'error', error: 'O plano da sua empresa expirou. Solicite renovação ao administrador.' });
-                }
-              }
-            }
-          } else if (user.role !== 'master') {
-            if (user.status === 'blocked') {
-              return res.status(403).json({ status: 'error', error: 'Sua conta foi suspensa. Entre em contato pelo WhatsApp para regularizar.' });
-            }
-            if (user.status === 'pending') {
-              return res.status(403).json({ status: 'error', error: 'Seu pagamento está pendente. Finalize o pagamento para acessar o sistema.' });
-            }
-            if (user.status === 'trial' && trialExpirado(user)) {
-              return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu período de teste expirou. Assine um plano para continuar usando o FireCheck.' });
-            }
-            if (user.status === 'active' && user.expiration_date) {
-              if (new Date(user.expiration_date) < new Date()) {
-                return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu plano expirou. Renove sua assinatura para continuar usando o sistema.' });
-              }
-            }
-          }
+          const saida = await concluirLogin(user);
+          if (saida.status !== 200) return res.status(saida.status).json(saida.corpo);
 
           // Autenticou: zera o histórico de falhas dessa origem para este e-mail.
           clearLoginFailures(rlKey);
-
-          // ── Gerar JWT Token ──
           // Quem acerta a senha sai do castigo do freio de tentativas.
           limparFreioDaConta(rlKey);
-
-          const tokenPayload = { id: user.id, email: user.email, role: user.role, store: user.store };
-          const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
-
-          // ── Retornar SEM senha ──
-          const { password: _, ...safeUser } = user;
-          return res.status(200).json({ status: 'success', token, user: safeUser });
+          return res.status(200).json(saida.corpo);
         }
         // E-mail não existe: conta como falha, senão a enumeração de e-mails fica ilimitada.
         registerLoginFailure(rlKey);
@@ -7563,6 +7612,17 @@ Responda APENAS com JSON válido.`;
     // ao FireHub (só firehubfood.com.br, urlDoFirehubPermitida) se ela é dele e
     // de qual loja. A conta nasce parada ('desligado') e só funciona quando um
     // módulo for ligado lá — senão seria uma conta sem vencimento de graça.
+    //
+    // Desde 30/10/2026 a conta não tem senha própria: o dono entra com a do
+    // FireHub (senhaDoFirehubConfere) ou pelo "Abrir o FireCheck" de lá. A senha
+    // daqui é sorteada e não sai para ninguém.
+    //
+    // E-mail que já tem conta aqui: se ela já é desta mesma loja do FireHub
+    // (o FireHub perdeu a ligação e pede de novo), só troca a chave. De outra
+    // loja ou sem ligação, recusa: o FireHub não confirma o e-mail no cadastro,
+    // e ligar só pelo e-mail entregaria a conta de alguém a quem cadastrasse
+    // uma loja lá com esse e-mail. O dono prova uma vez com a senha daqui, no
+    // quadro "Conectar o FireCheck" (/firehub/conectar).
     if (url.includes('/api/integracoes/firehub/criar-conta')) {
       if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
       const { chave, firehubLojaId, urlDoFirehub } = req.body || {};
@@ -7576,16 +7636,26 @@ Responda APENAS com JSON válido.`;
       if (!m || m.recusou || String(m.lojaId) !== idLojaFirehub) return res.status(401).json({ error: 'O FireHub não confirmou esta chave.' });
       const email = String(m.email || '').trim().toLowerCase();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'A loja do FireHub está sem e-mail válido.' });
-      const { rows: jaExiste } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      const { rows: jaExiste } = await pool.query('SELECT id, role, store, store_name FROM users WHERE LOWER(email) = LOWER($1)', [email]);
       if (jaExiste.length > 0) {
-        return res.status(409).json({ contaExiste: true, error: `O e-mail ${email} já tem conta no FireCheck. Conecte com a senha dela no quadro "Conectar o FireCheck".` });
+        const conta = jaExiste[0];
+        const daMesmaLoja = conta.role === 'admin' && conta.store
+          ? (await pool.query(
+              'UPDATE integracao_firehub SET chave = $3, url = $4 WHERE firehub_loja_id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2)) RETURNING store',
+              [idLojaFirehub, conta.store, chave, urlFirehub]
+            )).rows[0]
+          : null;
+        if (daMesmaLoja) {
+          console.log(`[FireHub] conta "${daMesmaLoja.store}" (${email}) religada pelo FireHub à loja ${idLojaFirehub}.`);
+          return res.status(200).json({ ok: true, store: daMesmaLoja.store, storeName: conta.store_name || daMesmaLoja.store, email });
+        }
+        return res.status(409).json({ contaExiste: true, error: `O e-mail ${email} já tem conta no FireCheck. Para ligar, confirme uma vez a senha do FireCheck no quadro "Conectar o FireCheck", acima.` });
       }
       const { rows: ligada } = await pool.query('SELECT store FROM integracao_firehub WHERE firehub_loja_id = $1 LIMIT 1', [idLojaFirehub]);
       if (ligada.length > 0) return res.status(409).json({ error: 'Esta loja do FireHub já está conectada a um FireCheck.' });
 
       const nomeDaLoja = String(m.loja || '').trim().slice(0, 200) || 'Minha loja';
-      const senha = Array.from({ length: 10 }, () => 'abcdefghjkmnpqrstuvwxyz23456789'[crypto.randomInt(31)]).join('');
-      const hash = await bcrypt.hash(senha, 12);
+      const hash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
       const store = await gerarChaveDeLoja(nomeDaLoja);
       try {
         await pool.query(
@@ -7603,7 +7673,47 @@ Responda APENAS com JSON válido.`;
         [store, idLojaFirehub, nomeDaLoja, chave, urlFirehub, email]
       );
       console.log(`[FireHub] conta "${store}" (${email}) criada pelo FireHub para a loja ${idLojaFirehub}.`);
-      return res.status(200).json({ ok: true, store, storeName: nomeDaLoja, email, senha });
+      return res.status(200).json({ ok: true, store, storeName: nomeDaLoja, email });
+    }
+
+    // link-de-entrada: o servidor do FireHub pede o bilhete do "Abrir o
+    // FireCheck" (chave da ligação no Bearer). O bilhete leva a marca da última
+    // leitura do FireHub (firehub_sincronizado_em) do dono; /firehub/entrar
+    // troca a marca ao usar, e o mesmo bilhete não entra duas vezes.
+    if (url.includes('/api/integracoes/firehub/link-de-entrada')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const chave = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '');
+      if (chave.length < 32) return res.status(401).json({ error: 'Chave ausente ou inválida.' });
+      const { rows: integ } = await pool.query('SELECT store FROM integracao_firehub WHERE chave = $1 LIMIT 1', [chave]);
+      if (integ.length === 0) return res.status(401).json({ error: 'Ligação não encontrada.' });
+      const { rows: donos } = await pool.query(
+        "SELECT id, firehub_sincronizado_em::text AS marca FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role = 'admin' LIMIT 1",
+        [integ[0].store]
+      );
+      if (!donos[0]) return res.status(404).json({ error: 'A conta do FireCheck desta ligação não existe mais.' });
+      const bilhete = jwt.sign({ id: donos[0].id, marca: donos[0].marca }, SEGREDO_DA_ENTRADA_PELO_FIREHUB, { expiresIn: '2m' });
+      return res.status(200).json({ ok: true, bilhete });
+    }
+
+    // entrar: o navegador troca o bilhete pelo login do dono, com a mesma
+    // régua do login com senha (concluirLogin: relê o FireHub, conta parada
+    // não entra).
+    if (url.includes('/api/integracoes/firehub/entrar')) {
+      if (method !== 'POST') return res.status(405).json({ error: 'Método não permitido.' });
+      const vencido = { status: 'error', error: 'Este link do FireHub já foi usado ou venceu. Volte ao painel do FireHub e clique em "Abrir o FireCheck" de novo.' };
+      let p;
+      try { p = jwt.verify(String((req.body || {}).bilhete || ''), SEGREDO_DA_ENTRADA_PELO_FIREHUB); } catch { return res.status(401).json(vencido); }
+      // Uso único: só passa quem ainda tem a marca de quando o bilhete saiu.
+      const { rows: [user] } = await pool.query(
+        `UPDATE users SET firehub_sincronizado_em = NOW()
+          WHERE id = $1 AND role = 'admin' AND firehub_sincronizado_em::text IS NOT DISTINCT FROM $2
+          RETURNING *`,
+        [p.id, p.marca ?? null]
+      );
+      if (!user) return res.status(401).json(vencido);
+      const saida = await concluirLogin(user);
+      if (saida.status === 200) console.log(`[FireHub] ${user.email} entrou pelo painel do FireHub.`);
+      return res.status(saida.status).json(saida.corpo);
     }
 
     // conta: o FireHub confere, antes de ligar um módulo, se ele já é pago
@@ -8318,6 +8428,8 @@ A mensagem é lida pelo próprio funcionário, no celular:
         if (u && u.password && senha) {
           confere = u.password.startsWith('$2') ? await bcrypt.compare(String(senha), u.password) : String(senha) === u.password;
         }
+        // O dono da loja ligada ao FireHub sabe a senha de lá, não a daqui.
+        if (!confere && u && senha) confere = await senhaDoFirehubConfere(u, senha);
         const daLoja = u && (u.role === 'master' || mesmaLoja(u.store, aparelho.store));
         if (!confere || !daLoja || !(await podeGerirPonto({ id: u.id, role: u.role }))) {
           registerLoginFailure(chave);

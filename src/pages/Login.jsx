@@ -20,6 +20,44 @@ export default function Login() {
   const isMobile = window.innerWidth < 480;
 
   useEffect(() => {
+    // "Abrir o FireCheck" no painel do FireHub: chega aqui com #firehub=<bilhete>
+    // e entra sem senha (api /integracoes/firehub/entrar). Vale mesmo com outra
+    // conta já logada neste navegador: quem clicou lá quer a conta da loja.
+    const entrarPeloFirehub = async (bilhete) => {
+      setLoading(true);
+      setErrorMsg(null);
+      try {
+        const response = await fetch(`${API_URL}/api/integracoes/firehub/entrar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bilhete })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+          localStorage.setItem('firecheck_token', data.token);
+          localStorage.setItem('user', JSON.stringify(data.user));
+          localStorage.removeItem('firecheck_admin_backup');
+          localStorage.removeItem('firecheck_impersonated');
+          esquecerCentralFechada(data.user);
+          navigate('/admin');
+        } else {
+          setErrorMsg(data.error || 'Não deu para entrar pelo FireHub.');
+        }
+      } catch {
+        setErrorMsg('Erro ao conectar com o servidor.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const bilhete = new URLSearchParams(window.location.hash.slice(1)).get('firehub');
+    if (bilhete) {
+      // Tira o bilhete do endereço antes de usar: não fica no histórico.
+      window.history.replaceState(null, '', window.location.pathname);
+      entrarPeloFirehub(bilhete);
+      return;
+    }
+
     const token = localStorage.getItem('firecheck_token');
     const userStr = localStorage.getItem('user');
     if (token && userStr) {
