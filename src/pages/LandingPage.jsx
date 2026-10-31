@@ -156,7 +156,7 @@ export default function LandingPage() {
             />
             {!videoTocando && (
               <button className="lp-play" onClick={tocarVideo} aria-label="Ver o vídeo">
-                <span>▶ Veja funcionando</span>
+                <span>▶ Veja funcionando · 37 s</span>
               </button>
             )}
           </div>
