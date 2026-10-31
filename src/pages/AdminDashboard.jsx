@@ -3364,7 +3364,7 @@ export default function AdminDashboard() {
                        />
                        <label htmlFor="opt-ponto-diario" style={{ cursor: 'pointer' }}>
                           <strong style={{ display: 'block', fontSize: '0.95rem' }}>📊 Fechamento Diário de Ponto</strong>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber no final de cada dia de expediente um resumo de fechamento contendo a folha de ponto consolidada da loja.</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Todo dia às 8h, o resumo do ponto do dia anterior: as batidas de cada um, horas trabalhadas, faltas e batidas faltando.</span>
                        </label>
                     </div>
                  </div>

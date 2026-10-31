@@ -2865,6 +2865,61 @@ function linhaDoEspelho(d) {
   };
 }
 
+// ── Resumo diário do ponto no WhatsApp (chave "Fechamento Diário de Ponto") ──
+//
+// A chave existia na tela de Notificações e na mensagem de boas-vindas, mas
+// nada era enviado (achado em 30/10/2026). Sai de manhã (cron
+// /api/cron/ponto-diario), com o dia ANTERIOR inteiro: loja que fecha depois da
+// meia-noite ainda tem saída para bater quando o "fim do dia" chega. O cálculo
+// é o mesmo do banco de horas e do espelho do contador (calcularBancoDeHoras +
+// linhaDoEspelho), para o número do WhatsApp bater com o do PDF.
+let resumosDoPontoProntos = false;
+async function garantirResumosDoPonto() {
+  if (resumosDoPontoProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ponto_resumos_enviados (
+      store_chave TEXT NOT NULL,
+      dia DATE NOT NULL,
+      enviado_em TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (store_chave, dia)
+    )
+  `);
+  resumosDoPontoProntos = true;
+}
+
+/** Texto do resumo de um dia da loja, ou null quando ninguém tinha nada no dia. */
+function textoDoResumoDoPonto(store, dia, funcionarios) {
+  const linhas = [];
+  let faltas = 0, incompletos = 0;
+  for (const f of funcionarios) {
+    const d = f.dias.find(x => x.data === dia);
+    if (!d) continue; // antes da primeira batida dessa pessoa
+    if (!d.batidas.length && !d.falta && !d.abono && !d.incompleto) continue; // folga sem batida
+    const l = linhaDoEspelho(d);
+    // O "*" da batida ajustada à mão fecharia o negrito do WhatsApp.
+    const batidas = l.batidas.map(b => b.replace(/\*$/, ' (ajustada)')).join(' · ');
+    let texto = `• *${f.nome}*: ` + (batidas || '');
+    if (d.falta) { texto += `❌ Falta`; faltas++; }
+    else if (d.incompleto) { texto += ` — ⚠️ Batida faltando`; incompletos++; }
+    else {
+      if (l.trabalhado) texto += ` = ${l.trabalhado}`;
+      if (l.saldo) texto += ` (saldo ${l.saldo})`;
+      if (d.abono) texto += `${batidas ? ' — ' : ''}📄 ${l.ocorrencia}`;
+    }
+    linhas.push(texto);
+  }
+  if (!linhas.length) return null;
+  const [a, m, dd] = dia.split('-').map(Number);
+  const semana = SEMANA_DO_PONTO[new Date(Date.UTC(a, m - 1, dd)).getUTCDay()];
+  const rodape = [`${linhas.length} pessoa(s)`];
+  if (faltas) rodape.push(`${faltas} falta(s)`);
+  if (incompletos) rodape.push(`${incompletos} com batida faltando`);
+  return `📊 *FireCheck - Ponto de ${semana}, ${dataBRdoPonto(dia).slice(0, 5)}*\n` +
+    `Loja *${store}*\n\n` +
+    linhas.join('\n') +
+    `\n\n${rodape.join(' · ')}`;
+}
+
 /** Planilha do fechamento: uma linha por funcionário e dia, mais a linha de total de cada um. */
 function csvDoFechamento(dados) {
   // Excel em português: ";" separa as colunas e o BOM faz os acentos abrirem
@@ -6454,6 +6509,7 @@ export default async function handler(req, res) {
         );
 
         let alertasEnviados = 0;
+        const enviosAusencia = [];
 
         // 'lojaPonto', nunca 'admin': o nome antigo sombreava o módulo
         // firebase-admin e o push de ausência lá embaixo chamava
@@ -6577,20 +6633,83 @@ export default async function handler(req, res) {
             if (isWhatsappActive && targetPhone) {
               const cleanPhone = targetPhone.replace(/\D/g, '');
               const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
-              enviarWhatsapp({
+              // Guardar a promessa: sem esperar, a Vercel congela a instância
+              // quando a resposta sai e a mensagem não chega (mesma falha que o
+              // aviso de checklist atrasado já teve).
+              enviosAusencia.push(enviarWhatsapp({
                 telefone: fullPhone,
                 texto: textMsg,
                 contexto: 'WhatsApp Ausencia',
                 loja: storeName,
-              });
+              }));
             }
             alertasEnviados++;
           }
         }
 
+        if (enviosAusencia.length) await comTeto(Promise.allSettled(enviosAusencia), 25000, 'WhatsApp Ausencia');
         return res.status(200).json({ success: true, alertasEnviados });
       } catch (cronErr) {
         console.error('Erro no cron de ausência de ponto:', cronErr);
+        return res.status(500).json({ error: cronErr.message });
+      }
+    }
+
+    // ── Cron do resumo diário do ponto no WhatsApp ──
+    // Roda de manhã (vercel.json) com o dia anterior. Ver textoDoResumoDoPonto.
+    if (url.includes('/api/cron/ponto-diario')) {
+      if (!autorizarChamadaInterna(req, res)) return;
+      try {
+        await garantirResumosDoPonto();
+        const { rows: lojas } = await pool.query(
+          `SELECT DISTINCT ON (LOWER(TRIM(store))) store, timezone, status, created_at, expiration_date, trial_ends_at
+             FROM users
+            WHERE role IN ('admin', 'master') AND store IS NOT NULL AND (ponto_active = TRUE OR status = 'trial')
+            ORDER BY LOWER(TRIM(store)), (role = 'admin') DESC, id`
+        );
+        const envios = [];
+        let resumos = 0;
+        for (const loja of lojas) {
+          if (!contaEmDia(loja)) continue;
+          const tz = loja.timezone || 'America/Sao_Paulo';
+          const ontem = somarDias(new Date().toLocaleDateString('en-CA', { timeZone: tz }), -1);
+
+          // Quem recebe: dono e gestores com a chave ligada, mais os números extras.
+          const { rows: pessoas } = await pool.query(
+            "SELECT role, phone, whatsapp_active, whatsapp_phone, wa_ponto_diario FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND role IN ('admin', 'master', 'gestor')",
+            [loja.store]
+          );
+          const destinos = (await comNumerosExtras(loja.store, pessoas))
+            .filter(p => p.wa_ponto_diario !== false && p.whatsapp_active !== false && (p.whatsapp_phone || p.phone));
+          if (!destinos.length) continue;
+
+          const { funcionarios } = await calcularBancoDeHoras(pool, loja.store, { inicio: ontem, fim: ontem, tz });
+          const texto = textoDoResumoDoPonto(loja.store, ontem, funcionarios);
+          if (!texto) continue;
+
+          // Uma vez por loja e dia, mesmo que a Vercel chame o cron duas vezes.
+          const { rowCount } = await pool.query(
+            'INSERT INTO ponto_resumos_enviados (store_chave, dia) VALUES (LOWER(TRIM($1)), $2) ON CONFLICT DO NOTHING',
+            [loja.store, ontem]
+          );
+          if (!rowCount) continue;
+          resumos++;
+
+          for (const p of destinos) {
+            const limpo = String(p.whatsapp_phone || p.phone).replace(/\D/g, '');
+            envios.push(enviarWhatsapp({
+              telefone: numeroWhatsapp(limpo).numero || limpo,
+              texto,
+              contexto: 'WhatsApp Ponto Diário',
+              loja: loja.store,
+            }));
+          }
+        }
+        // Esperar os envios: na Vercel a instância congela quando a resposta sai.
+        if (envios.length) await comTeto(Promise.allSettled(envios), 25000, 'WhatsApp Ponto Diário');
+        return res.status(200).json({ success: true, lojas: lojas.length, resumos, mensagens: envios.length });
+      } catch (cronErr) {
+        console.error('Erro no cron do resumo diário do ponto:', cronErr);
         return res.status(500).json({ error: cronErr.message });
       }
     }
