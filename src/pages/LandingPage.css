@@ -98,6 +98,40 @@
 .lp-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .lp-chips span { font-size: 13px; font-weight: 600; background: #fff; border: 1px solid #E5E7EB; border-radius: 999px; padding: 7px 12px; }
 
+/* módulos em abas */
+.lp-abas { display: flex; gap: 8px; overflow-x: auto; margin: 18px -20px 0; padding: 0 20px 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
+.lp-abas::-webkit-scrollbar { display: none; }
+.lp-abas button { flex: none; scroll-snap-align: start; display: inline-flex; align-items: center; gap: 6px; border: 1.5px solid #E5E7EB; background: #fff; color: var(--lp-tx); border-radius: 999px; padding: 9px 14px; font-size: 14px; font-weight: 700; white-space: nowrap; transition: all .15s; }
+.lp-abas button small { color: var(--lp-mu); font-weight: 600; font-size: 11px; }
+.lp-abas button.on { background: var(--lp-ink); border-color: var(--lp-ink); color: #fff; }
+.lp-abas button.on small { color: #9CA3AF; }
+.lp-mod-det { margin-top: 18px; display: grid; gap: 18px; animation: lp-entra .25s ease-out; }
+@keyframes lp-entra { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.lp-mod-txt h3 { font-size: 22px; line-height: 1.15; letter-spacing: -.6px; font-weight: 900; margin: 0; }
+.lp-mod-txt h3 em { font-style: normal; color: var(--lp-p); }
+.lp-mod-txt p { font-size: 15px; color: #4B5563; line-height: 1.45; margin: 8px 0 0; }
+.lp-mod-txt ul { list-style: none; padding: 0; margin: 12px 0 0; }
+.lp-mod-txt li { font-size: 14.5px; line-height: 1.4; padding: 8px 0 8px 26px; border-top: 1px solid #F3F4F6; position: relative; }
+.lp-mod-txt li::before { content: "✓"; position: absolute; left: 2px; top: 8px; color: var(--lp-ok); font-weight: 900; }
+.lp-mod-fotos { display: flex; gap: 12px; overflow-x: auto; margin: 0 -20px; padding: 0 20px 6px; scrollbar-width: none; scroll-snap-type: x mandatory; }
+.lp-mod-fotos::-webkit-scrollbar { display: none; }
+.lp-mod-fotos figure { flex: 0 0 auto; margin: 0; scroll-snap-align: start; }
+.lp-mod-fotos img { display: block; height: 380px; width: auto; max-width: 82vw; object-fit: cover; object-position: top; border-radius: 18px; border: 1px solid #E5E7EB; box-shadow: 0 12px 30px rgba(0,0,0,.10); background: #fff; }
+.lp-mod-fotos img.desk { height: auto; width: min(86vw, 560px); max-width: none; object-fit: contain; }
+.lp-mod-fotos figcaption { font-size: 12px; color: var(--lp-mu); margin-top: 6px; }
+@media (min-width: 900px) {
+  .lp-abas { flex-wrap: wrap; overflow: visible; margin: 22px 0 0; padding: 0; }
+  .lp-mod-det { grid-template-columns: 1fr 1.1fr; gap: 40px; align-items: start; margin-top: 28px; }
+  .lp-mod-txt h3 { font-size: 30px; }
+  .lp-mod-txt .lp-cta { display: inline-block; width: auto; padding: 14px 28px; }
+  .lp-mod-fotos { margin: 0; padding: 0; overflow: visible; flex-wrap: wrap; }
+  .lp-mod-fotos img { height: 420px; max-width: 100%; }
+  .lp-mod-fotos.n2 figure { flex: 1 1 0; min-width: 0; }
+  .lp-mod-fotos.n2 img { width: 100%; height: 360px; }
+  .lp-mod-fotos img.desk, .lp-mod-fotos.n2 img.desk { width: 100%; height: auto; }
+  .lp-mod-fotos:has(img.desk) { flex-direction: column; }
+}
+
 /* preço */
 .lp-troca { display: flex; background: #EEF0F3; border-radius: 999px; padding: 4px; margin-top: 14px; font-size: 13px; font-weight: 700; max-width: 420px; }
 .lp-troca button { flex: 1; text-align: center; padding: 9px; border-radius: 999px; color: var(--lp-mu); background: none; border: 0; font-weight: 700; font-size: 13px; }
@@ -135,6 +169,7 @@
 .lp-fixa small b { display: block; color: var(--lp-tx); font-size: 13px; }
 .lp-fixa button { background: var(--lp-p); color: #fff; font-weight: 800; font-size: 15px; padding: 12px 18px; border-radius: 12px; border: 0; white-space: nowrap; }
 .lp-zap { display: none; position: fixed; right: 16px; bottom: 86px; width: 52px; height: 52px; border-radius: 50%; background: #25D366; color: #fff; display: grid; place-items: center; box-shadow: 0 6px 16px rgba(0,0,0,.25); z-index: 61; }
+@media (max-width: 899px) { .lp-zap { display: none; } }
 .lp-zap svg { width: 28px; height: 28px; }
 .lp-fixa .lp-zap-mini { flex: none; width: 46px; height: 46px; border-radius: 12px; background: #25D366; color: #fff; display: grid; place-items: center; padding: 0; }
 .lp-fixa .lp-zap-mini svg { width: 24px; height: 24px; }

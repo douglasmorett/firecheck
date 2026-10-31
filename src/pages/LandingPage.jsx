@@ -27,14 +27,154 @@ const SETORES = [
   ['/hotel-bed.png', 'Hotelaria', 'Lençol amassado e travesseiros fora de esquadro. Arrumação fora do padrão da rede.', 'Notificar camareira'],
 ];
 
-const MODULOS = [
-  ['✅', 'Checklist com IA', 'Abertura, fechamento, limpeza, temperatura. A IA monta por áudio e confere a foto.'],
-  ['🚚', 'Vistoria de frota', 'Moto e carro da empresa com vistoria pelo celular do motorista, km e foto.'],
-  ['🛒', 'Compras e estoque', 'Lista com estoque mínimo. A equipe conta e você vê o que falta comprar.'],
-  ['🗑️', 'Descarte e perdas', 'O que foi pro lixo, quanto custou e por quê, com foto. O gestor é avisado.'],
-  ['🏆', 'Ranking da equipe', 'Quem cumpre a rotina sobe no ranking. O app cobra por você.'],
-  ['🕐', 'Ponto eletrônico', 'Selfie com reconhecimento facial e GPS. Módulo à parte, se quiser.', true],
+// Cada módulo, com o que ele faz hoje (conferido nas telas gravadas dos tutoriais do app).
+const DETALHES = [
+  {
+    id: 'checklist', icone: '✅', nome: 'Checklist com IA',
+    titulo: <>Checklist que a IA <em>monta e confere.</em></>,
+    texto: 'Abertura, fechamento, limpeza, temperatura, segurança: qualquer rotina vira checklist no celular da equipe.',
+    itens: [
+      'Crie falando ou escrevendo: a IA faz perguntas e monta as tarefas',
+      'Sim/não, número, estrelas, múltipla escolha, lista e texto',
+      'Foto tirada na hora pela câmera do app (1 a 4 por tarefa)',
+      'A IA confere a foto, reprova o que está fora do padrão e pede para refazer',
+      'Repetição diária, semanal, mensal, trimestral ou semestral, para a equipe toda ou pessoas certas',
+      'Selfie e assinatura na finalização, se você quiser',
+      'Resultado com fotos, análise da IA e PDF para guardar',
+    ],
+    fotos: [['/telas/checklist-ia-cria.jpg', 'A IA montando o checklist'], ['/telas/checklist-ia-reprova.jpg', 'A IA reprovando a foto da bancada']],
+  },
+  {
+    id: 'estoque', icone: '📦', nome: 'Estoque',
+    titulo: <>Controle de estoque <em>com estoque mínimo.</em></>,
+    texto: 'Cada produto com o seu mínimo. A equipe conta pelo celular e o FireCheck mostra na hora o que está faltando.',
+    itens: [
+      'Lista de produtos com unidade (kg, L, un) e estoque mínimo',
+      'A equipe digita quanto tem e vê "abaixo do mínimo, faltam X"',
+      'Ao finalizar, o aviso com a lista de reposição vai para o seu WhatsApp',
+      'Histórico de conferências: quem contou, quando e o que ficou abaixo',
+      'Relatório item por item, com a observação deixada pela equipe',
+      'Entrada e saída de produtos registradas pelo celular',
+    ],
+    fotos: [['/telas/estoque-contagem.jpg', 'Contagem de estoque no celular da equipe'], ['/telas/compras-relatorio.jpg', 'Relatório da conferência no painel']],
+  },
+  {
+    id: 'compras', icone: '🛒', nome: 'Lista de compras',
+    titulo: <>Lista de compras <em>que se monta sozinha.</em></>,
+    texto: 'O que ficou abaixo do mínimo na contagem já aparece com a quantidade que falta. Você compra o certo, sem achismo.',
+    itens: [
+      'Listas por rotina: compras da semana, hortifrúti do dia',
+      'Cada item com quanto precisa ter e quanto tem hoje',
+      'Responsável e frequência de cada lista',
+      'Aviso no WhatsApp quando algo fica abaixo do mínimo',
+      'Histórico para saber o que mais falta e quando',
+    ],
+    fotos: [['/telas/compras-relatorio.jpg', 'Itens abaixo do mínimo, com o que falta']],
+  },
+  {
+    id: 'frota', icone: '🚚', nome: 'Frota',
+    titulo: <>Checklist de carro e moto <em>antes de sair.</em></>,
+    texto: 'Os veículos da empresa com vistoria pelo celular do motorista. Pneu, óleo, lataria: tudo com foto e conferido pela IA.',
+    itens: [
+      'Cadastro do veículo com placa, modelo, km e foto',
+      'Motorista vinculado: a vistoria aparece no celular dele',
+      'Você escolhe o que conferir e com que frequência',
+      'Pedir uma vistoria na hora, com um toque',
+      'Foto de cada item analisada pela IA (ex.: pneus calibrados)',
+      'Histórico das vistorias com a placa de cada veículo',
+    ],
+    fotos: [['/telas/frota-ia.jpg', 'Vistoria da moto aprovada pela IA'], ['/telas/frota-veiculos.jpg', 'Os veículos da empresa']],
+  },
+  {
+    id: 'perdas', icone: '🗑️', nome: 'Descarte e perdas',
+    titulo: <>Descarte e perdas <em>com foto e valor.</em></>,
+    texto: 'O que foi para o lixo deixa de sumir. A equipe registra na hora e o gestor recebe o aviso.',
+    itens: [
+      'O que foi descartado, quantidade e unidade',
+      'Valor estimado em reais e o motivo (vencido, erro de preparo...)',
+      'Foto do descarte, tirada na hora',
+      'Ocorrências também: freezer parou, equipamento quebrou',
+      'O gestor é avisado no WhatsApp a cada registro',
+    ],
+    fotos: [['/telas/descarte-foto.jpg', 'Registro de descarte com foto e valor']],
+  },
+  {
+    id: 'whatsapp', icone: '💬', nome: 'Avisos no WhatsApp',
+    titulo: <>Tudo chega no <em>seu WhatsApp.</em></>,
+    texto: 'Conecte o WhatsApp da empresa lendo um QR Code. Os avisos saem do seu número para você, seu gerente e quem mais você cadastrar.',
+    itens: [
+            'Checklist reprovado pela IA e checklist concluído',
+      'Estoque abaixo do mínimo, com a lista de reposição',
+      'Ocorrência e descarte registrados pela equipe',
+      'Atraso e ausência no ponto (com o módulo de ponto)',
+      'Você escolhe quais avisos recebe',
+    ],
+    fotos: [['/telas/whatsapp-qr.jpg', 'Conectar o WhatsApp da empresa pelo QR'], ['/telas/whatsapp-avisos.jpg', 'Escolha dos avisos']],
+  },
+  {
+    id: 'painel', icone: '📊', nome: 'Painel e ranking',
+    titulo: <>Sua operação <em>numa tela só.</em></>,
+    texto: 'Checklists do dia, conformidade, alertas da IA e o ranking da equipe, no celular ou no computador.',
+    itens: [
+      'Checklists de hoje e quantos foram concluídos',
+      'Conformidade geral da loja',
+      'Alertas da IA para você agir primeiro',
+      'Auditoria em tempo real: quem fez, a que horas, com que foto',
+      'Ranking da equipe com pódio e nota de cada um',
+    ],
+    fotos: [['/telas/painel.jpg', 'Painel do dono'], ['/telas/ranking.jpg', 'Ranking da equipe']],
+  },
+  {
+    id: 'ponto', icone: '🕐', nome: 'Ponto', opcional: true,
+    titulo: <>Ponto eletrônico <em>com selfie e GPS.</em></>,
+    texto: 'Módulo à parte, se você quiser: o funcionário bate o ponto pelo celular, com selfie e localização.',
+    itens: [
+      'Selfie com reconhecimento facial na hora de bater',
+      'Localização e endereço gravados em cada batida',
+      'Aviso de atraso e ausência no WhatsApp',
+      'Escala, banco de horas, atestados e feriados',
+      'Tablet da loja como relógio de ponto',
+      'Fechamento por e-mail para o contador, em PDF e planilha',
+    ],
+    fotos: [['/telas/ponto-selfie.jpg', 'Ponto com selfie e GPS'], ['/telas/ponto-gestor.jpg', 'Ponto no painel do gestor']],
+  },
 ];
+
+// Telas do celular ficam em pé; as do painel (computador) aparecem inteiras, sem corte.
+const CELULAR = /checklist-|estoque-contagem|descarte-foto|ponto-selfie/;
+
+function Modulos({ onTestar }) {
+  const [ativo, setAtivo] = useState(DETALHES[0].id);
+  const m = DETALHES.find((d) => d.id === ativo);
+  return (
+    <section className="lp-sec" id="modulos">
+      <div className="lp-in">
+        <h2>Tudo que a sua operação <em>precisa conferir.</em></h2>
+        <p className="lp-lead">Um app só para checklist, estoque, compras, frota e perdas. Toque em cada um para ver como funciona.</p>
+        <div className="lp-abas" role="tablist">
+          {DETALHES.map((d) => (
+            <button key={d.id} role="tab" aria-selected={d.id === ativo} className={d.id === ativo ? 'on' : ''} onClick={() => setAtivo(d.id)}>
+              <span>{d.icone}</span>{d.nome}{d.opcional && <small> · opcional</small>}
+            </button>
+          ))}
+        </div>
+        <div className="lp-mod-det" key={m.id}>
+          <div className="lp-mod-txt">
+            <h3>{m.titulo}</h3>
+            <p>{m.texto}</p>
+            <ul>{m.itens.map((i) => <li key={i}>{i}</li>)}</ul>
+            <button className="lp-cta" onClick={() => onTestar(`Módulo ${m.nome}: testar grátis`)}>Testar 7 dias grátis</button>
+          </div>
+          <div className={`lp-mod-fotos n${m.fotos.length}`}>
+            {m.fotos.map(([src, legenda]) => (
+              <figure key={src}><img src={src} alt={legenda} loading="lazy" className={CELULAR.test(src) ? 'fone' : 'desk'} /><figcaption>{legenda}</figcaption></figure>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 const FAQ = [
   ['Precisa de cartão para testar?', 'Não. São 7 dias com tudo liberado. Se não quiser continuar, a conta simplesmente para.'],
@@ -182,7 +322,7 @@ export default function LandingPage() {
       <section className="lp-sec lp-cinza">
         <div className="lp-in">
           <h2>A IA audita <em>qualquer padrão.</em></h2>
-          <p className="lp-lead">Foto pela câmera, na hora, com GPS: foto da galeria não vale. A IA compara com o que a tarefa pede e escreve o motivo quando reprova.</p>
+          <p className="lp-lead">Foto tirada na hora, pela câmera do app. A IA compara com o que a tarefa pede e escreve o motivo quando reprova.</p>
           <div className="lp-carro">
             {SETORES.map(([img, titulo, analise, botao]) => (
               <div className="lp-setor" key={titulo}>
@@ -194,7 +334,7 @@ export default function LandingPage() {
             ))}
           </div>
           <p className="lp-nota lp-arraste">← arraste para ver os 4 setores</p>
-          <div className="lp-selos"><span>📷 Câmera obrigatória</span><span>📍 GPS</span><span>🕚 Hora e quem fez</span><span>🖼️ Galeria bloqueada</span></div>
+          <div className="lp-selos"><span>📷 Foto pela câmera</span><span>🕚 Hora e quem fez</span><span>🤖 Motivo escrito pela IA</span><span>🔁 Refazer na hora</span></div>
         </div>
       </section>
 
@@ -211,27 +351,17 @@ export default function LandingPage() {
           </div>
           <div>
             <div className="lp-avisos">
-              <div><b>⚠️ Alerta de Checklist Atrasado</b><br />Fechamento da cozinha · previsto 23:00 · Carlos</div>
-              <div><b>❌ Reprovado pela IA</b><br />Chapa: "crosta de gordura na lateral direita"</div>
+                            <div><b>❌ Reprovado pela IA</b><br />Chapa: "crosta de gordura na lateral direita"</div>
               <div className="al"><b>📦 Estoque abaixo do mínimo</b><br />Molho de tomate: 4 L (mínimo 10)</div>
               <div className="ok"><b>✅ Checklist Concluído</b><br />Abertura da loja · Ana · 12/12 itens · fotos aprovadas</div>
             </div>
-            <p className="lp-nota">E o Bill, o assistente do FireCheck, atende no mesmo WhatsApp: "cria um checklist de fechamento de caixa".</p>
+            <p className="lp-nota">Até 10 números extras, como sócio ou gerente. Você escolhe quais avisos cada um recebe.</p>
           </div>
         </div>
       </section>
 
-      {/* Módulos */}
-      <section className="lp-sec">
-        <div className="lp-in">
-          <h2>Tudo que a sua operação <em>precisa conferir.</em></h2>
-          <div className="lp-mods">
-            {MODULOS.map(([icone, nome, texto, opcional]) => (
-              <div className={`lp-mod${opcional ? ' op' : ''}`} key={nome}><i>{icone}</i><b>{nome}</b><small>{texto}</small></div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Módulos, um por um */}
+      <Modulos onTestar={testar} />
 
       {/* Como funciona */}
       <section className="lp-sec lp-cinza" id="como-funciona">
@@ -240,7 +370,7 @@ export default function LandingPage() {
           <div className="lp-passos">
             <div className="lp-passo"><i>1</i><div><b>Fale o que tem que ser feito</b><small>Grave um áudio ou escreva. A IA monta o checklist com foto obrigatória e horário.</small></div></div>
             <div className="lp-passo"><i>2</i><div><b>A equipe faz pelo celular</b><small>Cada tarefa com foto pela câmera. A IA confere e reprova o que saiu do padrão.</small></div></div>
-            <div className="lp-passo"><i>3</i><div><b>Você recebe no WhatsApp</b><small>Atrasou, reprovou, concluiu. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
+            <div className="lp-passo"><i>3</i><div><b>Você recebe no WhatsApp</b><small>Reprovou, concluiu, faltou estoque, teve descarte. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
           </div>
           <div className="lp-chips"><span>Restaurante e delivery</span><span>Franquia e rede</span><span>Padaria</span><span>Academia</span><span>Hotel</span><span>Frota</span><span>Clínica</span><span>Supermercado</span></div>
         </div>
@@ -266,7 +396,7 @@ export default function LandingPage() {
                 <li>IA monta e confere as fotos</li>
                 <li>Frota, compras, estoque, descarte e ranking</li>
                 <li>Avisos no WhatsApp da sua empresa</li>
-                <li>Relatórios em PDF e Excel</li>
+                <li>Relatório em PDF de cada checklist</li>
               </ul>
               <button className="lp-cta" onClick={() => testar('Plano Só Checklists: testar grátis')}>Começar meus 7 dias grátis</button>
               <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
@@ -290,7 +420,7 @@ export default function LandingPage() {
               <ul>
                 <li>Até 30 pessoas na equipe</li>
                 <li>Reconhecimento facial com IA e GPS</li>
-                <li>Alerta de atraso e saída no WhatsApp</li>
+                <li>Alerta de atraso e ausência no WhatsApp</li>
                 <li>Folha de ponto pronta pro contador</li>
               </ul>
               <button className="lp-cta" onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>Assinar Só Ponto</button>
