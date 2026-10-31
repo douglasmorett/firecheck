@@ -273,6 +273,61 @@ function trialExpirado(conta) {
 // de mensagem que se bloqueia e denuncia, e foi assim que o número de aviso
 // do FireCheck caiu em setembro de 2026. Regra do dono: acabou o teste e não
 // pagou, nenhuma mensagem.
+// O checklist cai HOJE (dia de São Paulo)? Mesma regra da lista de hoje do
+// funcionário (rota /api/checklists, filtro de hoje), para o cron de atraso
+// cobrar só o que o funcionário está vendo: dias escolhidos; semanal pelo dia
+// da semana da data de referência; mensal, trimestral e semestral pelo dia do
+// mês. Sem data de referência, a lista mostra todo dia, e aqui também.
+// Único: só na data marcada (a lista o mantém nos dias seguintes até ser
+// feito, mas o atraso já foi avisado no dia).
+function checklistCaiHoje(cl, hojeISO, diaSemanaHoje) {
+  const [hAno, hMes, hDia] = hojeISO.split('-').map(Number);
+  const iso = String(cl.scheduled_date || '').slice(0, 10);
+  const ancora = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+  const rec = cl.recurrence;
+  if (rec === 'weekdays') {
+    let dias = [];
+    try { dias = typeof cl.weekdays === 'string' ? JSON.parse(cl.weekdays || '[]') : (cl.weekdays || []); } catch (e) { dias = []; }
+    return !(Array.isArray(dias) && dias.length > 0 && !dias.includes(diaSemanaHoje));
+  }
+  if (['weekly', 'monthly', 'quarterly', 'semiannual'].includes(rec)) {
+    if (!ancora) return true;
+    const [aAno, aMes, aDia] = ancora.split('-').map(Number);
+    if (rec === 'weekly') {
+      return new Date(Date.UTC(aAno, aMes - 1, aDia)).getUTCDay() === new Date(Date.UTC(hAno, hMes - 1, hDia)).getUTCDay();
+    }
+    const ultimoDiaDoMes = new Date(Date.UTC(hAno, hMes, 0)).getUTCDate();
+    if (hDia !== Math.min(aDia, ultimoDiaDoMes)) return false;
+    const aCada = rec === 'quarterly' ? 3 : rec === 'semiannual' ? 6 : 1;
+    const mesesDesde = (hAno * 12 + hMes) - (aAno * 12 + aMes);
+    return !(aCada > 1 && (mesesDesde < 0 || mesesDesde % aCada !== 0));
+  }
+  if (rec === 'unico' || !rec) return ancora === hojeISO;
+  return true;
+}
+
+// A hora limite do checklist: a mais cedo entre as tarefas (campo "Hora
+// Limite"; tarefa com notifyDelay desligado não conta) ou o "HH:MM" antigo em
+// scheduled_date. O funcionário envia o checklist inteiro de uma vez, então a
+// primeira hora vencida sem envio já é o atraso. null quando não há hora.
+function horaLimiteDoChecklist(cl) {
+  let tarefas = cl.tasks;
+  if (typeof tarefas === 'string') { try { tarefas = JSON.parse(tarefas); } catch (e) { tarefas = []; } }
+  const candidatas = (Array.isArray(tarefas) ? tarefas : [])
+    .filter(t => t && t.notifyDelay !== false)
+    .map(t => ({ hora: String(t.timeLimit || ''), tarefa: String(t.text || '').trim() }));
+  candidatas.push({ hora: String(cl.scheduled_date || ''), tarefa: '' });
+  let melhor = null;
+  for (const c of candidatas) {
+    const m = c.hora.match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) continue;
+    const minutos = Number(m[1]) * 60 + Number(m[2]);
+    if (minutos >= 24 * 60) continue;
+    if (!melhor || minutos < melhor.minutos) melhor = { minutos, hora: `${m[1].padStart(2, '0')}:${m[2]}`, tarefa: c.tarefa };
+  }
+  return melhor;
+}
+
 function contaEmDia(conta) {
   if (!conta) return false;
   if (conta.status === 'blocked' || conta.status === 'pending') return false;
@@ -6640,39 +6695,34 @@ export default async function handler(req, res) {
         const [hAtual, mAtual] = horaMinutosAtual.split(':').map(Number);
         const minutosAtual = hAtual * 60 + mAtual;
 
-        // 2. Buscar todos os checklists que possuem horário programado (scheduled_date)
+        // 2. Checklists com HORA LIMITE.
+        //
+        // A hora vive em cada tarefa (campo "Hora Limite" do editor, que a IA
+        // também preenche quando o lojista fala um horário). Até 30/10/2026 o
+        // cron lia `scheduled_date` como "HH:MM", mas o editor grava ali a DATA
+        // de execução (YYYY-MM-DD): o split(':') dava NaN e nenhum checklist
+        // criado pela tela jamais avisou atraso. O "HH:MM" antigo em
+        // scheduled_date continua valendo, se algum checklist tiver.
         const { rows: checklists } = await pool.query(
-          "SELECT id, title, store, recurrence, scheduled_date, weekdays FROM checklists WHERE scheduled_date IS NOT NULL AND scheduled_date != ''"
+          `SELECT id, title, store, recurrence, scheduled_date, weekdays, tasks FROM checklists
+            WHERE tasks ~ '"timeLimit": ?"[0-9]' OR scheduled_date ~ '^[0-9]{1,2}:[0-9]{2}'`
         );
 
         let alertasEnviados = 0;
         const enviosPendentes = [];
 
         for (const cl of checklists) {
-          // Validar recorrência/dias da semana
-          let deveRodarHoje = false;
-          if (!cl.weekdays || cl.weekdays.length === 0 || cl.recurrence === 'diaria') {
-            deveRodarHoje = true;
-          } else {
-            try {
-              const wd = typeof cl.weekdays === 'string' ? JSON.parse(cl.weekdays) : cl.weekdays;
-              if (Array.isArray(wd) && wd.includes(diaSemanaAtual)) {
-                deveRodarHoje = true;
-              }
-            } catch (e) { deveRodarHoje = true; }
-          }
+          if (!checklistCaiHoje(cl, dataHoje, diaSemanaAtual)) continue;
 
-          if (!deveRodarHoje) continue;
+          const prazo = horaLimiteDoChecklist(cl);
+          if (!prazo) continue;
+          const minutosProg = prazo.minutos;
 
-          // Validar horário programado (ex: "18:00")
-          const [hProg, mProg] = cl.scheduled_date.split(':').map(Number);
-          if (isNaN(hProg) || isNaN(mProg)) continue;
-          const minutosProg = hProg * 60 + mProg;
-
-          // Janela ESTREITA: o cron passa a cada 30 minutos, então uma janela
-          // de 60 mandava o MESMO alerta 2-3 vezes — e alerta repetido é
-          // alerta que o gestor silencia. Com < 30, cada atraso avisa uma vez.
-          if (minutosAtual >= minutosProg && minutosAtual - minutosProg < 30) {
+          // O cron passa a cada 30 minutos (:00 e :30). Cada hora limite cai em
+          // UMA rodada só, a primeira depois dela (limite 08:00 → aviso 08:30;
+          // 08:10 → 08:30). Janela maior mandava o MESMO alerta 2-3 vezes, e
+          // alerta repetido é alerta que o gestor silencia.
+          if (minutosAtual > minutosProg && minutosAtual - minutosProg <= 30) {
             // Já houve submissão HOJE? "Hoje" no dia de SÃO PAULO expresso no
             // relógio UTC do banco — com created_at::date (UTC), o checklist
             // preenchido depois das 21h contava como amanhã: o cron cobrava
@@ -6703,10 +6753,9 @@ export default async function handler(req, res) {
                   const cleanPhone = targetPhone.replace(/\D/g, '');
                   const fullPhone = numeroWhatsapp(cleanPhone).numero || cleanPhone;
 
-                  const textMsg = `⏰ *FireCheck - Alerta de Checklist Atrasado*\n\n` +
-                    `Atenção! O checklist programado *"${cl.title}"* da loja *${cl.store}* ainda não foi preenchido hoje.\n\n` +
-                    `Horário programado: *${cl.scheduled_date}*\n` +
-                    `Horário limite de tolerância ultrapassado. ⚠️`;
+                  const textMsg = `⏰ *FireCheck - Checklist Atrasado*\n\n` +
+                    `O checklist *"${cl.title}"* da loja *${cl.store}* ainda não foi preenchido hoje.\n\n` +
+                    `Hora limite: *${prazo.hora}*` + (prazo.tarefa ? ` (tarefa "${prazo.tarefa}")` : '') + ` ⚠️`;
 
                   // Guardar a promessa: na Vercel a instância congela quando a
                   // resposta sai — disparar sem await reportava sucesso com a

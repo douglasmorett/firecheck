@@ -39,6 +39,7 @@ const DETALHES = [
       'Foto tirada na hora pela câmera do app (1 a 4 por tarefa)',
       'A IA confere a foto, reprova o que está fora do padrão e pede para refazer',
       'Repetição diária, semanal, mensal, trimestral ou semestral, para a equipe toda ou pessoas certas',
+      'Hora limite por tarefa: passou da hora e ninguém fez, o aviso chega no WhatsApp',
       'Selfie e assinatura na finalização, se você quiser',
       'Resultado com fotos, análise da IA e PDF para guardar',
     ],
@@ -103,7 +104,7 @@ const DETALHES = [
     titulo: <>Tudo chega no <em>seu WhatsApp.</em></>,
     texto: 'Conecte o WhatsApp da empresa lendo um QR Code. Os avisos saem do seu número para você, seu gerente e quem mais você cadastrar.',
     itens: [
-            'Checklist reprovado pela IA e checklist concluído',
+      'Checklist reprovado pela IA, concluído ou atrasado',
       'Estoque abaixo do mínimo, com a lista de reposição',
       'Ocorrência e descarte registrados pela equipe',
       'Atraso e ausência no ponto (com o módulo de ponto)',
@@ -370,7 +371,7 @@ export default function LandingPage() {
           <div className="lp-passos">
             <div className="lp-passo"><i>1</i><div><b>Fale o que tem que ser feito</b><small>Grave um áudio ou escreva. A IA monta o checklist com foto obrigatória e horário.</small></div></div>
             <div className="lp-passo"><i>2</i><div><b>A equipe faz pelo celular</b><small>Cada tarefa com foto pela câmera. A IA confere e reprova o que saiu do padrão.</small></div></div>
-            <div className="lp-passo"><i>3</i><div><b>Você recebe no WhatsApp</b><small>Reprovou, concluiu, faltou estoque, teve descarte. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
+            <div className="lp-passo"><i>3</i><div><b>Você recebe no WhatsApp</b><small>Reprovou, atrasou, concluiu, faltou estoque, teve descarte. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
           </div>
           <div className="lp-chips"><span>Restaurante e delivery</span><span>Franquia e rede</span><span>Padaria</span><span>Academia</span><span>Hotel</span><span>Frota</span><span>Clínica</span><span>Supermercado</span></div>
         </div>

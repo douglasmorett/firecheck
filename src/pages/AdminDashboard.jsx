@@ -3350,7 +3350,7 @@ export default function AdminDashboard() {
                        />
                        <label htmlFor="opt-checklist-atrasado" style={{ cursor: 'pointer' }}>
                           <strong style={{ display: 'block', fontSize: '0.95rem' }}>📅 Checklist Pendente/Atrasado</strong>
-                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Alertar caso o horário de checklist programado da loja seja ultrapassado e ninguém tenha preenchido o checklist correspondente.</span>
+                          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Avisar quando passar a Hora Limite de uma tarefa e ninguém tiver enviado o checklist no dia.</span>
                        </label>
                     </div>
 
