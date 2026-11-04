@@ -53,7 +53,7 @@ export default function Checkout() {
           const eventId = `signup_${data.user.id}_${Date.now()}`;
           
           // Enriquece o pixel com dados do usuário (sem re-inicializar)
-          window.fbq('init', '1508278337585097', {
+          window.fbq('init', '1475446081169882', {
             em: formData.email.toLowerCase().trim(),
             ph: formData.phone.replace(/\D/g, ''),
             fn: formData.name.trim().toLowerCase(),
@@ -61,9 +61,9 @@ export default function Checkout() {
           });
 
           if (plan === 'trial' || !plan) {
-            window.fbq('trackSingle', '1508278337585097', 'StartTrial', { content_name: 'Teste Grátis 7 Dias', currency: 'BRL', value: 0 }, { eventID: eventId });
+            window.fbq('trackSingle', '1475446081169882', 'StartTrial', { content_name: 'Teste Grátis 7 Dias', currency: 'BRL', value: 0 }, { eventID: eventId });
           } else {
-            window.fbq('trackSingle', '1508278337585097', 'InitiateCheckout', { content_name: plan, currency: 'BRL' }, { eventID: eventId });
+            window.fbq('trackSingle', '1475446081169882', 'InitiateCheckout', { content_name: plan, currency: 'BRL' }, { eventID: eventId });
           }
         }
 
