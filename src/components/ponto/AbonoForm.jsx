@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { CheckCircle, Paperclip } from 'lucide-react';
 import API_URL from '../../api';
+import { FALTA_JUSTIFICADA_SEM_ABONO, tipoParaNovoAbono } from '../../../api/ponto-abonos.js';
 
 // Lançamento de atestado, falta justificada, folga compensada ou feriado.
 // Usado na aba "Atestados e Feriados" e na ficha do funcionário (botão
 // "Abonar" num dia de falta). O dia lançado deixa de contar como falta no
-// espelho e, exceto a folga compensada, não desconta do banco de horas.
+// espelho. Justificar uma falta não abona as horas não trabalhadas.
 const TIPOS_ABONO = [
   { valor: 'atestado', rotulo: 'Atestado médico', dica: 'O dia não conta como falta e as horas não são descontadas.' },
-  { valor: 'falta_justificada', rotulo: 'Falta justificada', dica: 'O dia não conta como falta e as horas não são descontadas.' },
+  { valor: FALTA_JUSTIFICADA_SEM_ABONO, rotulo: 'Falta justificada', dica: 'O dia fica justificado, mas as horas não trabalhadas continuam descontadas do banco de horas.' },
   { valor: 'folga_compensada', rotulo: 'Folga compensada (banco de horas)', dica: 'O dia não conta como falta, mas as horas da jornada saem do banco de horas.' },
   { valor: 'feriado', rotulo: 'Feriado (toda a equipe)', dica: 'Vale para todos: ninguém leva falta nem desconto. Quem trabalhar no feriado ganha as horas no banco.' },
 ];
@@ -16,7 +17,7 @@ const TIPOS_ABONO = [
 const hojeSP = () => new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
 
 export default function AbonoForm({ employees = [], funcionarioFixo = null, dataInicial = '', tipoInicial = 'atestado', onSalvo, onCancelar }) {
-  const [tipo, setTipo] = useState(tipoInicial);
+  const [tipo, setTipo] = useState(() => tipoParaNovoAbono(tipoInicial) || 'atestado');
   const [userId, setUserId] = useState(funcionarioFixo ? String(funcionarioFixo.id) : '');
   const [data, setData] = useState(dataInicial || hojeSP());
   const [dataFim, setDataFim] = useState('');

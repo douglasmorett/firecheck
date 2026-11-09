@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { PRODUTOS, normalizarCodigo, garantirTabelasDeCodigos, gerarLote } from './_codigos-ativacao.js';
+import { TIPOS_DE_ABONO, tipoParaNovoAbono, minutosAbonadosDoLancamento } from './ponto-abonos.js';
 
 // ── Segurança: Connection string via env var (NUNCA hardcoded) ──
 const pool = new Pool({
@@ -1536,12 +1537,6 @@ async function getEmployeeScheduleForDay(pool, userId, date) {
 // A Pet Nature perguntou onde lançar o atestado e o feriado: até aqui não havia
 // lugar, e o dia virava "falta" no espelho. Uma linha por lançamento; user_id
 // NULL é feriado da loja inteira. data_fim cobre o atestado de vários dias.
-const TIPOS_DE_ABONO = {
-  atestado: 'Atestado',
-  falta_justificada: 'Falta justificada',
-  folga_compensada: 'Folga compensada',
-  feriado: 'Feriado',
-};
 let abonosProntos = false;
 async function garantirAbonosDePonto() {
   if (abonosProntos) return;
@@ -1623,8 +1618,9 @@ function inicioDoPeriodoDeFechamento(fechamentoDia, hoje) {
  *
  * Esperado = jornada da escala (entrada→saída menos o intervalo). Sem escala
  * vinculada não há o que esperar: o saldo sai nulo em vez de inventar 10 h/dia.
- * Atestado, falta justificada e feriado zeram o esperado do dia (abonado);
- * folga compensada mantém o esperado — é a folga paga com o banco de horas.
+ * Atestado e feriado abonam a jornada. A falta justificada nova só justifica:
+ * as horas não trabalhadas continuam no saldo, como na folga compensada.
+ * Lançamentos antigos de falta justificada conservam o abono já registrado.
  * O dia de hoje, antes do horário de saída, fica "em andamento" e fora do saldo.
  */
 async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
@@ -1718,7 +1714,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
         && agoraMin < (minutosDoRelogio(jornada.horaSaida) ?? 24 * 60);
       const esperado = temEscala ? minutosEsperadosDaJornada(jornada) : 0;
       const abono = abonoDoDia(p.id, dia);
-      const abonado = abono && abono.tipo !== 'folga_compensada' ? esperado : 0;
+      const abonado = minutosAbonadosDoLancamento(abono, esperado);
       const falta = temEscala && esperado > 0 && doDia.length === 0 && !abono && !emAndamento;
       const saldo = temEscala && !emAndamento ? trabalhado - (esperado - abonado) : null;
       linhas.push({
@@ -8848,12 +8844,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
       if (method === 'POST') {
         const { tipo, userId, data, dataFim, observacao, arquivo } = req.body || {};
-        if (!TIPOS_DE_ABONO[tipo]) return res.status(400).json({ error: 'Tipo inválido.' });
+        const tipoDoLancamento = tipoParaNovoAbono(tipo);
+        if (!tipoDoLancamento) return res.status(400).json({ error: 'Tipo inválido.' });
         if (!/^\d{4}-\d{2}-\d{2}$/.test(data || '')) return res.status(400).json({ error: 'Informe a data.' });
         const ate = /^\d{4}-\d{2}-\d{2}$/.test(dataFim || '') && dataFim !== data ? dataFim : null;
         if (ate && ate < data) return res.status(400).json({ error: 'A data final é antes da inicial.' });
         let alvo = { id: null, name: null };
-        if (tipo !== 'feriado') {
+        if (tipoDoLancamento !== 'feriado') {
           if (!userId) return res.status(400).json({ error: 'Escolha o funcionário.' });
           const { rows: u } = await pool.query('SELECT id, name, store FROM users WHERE id = $1', [userId]);
           if (u.length === 0 || !mesmaLoja(u[0].store, store)) {
@@ -8869,7 +8866,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         const { rows } = await pool.query(
           `INSERT INTO ponto_abonos (store, user_id, user_name, tipo, data, data_fim, observacao, arquivo_url, criado_por)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-          [store, alvo.id, alvo.name, tipo, data, ate, observacao || null, arquivoUrl, authPonto.email || 'Gestor']
+          [store, alvo.id, alvo.name, tipoDoLancamento, data, ate, observacao || null, arquivoUrl, authPonto.email || 'Gestor']
         );
         return res.status(200).json({ success: true, id: rows[0].id });
       }
