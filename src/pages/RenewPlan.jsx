@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Flame, Zap, Building2, ArrowLeft, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
+import { comAfiliado } from '../afiliado';
 
 export default function RenewPlan() {
   const [searchParams] = useSearchParams();
@@ -60,7 +61,7 @@ export default function RenewPlan() {
     if (Capacitor.isNativePlatform()) {
       window.open(url, '_blank');
     } else {
-      window.location.href = url;
+      window.location.href = comAfiliado(url);
     }
   };
 

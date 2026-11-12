@@ -3320,6 +3320,8 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS ponto_last_worked_day TIMESTAMP");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_subscription_id VARCHAR(100)");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_ponto_subscription_id VARCHAR(100)");
+      // Código do afiliado da Cakto que trouxe o cliente pelo site (ver src/afiliado.js).
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS cakto_afiliado VARCHAR(40)");
       // ── Módulos pagos pelo boleto do FireHub (sincronizarComFirehub) ──
       // checklists_active só vale para quem segue o FireHub: as contas da Cakto
       // e dos códigos nunca tiveram chave de checklist e continuam como estão.
@@ -3795,7 +3797,7 @@ export default async function handler(req, res) {
               return res.status(403).json({ status: 'error', error: 'Seu pagamento está pendente. Finalize o pagamento para acessar o sistema.' });
             }
             if (user.status === 'trial' && trialExpirado(user)) {
-              return res.status(403).json({ status: 'error', plan_expired: true, error: 'Seu período de teste expirou. Assine um plano para continuar usando o FireCheck.' });
+              return res.status(403).json({ status: 'error', plan_expired: true, cakto_afiliado: user.cakto_afiliado || null, error: 'Seu período de teste expirou. Assine um plano para continuar usando o FireCheck.' });
             }
             if (user.status === 'active' && user.expiration_date) {
               if (new Date(user.expiration_date) < new Date()) {
@@ -5311,6 +5313,8 @@ export default async function handler(req, res) {
     if (url.includes('/api/signup')) {
       if (method === 'POST') {
         const { name, email, password, store, phone, plan } = req.body;
+        // Afiliado da Cakto que trouxe o cliente: vai no link de pagamento quando ele assinar.
+        const caktoAfiliado = /^[A-Za-z0-9_-]{4,40}$/.test(String(req.body.afiliado || '')) ? String(req.body.afiliado) : null;
 
         // Verificar email duplicado
         const { rows: existing } = await pool.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
@@ -5338,8 +5342,8 @@ export default async function handler(req, res) {
         // chave, o desempate fica só na chave e ele nunca vê a diferença.
         const chaveDaLoja = await gerarChaveDeLoja(store);
         const { rows } = await pool.query(
-          'INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, store, store_name, status, phone, created_at',
-          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, plan || 'trial']
+          'INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, cakto_afiliado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, store, store_name, status, phone, created_at, cakto_afiliado',
+          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, plan || 'trial', caktoAfiliado]
         );
 
         // ── WhatsApp de Boas-Vindas do Suporte no Trial (fire and forget) ──

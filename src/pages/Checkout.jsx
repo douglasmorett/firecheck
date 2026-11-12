@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CreditCard, ShieldCheck, Flame, Zap } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
+import { afiliadoAtual, comAfiliado } from '../afiliado';
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
@@ -38,7 +39,7 @@ export default function Checkout() {
       const response = await fetch(`${API_URL}/api/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, plan: plan || 'trial' })
+        body: JSON.stringify({ ...formData, plan: plan || 'trial', afiliado: afiliadoAtual() })
       });
 
       const data = await response.json();
@@ -98,7 +99,7 @@ export default function Checkout() {
           } else {
             // Delay de 350ms para evitar que a requisição de rastreamento do Pixel seja abortada na redireção
             setTimeout(() => {
-              window.location.href = checkoutLink;
+              window.location.href = comAfiliado(checkoutLink);
             }, 350);
           }
         } else {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Flame, Mail, Lock, ArrowRight, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
+import { guardarAfiliado } from '../afiliado';
 import BaixarOApp from '../components/BaixarOApp';
 import { mostrarBaixarOApp } from '../lojasDoApp';
 import { esquecerCentralFechada } from '../tutoriais/telas';
@@ -80,6 +81,7 @@ export default function Login() {
       } else {
         // Se o plano expirou e o usuário é admin, redireciona para a tela de renovação
         if (data.plan_expired) {
+          guardarAfiliado(data.cakto_afiliado);
           navigate(`/renovar?email=${encodeURIComponent(email)}`);
         } else {
           setErrorMsg(data.error || 'Erro ao fazer login.');
