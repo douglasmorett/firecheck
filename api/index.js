@@ -2295,19 +2295,47 @@ async function processAuditForSubmission(pool, submissionId) {
         base64Data = task.photo.split(',')[1] || task.photo;
       }
 
-      const prompt = `Você é um auditor objetivo de tarefas. Analise a foto para verificar se o que foi explicitamente pedido na tarefa "${task.text}" está presente na imagem.
-      Regras:
-      1. Foque APENAS em verificar se a instrução principal foi cumprida.
-      2. Se o item pedido está na foto, "approved": true e message deve ser um elogio curto.
-      3. Se o item pedido NÃO está na foto, "approved": false e explique rapidamente o que faltou.
-      Responda ESTRITAMENTE em JSON: {"approved": boolean, "message": "string"}.`;
+      // ── O QUE A IA CONFERE (Douglas, 21/11/2026) ───────────────────────
+      //
+      // Antes o prompt mandava verificar "o que foi EXPLICITAMENTE pedido" e só
+      // conhecia aprovado/reprovado. Resultado: "calabresa pct 2,5kg (congelada)"
+      // foi reprovada com a foto mostrando os pacotes de linguiça, porque a
+      // palavra "calabresa" não estava escrita na embalagem. A IA tem que
+      // reconhecer o item pelo ASPECTO, como uma pessoa faria, e reprovar só
+      // quando está claro que o item não está lá. É a mesma régua da conferência
+      // na hora da foto (mais abaixo): reprovado só com confiança alta; o resto
+      // não acusa ninguém.
+      const prompt = `Você confere a foto que um funcionário tirou como prova da tarefa "${task.text}".
+
+Como julgar:
+- Reconheça o item pelo ASPECTO: forma, cor, tamanho, embalagem, quantidade e o jeito como aparece. O NOME do produto NÃO precisa estar escrito na embalagem nem na foto. Se a tarefa fala de "calabresa" e a foto mostra pacotes de linguiça, é calabresa: aprove. Se fala de "frango" e há frango embalado, aprove.
+- Verifique somente se a tarefa foi cumprida. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
+- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que o item pedido não está lá ou que é claramente outra coisa. Falta de texto, rótulo ou marca legível NÃO é motivo.
+- Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
+- Na dúvida entre aprovar e reprovar, aprove ou responda "incerto". Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
+
+Responda ESTRITAMENTE em JSON:
+{"resultado": "aprovado" | "reprovado" | "incerto", "mensagem": "string", "confianca": "alta" | "media" | "baixa"}
+
+A mensagem é lida pelo funcionário, no celular:
+- aprovado: um elogio de até 8 palavras.
+- reprovado: uma frase curta e concreta dizendo O QUE FALTA para refazer a foto certa.
+- incerto: diga o que atrapalhou de ver (ex.: "A foto ficou escura demais para conferir.").`;
 
       const result = await model.generateContent([prompt, { inlineData: { data: base64Data, mimeType } }]);
       const response = await result.response;
       const aiResponse = JSON.parse(response.text().match(/\{[\s\S]*\}/)?.[0] || response.text());
 
-      feedbackInfo[task.id] = { status: aiResponse.approved ? 'success' : 'warning', message: aiResponse.message };
-      if (!aiResponse.approved) hasErrors = true;
+      // Só vira reprovação o que veio "reprovado" COM confiança alta. O formato
+      // antigo ({approved:false}) segue entendido, mas sem confiança não acusa.
+      const r = String(aiResponse.resultado || (aiResponse.approved === false ? 'reprovado' : 'aprovado')).toLowerCase();
+      const confiancaDaIa = String(aiResponse.confianca || '').toLowerCase();
+      const reprovou = r === 'reprovado' && confiancaDaIa === 'alta';
+      const mensagemDaIa = String(aiResponse.mensagem || aiResponse.message || '').slice(0, 300)
+        || (r === 'aprovado' ? 'Foto conferida.' : 'Não foi possível conferir esta foto.');
+
+      feedbackInfo[task.id] = { status: reprovou ? 'warning' : 'success', message: mensagemDaIa };
+      if (reprovou) hasErrors = true;
       processedCount++;
 
       // Delay de 1s entre chamadas para evitar rate-limit do Gemini
@@ -8734,6 +8762,7 @@ ${criterioLimpo ? `O QUE O GESTOR EXIGE NESTA FOTO: "${criterioLimpo}"` : 'O ges
 
 Como julgar:
 - Verifique somente se a tarefa foi cumprida${criterioLimpo ? ' segundo o critério acima' : ''}. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
+- Reconheça o item pelo ASPECTO (forma, cor, embalagem, quantidade). O nome do produto NÃO precisa estar escrito: pacotes de linguiça numa tarefa de "calabresa" estão certos. Falta de rótulo legível não é motivo para reprovar.
 - Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que a tarefa não foi cumprida.
 - Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
 - Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
