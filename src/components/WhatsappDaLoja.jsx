@@ -137,10 +137,10 @@ export default function WhatsappDaLoja() {
   const podeMexer = !!estado.podeMexer;
 
   return (
-    <div className="card" style={{ padding: '24px', borderLeft: `4px solid ${VERDE}` }}>
+    <div className="card" style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
-          <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: VERDE }}>
+          <h3 style={{ margin: '0 0 6px', fontSize: '1.05rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
             WhatsApp da loja (quem envia os avisos)
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>

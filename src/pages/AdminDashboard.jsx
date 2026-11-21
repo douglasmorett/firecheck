@@ -44,7 +44,7 @@ const STATS = {
 const AUDITORIAS = [];
 const CHECKLISTS_MOCK = []; // Placeholder para quando não houver conexão
 
-const RECURRENCE_LABEL = { daily: '📅 Diário', weekly: '📅 Semanal', monthly: '📅 Mensal', quarterly: '📅 Trimestral', semiannual: '📅 Semestral', '': '—' };
+const RECURRENCE_LABEL = { daily: 'Diário', weekly: 'Semanal', monthly: 'Mensal', quarterly: 'Trimestral', semiannual: 'Semestral', '': '—' };
 
 const ALERTAS_IA = [];
 
@@ -291,21 +291,31 @@ const ehHojeEmSP = (data) => {
   const dia = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
   return data && dia(data) === dia(Date.now());
 };
+// Nome legível do plano (o banco guarda o código: combo_anual, checklists10_mensal...).
+const nomeDoPlano = (plano = '') => {
+  const p = String(plano || '').toLowerCase();
+  const ciclo = p.endsWith('anual') ? ' · anual' : p.endsWith('mensal') ? ' · mensal' : '';
+  if (p.startsWith('checklists10')) return 'Até 10 pessoas' + ciclo;
+  if (p.startsWith('checklists')) return 'Até 30 pessoas' + ciclo;
+  if (p.startsWith('combo')) return 'Checklist + Ponto' + ciclo;
+  if (p.startsWith('ponto')) return 'Ponto' + ciclo;
+  return p ? p.charAt(0).toUpperCase() + p.slice(1).replace(/_/g, ' ') : 'Starter';
+};
 const saudacao = () => {
   const h = Number(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false }));
   return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
 };
 
 const getUserStatus = (user) => {
-  if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
-  if (user.status === 'pending') return { text: '🟡 Pagamento Pendente', color: 'var(--warning)' };
+  if (user.status === 'blocked') return { text: 'Conta Bloqueada', color: 'var(--error)' };
+  if (user.status === 'pending') return { text: 'Pagamento Pendente', color: 'var(--warning)' };
   
   if (user.status === 'active') {
      if (user.expiration_date) {
         const expDate = new Date(user.expiration_date);
         const now = new Date();
         const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-        if (diffDays <= 0) return { text: '🔴 Plano Expirado (Pendente)', color: 'var(--warning)' };
+        if (diffDays <= 0) return { text: 'Plano Expirado (Pendente)', color: 'var(--warning)' };
         return { text: `🟢 Plano Ativo (${diffDays} dias rest. no ciclo)`, color: 'var(--success)' };
      } else {
         return { text: `🟢 Plano Ativo (Pago)`, color: 'var(--success)' };
@@ -314,9 +324,9 @@ const getUserStatus = (user) => {
   
   // Trial — respeita a extensão concedida no painel (trial_ends_at).
   const diasRestantes = diasRestantesDeTeste(user);
-  if (diasRestantes === null) return { text: '⏳ Teste Ativo', color: '#FFA000' };
-  if (diasRestantes < 0) return { text: '🔴 Trial Expirado (Bloqueado)', color: 'var(--error)' };
-  if (diasRestantes === 0) return { text: '⏳ Último dia de Teste', color: '#FFA000' };
+  if (diasRestantes === null) return { text: 'Teste Ativo', color: '#FFA000' };
+  if (diasRestantes < 0) return { text: 'Trial Expirado (Bloqueado)', color: 'var(--error)' };
+  if (diasRestantes === 0) return { text: 'Último dia de Teste', color: '#FFA000' };
   return { text: `⏳ Teste Ativo (${diasRestantes} dias restantes)`, color: '#FFA000' };
 };
 
@@ -411,6 +421,8 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   // Filtro da lista vindo dos atalhos do Dashboard ("1 reprovado", "20 aprovados"...)
   const [filtroStatus, setFiltroStatus] = useState(null);
+  // Aba Checklists: filtro em pílulas (o que falta hoje aparece primeiro)
+  const [filtroChecklists, setFiltroChecklists] = useState('pendentes');
   const listaDaAuditoriaRef = useRef(null);
   const submissionsRef = useRef(submissions);
   submissionsRef.current = submissions;
@@ -492,7 +504,7 @@ export default function AdminDashboard() {
   const TUTORIAL_TOPICS = {
     checklists: {
       id: 'checklists',
-      title: '📝 Como Criar um Checklist com IA (Bill)',
+      title: 'Como Criar um Checklist com IA (Bill)',
       subtitle: 'Aprenda a criar rotinas automatizadas por voz ou texto em segundos.',
       categoryIcon: <ClipboardList size={22} color="#FF8800" />,
       steps: [
@@ -525,7 +537,7 @@ export default function AdminDashboard() {
 
     frota: {
       id: 'frota',
-      title: '🚚 Como Cadastrar e Vistoriar Minha Frota',
+      title: 'Como Cadastrar e Vistoriar Minha Frota',
       subtitle: 'Controle saída de veículos, pneus, lataria e nível de combustível.',
       categoryIcon: <Car size={22} color="#60A5FA" />,
       steps: [
@@ -552,7 +564,7 @@ export default function AdminDashboard() {
 
     compras: {
       id: 'compras',
-      title: '🛒 Como Fazer Lista de Compras e Estoque',
+      title: 'Como Fazer Lista de Compras e Estoque',
       subtitle: 'Evite falta de insumos com reposição automatizada.',
       categoryIcon: <ShoppingCart size={22} color="#EC4899" />,
       steps: [
@@ -579,7 +591,7 @@ export default function AdminDashboard() {
 
     equipe: {
       id: 'equipe',
-      title: '👥 Como Cadastrar Minha Equipe e Gerentes',
+      title: 'Como Cadastrar Minha Equipe e Gerentes',
       subtitle: 'Adicione colaboradores, defina níveis de acesso e filiais.',
       categoryIcon: <Users size={22} color="#A855F7" />,
       steps: [
@@ -606,7 +618,7 @@ export default function AdminDashboard() {
 
     ponto: {
       id: 'ponto',
-      title: '⏰ Como Funciona o Ponto por Reconhecimento Facial',
+      title: 'Como Funciona o Ponto por Reconhecimento Facial',
       subtitle: 'Registro de entrada e saída com foto e GPS sem fraudes.',
       categoryIcon: <Clock size={22} color="#60A5FA" />,
       steps: [
@@ -633,7 +645,7 @@ export default function AdminDashboard() {
 
     dashboard: {
       id: 'dashboard',
-      title: '📊 Visão Geral do Dashboard & Auditoria com Fotos',
+      title: 'Visão Geral do Dashboard & Auditoria com Fotos',
       subtitle: 'Acompanhe a conformidade geral e fiscalização por visão computacional.',
       categoryIcon: <Activity size={22} color="var(--primary)" />,
       steps: [
@@ -3162,7 +3174,7 @@ export default function AdminDashboard() {
 
       {/* ── Tab: Notificações ─────────────────────────────────── */}
       {tab === 'notificacoes' && (
-        <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div className="animate-fade fc-notif" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* O título já está no cabeçalho do painel (visual de 21/11/2026). */}
           <p style={{ color: 'var(--text-muted)', margin: '-18px 0 0 2px', fontSize: '0.92rem' }}>Os avisos que chegam no WhatsApp e no celular.</p>
@@ -3173,7 +3185,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
               {/* Configurações Gerais do WhatsApp */}
               <div className="card" style={{ padding: '24px', flex: 1, minWidth: '320px' }}>
-                 <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
+                 <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     Seu número para receber os avisos
                  </h3>
                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
@@ -3185,7 +3197,7 @@ export default function AdminDashboard() {
                           type="checkbox" 
                           checked={whatsappActive} 
                           onChange={e => setWhatsappActive(e.target.checked)} 
-                          style={{ accentColor: '#25D366', width: '18px', height: '18px', cursor: 'pointer' }}
+                          style={{ cursor: 'pointer' }}
                        />
                        Habilitar Disparos no WhatsApp
                     </label>
@@ -3217,7 +3229,7 @@ export default function AdminDashboard() {
                           disabled={testandoWhats}
                           style={{ width: '100%', padding: '12px', borderRadius: '8px', fontSize: '0.92rem', fontWeight: 'bold', cursor: testandoWhats ? 'wait' : 'pointer', opacity: testandoWhats ? 0.7 : 1 }}
                        >
-                          {testandoWhats ? 'Enviando...' : '💬 Enviar mensagem de teste agora'}
+                          {testandoWhats ? 'Enviando...' : 'Enviar mensagem de teste agora'}
                        </button>
                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '6px', fontSize: '0.78rem' }}>
                           Manda uma mensagem real para o número acima. Se não chegar, o motivo aparece aqui.
@@ -3668,282 +3680,122 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Tab: Ranking de Funcionários ─────────────────────────────────── */}
-      {tab === 'ranking' && (
-        <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-          {/* Header e Filtros */}
-          <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-            <div>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                <Trophy size={22} color="#f59e0b" /> Ranking de Performance da Equipe
-              </h3>
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px', marginBottom: 0 }}>
-                Métricas de conformidade e auditorias dos colaboradores
-              </p>
-            </div>
-            
-            {/* Filtros de Período */}
-            <div style={{ display: 'flex', backgroundColor: 'var(--bg-main)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <button 
-                onClick={() => setRankingPeriod('hoje')} 
-                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'hoje' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'hoje' ? 'white' : 'var(--text-muted)' }}
-              >
-                Hoje
-              </button>
-              <button 
-                onClick={() => setRankingPeriod('semana')} 
-                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'semana' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'semana' ? 'white' : 'var(--text-muted)' }}
-              >
-                Semana
-              </button>
-              <button 
-                onClick={() => setRankingPeriod('mes')} 
-                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'mes' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'mes' ? 'white' : 'var(--text-muted)' }}
-              >
-                Mês
-              </button>
-              <button 
-                onClick={() => setRankingPeriod('personalizado')} 
-                style={{ border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s', backgroundColor: rankingPeriod === 'personalizado' ? 'var(--primary)' : 'transparent', color: rankingPeriod === 'personalizado' ? 'white' : 'var(--text-muted)' }}
-              >
-                Personalizado
-              </button>
-            </div>
-          </div>
+      {tab === 'ranking' && (() => {
+        // Ranking (visual de 21/11/2026): mesma conta de antes, apresentação nova.
+        const now = new Date();
+        const filteredSubmissions = submissions.filter(sub => {
+          const subDate = new Date(sub.created_at);
+          if (rankingPeriod === 'hoje') {
+            return subDate.toDateString() === now.toDateString();
+          } else if (rankingPeriod === 'semana') {
+            const diffDays = Math.ceil(Math.abs(now - subDate) / (1000 * 60 * 60 * 24));
+            return diffDays <= 7;
+          } else if (rankingPeriod === 'mes') {
+            return subDate.getMonth() === now.getMonth() && subDate.getFullYear() === now.getFullYear();
+          } else if (rankingPeriod === 'personalizado') {
+            const startLimit = rankingCustomDates.start ? new Date(rankingCustomDates.start + 'T00:00:00') : null;
+            const endLimit = rankingCustomDates.end ? new Date(rankingCustomDates.end + 'T23:59:59') : null;
+            if (startLimit && subDate < startLimit) return false;
+            if (endLimit && subDate > endLimit) return false;
+            return true;
+          }
+          return true;
+        });
 
-          {/* Seletores Personalizados */}
-          {rankingPeriod === 'personalizado' && (
-            <div style={{ padding: '12px 24px 20px 24px', backgroundColor: 'var(--bg-main)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>De:</span>
-                <input 
-                  type="date" 
-                  value={rankingCustomDates.start} 
-                  onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, start: e.target.value })} 
-                  className="input-field" 
-                  style={{ width: '150px', padding: '6px 10px', fontSize: '0.85rem', margin: 0 }}
-                />
+        let totalTasksCompleted = 0;
+        let totalTasksPossible = 0;
+        const rankingData = filteredSubmissions.reduce((acc, sub) => {
+          const name = sub.employee_name;
+          const completed = sub.tasks?.filter(t => t.done)?.length || 0;
+          const total = sub.tasks?.length || 1;
+          if (!acc[name]) acc[name] = { name, totalCompleted: 0, totalPossible: 0, envios: 0 };
+          acc[name].totalCompleted += completed;
+          acc[name].totalPossible += total;
+          acc[name].envios += 1;
+          totalTasksCompleted += completed;
+          totalTasksPossible += total;
+          return acc;
+        }, {});
+        const teamEfficiency = totalTasksPossible > 0 ? Math.round((totalTasksCompleted / totalTasksPossible) * 100) : 0;
+        const sortedRanking = Object.values(rankingData)
+          .map(r => ({ nome: r.name, pct: Math.round((r.totalCompleted / r.totalPossible) * 100), concluidos: r.totalCompleted, total: r.totalPossible, envios: r.envios }))
+          .sort((a, b) => b.pct - a.pct || b.concluidos - a.concluidos)
+          .map((r, idx) => ({ ...r, pos: idx + 1 }));
+        const corDoPct = (p) => (p >= 90 ? 'var(--ok)' : p >= 70 ? '#D97706' : 'var(--bad)');
+        const rotuloDoPct = (p) => (p >= 90 ? 'Destaque' : p >= 70 ? 'Em evolução' : 'Precisa de atenção');
+        const podio = [sortedRanking[1], sortedRanking[0], sortedRanking[2]].filter(Boolean);
+
+        return (
+          <>
+            <div className="fc-barra-ferr">
+              <div className="fc-seg" role="tablist" aria-label="Período do ranking">
+                {[['hoje', 'Hoje'], ['semana', '7 dias'], ['mes', 'Este mês'], ['personalizado', 'Escolher datas']].map(([chave, nome]) => (
+                  <button key={chave} role="tab" aria-selected={rankingPeriod === chave} className={rankingPeriod === chave ? 'on' : ''} onClick={() => setRankingPeriod(chave)}>{nome}</button>
+                ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>Até:</span>
-                <input 
-                  type="date" 
-                  value={rankingCustomDates.end} 
-                  onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, end: e.target.value })} 
-                  className="input-field" 
-                  style={{ width: '150px', padding: '6px 10px', fontSize: '0.85rem', margin: 0 }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Dados Calculados */}
-          {(() => {
-            const now = new Date();
-            const filteredSubmissions = submissions.filter(sub => {
-              const subDate = new Date(sub.created_at);
-              if (rankingPeriod === 'hoje') {
-                return subDate.toDateString() === now.toDateString();
-              } else if (rankingPeriod === 'semana') {
-                const diffTime = Math.abs(now - subDate);
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays <= 7;
-              } else if (rankingPeriod === 'mes') {
-                return subDate.getMonth() === now.getMonth() && subDate.getFullYear() === now.getFullYear();
-              } else if (rankingPeriod === 'personalizado') {
-                const startLimit = rankingCustomDates.start ? new Date(rankingCustomDates.start + 'T00:00:00') : null;
-                const endLimit = rankingCustomDates.end ? new Date(rankingCustomDates.end + 'T23:59:59') : null;
-                if (startLimit && subDate < startLimit) return false;
-                if (endLimit && subDate > endLimit) return false;
-                return true;
-              }
-              return true;
-            });
-
-            let totalTasksCompleted = 0;
-            let totalTasksPossible = 0;
-
-            const rankingData = filteredSubmissions.reduce((acc, sub) => {
-              const name = sub.employee_name;
-              const completed = sub.tasks?.filter(t => t.done)?.length || 0;
-              const total = sub.tasks?.length || 1;
-              if (!acc[name]) acc[name] = { name, totalCompleted: 0, totalPossible: 0 };
-              acc[name].totalCompleted += completed;
-              acc[name].totalPossible += total;
-              
-              totalTasksCompleted += completed;
-              totalTasksPossible += total;
-              return acc;
-            }, {});
-
-            const teamEfficiency = totalTasksPossible > 0 ? Math.round((totalTasksCompleted / totalTasksPossible) * 100) : 0;
-
-            const sortedRanking = Object.values(rankingData)
-              .map(r => ({
-                nome: r.name,
-                pct: Math.round((r.totalCompleted / r.totalPossible) * 100),
-                concluidos: r.totalCompleted,
-                total: r.totalPossible
-              }))
-              .sort((a, b) => b.pct - a.pct)
-              .map((r, idx) => ({ ...r, pos: idx + 1 }));
-
-            if (sortedRanking.length === 0) {
-              return (
-                <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
-                  <Trophy size={48} color="var(--border-color)" style={{ marginBottom: '16px' }} />
-                  <p style={{ margin: 0, fontSize: '1.05rem', fontWeight: '500' }}>Nenhum checklist auditado neste período.</p>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem' }}>Os dados do ranking aparecerão assim que os funcionários realizarem submissões.</p>
+              {rankingPeriod === 'personalizado' && (
+                <div className="fc-periodo">
+                  <CalendarClock size={15} color="var(--primary)" />
+                  <input type="date" value={rankingCustomDates.start} onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, start: e.target.value })} aria-label="De" />
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>até</span>
+                  <input type="date" value={rankingCustomDates.end} onChange={(e) => setRankingCustomDates({ ...rankingCustomDates, end: e.target.value })} aria-label="Até" />
                 </div>
-              );
-            }
+              )}
+            </div>
 
-            return (
-              <div>
-                {/* Banner de Estatísticas da Equipe */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px 24px 12px 24px' }}>
-                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tarefas Concluídas</span>
-                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '2rem', color: 'var(--text-main)', fontWeight: '800' }}>{totalTasksCompleted}</h4>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>acumulado do período</span>
-                  </div>
-                  
-                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Média de Conformidade</span>
-                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '2rem', color: teamEfficiency >= 90 ? 'var(--success)' : teamEfficiency >= 70 ? '#f59e0b' : 'var(--error)', fontWeight: '800' }}>{teamEfficiency}%</h4>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>auditoria geral da equipe</span>
-                  </div>
-
-                  <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder do Ranking</span>
-                    <h4 style={{ margin: '8px 0 4px 0', fontSize: '1.2rem', color: 'var(--primary)', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', textAlign: 'center' }}>
-                      {sortedRanking[0].nome}
-                    </h4>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 'bold' }}>{sortedRanking[0].pct}% de acertos</span>
+            {sortedRanking.length === 0 ? (
+              <div className="card fc-vazio">
+                <Trophy size={36} style={{ marginBottom: '10px', opacity: 0.35 }} />
+                <p style={{ fontWeight: 500, color: 'var(--text-main)' }}>Nenhum checklist enviado neste período.</p>
+                <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>O ranking aparece assim que a equipe começar a enviar.</p>
+              </div>
+            ) : (
+              <>
+                <div className="fc-resumo card">
+                  <div><span className="fc-olho-rot">Tarefas feitas</span><strong className="mono">{totalTasksCompleted}</strong></div>
+                  <div><span className="fc-olho-rot">Pessoas no ranking</span><strong className="mono">{sortedRanking.length}</strong></div>
+                  <div><span className="fc-olho-rot">Na liderança</span><strong style={{ fontSize: '20px', letterSpacing: '-0.5px', marginTop: '12px' }}>{sortedRanking[0].nome}</strong></div>
+                  <div className="fc-resumo-barra">
+                    <span className="fc-olho-rot">Conformidade da equipe <b className="mono" style={{ marginLeft: 'auto', color: corDoPct(teamEfficiency), letterSpacing: 0 }}>{teamEfficiency}%</b></span>
+                    <BarraLuz pct={teamEfficiency} cor={corDoPct(teamEfficiency)} />
                   </div>
                 </div>
 
-                {/* Visualização de Pódio (Top 3) */}
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-end', gap: '12px', margin: '32px auto 24px auto', padding: '0 24px', maxWidth: '500px', flexWrap: 'nowrap' }}>
-                  {/* 2º Lugar */}
-                  {sortedRanking[1] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '110px' }}>
-                      <div style={{ position: 'relative', marginBottom: '8px' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', border: '2px solid #94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                          {sortedRanking[1].nome.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#94a3b8', color: '#1e293b', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>🥈</div>
-                      </div>
-                      <span style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[1].nome}</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>{sortedRanking[1].pct}%</span>
-                      <div style={{ height: '60px', width: '70px', background: 'linear-gradient(to top, rgba(148,163,184,0.1), rgba(148,163,184,0.01))', border: '1px solid rgba(148,163,184,0.2)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#94a3b8' }}>2º</span>
-                      </div>
+                {/* Pódio: 2º, 1º (destaque grafite) e 3º */}
+                <div className="fc-podio">
+                  {podio.map(r => (
+                    <div key={r.pos} className={`fc-podio-c card${r.pos === 1 ? ' lider' : ''}`}>
+                      <span className="fc-podio-pos mono">{String(r.pos).padStart(2, '0')}</span>
+                      {r.pos === 1 && <span className="fc-podio-trofeu"><Trophy size={16} /></span>}
+                      <span className="fc-podio-av">{iniciais(r.nome)}</span>
+                      <strong className="fc-podio-nome">{r.nome}</strong>
+                      <span className="fc-podio-pct mono">{r.pct}<small>%</small></span>
+                      <span className="fc-podio-sub">{r.concluidos} de {r.total} tarefas</span>
                     </div>
-                  )}
-
-                  {/* 1º Lugar */}
-                  {sortedRanking[0] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '130px', zIndex: 2 }}>
-                      <div style={{ position: 'relative', marginBottom: '8px' }}>
-                        <div style={{ width: '70px', height: '70px', borderRadius: '50%', background: 'linear-gradient(135deg, #fef08a, #fbbf24)', border: '3px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 'bold', color: '#78350f', boxShadow: '0 6px 20px rgba(245,158,11,0.25)' }}>
-                          {sortedRanking[0].nome.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%) rotate(-5deg)', fontSize: '1.3rem' }}>👑</div>
-                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#fbbf24', color: '#78350f', borderRadius: '50%', width: '22px', height: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>🥇</div>
-                      </div>
-                      <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '110px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[0].nome}</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--success)' }}>{sortedRanking[0].pct}%</span>
-                      <div style={{ height: '90px', width: '80px', background: 'linear-gradient(to top, rgba(245,158,11,0.15), rgba(245,158,11,0.02))', border: '2px solid rgba(245,158,11,0.25)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
-                        <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fbbf24' }}>1º</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 3º Lugar */}
-                  {sortedRanking[2] && (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '110px' }}>
-                      <div style={{ position: 'relative', marginBottom: '8px' }}>
-                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.05)', border: '2px solid #ca8a04', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', fontWeight: 'bold', color: 'var(--text-main)', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-                          {sortedRanking[2].nome.substring(0, 2).toUpperCase()}
-                        </div>
-                        <div style={{ position: 'absolute', bottom: '-4px', right: '-4px', backgroundColor: '#ca8a04', color: '#fef08a', borderRadius: '50%', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>🥉</div>
-                      </div>
-                      <span style={{ fontWeight: '600', fontSize: '0.8rem', color: 'var(--text-main)', textAlign: 'center', maxWidth: '90px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sortedRanking[2].nome}</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--primary)' }}>{sortedRanking[2].pct}%</span>
-                      <div style={{ height: '45px', width: '70px', background: 'linear-gradient(to top, rgba(202,138,4,0.1), rgba(202,138,4,0.01))', border: '1px solid rgba(202,138,4,0.2)', borderBottom: 'none', borderRadius: '8px 8px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '12px' }}>
-                        <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#ca8a04' }}>3º</span>
-                      </div>
-                    </div>
-                  )}
+                  ))}
                 </div>
 
-                {/* Lista Completa e Detalhada dos Colaboradores */}
-                <div style={{ padding: '0 24px 24px 24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {sortedRanking.map(r => {
-                    const badgeColor = r.pct >= 90 ? 'var(--success)' : r.pct >= 70 ? '#f59e0b' : 'var(--error)';
-                    const badgeText = r.pct >= 90 ? '🔥 Super Produtivo' : r.pct >= 70 ? '🏃 Em Evolução' : '⚠️ Precisa Atenção';
-                    const isTop3 = r.pos <= 3;
-                    
-                    return (
-                      <div 
-                        key={r.pos} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '16px', 
-                          padding: '16px', 
-                          backgroundColor: 'var(--bg-main)', 
-                          borderRadius: '12px',
-                          border: isTop3 ? `1px solid ${badgeColor}25` : '1px solid var(--border-color)',
-                          boxShadow: isTop3 ? `0 4px 12px ${badgeColor}04` : 'none',
-                          transition: 'transform 0.2s',
-                          cursor: 'default'
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.transform = 'none'; }}
-                      >
-                        {/* Posição */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '36px', height: '36px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.03)', fontWeight: 'bold', fontSize: '0.95rem' }}>
-                          {r.pos === 1 ? '🥇' : r.pos === 2 ? '🥈' : r.pos === 3 ? '🥉' : `#${r.pos}`}
-                        </div>
-
-                        {/* Foto/Avatar */}
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                          {r.nome.substring(0, 2).toUpperCase()}
-                        </div>
-
-                        {/* Informações */}
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
-                            <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.nome}</span>
-                            <span style={{ fontWeight: '800', fontSize: '0.95rem', color: badgeColor }}>{r.pct}%</span>
-                          </div>
-                          
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <div style={{ flex: 1 }}>
-                              <BarPct pct={r.pct} color={badgeColor} />
-                            </div>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', flexShrink: 0, fontWeight: '500' }}>
-                              {r.concluidos}/{r.total} tarefas
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Badges de Destaque */}
-                        <div style={{ display: 'none', mdDisplay: 'block' }}>
-                          <span style={{ backgroundColor: `${badgeColor}15`, color: badgeColor, border: `1px solid ${badgeColor}30`, padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                            {badgeText}
-                          </span>
-                        </div>
+                <div className="card fc-aud">
+                  <div className="fc-aud-cab"><h3>Classificação completa</h3></div>
+                  {sortedRanking.map(r => (
+                    <div key={r.pos} className="fc-rk">
+                      <span className="fc-rk-pos mono">{String(r.pos).padStart(2, '0')}</span>
+                      <span className="fc-av">{iniciais(r.nome)}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="fc-t">{r.nome}</div>
+                        <div className="fc-m">{r.concluidos} de {r.total} tarefas · {r.envios} checklist{r.envios === 1 ? '' : 's'}</div>
                       </div>
-                    );
-                  })}
+                      <div className="fc-lin-barra"><BarraLuz pct={r.pct} cor={corDoPct(r.pct)} /></div>
+                      <span className="fc-pct"><b>{r.pct}</b>%</span>
+                      <span className="fc-selo" style={{ '--c': corDoPct(r.pct) }}><i /><span>{rotuloDoPct(r.pct)}</span></span>
+                    </div>
+                  ))}
                 </div>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* ── Tab: Landing Page Analytics ─────────────────────────────────────── */}
       {tab === 'codigos' && isMaster && <CodigosDeAtivacao addToast={addToast} />}
@@ -4199,225 +4051,167 @@ export default function AdminDashboard() {
         </div>
       )}
       {/* ── Tab: Gerenciar Checklists ──────────────────────────────────── */}
-      {tab === 'checklists' && !(userProfile?.cobranca_firehub && userProfile?.checklists_active === false) && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <ClipboardList size={20} color="var(--primary)" /> Status dos Checklists (Hoje)
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              {(checklists || []).length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const nextVal = !checklistSortAlphabetical;
-                    setChecklistSortAlphabetical(nextVal);
-                    try {
-                      localStorage.setItem('firecheck_admin_sort_alphabetical', String(nextVal));
-                    } catch (e) {}
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    fontSize: '0.82rem',
-                    fontWeight: '600',
-                    borderRadius: '8px',
-                    border: checklistSortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: checklistSortAlphabetical ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--bg-color)',
-                    color: checklistSortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                  title={checklistSortAlphabetical ? "Ordenação alfabética ativa (clique para voltar à ordem padrão)" : "Ordenar por ordem alfabética (A-Z)"}
-                >
-                  <ArrowDownAZ size={15} />
-                  {checklistSortAlphabetical ? 'Ordem Alfabética (A-Z)' : 'Ordenar por ordem alfabética'}
-                </button>
-              )}
-              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => navigate('/admin/creator')}>
-                <Plus size={16} /> Novo Checklist
-              </button>
-            </div>
-          </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {(checklists || []).length > 0 ? (
-              <>
-                <div>
-                  <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={16} /> Pendentes de Execução
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {sortedAdminChecklists.filter(cl => !cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                            <h4 style={{ fontSize: '1rem', margin: 0 }}>{cl.title}</h4>
-                            <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(255,23,68,0.1)', color: 'var(--error)' }}>
-                              Pendente
-                            </span>
-                          </div>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '4px' }}>
-                            📋 {cl.tasks?.length || 0} tarefas &nbsp;·&nbsp; <CalendarClock size={12} style={{ verticalAlign: 'middle' }} /> {RECURRENCE_LABEL[cl.recurrence] || 'Único'}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => navigate(`/execucao/${cl.id}?preview=true`)}>
-                            <Eye size={15} /> Visualizar
-                          </button>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => navigate(`/admin/creator/${cl.id}`)}>
-                            <Edit2 size={15} /> Editar
-                          </button>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }}
-                            onClick={() => handleDeleteChecklist(cl.id, cl.title)}>
-                            <Trash2 size={15} /> Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {sortedAdminChecklists.filter(cl => !cl.completedToday).length === 0 && (
-                      <p style={{ color: 'var(--success)', fontSize: '0.85rem', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px' }}>Todos os checklists pendentes já foram executados hoje!</p>
-                    )}
-                  </div>
+      {tab === 'checklists' && !(userProfile?.cobranca_firehub && userProfile?.checklists_active === false) && (() => {
+        // Aba Checklists (visual de 21/11/2026): resumo do dia, filtro em pílulas e
+        // uma linha por checklist com status e ações em ícone.
+        const todos = sortedAdminChecklists || [];
+        const feitos = todos.filter(cl => cl.completedToday);
+        const pendentes = todos.filter(cl => !cl.completedToday);
+        const pctHoje = todos.length ? Math.round((feitos.length / todos.length) * 100) : 0;
+        const lista = filtroChecklists === 'feitos' ? feitos : filtroChecklists === 'pendentes' ? pendentes : todos;
+        return (
+          <>
+            {todos.length > 0 && (
+              <div className="fc-resumo card">
+                <div><span className="fc-olho-rot">Checklists ativos</span><strong className="mono">{todos.length}</strong></div>
+                <div><span className="fc-olho-rot">Feitos hoje</span><strong className="mono" style={{ color: 'var(--ok)' }}>{feitos.length}</strong></div>
+                <div><span className="fc-olho-rot">Faltam hoje</span><strong className="mono" style={{ color: pendentes.length ? '#D97706' : 'var(--text-main)' }}>{pendentes.length}</strong></div>
+                <div className="fc-resumo-barra">
+                  <span className="fc-olho-rot">Andamento do dia <b className="mono" style={{ marginLeft: 'auto', color: 'var(--text-main)', letterSpacing: 0 }}>{pctHoje}%</b></span>
+                  <BarraLuz pct={pctHoje} cor={pctHoje === 100 ? 'var(--ok)' : 'var(--primary)'} corre={pctHoje < 100} />
                 </div>
-
-                <div>
-                  <h4 style={{ color: 'var(--success)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle size={16} /> Concluídos
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {sortedAdminChecklists.filter(cl => cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-                            <h4 style={{ fontSize: '1rem', margin: 0, textDecoration: 'line-through' }}>{cl.title}</h4>
-                            <span style={{ padding: '2px 8px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 'bold', backgroundColor: 'rgba(0,200,83,0.1)', color: 'var(--success)' }}>
-                              Concluído por {cl.completedBy || 'Sistema'}
-                            </span>
-                          </div>
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginBottom: '4px' }}>
-                            📋 {cl.tasks?.length || 0} tarefas &nbsp;·&nbsp; <CalendarClock size={12} style={{ verticalAlign: 'middle' }} /> {RECURRENCE_LABEL[cl.recurrence] || 'Único'}
-                          </p>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => navigate(`/execucao/${cl.id}?preview=true`)}>
-                            <Eye size={15} /> Visualizar
-                          </button>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
-                            onClick={() => navigate(`/admin/creator/${cl.id}`)}>
-                            <Edit2 size={15} /> Editar
-                          </button>
-                          <button className="btn-secondary" style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }}
-                            onClick={() => handleDeleteChecklist(cl.id, cl.title)}>
-                            <Trash2 size={15} /> Excluir
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {sortedAdminChecklists.filter(cl => cl.completedToday).length === 0 && (
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px' }}>Nenhum checklist foi concluído hoje ainda.</p>
-                    )}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                <ClipboardList size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-                <p>Nenhum checklist encontrado para esta loja.</p>
-                <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => navigate('/admin/creator')}>Criar meu primeiro checklist</button>
               </div>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* ── Tab: Frota e Veículos ────────────────────────────────────────── */}
-      {tab === 'vehicles' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Car size={20} color="var(--primary)" /> Gerenciamento de Frota e Veículos
-            </h3>
-            {/* Funcionário consulta a frota para escolher o veículo na vistoria,
-                mas não a administra — mesma trava já usada na aba de compras. */}
-            {!isFuncionario && (
-              <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-                setEditingVehicle(null);
-                setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
-                setShowVehicleModal(true);
-              }}>
-                <Plus size={16} /> Cadastrar Veículo
-              </button>
-            )}
-          </div>
-          <div style={{ padding: '24px' }}>
-            {vehicles.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-                {vehicles.map(v => (
-                  <div key={v.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)' }}>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgb(var(--primary-rgb) / 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        {v.photo_url ? (
-                          <img src={v.photo_url} alt={v.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          <Car size={36} color="var(--text-muted)" />
-                        )}
+            <div className="card fc-aud">
+              <div className="fc-aud-cab">
+                <div className="fc-seg" role="tablist" aria-label="Filtrar checklists">
+                  {[['pendentes', `Faltam hoje`, pendentes.length], ['feitos', 'Feitos hoje', feitos.length], ['todos', 'Todos', todos.length]].map(([chave, nome, n]) => (
+                    <button key={chave} role="tab" aria-selected={filtroChecklists === chave} className={filtroChecklists === chave ? 'on' : ''} onClick={() => setFiltroChecklists(chave)}>
+                      {nome} <span className="mono">{n}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="fc-filtros">
+                  {todos.length > 1 && (
+                    <button
+                      type="button"
+                      className={`fc-mini-btn${checklistSortAlphabetical ? ' on' : ''}`}
+                      onClick={() => {
+                        const nextVal = !checklistSortAlphabetical;
+                        setChecklistSortAlphabetical(nextVal);
+                        try { localStorage.setItem('firecheck_admin_sort_alphabetical', String(nextVal)); } catch (e) { /* sem armazenamento: vale só nesta visita */ }
+                      }}
+                      title={checklistSortAlphabetical ? 'Ordem alfabética ativa (clique para voltar à ordem padrão)' : 'Ordenar de A a Z'}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 13px' }}
+                    >
+                      <ArrowDownAZ size={14} /> {checklistSortAlphabetical ? 'A a Z' : 'Ordenar A a Z'}
+                    </button>
+                  )}
+                  <button className="fc-pilula" onClick={() => navigate('/admin/creator')}>Novo checklist <i><Plus size={15} /></i></button>
+                </div>
+              </div>
+
+              {todos.length === 0 ? (
+                <div className="fc-vazio">
+                  <ClipboardList size={36} style={{ marginBottom: '10px', opacity: 0.35 }} />
+                  <p style={{ marginBottom: '14px' }}>Nenhum checklist criado nesta loja ainda.</p>
+                  <button className="fc-pilula" style={{ alignSelf: 'center', margin: '0 auto' }} onClick={() => navigate('/admin/creator')}>Criar meu primeiro checklist <i><Plus size={15} /></i></button>
+                </div>
+              ) : lista.length === 0 ? (
+                <div className="fc-vazio">
+                  {filtroChecklists === 'pendentes'
+                    ? <><CheckCircle size={32} color="var(--ok)" style={{ marginBottom: '8px' }} /><p>Todos os checklists de hoje já foram feitos.</p></>
+                    : <p>Nenhum checklist foi feito hoje ainda.</p>}
+                </div>
+              ) : (
+                <div>
+                  {lista.map(cl => (
+                    <div key={cl.id} className="fc-cl">
+                      <span className="fc-av" style={cl.completedToday ? { color: 'var(--ok)' } : undefined}>
+                        {cl.completedToday ? <CheckCircle size={18} /> : <ClipboardList size={18} />}
+                      </span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="fc-t">{cl.title}</div>
+                        <div className="fc-m">{cl.tasks?.length || 0} tarefa{(cl.tasks?.length || 0) === 1 ? '' : 's'} · {RECURRENCE_LABEL[cl.recurrence] || 'Único'}</div>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '1.1rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                          {v.brand} {v.model}
-                        </h4>
-                        <span className="badge" style={{ backgroundColor: 'var(--primary)', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                          {v.plate}
-                        </span>
-                        <p style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                          📟 KM Atual: <strong>{v.current_km ? Number(v.current_km).toLocaleString('pt-BR') : '0'} km</strong>
-                        </p>
-                        <p style={{ margin: '4px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                          👤 Motorista: <strong>{v.employee_name || 'Sem motorista vinculado'}</strong>
-                        </p>
+                      <span className="fc-selo-cel">
+                        {cl.completedToday
+                          ? <span className="fc-selo" style={{ '--c': 'var(--ok)' }}><i /><span>Feito hoje<small>por {cl.completedBy || 'equipe'}</small></span></span>
+                          : <span className="fc-selo" style={{ '--c': '#D97706' }}><i /><span>Falta fazer hoje</span></span>}
+                      </span>
+                      <div className="fc-ico-acoes">
+                        <button className="fc-ico" title="Ver como o funcionário vê" aria-label={`Visualizar ${cl.title}`} onClick={() => navigate(`/execucao/${cl.id}?preview=true`)}><Eye size={16} /></button>
+                        <button className="fc-ico" title="Editar" aria-label={`Editar ${cl.title}`} onClick={() => navigate(`/admin/creator/${cl.id}`)}><Edit2 size={16} /></button>
+                        <button className="fc-ico perigo" title="Excluir" aria-label={`Excluir ${cl.title}`} onClick={() => handleDeleteChecklist(cl.id, cl.title)}><Trash2 size={16} /></button>
                       </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        );
+      })()}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: v.status === 'ativo' ? 'var(--success)' : 'var(--error)' }}>
-                        ● {v.status === 'ativo' ? 'Ativo na Frota' : 'Inativo / Manutenção'}
-                      </span>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+      {/* ── Tab: Frota e Veículos ────────────────────────────────────────── */}
+      {tab === 'vehicles' && (() => {
+        // Frota (visual de 21/11/2026): cartões com a foto em destaque, placa no
+        // formato de placa, km e motorista em linhas de dado, ações em pílula.
+        const abrirCadastro = () => {
+          setEditingVehicle(null);
+          setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
+          setShowVehicleModal(true);
+        };
+        const ativos = vehicles.filter(v => v.status === 'ativo').length;
+        return (
+          <>
+            <div className="fc-barra-ferr">
+              {vehicles.length > 0 && (
+                <span className="fc-olho-rot" style={{ letterSpacing: '.06em' }}>
+                  <span className="mono" style={{ color: 'var(--text-main)' }}>{vehicles.length}</span> veículo{vehicles.length === 1 ? '' : 's'} ·
+                  <span className="mono" style={{ color: 'var(--ok)' }}>{ativos}</span> ativo{ativos === 1 ? '' : 's'}
+                </span>
+              )}
+              {/* Funcionário consulta a frota para escolher o veículo na vistoria,
+                  mas não a administra — mesma trava já usada na aba de compras. */}
+              {!isFuncionario && (
+                <button className="fc-pilula" style={{ marginLeft: 'auto' }} onClick={abrirCadastro}>Cadastrar veículo <i><Plus size={15} /></i></button>
+              )}
+            </div>
+
+            {vehicles.length > 0 ? (
+              <div className="fc-frota">
+                {vehicles.map(v => (
+                  <div key={v.id} className="card fc-veic">
+                    <div className="fc-veic-foto">
+                      {v.photo_url ? <img src={v.photo_url} alt={v.model} /> : <Car size={40} color="var(--text-muted)" />}
+                      <span className="fc-selo fc-veic-st" style={{ '--c': v.status === 'ativo' ? 'var(--ok)' : 'var(--bad)' }}><i /><span>{v.status === 'ativo' ? 'Ativo' : 'Em manutenção'}</span></span>
+                    </div>
+                    <div className="fc-veic-corpo">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'space-between' }}>
+                        <h4 className="fc-veic-nome">{v.brand} {v.model}</h4>
+                        <span className="fc-placa mono">{v.plate}</span>
+                      </div>
+                      <div className="fc-veic-dados">
+                        <div><span className="fc-olho-rot">Km atual</span><b className="mono">{v.current_km ? Number(v.current_km).toLocaleString('pt-BR') : '0'}</b></div>
+                        <div><span className="fc-olho-rot">Motorista</span><b>{v.employee_name || 'Sem motorista'}</b></div>
+                      </div>
+                      <div className="fc-veic-acoes">
                         {v.status === 'ativo' && v.employee_id && (
-                          <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => handleSolicitVehicleChecklist(v.id)}>
-                            Solicitar
-                          </button>
+                          <button className="fc-pilula" onClick={() => handleSolicitVehicleChecklist(v.id)}>Pedir vistoria <i><ArrowUpRight size={15} /></i></button>
                         )}
                         {!isFuncionario && (<>
-                        <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem' }} onClick={() => {
-                          setEditingVehicle(v);
-                          setNewVehicle({
-                            id: v.id,
-                            plate: v.plate,
-                            model: v.model, 
-                            brand: v.brand, 
-                            color: v.color || '', 
-                            year: v.year || '', 
-                            currentKm: v.current_km || '', 
-                            photoUrl: v.photo_url || '', 
-                            status: v.status || 'ativo',
-                            employeeId: v.employee_id || '',
-                            tasks: v.tasks || [],
-                            scheduleType: v.schedule_type || 'manual',
-                            scheduleData: v.schedule_data || null
-                          });
-                          setShowVehicleModal(true);
-                        }}>
-                          Editar
-                        </button>
-                        <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.8rem', color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteVehicle(v.id)}>
-                          Excluir
-                        </button>
+                          <button className="fc-ico" title="Editar" aria-label={`Editar ${v.plate}`} style={{ marginLeft: 'auto' }} onClick={() => {
+                            setEditingVehicle(v);
+                            setNewVehicle({
+                              id: v.id,
+                              plate: v.plate,
+                              model: v.model,
+                              brand: v.brand,
+                              color: v.color || '',
+                              year: v.year || '',
+                              currentKm: v.current_km || '',
+                              photoUrl: v.photo_url || '',
+                              status: v.status || 'ativo',
+                              employeeId: v.employee_id || '',
+                              tasks: v.tasks || [],
+                              scheduleType: v.schedule_type || 'manual',
+                              scheduleData: v.schedule_data || null
+                            });
+                            setShowVehicleModal(true);
+                          }}><Edit2 size={15} /></button>
+                          <button className="fc-ico perigo" title="Excluir" aria-label={`Excluir ${v.plate}`} onClick={() => handleDeleteVehicle(v.id)}><Trash2 size={15} /></button>
                         </>)}
                       </div>
                     </div>
@@ -4425,21 +4219,15 @@ export default function AdminDashboard() {
                 ))}
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                <Car size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
-                <p>Nenhum veículo cadastrado na frota desta loja.</p>
-                <button className="btn-secondary" style={{ marginTop: '16px' }} onClick={() => {
-                  setEditingVehicle(null);
-                  setNewVehicle({ plate: '', model: '', brand: '', color: '', year: '', currentKm: '', photoUrl: '', status: 'ativo', employeeId: '', tasks: [], scheduleType: 'manual', scheduleData: null });
-                  setShowVehicleModal(true);
-                }}>
-                  Cadastrar Primeiro Veículo
-                </button>
+              <div className="card fc-vazio">
+                <Car size={36} style={{ marginBottom: '10px', opacity: 0.35 }} />
+                <p style={{ marginBottom: '14px' }}>Nenhum veículo cadastrado na frota desta loja.</p>
+                {!isFuncionario && <button className="fc-pilula" style={{ margin: '0 auto' }} onClick={abrirCadastro}>Cadastrar o primeiro veículo <i><Plus size={15} /></i></button>}
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        );
+      })()}
 
       {showVehicleModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
@@ -4695,187 +4483,141 @@ export default function AdminDashboard() {
 
       {/* ── Tab: Gestão de Equipe / Clientes ───────────────────────────── */}
       {tab === 'equipe' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Users size={20} color="var(--primary)" /> {isMaster ? 'Contas de Clientes (Donos de Loja)' : 'Equipe da Loja'}
-              </h3>
-              {!isFuncionario && (
-                <button className="btn" style={{ padding: '8px 16px', fontSize: '0.9rem' }} onClick={() => {
-                  setNewUser({ name: '', email: '', password: '', role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store, plan: 'mensal' });
-                  setShowUserModal(true);
-                }}>
-                  <UserPlus size={16} /> {isMaster ? 'Adicionar Novo Cliente' : 'Adicionar Colaborador'}
+        // Equipe / Gestão de Clientes (visual de 21/11/2026)
+        <>
+          {isMaster && (
+            <div className="fc-filtros-num">
+              {[
+                ['trial', 'Testes ativos', '#D97706', team.filter(m => m.role === 'admin' && m.status === 'trial' && !isBlocked(m)).length],
+                ['bloqueadas', 'Contas bloqueadas', 'var(--bad)', team.filter(m => m.role === 'admin' && isBlocked(m)).length],
+                ['pagantes', 'Clientes pagantes', 'var(--ok)', team.filter(m => m.role === 'admin' && m.status === 'active' && !isBlocked(m)).length],
+              ].map(([chave, nome, cor, n]) => (
+                <button key={chave} type="button" className={`card${filtroContas === chave ? ' on' : ''}`} style={{ '--c': cor }}
+                  onClick={() => setFiltroContas(filtroContas === chave ? null : chave)} aria-pressed={filtroContas === chave}
+                  title={filtroContas === chave ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}>
+                  <span className="fc-olho-rot"><i />{nome}</span>
+                  <strong className="mono">{n}</strong>
                 </button>
-              )}
+              ))}
             </div>
+          )}
 
-            {isMaster && (
-              <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
-                <button type="button" onClick={() => setFiltroContas(filtroContas === 'trial' ? null : 'trial')} aria-pressed={filtroContas === 'trial'} title={filtroContas === 'trial' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
-                  style={{ backgroundColor: 'rgba(255,160,0,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,160,0,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'trial' ? '0 0 0 2px #FFA000' : 'none', opacity: filtroContas && filtroContas !== 'trial' ? 0.55 : 1, transition: 'all .15s' }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#FFA000' }}>
-                    {team.filter(m => m.role === 'admin' && m.status === 'trial' && !isBlocked(m)).length}
-                  </span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Testes Ativos (7 Dias)</span>
-                </button>
-                <button type="button" onClick={() => setFiltroContas(filtroContas === 'bloqueadas' ? null : 'bloqueadas')} aria-pressed={filtroContas === 'bloqueadas'} title={filtroContas === 'bloqueadas' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
-                  style={{ backgroundColor: 'rgba(255,23,68,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,23,68,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'bloqueadas' ? '0 0 0 2px #FF1744' : 'none', opacity: filtroContas && filtroContas !== 'bloqueadas' ? 0.55 : 1, transition: 'all .15s' }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--error)' }}>
-                    {team.filter(m => m.role === 'admin' && isBlocked(m)).length}
-                  </span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Contas Bloqueadas</span>
-                </button>
-                <button type="button" onClick={() => setFiltroContas(filtroContas === 'pagantes' ? null : 'pagantes')} aria-pressed={filtroContas === 'pagantes'} title={filtroContas === 'pagantes' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
-                  style={{ backgroundColor: 'rgba(0,200,83,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,200,83,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'pagantes' ? '0 0 0 2px #00C853' : 'none', opacity: filtroContas && filtroContas !== 'pagantes' ? 0.55 : 1, transition: 'all .15s' }}>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>
-                    {team.filter(m => m.role === 'admin' && m.status === 'active' && !isBlocked(m)).length}
-                  </span>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Clientes Pagantes</span>
-                </button>
-                {filtroContas && (
-                  <button type="button" onClick={() => setFiltroContas(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'center' }}>
-                    Mostrar todas
+          <div className="card fc-aud">
+            <div className="fc-aud-cab">
+              <h3>{isMaster ? 'Contas de clientes (donos de loja)' : 'Equipe da loja'}</h3>
+              <span className="fc-olho-rot" style={{ letterSpacing: '.06em' }}><span className="mono">{(team || []).length}</span> {isMaster ? 'contas' : 'pessoas'}</span>
+              <div className="fc-filtros">
+                {isMaster && filtroContas && (
+                  <span className="fc-chip">filtro ativo<button onClick={() => setFiltroContas(null)} aria-label="Mostrar todas">×</button></span>
+                )}
+                {!isFuncionario && (
+                  <button className="fc-pilula" onClick={() => {
+                    setNewUser({ name: '', email: '', password: '', role: isMaster ? 'admin' : 'funcionario', store: isMaster ? '' : userProfile?.store, plan: 'mensal' });
+                    setShowUserModal(true);
+                  }}>
+                    {isMaster ? 'Adicionar cliente' : 'Adicionar colaborador'} <i><UserPlus size={15} /></i>
                   </button>
                 )}
               </div>
-            )}
-          </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(team || []).filter(m => !isMaster || !filtroContas || (m.role === 'admin' && (filtroContas === 'trial' ? (m.status === 'trial' && !isBlocked(m)) : filtroContas === 'bloqueadas' ? isBlocked(m) : (m.status === 'active' && !isBlocked(m))))).map(member => {
-              const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
-              
-              return (
-              <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px' }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
-                    {statusInfo && (
-                      <span style={{ backgroundColor: `${statusInfo.color}15`, border: `1px solid ${statusInfo.color}40`, color: statusInfo.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        {statusInfo.text}
-                      </span>
-                    )}
-                    {isMaster && member.role === 'admin' && member.cobranca_firehub === true && (
-                      <span title={member.firehub_motivo ? `Bloqueada pelo FireHub: ${member.firehub_motivo}` : 'A mensalidade desta loja é cobrada no boleto do FireHub'}
-                        style={{ backgroundColor: 'var(--ink)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Flame size={11} /> Pago pelo FireHub{member.firehub_motivo ? ` · ${member.firehub_motivo}` : ''}
-                      </span>
-                    )}
-                    {!isMaster && member.role === 'gestor' && (
-                      <span style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', border: '1px solid rgb(var(--info-rgb) / 0.3)', color: 'var(--info)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        Gestor / Gerente
-                      </span>
-                    )}
-                    {!isMaster && (!member.role || member.role === 'funcionario' || member.role === 'employee') && (
-                      <span style={{ backgroundColor: 'rgba(107, 114, 128, 0.1)', border: '1px solid rgba(107, 114, 128, 0.3)', color: '#6b7280', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        Funcionário
-                      </span>
-                    )}
-                    {!isMaster && member.role === 'admin' && member.id === userProfile?.id && (
-                      <span style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', border: '1px solid rgb(var(--primary-rgb) / 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        Dono / Administrador
-                      </span>
-                    )}
-                    {!isMaster && member.role === 'admin' && member.id !== userProfile?.id && (
-                      <span style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#f59e0b', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        Conta Secundária
-                      </span>
-                    )}
-                    {!isMaster && member.schedule_id && (() => {
-                      const sch = schedules.find(s => String(s.id) === String(member.schedule_id));
-                      if (!sch) return null;
-                      return (
-                        <span className="fc-dado" style={{ '--c': sch.color }}>
-                          Escala: {sch.name}
-                        </span>
-                      );
-                    })()}
-                    {!isMaster && !member.schedule_id && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
-                      <span className="fc-dado mono" style={{ '--c': 'var(--ok)' }}>
-                        {member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
-                    {member.email} · {member.phone ? member.phone : 'Sem telefone cadastrado'} · {member.store}
-                  </p>
-                  {/* ── O que o plano de fato limita ─────────────────────────
-                      Esta barra media checklists, e mostrava "0/300" para todo
-                      mundo — inclusive para quem comprou checklists ilimitados e
-                      para quem está em teste. Os planos vendem "até 30
-                      colaboradores" e checklists sem limite; o número que importa
-                      olhar, para saber quando um cliente vai precisar de upgrade,
-                      é quantas pessoas ele já cadastrou. */}
-                  {isMaster && member.role === 'admin' && (() => {
-                    const usados = Number(member.colaboradores || 0);
-                    const teto = Number(member.colaboradores_limite || member.ponto_limit || 0);
-                    const semTeto = !teto || teto >= 999999;
-                    const fracao = semTeto ? 0 : Math.min(1, usados / teto);
-                    const cor = fracao >= 0.95 ? 'var(--error)' : fracao >= 0.8 ? '#f59e0b' : 'var(--primary)';
-                    return (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                        <div style={{ width: '80px', height: '6px', backgroundColor: 'var(--bg-card)', borderRadius: '100px', overflow: 'hidden' }}>
-                          <div style={{ width: `${Math.round(fracao * 100)}%`, height: '100%', backgroundColor: cor, borderRadius: '100px' }} />
-                        </div>
-                        <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: fracao >= 0.8 ? cor : 'var(--text-muted)' }}>
-                          {usados}/{semTeto ? '∞' : teto} colaboradores
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          · checklists ilimitados
-                        </span>
+            </div>
+
+            <div>
+              {(team || []).filter(m => !isMaster || !filtroContas || (m.role === 'admin' && (filtroContas === 'trial' ? (m.status === 'trial' && !isBlocked(m)) : filtroContas === 'bloqueadas' ? isBlocked(m) : (m.status === 'active' && !isBlocked(m))))).map(member => {
+                const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
+                const papel = isMaster ? null
+                  : member.role === 'gestor' ? ['Gestor / Gerente', 'var(--info)']
+                  : member.role === 'admin' ? (member.id === userProfile?.id ? ['Dono / Administrador', 'var(--primary)'] : ['Conta secundária', '#D97706'])
+                  : ['Funcionário', '#A8A4AB'];
+                const sch = !isMaster && member.schedule_id ? schedules.find(s => String(s.id) === String(member.schedule_id)) : null;
+                return (
+                  <div key={member.id} className="fc-eq">
+                    <span className="fc-av">{iniciais(member.name)}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="fc-t">
+                        {member.name}
+                        {member.id === userProfile?.id && <span className="fc-tag-p">você</span>}
                       </div>
-                    );
-                  })()}
-                </div>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  {member.id !== userProfile?.id && (
-                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgb(var(--info-rgb) / 0.08)', color: 'var(--info)', borderColor: 'rgb(var(--info-rgb) / 0.3)', fontWeight: 'bold' }}
-                      onClick={() => handleImpersonateUser(member)}>
-                      <Eye size={14} /> Acessar Conta
-                    </button>
-                  )}
-                  {isMaster && member.role === 'admin' && (
-                    <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                       setTrialDays(null); setEditingPlan({ ...member });
-                    }}>
-                      Alterar Plano
-                    </button>
-                  )}
-                  {(isMaster || member.id !== userProfile?.id) && (
-                    <button className="btn-secondary" style={{ padding: '6px 10px', fontSize: '0.75rem' }} onClick={() => {
-                      // A coluna permissions é TEXT, então a API devolve uma string JSON.
-                      // Sem normalizar aqui, as caixas do modal liam string[chave] (sempre
-                      // undefined, todas apareciam desmarcadas) e o onChange espalhava a
-                      // string, gravando um objeto de caracteres soltos. Como o merge usa
-                      // defaults todos verdadeiros, os acessos revogados voltavam sozinhos.
-                      setEditingUser({ ...member, permissions: getSafeGestorPermissions(member.permissions) });
-                      setShowEditModal(true);
-                    }}>
-                      Editar
-                    </button>
-                  )}
-                  {/* Nunca na própria linha: com `isMaster ||` o curto-circuito fazia a
-                      lixeira aparecer para o master em si mesmo, e o backend não impede.
-                      Um clique apagaria a conta que administra o sistema inteiro. */}
-                  {member.id !== userProfile?.id && (
-                    <button className="btn-secondary" style={{ color: 'var(--error)', borderColor: 'rgba(255,23,68,0.2)' }} onClick={() => handleDeleteUser(member.id)}>
-                      <Trash2 size={15} />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )})}
+                      <div className="fc-m">{member.email} · {member.phone ? <span className="mono">{member.phone}</span> : 'sem telefone'}{isMaster ? ` · ${member.store}` : ''}</div>
+                      <div className="fc-eq-dados">
+                        {statusInfo && <span className="fc-dado" style={{ '--c': statusInfo.color }}>{statusInfo.text}</span>}
+                        {isMaster && member.role === 'admin' && member.cobranca_firehub === true && (
+                          <span className="fc-dado" title={member.firehub_motivo ? `Bloqueada pelo FireHub: ${member.firehub_motivo}` : 'A mensalidade desta loja é cobrada no boleto do FireHub'}
+                            style={{ '--c': 'var(--primary)', background: 'var(--ink)', color: '#fff', boxShadow: 'none' }}>
+                            <Flame size={11} /> Pago pelo FireHub{member.firehub_motivo ? ` · ${member.firehub_motivo}` : ''}
+                          </span>
+                        )}
+                        {papel && <span className="fc-dado" style={{ '--c': papel[1] }}>{papel[0]}</span>}
+                        {sch && <span className="fc-dado" style={{ '--c': sch.color }}>Escala: {sch.name}</span>}
+                        {!isMaster && !member.schedule_id && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
+                          <span className="fc-dado mono" style={{ '--c': 'var(--ok)' }}>{member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}</span>
+                        )}
+                      </div>
+                      {/* ── O que o plano de fato limita ─────────────────────────
+                          Os planos vendem "até N colaboradores" e checklists sem limite;
+                          o número que importa, para saber quando um cliente vai precisar
+                          de upgrade, é quantas pessoas ele já cadastrou. */}
+                      {isMaster && member.role === 'admin' && (() => {
+                        const usados = Number(member.colaboradores || 0);
+                        const teto = Number(member.colaboradores_limite || member.ponto_limit || 0);
+                        const semTeto = !teto || teto >= 999999;
+                        const fracao = semTeto ? 0 : Math.min(1, usados / teto);
+                        const cor = fracao >= 0.95 ? 'var(--bad)' : fracao >= 0.8 ? '#D97706' : 'var(--primary)';
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '8px' }}>
+                            <div style={{ width: '96px' }}><BarraLuz pct={Math.round(fracao * 100)} cor={cor} /></div>
+                            <span className="mono" style={{ fontSize: '0.75rem', color: fracao >= 0.8 ? cor : 'var(--text-muted)' }}>{usados}/{semTeto ? '∞' : teto}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>colaboradores · checklists ilimitados</span>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                    <div className="fc-ico-acoes" style={{ alignItems: 'center' }}>
+                      {member.id !== userProfile?.id && (
+                        <button className="fc-mini-btn" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '7px 13px' }} onClick={() => handleImpersonateUser(member)}>
+                          <Eye size={14} /> Acessar conta
+                        </button>
+                      )}
+                      {isMaster && member.role === 'admin' && (
+                        <button className="fc-mini-btn" style={{ padding: '7px 13px' }} onClick={() => { setTrialDays(null); setEditingPlan({ ...member }); }}>
+                          Alterar plano
+                        </button>
+                      )}
+                      {(isMaster || member.id !== userProfile?.id) && (
+                        <button className="fc-ico" title="Editar" aria-label={`Editar ${member.name}`} onClick={() => {
+                          // A coluna permissions é TEXT, então a API devolve uma string JSON.
+                          // Sem normalizar aqui, as caixas do modal liam string[chave] (sempre
+                          // undefined, todas apareciam desmarcadas) e o onChange espalhava a
+                          // string, gravando um objeto de caracteres soltos. Como o merge usa
+                          // defaults todos verdadeiros, os acessos revogados voltavam sozinhos.
+                          setEditingUser({ ...member, permissions: getSafeGestorPermissions(member.permissions) });
+                          setShowEditModal(true);
+                        }}>
+                          <Edit2 size={15} />
+                        </button>
+                      )}
+                      {/* Nunca na própria linha: com `isMaster ||` o curto-circuito fazia a
+                          lixeira aparecer para o master em si mesmo, e o backend não impede.
+                          Um clique apagaria a conta que administra o sistema inteiro. */}
+                      {member.id !== userProfile?.id && (
+                        <button className="fc-ico perigo" title="Excluir" aria-label={`Excluir ${member.name}`} onClick={() => handleDeleteUser(member.id)}>
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* ── Tab: Perfil da Empresa ──────────────────────────────────── */}
       {tab === 'perfil' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           <div className="card" style={{ padding: '24px' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)', marginBottom: '8px' }}>
-              <Settings size={20} /> Perfil da Empresa / Conta
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', fontSize: '1.05rem', fontWeight: 600 }}>
+              Dados da empresa
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
               Atualize as informações gerais da sua empresa e do administrador responsável.
@@ -4901,12 +4643,11 @@ export default function AdminDashboard() {
               </div>
 
               {/* Coluna Direita: Informações do Plano Atual e Upgrades */}
-              <div style={{ backgroundColor: 'var(--bg-inset)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="fc-plano">
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-main)' }}>Plano Atual</h4>
-                  <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)', textTransform: 'uppercase' }}>
-                    {userProfile?.plan || 'starter'} ({(userProfile?.status === 'trial') ? 'Trial / Teste' : 'Ativo'})
-                  </p>
+                  <span className="fc-olho-rot">Plano atual</span>
+                  <p className="fc-plano-nome">{nomeDoPlano(userProfile?.plan)}</p>
+                  <span className="fc-selo" style={{ '--c': userProfile?.status === 'trial' ? '#FFB020' : '#2DD4A0', marginTop: '6px' }}><i /><span>{userProfile?.status === 'trial' ? 'Em teste' : 'Ativo'}</span></span>
                 </div>
                 <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
                   {/* Aqui dizia "Limite de Checklists: 300/mês" para quem comprou
@@ -4955,137 +4696,93 @@ export default function AdminDashboard() {
       {/* ── Tab: Compras e Estoque ──────────────────────────────────── */}
       {tab === 'compras' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
-            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ShoppingCart size={24} /> Listas de Compras
-            </h2>
+          {/* Compras e Estoque (visual de 21/11/2026) */}
+          <div className="fc-barra-ferr">
+            <span className="fc-olho-rot">Listas de compras</span>
             {!isFuncionario && (
-              <button className="btn" onClick={() => { setEditingShopping(null); setNewShopping({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] }); setShowShoppingModal(true); }}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer' }}>
-                <Plus size={18}/> Nova Lista de Compras
+              <button className="fc-pilula" style={{ marginLeft: 'auto' }} onClick={() => { setEditingShopping(null); setNewShopping({ title: '', recurrence: 'weekly', weekdays: [], assignedTo: 'todos', items: [{ name: '', unit: 'un', minStock: '', category: 'geral' }] }); setShowShoppingModal(true); }}>
+                Nova lista de compras <i><Plus size={15} /></i>
               </button>
             )}
           </div>
 
-          {/* Cards de listas de compras */}
           {shoppingLists.length > 0 ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-              {shoppingLists.map(list => (
-                <div key={list.id} className="card" style={{ padding: '20px', position: 'relative', borderLeft: parseInt(list.below_min_count) > 0 ? '4px solid #ef4444' : '4px solid #22c55e' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+            <div className="fc-frota">
+              {shoppingLists.map(list => {
+                const abaixo = parseInt(list.below_min_count) || 0;
+                const itens = parseInt(list.item_count) || 0;
+                const okPct = itens ? Math.round(((itens - abaixo) / itens) * 100) : 100;
+                return (
+                  <div key={list.id} className="card fc-lista">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <h4 className="fc-veic-nome" style={{ marginBottom: '4px' }}>{list.title}</h4>
+                        <span className="fc-m" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                          {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : list.recurrence === 'monthly' ? 'Mensal' : list.recurrence}
+                          {list.assigned_to && list.assigned_to !== 'todos' ? ` · ${typeof list.assigned_to === 'object' ? list.assigned_to.join(', ') : list.assigned_to}` : ''}
+                        </span>
+                      </div>
+                      {!isFuncionario && (
+                        <div className="fc-ico-acoes">
+                          <button className="fc-ico" title="Editar" aria-label={`Editar ${list.title}`} onClick={() => handleEditShopping(list)}><Edit2 size={15} /></button>
+                          <button className="fc-ico perigo" title="Excluir" aria-label={`Excluir ${list.title}`} onClick={() => handleDeleteShopping(list.id)}><Trash2 size={15} /></button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="fc-veic-dados">
+                      <div><span className="fc-olho-rot">Itens</span><b className="mono">{itens}</b></div>
+                      <div><span className="fc-olho-rot">Abaixo do mínimo</span><b className="mono" style={{ color: abaixo ? 'var(--bad)' : 'var(--ok)' }}>{abaixo}</b></div>
+                    </div>
                     <div>
-                      <h3 style={{ margin: '0 0 4px 0', fontSize: '1.1rem' }}>{list.title}</h3>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CalendarClock size={14}/> {list.recurrence === 'daily' ? 'Diária' : list.recurrence === 'weekly' ? 'Semanal' : list.recurrence === 'monthly' ? 'Mensal' : list.recurrence}
-                      </span>
+                      <span className="fc-olho-rot" style={{ marginBottom: '8px' }}>Estoque em dia <b className="mono" style={{ marginLeft: 'auto', color: 'var(--text-main)', letterSpacing: 0 }}>{okPct}%</b></span>
+                      <BarraLuz pct={okPct} cor={abaixo ? '#D97706' : 'var(--ok)'} />
                     </div>
                     {!isFuncionario && (
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button onClick={() => handleEditShopping(list)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}><Edit2 size={16}/></button>
-                        <button onClick={() => handleDeleteShopping(list.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}><Trash2 size={16}/></button>
-                      </div>
+                      <button className="fc-mini-btn" onClick={() => setEstoqueAberto(list)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '9px 14px' }}>
+                        <Package size={15} /> Estoque: entradas e saídas
+                      </button>
                     )}
                   </div>
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem' }}>
-                      <Package size={16} color="var(--text-muted)"/>
-                      <span><strong>{list.item_count}</strong> itens</span>
-                    </div>
-                    {parseInt(list.below_min_count) > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.9rem', color: '#ef4444', fontWeight: '600' }}>
-                        <AlertCircle size={16}/>
-                        <span>{list.below_min_count} abaixo do mínimo</span>
-                      </div>
-                    )}
-                  </div>
-                  {list.assigned_to && list.assigned_to !== 'todos' && (
-                    <div style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      👤 Atribuído: {typeof list.assigned_to === 'object' ? list.assigned_to.join(', ') : list.assigned_to}
-                    </div>
-                  )}
-                  {!isFuncionario && (
-                    <button className="btn-secondary" onClick={() => setEstoqueAberto(list)}
-                      style={{ marginTop: '14px', width: '100%', padding: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                      <Package size={16}/> Estoque: entradas e saídas
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
-            <div className="card" style={{ padding: '40px', textAlign: 'center' }}>
-              <ShoppingCart size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }}/>
-              <h3>Nenhuma lista de compras cadastrada</h3>
-              <p style={{ color: 'var(--text-muted)' }}>Crie sua primeira lista de compras para controlar o estoque da sua loja.</p>
+            <div className="card fc-vazio">
+              <ShoppingCart size={36} style={{ marginBottom: '10px', opacity: 0.35 }} />
+              <p style={{ fontWeight: 500, color: 'var(--text-main)' }}>Nenhuma lista de compras cadastrada.</p>
+              <p style={{ fontSize: '0.85rem', marginTop: '4px' }}>Crie a primeira lista para controlar o estoque da loja.</p>
             </div>
           )}
 
-          {/* Seção: Histórico de Conferências de Estoque Realizadas */}
-          <div style={{ marginTop: '40px' }}>
-            <h3 style={{ fontSize: '1.2rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={20} color="var(--primary)" /> Histórico de Conferências de Estoque
-            </h3>
-
+          {/* Histórico de conferências de estoque */}
+          <div className="card fc-aud" style={{ marginTop: '28px' }}>
+            <div className="fc-aud-cab"><h3>Conferências de estoque</h3><span className="fc-olho-rot" style={{ letterSpacing: '.06em' }}>mais recentes primeiro</span></div>
             {shoppingSubmissions.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
                 {shoppingSubmissions.map(sub => {
                   const belowMin = typeof sub.below_minimum === 'string' ? (() => { try { return JSON.parse(sub.below_minimum); } catch(e) { return []; } })() : (sub.below_minimum || []);
                   const itemsList = typeof sub.items === 'string' ? (() => { try { return JSON.parse(sub.items); } catch(e) { return []; } })() : (sub.items || []);
                   const hasBelowMin = belowMin.length > 0;
-
+                  const quando = new Date(sub.created_at);
                   return (
-                    <div
-                      key={sub.id}
-                      className="card"
-                      style={{
-                        padding: '16px 20px',
-                        borderLeft: hasBelowMin ? '4px solid #ef4444' : '4px solid #10b981',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '12px'
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                          <strong style={{ fontSize: '1rem' }}>{sub.list_title || 'Lista de Compras'}</strong>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Conferido por: <strong>{sub.employee_name}</strong>
-                          </span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            📅 {new Date(sub.created_at).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '0.85rem' }}>
-                          <span>Total de itens: <strong>{itemsList.length}</strong></span>
-                          {hasBelowMin ? (
-                            <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                              {belowMin.length} item(ns) abaixo do estoque mínimo
-                            </span>
-                          ) : (
-                            <span style={{ color: '#10b981', fontWeight: 'bold' }}>
-                              Estoque Completo
-                            </span>
-                          )}
-                        </div>
+                    <div key={sub.id} className="fc-cl" style={{ cursor: 'pointer' }} onClick={() => setSelectedShoppingSubModal(sub)}>
+                      <span className="fc-av"><Package size={17} /></span>
+                      <div style={{ minWidth: 0 }}>
+                        <div className="fc-t">{sub.list_title || 'Lista de compras'}</div>
+                        <div className="fc-m">{sub.employee_name} · {itemsList.length} itens conferidos</div>
                       </div>
-
-                      <button
-                        className="btn-secondary"
-                        onClick={() => setSelectedShoppingSubModal(sub)}
-                        style={{ padding: '8px 16px', fontSize: '0.85rem', fontWeight: 'bold' }}
-                      >
-                        Ver Relatório Detalhado
-                      </button>
+                      <span className="fc-selo-cel">
+                        <span className="fc-selo" style={{ '--c': hasBelowMin ? 'var(--bad)' : 'var(--ok)' }}><i />
+                          <span>{hasBelowMin ? `${belowMin.length} abaixo do mínimo` : 'Estoque completo'}<small className="mono">{quando.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</small></span>
+                        </span>
+                      </span>
+                      <button className="fc-mini-btn" onClick={(e) => { e.stopPropagation(); setSelectedShoppingSubModal(sub); }}>Ver relatório</button>
                     </div>
                   );
                 })}
               </div>
             ) : (
-              <div className="card" style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Nenhuma conferência de estoque realizada recentemente.
-              </div>
+              <div className="fc-vazio">Nenhuma conferência de estoque feita ainda.</div>
             )}
           </div>
 
