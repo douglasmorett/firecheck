@@ -3942,6 +3942,11 @@ export default async function handler(req, res) {
         const { rows: userRows } = await pool.query('SELECT store FROM users WHERE id = $1', [authUser.id]);
         if (userRows.length > 0) store = userRows[0].store;
       }
+      // Sem loja no cadastro, o filtro de loja sumia e as contas somavam TODAS as
+      // lojas. Só o master olha sem escolher uma.
+      if (authUser.role !== 'master' && (!store || store === 'undefined' || store === 'null')) {
+        return res.status(200).json({ checklistsHoje: 0, concluidos: 0, alertasIA: 0, colaboradores: 0, conformidade: 100 });
+      }
       const start = searchParams.get('start');
       const end = searchParams.get('end');
       let params = [];
@@ -4279,7 +4284,12 @@ export default async function handler(req, res) {
       if (method === 'POST') {
         const { vehicleId } = req.body;
         if (!vehicleId) return res.status(400).json({ error: 'vehicleId obrigatório.' });
-        await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1', [vehicleId]);
+        // O veículo tem que ser da loja de quem pede: com o id solto, qualquer
+        // conta marcava a solicitação em veículo de outro cliente.
+        const { rowCount: veiculoDaLoja } = authUser.role === 'master'
+          ? await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1', [vehicleId])
+          : await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2))', [vehicleId, authUser.store || '']);
+        if (veiculoDaLoja === 0) return res.status(404).json({ error: 'Veículo não encontrado nesta loja.' });
         return res.status(200).json({ success: true });
       }
       return res.status(405).json({ error: 'Método não permitido.' });
@@ -4346,8 +4356,8 @@ export default async function handler(req, res) {
       const todayStart = inicioDoDiaSPemUTC();
       let queryStr = `
         SELECT v.*, u.name as employee_name,
-               (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1 LIMIT 1) as completed_by,
-               EXISTS(SELECT 1 FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1) as completed_today
+               (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND LOWER(TRIM(cs.store)) = LOWER(TRIM(v.store)) AND cs.created_at >= $1 LIMIT 1) as completed_by,
+               EXISTS(SELECT 1 FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND LOWER(TRIM(cs.store)) = LOWER(TRIM(v.store)) AND cs.created_at >= $1) as completed_today
         FROM vehicles v 
         LEFT JOIN users u ON v.employee_id = u.id
       `;
@@ -6431,6 +6441,20 @@ export default async function handler(req, res) {
           return res.status(400).json({ message: 'Este checklist não tem nenhuma tarefa para você. Peça ao gestor para revisar as atribuições.' });
         }
 
+        // checklistId e vehicleId vêm do corpo: um id de OUTRA loja marcava o veículo
+        // alheio como inspecionado (a lista calcula "feito hoje" pelo vehicle_id) e
+        // fazia o WhatsApp mostrar o título do checklist de outro cliente. Id que
+        // não existe mais (apagado depois de entrar na fila offline) segue aceito.
+        if (autorFinalize.role !== 'master') {
+          for (const [tabela, id] of [['checklists', checklistId], ['vehicles', vehicleId]]) {
+            if (!Number.isInteger(parseInt(id))) continue;
+            const { rows: dono } = await pool.query(`SELECT store FROM ${tabela} WHERE id = $1`, [parseInt(id)]);
+            if (dono.length > 0 && !mesmaLoja(dono[0].store, store)) {
+              return res.status(403).json({ message: 'Este checklist ou veículo não pertence à sua loja.', error: 'Este checklist ou veículo não pertence à sua loja.' });
+            }
+          }
+        }
+
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
           "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role, fcm_token FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
@@ -7323,6 +7347,8 @@ export default async function handler(req, res) {
       const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+      // Sem loja, o filtro some e a consulta devolveria as submissões de TODAS as lojas.
+      if (!store && authUser.role !== 'master') return res.status(200).json([]);
       
       // resolved_by_nome: baixas antigas gravaram o e-mail de quem deu baixa;
       // o painel mostra o nome do cadastro no lugar.
@@ -7410,7 +7436,7 @@ export default async function handler(req, res) {
       if (method === 'GET') {
         // Sem loja, o filtro sumia e a consulta devolvia as câmeras de TODAS as
         // lojas. Só o master lista sem escolher uma.
-        if (!store && authUser.role !== 'master') return res.status(403).json({ error: 'Sua conta não está vinculada a uma loja.' });
+        if (!store && authUser.role !== 'master') return res.status(200).json([]);
         const { rows } = await pool.query('SELECT * FROM store_cameras' + (store ? ' WHERE store = $1' : '') + ' ORDER BY id DESC', store ? [store] : []);
         // Usuário e senha da câmera só voltam para quem a administra: eles
         // ficam em texto no banco e o funcionário só precisa do nome e da regra.
