@@ -2220,6 +2220,65 @@ function falhaDeDisponibilidade(mensagem) {
       || m.includes('500 internal');
 }
 
+// ── A RÉGUA DA CONFERÊNCIA DE FOTO (uma só, para as duas conferências) ────
+//
+// Havia duas réguas: a conferência na hora da foto (/api/audit) lia o critério
+// do gestor e tinha "incerto"; a auditoria de fundo ignorava o critério e só
+// sabia aprovar ou reprovar. A mesma foto podia passar numa e reprovar na
+// outra. Agora as duas montam o prompt e leem a resposta por aqui
+// (Douglas, 21/11/2026).
+function promptDaConferencia(textoDaTarefa, criterio) {
+  const criterioLimpo = typeof criterio === 'string' ? criterio.trim().slice(0, 600) : '';
+  return `Você confere a foto que um funcionário tirou como prova de uma tarefa.
+
+TAREFA: "${String(textoDaTarefa || '').slice(0, 400)}"
+${criterioLimpo ? `O QUE O GESTOR EXIGE NESTA FOTO: "${criterioLimpo}"` : 'O gestor não escreveu um critério específico: julgue apenas pelo texto da tarefa, e seja generoso.'}
+
+Como julgar:
+- Verifique somente se a tarefa foi cumprida${criterioLimpo ? ' segundo o critério acima' : ''}. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
+- Reconheça o item pelo ASPECTO: forma, cor, tamanho, embalagem, quantidade e o jeito como aparece. O NOME do produto NÃO precisa estar escrito na embalagem nem na foto. Se a tarefa fala de "calabresa" e a foto mostra pacotes de linguiça, é calabresa: aprove.
+- Tarefa que cita o NOME de um lugar ou equipamento ("Freezer Horizontal 3", "Bancada 2"): você não tem como saber qual é pelo aspecto. Aprove se a foto mostra o TIPO de lugar pedido; nunca exija placa, etiqueta ou número visível.
+- Tarefa de contagem ou quantidade ("20 pacotes"): confira só se o item aparece. Não tente contar nem reprove porque não dá para ver todas as unidades.
+- Tarefa de organização ou limpeza: julgue com generosidade, como o dono julgaria de relance. Só reprove com desordem ou sujeira EVIDENTE; "poderia estar melhor" é aprovado.
+- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que a tarefa não foi cumprida. Falta de texto, rótulo, placa ou marca legível NÃO é motivo.
+- Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
+- Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
+
+Responda ESTRITAMENTE em JSON:
+{"resultado": "aprovado" | "reprovado" | "incerto", "mensagem": "string", "confianca": "alta" | "media" | "baixa"}
+
+A mensagem é lida pelo próprio funcionário, no celular:
+- aprovado: um elogio de até 8 palavras.
+- reprovado: diga em uma frase curta e concreta O QUE FALTA para ele refazer a foto certa. Sem rodeio, sem julgar a pessoa. Exemplo: "A lixeira ao lado da pia ainda está cheia."
+- incerto: diga o que atrapalhou de ver. Exemplo: "A foto ficou escura demais para conferir."`;
+}
+
+// Só vira reprovação o que veio "reprovado" E com confiança alta: o resto não
+// acusa ninguém. Entende também o formato antigo ({approved, message}).
+function lerVereditoDaIa(texto) {
+  const jsonMatch = String(texto || '').match(/\{[\s\S]*\}/);
+  const bruto = JSON.parse(jsonMatch ? jsonMatch[0] : texto);
+  const r = String(bruto.resultado || (bruto.approved === false ? 'reprovado' : 'aprovado')).toLowerCase();
+  const confianca = String(bruto.confianca || '').toLowerCase();
+  let resultado;
+  if (r === 'reprovado') resultado = confianca === 'alta' ? 'reprovado' : 'nao_conferido';
+  else if (r === 'aprovado') resultado = 'aprovado';
+  else resultado = 'nao_conferido';
+  const mensagem = String(bruto.mensagem || bruto.message || '').slice(0, 300)
+    || (resultado === 'aprovado' ? 'Foto conferida.' : 'Não foi possível conferir esta foto.');
+  return { resultado, mensagem, confianca: confianca || 'media' };
+}
+
+// A foto desta tarefa ainda precisa passar pela auditoria de fundo? Sem
+// veredito nenhum, ou com o "não conferido" da hora da foto (sem sinal, IA fora
+// do ar): a tela promete que "a auditoria de fundo confere depois", e antes
+// isso não acontecia — qualquer veredito, até o "não conferido", fazia a
+// auditoria pular a tarefa.
+function faltaAuditarDeFundo(veredito) {
+  if (!veredito) return true;
+  return veredito.resultado === 'nao_conferido' && !veredito.auditadoEm;
+}
+
 // ── Função Central de Auditoria IA (Reutilizável) ───────────────
 async function processAuditForSubmission(pool, submissionId) {
   const { rows } = await pool.query('SELECT * FROM checklist_submissions WHERE id = $1', [submissionId]);
@@ -2252,9 +2311,22 @@ async function processAuditForSubmission(pool, submissionId) {
   // rodada até esgotar as 15 tentativas — e só então seria rotulada "IA indisponível",
   // que é falso: a IA nunca foi chamada. Encerra aqui, sem consumir tentativa.
   const auditaveis = (Array.isArray(tasks) ? tasks : []).filter(
-    t => t && t.photo && !t.forceOverride && !feedbackInfo[t.id]
+    t => t && t.photo && !t.forceOverride && faltaAuditarDeFundo(feedbackInfo[t.id])
   );
   if (auditaveis.length === 0) {
+    // "Não conferido" que sobrou sem foto para auditar (foto apagada, tarefa
+    // liberada pelo gestor): fecha como incerto, senão a busca de pendentes
+    // repescaria esta submissão para sempre.
+    let fechou = false;
+    for (const [chave, v] of Object.entries(feedbackInfo)) {
+      if (!String(chave).startsWith('_') && v && v.resultado === 'nao_conferido' && !v.auditadoEm) {
+        feedbackInfo[chave] = { ...v, resultado: 'incerto', auditadoEm: new Date().toISOString() };
+        fechou = true;
+      }
+    }
+    if (fechou) {
+      await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
+    }
     if (Object.keys(feedbackInfo).length === 0) {
       await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [
         JSON.stringify({ _meta: { status: 'sem_fotos', reason: 'Nenhuma tarefa com foto para auditar.' } }),
@@ -2275,10 +2347,11 @@ async function processAuditForSubmission(pool, submissionId) {
   const errors = [];
   let processedCount = 0;
   let indisponivel = false;
+  const reprovadasAgora = [];
 
   for (const task of tasks) {
     // Pula se já tem feedback para esta task, ou se não tem foto
-    if (!task.photo || task.forceOverride || feedbackInfo[task.id]) continue;
+    if (!task.photo || task.forceOverride || !faltaAuditarDeFundo(feedbackInfo[task.id])) continue;
 
     try {
       let base64Data = '';
@@ -2295,49 +2368,31 @@ async function processAuditForSubmission(pool, submissionId) {
         base64Data = task.photo.split(',')[1] || task.photo;
       }
 
-      // ── O QUE A IA CONFERE (Douglas, 21/11/2026) ───────────────────────
-      //
-      // Antes o prompt mandava verificar "o que foi EXPLICITAMENTE pedido" e só
-      // conhecia aprovado/reprovado. Resultado: "calabresa pct 2,5kg (congelada)"
-      // foi reprovada com a foto mostrando os pacotes de linguiça, porque a
-      // palavra "calabresa" não estava escrita na embalagem. A IA tem que
-      // reconhecer o item pelo ASPECTO, como uma pessoa faria, e reprovar só
-      // quando está claro que o item não está lá. É a mesma régua da conferência
-      // na hora da foto (mais abaixo): reprovado só com confiança alta; o resto
-      // não acusa ninguém.
-      const prompt = `Você confere a foto que um funcionário tirou como prova da tarefa "${task.text}".
-
-Como julgar:
-- Reconheça o item pelo ASPECTO: forma, cor, tamanho, embalagem, quantidade e o jeito como aparece. O NOME do produto NÃO precisa estar escrito na embalagem nem na foto. Se a tarefa fala de "calabresa" e a foto mostra pacotes de linguiça, é calabresa: aprove. Se fala de "frango" e há frango embalado, aprove.
-- Verifique somente se a tarefa foi cumprida. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
-- Tarefa que cita o NOME de um lugar ou equipamento ("Freezer Horizontal 3", "Bancada 2"): você não tem como saber qual é pelo aspecto. Aprove se a foto mostra o TIPO de lugar pedido (um freezer, uma bancada); nunca exija placa, etiqueta ou número visível.
-- Tarefa de organização ou limpeza ("organizado", "limpo"): julgue com generosidade, como o dono julgaria de relance. Só reprove com desordem ou sujeira EVIDENTE; "poderia estar melhor" é aprovado.
-- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que o item pedido não está lá ou que é claramente outra coisa. Falta de texto, rótulo, placa ou marca legível NÃO é motivo.
-- Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
-- Na dúvida entre aprovar e reprovar, aprove ou responda "incerto". Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
-
-Responda ESTRITAMENTE em JSON:
-{"resultado": "aprovado" | "reprovado" | "incerto", "mensagem": "string", "confianca": "alta" | "media" | "baixa"}
-
-A mensagem é lida pelo funcionário, no celular:
-- aprovado: um elogio de até 8 palavras.
-- reprovado: uma frase curta e concreta dizendo O QUE FALTA para refazer a foto certa.
-- incerto: diga o que atrapalhou de ver (ex.: "A foto ficou escura demais para conferir.").`;
+      // A mesma régua da conferência na hora da foto (promptDaConferencia), com
+      // o critério que o gestor escreveu para a tarefa. Antes esta auditoria
+      // mandava conferir o que foi "explicitamente pedido" e ignorava o critério:
+      // "calabresa pct 2,5kg" reprovou com os pacotes de linguiça na foto porque
+      // a palavra não estava escrita na embalagem.
+      const prompt = promptDaConferencia(task.text, task.aiCriteria || task.criteria || '');
 
       const result = await model.generateContent([prompt, { inlineData: { data: base64Data, mimeType } }]);
       const response = await result.response;
-      const aiResponse = JSON.parse(response.text().match(/\{[\s\S]*\}/)?.[0] || response.text());
+      const veredito = lerVereditoDaIa(response.text());
 
-      // Só vira reprovação o que veio "reprovado" COM confiança alta. O formato
-      // antigo ({approved:false}) segue entendido, mas sem confiança não acusa.
-      const r = String(aiResponse.resultado || (aiResponse.approved === false ? 'reprovado' : 'aprovado')).toLowerCase();
-      const confiancaDaIa = String(aiResponse.confianca || '').toLowerCase();
-      const reprovou = r === 'reprovado' && confiancaDaIa === 'alta';
-      const mensagemDaIa = String(aiResponse.mensagem || aiResponse.message || '').slice(0, 300)
-        || (r === 'aprovado' ? 'Foto conferida.' : 'Não foi possível conferir esta foto.');
-
-      feedbackInfo[task.id] = { status: reprovou ? 'warning' : 'success', message: mensagemDaIa };
-      if (reprovou) hasErrors = true;
+      // "incerto", e não "nao_conferido": é o que diz à busca de pendentes que
+      // a auditoria de fundo já olhou esta foto e não há mais o que tentar.
+      const reprovou = veredito.resultado === 'reprovado';
+      feedbackInfo[task.id] = {
+        status: reprovou ? 'warning' : veredito.resultado === 'aprovado' ? 'success' : 'neutro',
+        resultado: veredito.resultado === 'nao_conferido' ? 'incerto' : veredito.resultado,
+        message: veredito.mensagem,
+        origem: 'fundo',
+        auditadoEm: new Date().toISOString(),
+      };
+      if (reprovou) {
+        hasErrors = true;
+        reprovadasAgora.push({ texto: String(task.text || 'Tarefa').slice(0, 80), motivo: veredito.mensagem.slice(0, 140) });
+      }
       processedCount++;
 
       // Delay de 1s entre chamadas para evitar rate-limit do Gemini
@@ -2372,30 +2427,60 @@ A mensagem é lida pelo funcionário, no celular:
     await pool.query('UPDATE checklist_submissions SET feedback_info = $1 WHERE id = $2', [JSON.stringify(feedbackInfo), submissionId]);
   }
 
-  // Enviar Notificação Push em caso de irregularidades (warnings/reprovações)
+  // Reprovação achada pela auditoria de fundo: avisa quem manda na loja.
+  // Antes ia só push, e só para admin/master: o gestor não ficava sabendo, e a
+  // chave "checklist reprovado" do WhatsApp (Notificações) não valia aqui.
   if (hasErrors) {
     try {
       const { rows: subRows } = await pool.query('SELECT store, employee_name FROM checklist_submissions WHERE id = $1', [submissionId]);
       if (subRows.length > 0) {
         const { store, employee_name: employeeName } = subRows[0];
-        const { rows: admins } = await pool.query(
-          "SELECT fcm_token FROM users WHERE LOWER(store) = LOWER($1) AND (role = 'admin' OR role = 'master') AND fcm_token IS NOT NULL",
+        const { rows: soChefes } = await pool.query(
+          `SELECT id, name, role, fcm_token, phone, whatsapp_phone, whatsapp_active, wa_checklist_reprovado
+             FROM users
+            WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master' OR role = 'gestor')`,
           [store]
         );
-        for (const adminUser of admins) {
-          try {
-            await admin.messaging().send({
-              token: adminUser.fcm_token,
-              notification: {
-                title: '⚠️ Irregularidade no Checklist',
-                body: `Reprovação detectada na ${store} por ${employeeName}. Verifique o painel.`
-              },
-              data: { url: '/admin' },
-              apns: { payload: { aps: { sound: 'default', badge: 1 } } }
-            });
-            console.log(`[Push Auditoria] Alerta enviado para o token do admin: ${adminUser.fcm_token.substring(0, 15)}...`);
-          } catch (pushErr) {
-            console.error('[Push Auditoria] Erro no envio push do admin:', pushErr.message);
+        const chefes = await comNumerosExtras(store, soChefes);
+        const quantas = reprovadasAgora.length || 1;
+        const resumo = reprovadasAgora.slice(0, 3).map(i => `• ${i.texto}: ${i.motivo}`).join('\n');
+        const sobra = reprovadasAgora.length > 3 ? `\n• e mais ${reprovadasAgora.length - 3}...` : '';
+
+        for (const chefe of chefes) {
+          if (chefe.fcm_token) {
+            try {
+              await admin.messaging().send({
+                token: chefe.fcm_token,
+                notification: {
+                  title: '⚠️ Foto reprovada no checklist',
+                  body: `A conferência reprovou ${quantas} ${quantas === 1 ? 'foto' : 'fotos'} de ${employeeName} na ${store}. Veja no painel.`
+                },
+                data: { url: '/admin' },
+                apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+              });
+            } catch (pushErr) {
+              console.error('[Push Auditoria] Erro no envio push:', pushErr.message);
+            }
+          }
+
+          const telefone = chefe.whatsapp_phone || chefe.phone;
+          const querWhats = chefe.whatsapp_active !== false && chefe.wa_checklist_reprovado !== false;
+          if (telefone && querWhats && process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY) {
+            try {
+              const limpo = String(telefone).replace(/\D/g, '');
+              await enviarWhatsapp({
+                telefone: numeroWhatsapp(limpo).numero || limpo,
+                texto:
+                  `⚠️ *FOTO REPROVADA NA CONFERÊNCIA*\n\n` +
+                  `A conferência das fotos do checklist de *${employeeName}* na *${store}* reprovou ` +
+                  `${quantas} ${quantas === 1 ? 'foto' : 'fotos'}:\n\n${resumo}${sobra}\n\n` +
+                  `Confira e dê baixa no painel: https://www.firecheckapp.com.br/admin`,
+                contexto: 'Reprovação da auditoria',
+                loja: store,
+              });
+            } catch (waErr) {
+              console.error('[Auditoria] Falha no WhatsApp da reprovação:', waErr.message);
+            }
           }
         }
       }
@@ -7457,7 +7542,8 @@ export default async function handler(req, res) {
       try {
         const { rows: pending } = await pool.query(
           `SELECT id FROM checklist_submissions
-           WHERE (feedback_info IS NULL OR feedback_info = '{}' OR feedback_info::text = 'null')
+           WHERE (feedback_info IS NULL OR feedback_info = '{}' OR feedback_info::text = 'null'
+                  OR feedback_info::text ~ '"resultado":\\s*"nao_conferido"')
            AND retry_count < 15
            AND created_at > NOW() - INTERVAL '7 days'
            ${soDaLoja ? 'AND LOWER(TRIM(store)) = LOWER(TRIM($1))' : ''}
@@ -8756,26 +8842,8 @@ Responda APENAS com JSON válido.`;
             });
 
             const base64Data = photoBase64.split(',')[1] || photoBase64;
-            const criterioLimpo = typeof criteria === 'string' ? criteria.trim().slice(0, 600) : '';
-            const prompt = `Você confere a foto que um funcionário acabou de tirar como prova de uma tarefa.
-
-TAREFA: "${taskText}"
-${criterioLimpo ? `O QUE O GESTOR EXIGE NESTA FOTO: "${criterioLimpo}"` : 'O gestor não escreveu um critério específico: julgue apenas pelo texto da tarefa, e seja generoso.'}
-
-Como julgar:
-- Verifique somente se a tarefa foi cumprida${criterioLimpo ? ' segundo o critério acima' : ''}. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
-- Reconheça o item pelo ASPECTO (forma, cor, embalagem, quantidade). O nome do produto NÃO precisa estar escrito: pacotes de linguiça numa tarefa de "calabresa" estão certos. Falta de rótulo legível não é motivo para reprovar.
-- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que a tarefa não foi cumprida.
-- Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
-- Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
-
-Responda ESTRITAMENTE em JSON:
-{"resultado": "aprovado" | "reprovado" | "incerto", "mensagem": "string", "confianca": "alta" | "media" | "baixa"}
-
-A mensagem é lida pelo próprio funcionário, no celular:
-- aprovado: um elogio de até 8 palavras.
-- reprovado: diga em uma frase curta e concreta O QUE FALTA para ele refazer a foto certa. Sem rodeio, sem julgar a pessoa. Exemplo: "A lixeira ao lado da pia ainda está cheia."
-- incerto: diga o que atrapalhou de ver. Exemplo: "A foto ficou escura demais para conferir."`;
+            // A régua é a mesma da auditoria de fundo (promptDaConferencia).
+            const prompt = promptDaConferencia(taskText, criteria);
 
             const result = await model.generateContent([
               prompt,
@@ -8785,23 +8853,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
             const response = await result.response;
             const text = response.text();
 
-            // Extração robusta de JSON para evitar quebra com markdown (```json ... ```)
-            const jsonMatch = text.match(/\{[\s\S]*\}/);
-            const cleanJson = jsonMatch ? jsonMatch[0] : text;
-
-            const bruto = JSON.parse(cleanJson);
-
-            // Normaliza para o vocabulário da tela. Só vira reprovação o que veio
-            // reprovado E com confiança alta — o resto não acusa ninguém.
-            const r = String(bruto.resultado || (bruto.approved === false ? 'reprovado' : 'aprovado')).toLowerCase();
-            const confianca = String(bruto.confianca || '').toLowerCase();
-            let resultado;
-            if (r === 'reprovado') resultado = confianca === 'alta' ? 'reprovado' : 'nao_conferido';
-            else if (r === 'aprovado') resultado = 'aprovado';
-            else resultado = 'nao_conferido';
-
-            const mensagem = String(bruto.mensagem || bruto.message || '').slice(0, 300)
-              || (resultado === 'aprovado' ? 'Foto conferida.' : 'Não foi possível conferir esta foto.');
+            const { resultado, mensagem, confianca } = lerVereditoDaIa(text);
 
             return res.status(200).json({
               taskId,

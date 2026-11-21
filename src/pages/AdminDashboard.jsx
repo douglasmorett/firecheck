@@ -268,9 +268,19 @@ const statusDaSubmissao = (s) => {
   if (hasWarnings) return 'reprovado';
   // Só é aprovado quando TODAS as fotos foram analisadas. Antes, uma análise
   // parcial (1 de 8 fotos) já virava aprovação.
-  return feedbacks.length >= tarefasComFoto.length ? 'aprovado' : 'pendente';
+  // "Não conferido" na hora da foto ainda vai passar pela auditoria de fundo:
+  // não conta como analisado, senão o envio já aparecia "aprovado" sem a IA ter visto.
+  const analisados = feedbacks.filter(f => f?.resultado !== 'nao_conferido');
+  return analisados.length >= tarefasComFoto.length ? 'aprovado' : 'pendente';
 };
 const tarefaReprovada = (s, t) => ['warning', 'error'].includes(s?.feedback_info?.[t.id]?.status);
+
+// O veredito de UMA foto tem três estados. A tela só conhecia dois, e tudo que
+// não era "aprovado" aparecia como "Reprovado pela IA" — inclusive a foto que a
+// IA nem conseguiu conferir (sem sinal, foto escura), acusando quem não errou.
+const vereditoReprovou = (f) => f?.status === 'warning' || f?.status === 'error';
+const rotuloDoVeredito = (f) =>
+  f?.status === 'success' ? 'Aprovado pela IA' : vereditoReprovou(f) ? 'Reprovado pela IA' : 'Não conferido pela IA';
 // A lista de envios chega sem as imagens ("[imagem]", para ficar leve).
 const temImagem = (src) => typeof src === 'string' && src.length > 0 && src !== '[imagem]';
 
@@ -1808,7 +1818,7 @@ export default function AdminDashboard() {
                   ` : ''}
                   ${feedback ? `
                     <div class="ai-feedback ${feedback.status === 'success' ? 'success' : ''}">
-                      <strong>${feedback.status === 'success' ? 'Aprovado pela IA' : 'Reprovado pela IA'}:</strong>
+                      <strong>${rotuloDoVeredito(feedback)}:</strong>
                       <p style="margin: 4px 0 0 0;">${feedback.message}</p>
                     </div>
                   ` : ''}
@@ -5643,12 +5653,12 @@ export default function AdminDashboard() {
                           <div style={{ 
                             padding: '16px', 
                             borderRadius: '8px', 
-                            backgroundColor: feedback.status === 'success' ? 'rgba(16, 185, 129, 0.05)' : 'rgba(245, 158, 11, 0.05)',
-                            border: `1px solid ${feedback.status === 'success' ? 'var(--success)' : 'var(--warning)'}`,
+                            backgroundColor: feedback.status === 'success' ? 'rgba(16, 185, 129, 0.05)' : vereditoReprovou(feedback) ? 'rgba(245, 158, 11, 0.05)' : 'rgba(120, 120, 120, 0.06)',
+                            border: `1px solid ${feedback.status === 'success' ? 'var(--success)' : vereditoReprovou(feedback) ? 'var(--warning)' : 'var(--border-color)'}`,
                             alignSelf: 'start'
                           }}>
-                            <p style={{ fontSize: '0.8rem', color: feedback.status === 'success' ? 'var(--success)' : 'var(--warning)', fontWeight: 'bold', marginBottom: '4px' }}>
-                              {feedback.status === 'success' ? 'Aprovado pela IA' : 'Reprovado pela IA'}
+                            <p style={{ fontSize: '0.8rem', color: feedback.status === 'success' ? 'var(--success)' : vereditoReprovou(feedback) ? 'var(--warning)' : 'var(--text-muted)', fontWeight: 'bold', marginBottom: '4px' }}>
+                              {rotuloDoVeredito(feedback)}
                             </p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{feedback.message}</p>
                           </div>

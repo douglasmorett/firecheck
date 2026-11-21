@@ -1167,8 +1167,8 @@ export default function ChecklistExecution() {
                         {task.done === true ? 'Sim' : task.done === false ? 'Não' : task.done || 'Não respondido'}
                       </span>
                       {aiFeedback[task.id] && (
-                        <span style={{ fontSize: '0.75rem', color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : 'var(--warning)' }}>
-                          {aiFeedback[task.id].status === 'success' ? '✓ Auditado' : '⚠ Atenção'}
+                        <span style={{ fontSize: '0.75rem', color: aiFeedback[task.id].status === 'success' ? 'var(--success)' : aiFeedback[task.id].status === 'warning' ? 'var(--warning)' : 'var(--text-muted)' }}>
+                          {aiFeedback[task.id].status === 'success' ? '✓ Auditado' : aiFeedback[task.id].status === 'warning' ? '⚠ Atenção' : '· Não conferido'}
                         </span>
                       )}
                     </div>
