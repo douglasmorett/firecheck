@@ -211,6 +211,13 @@ function origemDaRequisicao(req) {
   return (req.socket && req.socket.remoteAddress) || 'desconhecida';
 }
 
+// IP gravado nas rotas públicas de métrica (/api/ping, track-*). O cabeçalho é do
+// cliente: guarda só o primeiro endereço e no máximo 64 caracteres, para a tabela
+// não receber texto arbitrário.
+function ipDoVisitante(req) {
+  return String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || 'unknown').split(',')[0].trim().slice(0, 64) || 'unknown';
+}
+
 function clearLoginFailures(key) {
   loginAttempts.delete(key);
 }
@@ -311,6 +318,8 @@ function checklistCaiHoje(cl, hojeISO, diaSemanaHoje) {
 // Limite"; tarefa com notifyDelay desligado não conta) ou o "HH:MM" antigo em
 // scheduled_date. O funcionário envia o checklist inteiro de uma vez, então a
 // primeira hora vencida sem envio já é o atraso. null quando não há hora.
+// Quanto tempo depois da hora limite o cron de atraso ainda avisa (ver o cron).
+const JANELA_DO_ATRASO_DO_CHECKLIST_MIN = 120;
 function horaLimiteDoChecklist(cl) {
   let tarefas = cl.tasks;
   if (typeof tarefas === 'string') { try { tarefas = JSON.parse(tarefas); } catch (e) { tarefas = []; } }
@@ -327,6 +336,15 @@ function horaLimiteDoChecklist(cl) {
     if (!melhor || minutos < melhor.minutos) melhor = { minutos, hora: `${m[1].padStart(2, '0')}:${m[2]}`, tarefa: c.tarefa };
   }
   return melhor;
+}
+
+// O fuso da loja vem de um campo de texto livre (PUT /api/users). Um valor que o
+// Intl não conhece ("Brasil", "GMT-3") faz toLocaleTimeString lançar RangeError:
+// a batida do ponto da loja dava 500 e o cron de ausência caía no catch geral,
+// sem avisar as lojas seguintes. Valor inválido vira o fuso de São Paulo.
+function fusoDaLoja(tz) {
+  if (!tz) return 'America/Sao_Paulo';
+  try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); return tz; } catch { return 'America/Sao_Paulo'; }
 }
 
 function contaEmDia(conta) {
@@ -422,10 +440,12 @@ async function autenticarComLojaAtual(req) {
   if (!authUser || !authUser.id) return authUser;
   try {
     const { rows } = await pool.query(
-      `SELECT u.store, u.password_changed_at, u.role, d.cobranca_firehub, d.status AS status_do_dono, d.firehub_sincronizado_em
+      `SELECT u.store, u.password_changed_at, u.role, u.status, u.created_at, u.expiration_date, u.trial_ends_at,
+              d.cobranca_firehub, d.status AS status_do_dono, d.firehub_sincronizado_em,
+              d.created_at AS dono_created_at, d.expiration_date AS dono_expiration_date, d.trial_ends_at AS dono_trial_ends_at
          FROM users u
          LEFT JOIN LATERAL (
-           SELECT cobranca_firehub, status, firehub_sincronizado_em FROM users d
+           SELECT cobranca_firehub, status, firehub_sincronizado_em, created_at, expiration_date, trial_ends_at FROM users d
             WHERE LOWER(TRIM(d.store)) = LOWER(TRIM(u.store)) AND d.role = 'admin' LIMIT 1
          ) d ON TRUE
         WHERE u.id = $1`,
@@ -460,7 +480,29 @@ async function autenticarComLojaAtual(req) {
       if (status === 'blocked') return null;
     }
 
-    if (rows[0].store) return { ...authUser, store: rows[0].store };
+    // ── Conta bloqueada, pendente ou vencida: a sessão cai na hora ──────────
+    // A régua é a do login (contaEmDia), mas o login só roda uma vez: o token
+    // vale sete dias, e loja bloqueada por chargeback, cancelada ou com o teste
+    // ou plano vencidos continuava operando até ele expirar. O dono é julgado
+    // pela própria ficha; gestor e funcionário herdam a situação do dono, como
+    // no login. O master não tem plano. Conta paga pelo FireHub só cai por
+    // 'blocked' (acima): quem manda no vencimento dela é o FireHub, e as datas
+    // lidas aqui podem estar atrasadas em relação à última sincronização.
+    if (rows[0].role !== 'master' && rows[0].cobranca_firehub !== true) {
+      const julgada = rows[0].role === 'admin'
+        ? rows[0]
+        : (rows[0].store ? {
+            status: rows[0].status_do_dono, created_at: rows[0].dono_created_at,
+            expiration_date: rows[0].dono_expiration_date, trial_ends_at: rows[0].dono_trial_ends_at,
+          } : null);
+      // Sem dono encontrado (loja só do master, por exemplo) não há o que cobrar.
+      if (julgada && julgada.status !== undefined && julgada.status !== null && !contaEmDia(julgada)) return null;
+    }
+
+    // O papel vem do BANCO, não do token: gestor rebaixado a funcionário (ou
+    // funcionário promovido) vale na hora, e não daqui a sete dias.
+    if (rows[0].store) return { ...authUser, role: rows[0].role, store: rows[0].store };
+    return { ...authUser, role: rows[0].role };
   } catch (e) {
     // Banco fora do ar não pode transformar uma requisição legítima em 401: sem
     // resposta, o token segue valendo o que já dizia.
@@ -522,14 +564,15 @@ function autorizarChamadaInterna(req, res) {
 // pelo cron, que varre o que ficou para trás. Exigir só o segredo de cron aqui
 // mataria a auditoria imediata: a foto seria enviada e o feedback nunca viria.
 //
-// Devolve true se qualquer um dos dois se identificou. Não responde nada quando
-// aceita; quando recusa, já respondeu 401.
+// Devolve `true` se foi o agendador (segredo de cron) e o OBJETO do usuário se foi
+// uma sessão: quem precisa limitar à loja dele usa o objeto. Não responde nada
+// quando aceita; quando recusa, já respondeu 401.
 async function autorizarUsuarioOuInterno(req, res) {
   const esperado = process.env.CRON_SECRET;
   const enviado = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.headers['x-cron-secret'] || '';
   if (esperado && comparaSegredo(String(enviado), esperado)) return true;
   const usuario = await autenticarComLojaAtual(req);
-  if (usuario) return true;
+  if (usuario) return usuario;
   res.status(401).json({ error: 'Token inválido ou ausente.' });
   return false;
 }
@@ -1084,6 +1127,9 @@ async function enviarWhatsappPor({ telefone, texto, contexto, evoUrl, evoKey, ev
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: evoKey },
       body: JSON.stringify({ number: numero, text: texto }),
+      // Sem teto, um gateway lento segurava a resposta ao usuário até o limite da
+      // função (o app via erro e reenviava). 15 s e o envio vira falha registrada.
+      signal: AbortSignal.timeout(15000),
     });
 
     const bruto = await resp.text();
@@ -1120,6 +1166,7 @@ async function estadoWhatsapp(qual) {
   try {
     const resp = await fetch(`${evoUrl}/instance/connectionState/${evoInstance}`, {
       headers: { apikey: evoKey },
+      signal: AbortSignal.timeout(15000),
     });
     if (!resp.ok) {
       const detalhe = await resp.text().catch(() => '');
@@ -1410,7 +1457,8 @@ async function sendTrialWelcomeMessage(userPhone, userName, userStore) {
     const response = await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-      body: JSON.stringify({ number: fullPhone, text: welcomeMsg })
+      body: JSON.stringify({ number: fullPhone, text: welcomeMsg }),
+      signal: AbortSignal.timeout(15000),
     });
     const data = await response.json();
     console.log(`[WhatsApp Suporte] Boas-vindas enviada para ${fullPhone} (instância: ${evoInstance}):`, data?.key?.id || 'ok');
@@ -1468,6 +1516,21 @@ function jornadaNoDia({ user, schedule, weekdays, admin }, date) {
     const texto = date instanceof Date
       ? date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
       : String(date).slice(0, 10);
+    // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados a
+    // partir do "último dia trabalhado" da ficha. A regra mora AQUI para valer em
+    // todo lugar que pergunta "hoje é dia de trabalho?" (cron de ausência, aviso
+    // de atraso na batida, tela do ponto), e não só no banco de horas.
+    if (schedule.type === '12x36') {
+      const base = user.ponto_last_worked_day
+        ? new Date(user.ponto_last_worked_day).toISOString().slice(0, 10) : null;
+      const diff = base ? Math.round((Date.parse(texto) - Date.parse(base)) / 86400000) : 0;
+      return {
+        isWorkday: !base || Math.abs(diff) % 2 === 0,
+        horaEntrada: schedule.hora_entrada, horaSaida: schedule.hora_saida,
+        intervaloInicio: schedule.intervalo_inicio, intervaloFim: schedule.intervalo_fim,
+        tolerancia: schedule.tolerancia
+      };
+    }
     const [aa, mm, dd] = texto.split('-').map(Number);
     const jsDay = (aa && mm && dd) // 0 = domingo
       ? new Date(Date.UTC(aa, mm - 1, dd)).getUTCDay()
@@ -1677,6 +1740,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     // Pares entrada→saída, em sequência. Turno de mais de 16 h é batida
     // esquecida, não jornada: o par não conta e o dia fica "incompleto".
     const trabalhadoPorDia = {};
+    const paresPorDia = {}; // dia da entrada → [{ ini: minuto do dia da entrada, dur: minutos }]
     const incompletos = new Set();
     let aberta = null;
     for (const b of minhas) {
@@ -1685,7 +1749,9 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
         aberta = b;
       } else if (b.type === 'saida') {
         if (aberta && b.seg - aberta.seg <= 16 * 3600) {
-          trabalhadoPorDia[aberta.dia] = (trabalhadoPorDia[aberta.dia] || 0) + Math.round((b.seg - aberta.seg) / 60);
+          const duracao = Math.round((b.seg - aberta.seg) / 60);
+          trabalhadoPorDia[aberta.dia] = (trabalhadoPorDia[aberta.dia] || 0) + duracao;
+          (paresPorDia[aberta.dia] ||= []).push({ ini: minutosDoRelogio(aberta.hora), dur: duracao });
         } else {
           incompletos.add(aberta ? aberta.dia : b.dia);
         }
@@ -1698,18 +1764,26 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     const tot = { trabalhado: 0, esperado: 0, abonado: 0, saldo: 0, faltas: 0, diasAbonados: 0, incompletos: 0 };
     for (const dia of dias) {
       if (!primeiroDia || dia < primeiroDia) continue;
-      let jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
-      // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados
-      // a partir do "último dia trabalhado" da ficha (mesma regra da tela).
-      if (escala?.schedule?.type === '12x36') {
-        const base = escala.user.ponto_last_worked_day
-          ? new Date(escala.user.ponto_last_worked_day).toISOString().slice(0, 10) : null;
-        const s = escala.schedule;
-        const diff = base ? Math.round((Date.parse(dia) - Date.parse(base)) / 86400000) : 0;
-        jornada = { isWorkday: !base || Math.abs(diff) % 2 === 0, horaEntrada: s.hora_entrada, horaSaida: s.hora_saida, intervaloInicio: s.intervalo_inicio, intervaloFim: s.intervalo_fim };
-      }
+      // (a regra da escala 12x36 vive em jornadaNoDia)
+      const jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
       const doDia = minhas.filter(b => b.dia === dia);
-      const trabalhado = trabalhadoPorDia[dia] || 0;
+      let trabalhado = trabalhadoPorDia[dia] || 0;
+      // Quem bate só entrada e saída (um par) não bate o almoço, e o par cobre o
+      // intervalo da escala: o almoço não foi trabalhado. Sem isto, escala 08–17
+      // com intervalo 12–13 e batida 08:00–17:00 dava 9 h trabalhadas contra 8 h
+      // esperadas: +1 h de banco por dia, que ia para o espelho do contador. Com
+      // quatro batidas (dois pares) o almoço já fica de fora sozinho.
+      let intervaloDescontado = 0;
+      if (temEscala && jornada.isWorkday && (paresPorDia[dia] || []).length === 1) {
+        const [par] = paresPorDia[dia];
+        const iniAlmoco = minutosDoRelogio(jornada.intervaloInicio);
+        const fimAlmoco = minutosDoRelogio(jornada.intervaloFim);
+        if (iniAlmoco !== null && fimAlmoco !== null && fimAlmoco > iniAlmoco && par.ini !== null
+          && par.ini <= iniAlmoco && par.ini + par.dur >= fimAlmoco) {
+          intervaloDescontado = fimAlmoco - iniAlmoco;
+          trabalhado -= intervaloDescontado;
+        }
+      }
       const emAndamento = dia === hoje && jornada.isWorkday && agoraMin !== null
         && agoraMin < (minutosDoRelogio(jornada.horaSaida) ?? 24 * 60);
       const esperado = temEscala ? minutosEsperadosDaJornada(jornada) : 0;
@@ -1721,6 +1795,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
         data: dia,
         batidas: doDia.map(({ id, type, hora, notes, is_manual, edited_by }) => ({ id, type, hora, notes, is_manual, edited_by })),
         trabalhado_min: trabalhado,
+        intervalo_descontado_min: intervaloDescontado,
         esperado_min: temEscala ? esperado : null,
         abonado_min: abonado,
         saldo_min: saldo,
@@ -1918,7 +1993,7 @@ async function registrarBatidaDePonto(res, { userId, userName, store, type, lati
   let tz = 'America/Sao_Paulo';
   if (store) {
     const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-    if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+    if (admins.length > 0 && admins[0].timezone) tz = fusoDaLoja(admins[0].timezone);
   }
   // Calcular data de hoje no timezone da loja
   const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
@@ -2883,6 +2958,37 @@ async function garantirResumosDoPonto() {
   resumosDoPontoProntos = true;
 }
 
+// ── "Já avisei": uma vez por loja, dia e tipo de aviso ──────────────────────
+//
+// Os crons de ausência de ponto e de checklist atrasado não gravavam nada: cada
+// chamada repetia o WhatsApp para todos os donos (a rota fica aberta enquanto
+// CRON_SECRET não existe, e a Vercel pode chamar duas vezes). Aviso repetido é o
+// que derruba número de WhatsApp. `tipo` carrega o que torna o aviso o MESMO
+// (ex.: o checklist, ou o conjunto de ausentes); a chave primária faz o resto.
+let avisosEnviadosProntos = false;
+async function garantirAvisosEnviados() {
+  if (avisosEnviadosProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS avisos_enviados (
+      store_chave TEXT NOT NULL,
+      dia DATE NOT NULL,
+      tipo TEXT NOT NULL,
+      enviado_em TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (store_chave, dia, tipo)
+    )
+  `);
+  avisosEnviadosProntos = true;
+}
+/** true se este aviso AINDA NÃO tinha saído (e agora fica registrado); false se já saiu. */
+async function reservarAviso(store, dia, tipo) {
+  await garantirAvisosEnviados();
+  const { rowCount } = await pool.query(
+    'INSERT INTO avisos_enviados (store_chave, dia, tipo) VALUES (LOWER(TRIM($1)), $2, $3) ON CONFLICT DO NOTHING',
+    [store, dia, tipo]
+  );
+  return rowCount > 0;
+}
+
 /** Texto do resumo de um dia da loja, ou null quando ninguém tinha nada no dia. */
 function textoDoResumoDoPonto(store, dia, funcionarios) {
   const linhas = [];
@@ -3150,7 +3256,7 @@ async function enviarFechamentoDoPonto({ store, inicio, fim, parcial = false, en
   }
 
   try {
-    const tz = dono.timezone || 'America/Sao_Paulo';
+    const tz = fusoDaLoja(dono.timezone);
     const dados = await calcularBancoDeHoras(pool, loja, { inicio, fim, tz });
     if (!dados.funcionarios.some(f => f.dias.some(d => d.batidas.length > 0))) {
       const motivo = 'Nenhuma batida de ponto no período: não há o que mandar ao contador.';
@@ -3508,6 +3614,9 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_ausencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_aprovado BOOLEAN DEFAULT TRUE");
+      // Quando o telefone (ou o WhatsApp) do cadastro mudou pela última vez: o
+      // "esqueci minha senha" não manda senha para um número trocado há pouco.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_changed_at TIMESTAMPTZ");
       // ── Tabela de Veículos e melhorias de checklists ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS vehicles (
@@ -3840,6 +3949,11 @@ export default async function handler(req, res) {
         const { rows: userRows } = await pool.query('SELECT store FROM users WHERE id = $1', [authUser.id]);
         if (userRows.length > 0) store = userRows[0].store;
       }
+      // Sem loja no cadastro, o filtro de loja sumia e as contas somavam TODAS as
+      // lojas. Só o master olha sem escolher uma.
+      if (authUser.role !== 'master' && (!store || store === 'undefined' || store === 'null')) {
+        return res.status(200).json({ checklistsHoje: 0, concluidos: 0, alertasIA: 0, colaboradores: 0, conformidade: 100 });
+      }
       const start = searchParams.get('start');
       const end = searchParams.get('end');
       let params = [];
@@ -3956,7 +4070,11 @@ export default async function handler(req, res) {
               if (Array.isArray(parsed) && parsed.length > 0) {
                 assignedToVal = JSON.stringify(parsed);
               }
-            } catch(e) {}
+            } catch(e) {
+              // JSON quebrado virava "toda a equipe" em silêncio: o checklist de
+              // uma pessoa passava a aparecer para todos. Recusa em vez de adivinhar.
+              return res.status(400).json({ error: 'assignedTo inválido: envie uma lista de e-mails.' });
+            }
           }
         }
 
@@ -4177,7 +4295,12 @@ export default async function handler(req, res) {
       if (method === 'POST') {
         const { vehicleId } = req.body;
         if (!vehicleId) return res.status(400).json({ error: 'vehicleId obrigatório.' });
-        await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1', [vehicleId]);
+        // O veículo tem que ser da loja de quem pede: com o id solto, qualquer
+        // conta marcava a solicitação em veículo de outro cliente.
+        const { rowCount: veiculoDaLoja } = authUser.role === 'master'
+          ? await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1', [vehicleId])
+          : await pool.query('UPDATE vehicles SET last_requested_at = NOW() WHERE id = $1 AND LOWER(TRIM(store)) = LOWER(TRIM($2))', [vehicleId, authUser.store || '']);
+        if (veiculoDaLoja === 0) return res.status(404).json({ error: 'Veículo não encontrado nesta loja.' });
         return res.status(200).json({ success: true });
       }
       return res.status(405).json({ error: 'Método não permitido.' });
@@ -4244,8 +4367,8 @@ export default async function handler(req, res) {
       const todayStart = inicioDoDiaSPemUTC();
       let queryStr = `
         SELECT v.*, u.name as employee_name,
-               (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1 LIMIT 1) as completed_by,
-               EXISTS(SELECT 1 FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND cs.created_at >= $1) as completed_today
+               (SELECT cs.employee_name FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND LOWER(TRIM(cs.store)) = LOWER(TRIM(v.store)) AND cs.created_at >= $1 LIMIT 1) as completed_by,
+               EXISTS(SELECT 1 FROM checklist_submissions cs WHERE cs.vehicle_id = v.id AND LOWER(TRIM(cs.store)) = LOWER(TRIM(v.store)) AND cs.created_at >= $1) as completed_today
         FROM vehicles v 
         LEFT JOIN users u ON v.employee_id = u.id
       `;
@@ -4535,6 +4658,11 @@ export default async function handler(req, res) {
         const deleteMatch = pathname.match(/\/api\/shopping\/(\d+)/);
         if (deleteMatch) {
           if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+          // Desativar lista é ato de gestão (como excluir checklist): antes bastava
+          // um token de funcionário para sumir com todas as listas da loja.
+          if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
+            return res.status(403).json({ error: 'Somente o administrador ou gestor pode excluir listas de compras.' });
+          }
           // Apagava por id, sem olhar de quem era a lista.
           //
           // E é DESATIVAÇÃO, não DELETE: lista que já teve conferência tem
@@ -4553,6 +4681,12 @@ export default async function handler(req, res) {
       // ── POST: criar/editar lista com itens ──
       if (method === 'POST') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        // Criar e editar lista (itens, mínimos) é ato de gestão. A contagem do
+        // funcionário é /api/shopping/submit e a movimentação de estoque tem
+        // rota e permissão próprias (perm_estoque), acima.
+        if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
+          return res.status(403).json({ error: 'Somente o administrador ou gestor pode criar ou editar listas de compras.' });
+        }
         const { id, title, recurrence, weekdays, scheduledDate, assignedTo, items, category } = req.body;
         const store = authUser.role === 'master' ? req.body.store : authUser.store;
         if (!store) return res.status(400).json({ error: 'Loja obrigatória.' });
@@ -4570,54 +4704,73 @@ export default async function handler(req, res) {
         const assignedStr = assignedTo ? (typeof assignedTo === 'string' ? assignedTo : JSON.stringify(assignedTo)) : null;
         const weekdaysStr = weekdays ? (typeof weekdays === 'string' ? weekdays : JSON.stringify(weekdays)) : null;
 
-        let listId;
-        // Estoque já conferido pelos funcionários, guardado antes de recriar os itens.
-        // Editar a lista apaga e reinsere tudo, e a tela de edição não reenvia esses
-        // valores — sem isto, um simples ajuste no nome de um item jogava fora a
-        // contagem que a equipe tinha acabado de fazer.
-        const estoqueAnterior = new Map();
-        if (id) {
-          const { rows: antigos } = await pool.query(
-            'SELECT name, current_stock FROM shopping_items WHERE shopping_list_id = $1',
-            [id]
-          );
-          for (const a of antigos) {
-            if (a.current_stock !== null && a.current_stock !== undefined) {
-              estoqueAnterior.set(String(a.name || '').trim().toLowerCase(), a.current_stock);
-            }
-          }
-          await pool.query(
-            'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
-            [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
-          );
-          listId = id;
-          // Remover itens antigos e inserir novos
-          await pool.query('DELETE FROM shopping_items WHERE shopping_list_id = $1', [listId]);
-        } else {
-          const { rows: newList } = await pool.query(
-            'INSERT INTO shopping_lists (store, title, recurrence, weekdays, scheduled_date, assigned_to, category) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-            [store, title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras']
-          );
-          listId = newList[0].id;
+        // Mínimo que não é número derrubava a edição NO MEIO (erro 22P02 depois de
+        // apagar os itens): a lista ficava vazia. Confere antes de tocar em qualquer coisa.
+        if (Array.isArray(items) && items.some(it => it && it.minStock !== undefined && it.minStock !== null && it.minStock !== '' && !Number.isFinite(Number(it.minStock)))) {
+          return res.status(400).json({ error: 'O estoque mínimo de cada item precisa ser um número.' });
         }
 
-        // Inserir itens
-        if (items && items.length > 0) {
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            // Mantém o estoque conferido quando o item já existia e a tela não o enviou.
-            const enviado = item.currentStock;
-            const temEnviado = enviado !== undefined && enviado !== null && enviado !== '';
-            const estoqueFinal = temEnviado
-              ? enviado
-              : (estoqueAnterior.has(String(item.name || '').trim().toLowerCase())
-                  ? estoqueAnterior.get(String(item.name || '').trim().toLowerCase())
-                  : null);
-            await pool.query(
-              'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-              [listId, item.name, item.unit || 'un', item.minStock || 0, estoqueFinal, item.category || 'geral', i]
+        let listId;
+        // Editar é "apagar os itens e reinseri-los": vai numa transação, para uma
+        // falha no meio (ou um item ruim) não deixar a lista vazia ou pela metade.
+        const cliente = await pool.connect();
+        try {
+          await cliente.query('BEGIN');
+          // Estoque já conferido pelos funcionários, guardado antes de recriar os itens.
+          // Editar a lista apaga e reinsere tudo, e a tela de edição não reenvia esses
+          // valores — sem isto, um simples ajuste no nome de um item jogava fora a
+          // contagem que a equipe tinha acabado de fazer.
+          const estoqueAnterior = new Map();
+          if (id) {
+            const { rows: antigos } = await cliente.query(
+              'SELECT name, current_stock FROM shopping_items WHERE shopping_list_id = $1',
+              [id]
             );
+            for (const a of antigos) {
+              if (a.current_stock !== null && a.current_stock !== undefined) {
+                estoqueAnterior.set(String(a.name || '').trim().toLowerCase(), a.current_stock);
+              }
+            }
+            await cliente.query(
+              'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
+              [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
+            );
+            listId = id;
+            // Remover itens antigos e inserir novos
+            await cliente.query('DELETE FROM shopping_items WHERE shopping_list_id = $1', [listId]);
+          } else {
+            const { rows: newList } = await cliente.query(
+              'INSERT INTO shopping_lists (store, title, recurrence, weekdays, scheduled_date, assigned_to, category) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+              [store, title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras']
+            );
+            listId = newList[0].id;
           }
+
+          // Inserir itens
+          if (items && items.length > 0) {
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              // Mantém o estoque conferido quando o item já existia e a tela não o enviou.
+              const enviado = item.currentStock;
+              const temEnviado = enviado !== undefined && enviado !== null && enviado !== '';
+              const estoqueFinal = temEnviado
+                ? enviado
+                : (estoqueAnterior.has(String(item.name || '').trim().toLowerCase())
+                    ? estoqueAnterior.get(String(item.name || '').trim().toLowerCase())
+                    : null);
+              await cliente.query(
+                'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                [listId, item.name, item.unit || 'un', item.minStock || 0, estoqueFinal, item.category || 'geral', i]
+              );
+            }
+          }
+
+          await cliente.query('COMMIT');
+        } catch (erroDaEdicao) {
+          await cliente.query('ROLLBACK').catch(() => {});
+          throw erroDaEdicao;
+        } finally {
+          cliente.release();
         }
 
         const { rows: result } = await pool.query('SELECT * FROM shopping_lists WHERE id = $1', [listId]);
@@ -4754,11 +4907,16 @@ export default async function handler(req, res) {
             }
           }
 
-          console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
+          // O segredo do webhook viaja no corpo (payload.secret): não pode ir para
+          // o log da Vercel nem para o banco, de onde quem lesse o forjaria.
+          const payloadParaLog = payload && typeof payload === 'object'
+            ? { ...payload, secret: undefined, ...(payload.data && typeof payload.data === 'object' ? { data: { ...payload.data, secret: undefined } } : {}) }
+            : payload;
+          console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payloadParaLog));
           // Guarda o que a Cakto mandou. Sem isto não havia como saber o nome do
           // produto quando uma venda não liberava o plano certo (Pet Nature, 03/10).
           try {
-            await pool.query('INSERT INTO webhook_logs (payload, created_at) VALUES ($1, NOW())', [JSON.stringify(payload ?? null)]);
+            await pool.query('INSERT INTO webhook_logs (payload, created_at) VALUES ($1, NOW())', [JSON.stringify(payloadParaLog ?? null)]);
           } catch (erroDoLog) {
             console.warn('[CAKTO WEBHOOK] Não gravei o payload em webhook_logs:', erroDoLog?.message);
           }
@@ -4778,14 +4936,19 @@ export default async function handler(req, res) {
 
           // Regra de Bloqueio/Liberação
           // Se o pagamento for aprovado, pago, ou assinatura ativa
-          const activeStatuses = ['paid', 'approved', 'authorized', 'active', 'charge.paid', 'subscription.active'];
-          const blockedStatuses = ['refunded', 'chargeback', 'refused', 'canceled', 'overdue', 'charge.refunded', 'subscription.canceled'];
+          const activeStatuses = ['paid', 'approved', 'authorized', 'active'];
+          const blockedStatuses = ['refunded', 'chargeback', 'chargedback', 'refused', 'canceled', 'cancelled', 'overdue'];
 
-          const lowerStatus = String(status).toLowerCase();
+          // O status é comparado por PALAVRA inteira (o evento da Cakto vem como
+          // "purchase_approved", "charge.paid", "subscription.canceled"...). Com
+          // substring, "unpaid", "disapproved", "unauthorized" e "inactive"
+          // ativavam a conta e renovavam 30/365 dias: contêm "paid", "approved",
+          // "authorized" e "active".
+          const palavrasDoStatus = String(status).toLowerCase().split(/[^a-z]+/).filter(Boolean);
 
           let newStatus = null;
-          if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
-          if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
+          if (activeStatuses.some(s => palavrasDoStatus.includes(s))) newStatus = 'active';
+          if (blockedStatuses.some(s => palavrasDoStatus.includes(s))) newStatus = 'blocked';
 
           // Adiciona a coluna para expiração do módulo de câmeras se não existir
           await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
@@ -4836,20 +4999,34 @@ export default async function handler(req, res) {
                 const senhaInicial = crypto.randomBytes(4).toString('hex').toUpperCase();
                 const defaultPasswordHash = await bcrypt.hash(senhaInicial, 12);
                 
+                // A loja é a CHAVE que separa um cliente do outro. Com 'Minha Empresa'
+                // fixa, dois compradores sem cadastro prévio caíam na mesma loja e
+                // viam checklists, equipe, ponto e câmeras um do outro. Cada conta
+                // nasce com a sua, como no cadastro e no código de ativação; o
+                // cliente renomeia depois no Perfil. Ponto e limites saem do plano,
+                // como em /api/ativar: sem isso o Só Ponto/Combo nascia com o ponto
+                // desligado e os crons e o quiosque ignoravam a loja.
+                const nomeDaLojaNova = `Loja de ${String(customerName).trim() || 'Cliente'}`;
+                const chaveDaLojaNova = await gerarChaveDeLoja(nomeDaLojaNova);
+                const pontoDoPlano = detectedPlan.startsWith('combo') || detectedPlan.startsWith('ponto');
                 await pool.query(`
-                  INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date, cakto_subscription_id)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + CASE WHEN $9 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END, $10)
+                  INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, expiration_date, cakto_subscription_id, ponto_active, ponto_limit, checklist_limit)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() + CASE WHEN $10 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END, $11, $12, $13, $14)
                 `, [
                   customerName,
                   customerEmail,
                   defaultPasswordHash,
                   'admin',
-                  'Minha Empresa',
+                  chaveDaLojaNova,
+                  nomeDaLojaNova,
                   'active',
                   customerPhone,
                   detectedPlan,
                   isAnnual,
-                  subscriptionId
+                  subscriptionId,
+                  pontoDoPlano,
+                  COLABORADORES_POR_PLANO[detectedPlan] || 5,
+                  getPlanLimit(detectedPlan)
                 ]);
                 console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente.`);
 
@@ -4859,15 +5036,30 @@ export default async function handler(req, res) {
                 const evoKeyNovo = process.env.EVOLUTION_API_KEY;
                 const evoInstNovo = process.env.EVOLUTION_INSTANCE || 'firecheck';
                 const foneNovo = String(customerPhone || '').replace(/\D/g, '');
+                // A entrega é AGUARDADA (com teto): numa função serverless, o que
+                // fica pendente quando a resposta sai pode ser congelado, e a
+                // senha nunca chegava. E o WhatsApp do sistema vem desligado por
+                // padrão, então o e-mail da compra é a segunda via.
+                let senhaEntregue = false;
                 if (evoUrlNovo && evoKeyNovo && foneNovo) {
                   const foneCompleto = numeroWhatsapp(foneNovo).numero || foneNovo;
-                  enviarWhatsapp({
+                  const envio = await comTeto(enviarWhatsapp({
                     telefone: foneCompleto,
                     texto: `🔥 *Bem-vindo ao FireCheck!*\n\nSua conta já está ativa.\n\n📧 E-mail: *${customerEmail}*\n🔑 Senha: *${senhaInicial}*\n\nEntre em https://www.firecheckapp.com.br e altere sua senha no primeiro acesso.`,
                     contexto: 'CAKTO', instancia: evoInstNovo,
+                  }), 15000, 'CAKTO senha');
+                  senhaEntregue = !!envio && envio.ok !== false;
+                }
+                if (!senhaEntregue && process.env.RESEND_API_KEY) {
+                  const porEmail = await enviarEmail({
+                    para: customerEmail,
+                    assunto: 'Bem-vindo ao FireCheck - seus dados de acesso',
+                    html: `<p>Olá, ${escHtml(String(customerName).split(' ')[0])}! Sua conta do FireCheck já está ativa.</p><p>E-mail: <strong>${escHtml(customerEmail)}</strong><br>Senha temporária: <strong>${senhaInicial}</strong></p><p>Entre em <a href="https://www.firecheckapp.com.br">firecheckapp.com.br</a> e troque a senha no primeiro acesso.</p>`,
                   });
-                } else {
-                  console.warn(`[CAKTO] Conta ${customerEmail} criada, mas sem canal para entregar a senha (telefone ou Evolution ausentes). O cliente precisará usar "Esqueci minha senha".`);
+                  senhaEntregue = porEmail.ok === true;
+                }
+                if (!senhaEntregue) {
+                  console.warn(`[CAKTO] Conta ${customerEmail} criada, mas a senha não foi entregue (sem WhatsApp do sistema e sem e-mail configurado). O cliente precisará usar "Esqueci minha senha".`);
                 }
               } else {
                 console.log(`[CAKTO] Usuário ${customerEmail} comprou o módulo de câmera, mas a conta principal não existe.`);
@@ -4970,19 +5162,26 @@ export default async function handler(req, res) {
                       ? [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual, subscriptionId]
                       : [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual];
                   } else if (isPontoPlan) {
+                    // O plano também é regravado, mas só quando a conta ainda não
+                    // tem um plano pago vigente (teste, pendente, bloqueada ou um
+                    // plano que não é de venda): quem já assina Checklists e soma o
+                    // Ponto continua com o plano que tinha. Sem isto, quem se
+                    // cadastrou com outro plano no corpo do signup (ex.: enterprise)
+                    // e pagou o mais barato ficava com o plano que escolheu.
                     updateQuery = `
                       UPDATE users
                       SET status = 'active',
                           ponto_limit = $2,
                           ponto_active = TRUE,
-                          expiration_date = NOW() + CASE WHEN $3 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                          expiration_date = NOW() + CASE WHEN $3 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
+                          plan = CASE WHEN status IS DISTINCT FROM 'active' OR plan IS NULL OR plan NOT IN ('checklists_mensal', 'checklists_anual', 'combo_mensal', 'combo_anual', 'ponto_mensal', 'ponto_anual', 'enterprise', 'starter', 'starter_mensal', 'start', 'pro', 'pro_mensal', 'mensal', 'business', 'business_mensal', 'anual', 'ponto_starter', 'ponto_pro', 'ponto_business') THEN $4 ELSE plan END
                           ${checklistsResetQuery}
-                          ${subscriptionId ? `, ${subscriptionIdColumn} = $4` : ''}
+                          ${subscriptionId ? `, ${subscriptionIdColumn} = $5` : ''}
                       WHERE LOWER(email) = LOWER($1)
                     `;
                     updateParams = subscriptionId
-                      ? [customerEmail, newPontoLimit, isAnnual, subscriptionId]
-                      : [customerEmail, newPontoLimit, isAnnual];
+                      ? [customerEmail, newPontoLimit, isAnnual, detectedPlan, subscriptionId]
+                      : [customerEmail, newPontoLimit, isAnnual, detectedPlan];
                   } else {
                     updateQuery = `
                       UPDATE users
@@ -5337,6 +5536,14 @@ export default async function handler(req, res) {
         // ganhava 7 dias de graça e, se abandonasse o checkout, ficava com acesso
         // sem nunca ter pago.
         const planoEscolhido = String(plan || 'trial').toLowerCase();
+        // O plano do corpo é só a INTENÇÃO de compra (o checkout leva ao pagamento
+        // certo); quem define o plano da conta é o pagamento. Só entra um plano que
+        // o checkout vende: com 'enterprise' (ilimitado) ou um texto qualquer no
+        // corpo, a conta nascia com esse plano e, pagando o mais barato, ficava com
+        // ele. 'enterprise' e 'master' são negociados e concedidos só pelo suporte.
+        if (planoEscolhido !== 'trial' && (!Object.prototype.hasOwnProperty.call(PLAN_LIMITS, planoEscolhido) || ['enterprise', 'master'].includes(planoEscolhido))) {
+          return res.status(400).json({ status: 'error', error: 'Plano inválido. Escolha um plano na página de preços.' });
+        }
         const querTesteGratis = planoEscolhido === 'trial' || planoEscolhido === '';
         const initialStatus = querTesteGratis ? 'trial' : 'pending';
 
@@ -5348,7 +5555,7 @@ export default async function handler(req, res) {
         const chaveDaLoja = await gerarChaveDeLoja(store);
         const { rows } = await pool.query(
           'INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, cakto_afiliado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, store, store_name, status, phone, created_at, cakto_afiliado',
-          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, plan || 'trial', caktoAfiliado]
+          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, planoEscolhido || 'trial', caktoAfiliado]
         );
 
         // ── WhatsApp de Boas-Vindas do Suporte no Trial (fire and forget) ──
@@ -5419,6 +5626,54 @@ export default async function handler(req, res) {
 
 
 
+    // ── Trocar a própria senha (conta logada) ────────────────────────────────
+    //
+    // POST /api/change-password  { currentPassword, newPassword }  (+ Bearer)
+    //   200 { success: true, token }   o token NOVO precisa substituir o guardado:
+    //                                  trocar a senha derruba os tokens antigos
+    //   400 { error }                  nova senha curta (< 8) ou igual à atual
+    //   401 { error }                  sem token / senha atual errada
+    //   429 { error, retryAfter }      muitas tentativas
+    // Antes não existia troca: só o "esqueci minha senha" gravava senha, e a senha
+    // temporária que ele manda não tinha como ser trocada por uma escolhida.
+    if (url.includes('/api/change-password')) {
+      if (method === 'POST') {
+        const quem = await autenticarComLojaAtual(req);
+        if (!quem) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+        const atual = String(req.body?.currentPassword ?? req.body?.senhaAtual ?? '');
+        const nova = String(req.body?.newPassword ?? req.body?.novaSenha ?? '');
+        if (!atual) return res.status(400).json({ error: 'Informe a senha atual.' });
+        if (nova.length < 8) return res.status(400).json({ error: 'A nova senha precisa ter pelo menos 8 caracteres.' });
+        if (nova.length > 128) return res.status(400).json({ error: 'A nova senha é longa demais (máximo 128 caracteres).' });
+        if (nova === atual) return res.status(400).json({ error: 'A nova senha precisa ser diferente da atual.' });
+
+        // Mesmo freio do login: quem tem um token roubado não pode descobrir a
+        // senha atual por tentativa e erro por aqui.
+        const chaveTroca = rateLimitKey(origemDaRequisicao(req), `troca-senha:${quem.id}`);
+        if (!checkRateLimit(chaveTroca)) {
+          const faltam = segundosDeEspera(chaveTroca);
+          return res.status(429).json({ error: `Muitas tentativas. Aguarde ${Math.max(1, Math.ceil(faltam / 60))} minuto(s) e tente novamente.`, retryAfter: faltam });
+        }
+        const { rows: [conta] } = await pool.query('SELECT id, email, role, store, password FROM users WHERE id = $1', [quem.id]);
+        if (!conta) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+        const confere = conta.password && conta.password.startsWith('$2')
+          ? await bcrypt.compare(atual, conta.password)
+          : atual === conta.password;
+        if (!confere) {
+          registerLoginFailure(chaveTroca);
+          return res.status(401).json({ error: 'A senha atual está incorreta.' });
+        }
+        clearLoginFailures(chaveTroca);
+        limparFreioDaConta(chaveTroca);
+        const novoHash = await bcrypt.hash(nova, 12);
+        // O carimbo vem do relógio do servidor que emite o token novo: um relógio
+        // de banco adiantado derrubaria a sessão de quem acabou de trocar.
+        await pool.query('UPDATE users SET password = $1, password_changed_at = $2 WHERE id = $3', [novoHash, new Date(), conta.id]);
+        const token = jwt.sign({ id: conta.id, email: conta.email, role: conta.role, store: conta.store }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+        return res.status(200).json({ success: true, token });
+      }
+    }
+
     // ── Esqueci Minha Senha ──────────────────────────────────────────
     if (url.includes('/api/forgot-password')) {
       if (method === 'POST') {
@@ -5428,7 +5683,7 @@ export default async function handler(req, res) {
         // permitiria descobrir quem tem conta no sistema.
         const RESPOSTA_GENERICA = {
           status: 'success',
-          message: 'Se o e-mail estiver cadastrado e houver um WhatsApp no cadastro, enviaremos uma senha temporária para lá. Se não receber em alguns minutos, fale com o administrador da sua loja.',
+          message: 'Se o e-mail estiver cadastrado, enviaremos uma senha temporária para o WhatsApp ou para o e-mail do cadastro. Se não receber em alguns minutos, fale com o administrador da sua loja.',
         };
 
         if (!email) return res.status(400).json({ status: 'error', error: 'Informe o e-mail.' });
@@ -5449,17 +5704,29 @@ export default async function handler(req, res) {
         }
         registerLoginFailure(chaveRecup);
 
-        const { rows } = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        const { rows } = await pool.query('SELECT id, name, email, phone, phone_changed_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
         if (rows.length === 0) return res.status(200).json(RESPOSTA_GENERICA);
 
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
         const telefone = (rows[0].phone || '').replace(/\D/g, '');
 
+        // Telefone trocado há pouco NÃO recebe senha: foi assim que alguém com
+        // acesso à ficha (um gestor, um token roubado) trocava o telefone do dono
+        // pelo próprio e pedia a recuperação. Nas primeiras 48 h só o e-mail vale.
+        const trocouOTelefoneHaPouco = !!rows[0].phone_changed_at
+          && Date.now() - new Date(rows[0].phone_changed_at).getTime() < 48 * 3600 * 1000;
+        if (trocouOTelefoneHaPouco) console.warn(`[Recuperacao de senha] telefone de ${rows[0].email} trocado há menos de 48 h: WhatsApp não será usado.`);
+        const podePorWhatsapp = !!(evoUrl && evoKey && telefone) && !trocouOTelefoneHaPouco;
+        // Segundo canal: o e-mail do cadastro (Resend). Sem RESEND_API_KEY o
+        // comportamento é o de antes, só pelo WhatsApp.
+        const podePorEmail = !!process.env.RESEND_API_KEY;
+        if (!podePorEmail) console.warn('[Recuperacao de senha] RESEND_API_KEY ausente: sem e-mail como segunda via de entrega da senha temporária.');
+
         // Só redefine a senha se existir canal para entregá-la ao dono da conta.
         // Redefinir sem conseguir entregar apenas tranca o usuário para fora — e
         // devolver a senha na resposta HTTP entregaria a conta a quem pediu.
-        if (!evoUrl || !evoKey || !telefone) {
+        if (!podePorWhatsapp && !podePorEmail) {
           return res.status(200).json(RESPOSTA_GENERICA);
         }
 
@@ -5470,16 +5737,31 @@ export default async function handler(req, res) {
         // sessão podre (enviarWhatsapp devolve {ok:false}, nunca lança) matava
         // a senha atual sem entregar a nova: o cliente via "enviamos!" na
         // tela, ficava trancado para fora e cada nova tentativa piorava.
-        const fullPhone = numeroWhatsapp(telefone).numero || telefone;
-        const entrega = await enviarWhatsapp({
-          telefone: fullPhone,
-          texto: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.`,
-          contexto: 'Recuperacao de senha',
-        });
-        if (!entrega || entrega.ok === false) {
+        let entregue = false;
+        if (podePorWhatsapp) {
+          const fullPhone = numeroWhatsapp(telefone).numero || telefone;
+          const entrega = await enviarWhatsapp({
+            telefone: fullPhone,
+            texto: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.`,
+            contexto: 'Recuperacao de senha',
+          });
+          entregue = !!entrega && entrega.ok !== false;
+        }
+        // O WhatsApp do sistema vem desligado por padrão (WHATSAPP_DO_SISTEMA_ENVIA)
+        // e, sem ele, ninguém conseguia recuperar a senha: o e-mail cobre.
+        if (!entregue && podePorEmail) {
+          const nomeDele = String(rows[0].name || '').split(' ')[0] || 'tudo bem';
+          const porEmail = await enviarEmail({
+            para: rows[0].email,
+            assunto: 'FireCheck - sua senha temporária',
+            html: `<p>Olá, ${escHtml(nomeDele)}!</p><p>Sua senha temporária do FireCheck é: <strong>${tempPass}</strong></p><p>Use-a para entrar e troque a senha em seguida. Se não foi você quem pediu, ignore este e-mail: sua senha só muda quando esta mensagem chega.</p>`,
+          });
+          entregue = porEmail.ok === true;
+        }
+        if (!entregue) {
           // A senha atual continua valendo — erro honesto em vez de sucesso falso.
           return res.status(503).json({
-            error: 'Não conseguimos enviar a senha pelo WhatsApp agora. Sua senha atual continua valendo — tente de novo em alguns minutos ou fale com o suporte.',
+            error: 'Não conseguimos enviar a senha agora. Sua senha atual continua valendo — tente de novo em alguns minutos ou fale com o suporte.',
           });
         }
 
@@ -5537,6 +5819,11 @@ export default async function handler(req, res) {
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
 
+        // Fuso inválido é recusado ANTES de gravar qualquer coisa (ver fusoDaLoja).
+        if (timezone !== undefined && timezone !== null && timezone !== '' && fusoDaLoja(timezone) !== timezone) {
+          return res.status(400).json({ error: 'Fuso horário inválido. Use um nome como America/Sao_Paulo.' });
+        }
+
         // Admin/Gestor só pode editar usuários da própria loja (ou a si mesmo)
         if (authUser.role !== 'master' && String(user.id) !== String(authUser.id) && user.store?.toLowerCase() !== authUser.store?.toLowerCase()) {
           return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
@@ -5558,6 +5845,16 @@ export default async function handler(req, res) {
           }
         }
 
+        // A escala tem que ser da loja do funcionário: com um schedule_id de outra
+        // empresa, a jornada, a tolerância e o banco de horas dele passavam a vir
+        // de uma escala alheia (carregarEscalaDoFuncionario não filtra loja).
+        if (schedule_id !== undefined && schedule_id !== null && schedule_id !== '' && authUser.role !== 'master') {
+          const { rows: escalaAlvo } = await pool.query('SELECT store FROM work_schedules WHERE id = $1', [schedule_id]);
+          if (escalaAlvo.length === 0 || !mesmaLoja(escalaAlvo[0].store, user.store)) {
+            return res.status(403).json({ error: 'Essa escala não pertence à loja do funcionário.' });
+          }
+        }
+
         // Gestor não pode alterar campos sensíveis de um admin
         if (authUser.role === 'gestor' && user.role === 'admin') {
           // Gestor pode editar dados básicos do admin mas não campos de controle
@@ -5566,6 +5863,16 @@ export default async function handler(req, res) {
           }
           if (status !== undefined && status !== user.status) {
             return res.status(403).json({ error: 'Gestores não podem alterar o status do proprietário.' });
+          }
+          // Os campos de contato e de aviso do dono também ficam com ele. O
+          // telefone é para onde vai a senha temporária do "esqueci minha senha":
+          // um gestor que o trocasse pelo próprio celular e pedisse a recuperação
+          // entrava como dono da loja.
+          const camposDoDono = { phone, whatsapp_phone, contador_email, timezone, fechamento_dia };
+          for (const [campo, valor] of Object.entries(camposDoDono)) {
+            if (valor !== undefined && String(valor ?? '') !== String(user[campo] ?? '')) {
+              return res.status(403).json({ error: `Gestores não podem alterar o campo ${campo} do proprietário.` });
+            }
           }
         }
 
@@ -5714,6 +6021,11 @@ export default async function handler(req, res) {
         // próprio cliente prorrogava a validade e subia os limites editando
         // o cadastro pelo painel.
         if (authUser.role !== 'master') {
+          // Recusa ANTES de gravar qualquer campo: a checagem mais abaixo ficava
+          // depois do UPDATE e devolvia 403 com o resto do corpo já salvo.
+          if (req.body.trialDays !== undefined || req.body.trialEndsAt !== undefined) {
+            return res.status(403).json({ error: 'O período de teste só pode ser alterado pelo suporte FireCheck.' });
+          }
           const contratuais = { plan, status, checklist_limit, ponto_limit };
           for (const [campo, valor] of Object.entries(contratuais)) {
             if (valor !== undefined && String(valor) !== String(user[campo] ?? '')) {
@@ -5770,6 +6082,9 @@ export default async function handler(req, res) {
         // nenhuma das consultas de UPDATE acima: o valor era descartado em
         // silêncio e o app confirmava que havia salvo. A escala 12x36 ficava sem
         // referência para calcular os dias de folga.
+        if (String(finalPhone ?? '') !== String(user.phone ?? '') || String(finalWhatsappPhone ?? '') !== String(user.whatsapp_phone ?? '')) {
+          await pool.query('UPDATE users SET phone_changed_at = NOW() WHERE id = $1', [id]);
+        }
         if (req.body.ponto_last_worked_day !== undefined) {
           await pool.query('UPDATE users SET ponto_last_worked_day = $1 WHERE id = $2', [
             req.body.ponto_last_worked_day || null,
@@ -5783,8 +6098,11 @@ export default async function handler(req, res) {
         // (trialDays) ou uma data final explícita (trialEndsAt); null limpa o
         // campo e devolve a conta à regra padrão de 7 dias desde a criação.
         if (req.body.trialDays !== undefined || req.body.trialEndsAt !== undefined) {
-          if (!['admin', 'master'].includes(authUser.role)) {
-            return res.status(403).json({ error: 'Somente o administrador pode alterar o período de teste.' });
+          // Só o suporte (master) estende teste. Com 'admin' na lista, o próprio
+          // dono em teste mandava trialDays/trialEndsAt para a sua conta e nunca
+          // pagava: o bloqueio dos campos contratuais acima não cobre trial_ends_at.
+          if (authUser.role !== 'master') {
+            return res.status(403).json({ error: 'O período de teste só pode ser alterado pelo suporte FireCheck.' });
           }
           if (req.body.trialDays !== undefined) {
             const dias = parseInt(req.body.trialDays, 10);
@@ -6144,9 +6462,23 @@ export default async function handler(req, res) {
           return res.status(400).json({ message: 'Este checklist não tem nenhuma tarefa para você. Peça ao gestor para revisar as atribuições.' });
         }
 
+        // checklistId e vehicleId vêm do corpo: um id de OUTRA loja marcava o veículo
+        // alheio como inspecionado (a lista calcula "feito hoje" pelo vehicle_id) e
+        // fazia o WhatsApp mostrar o título do checklist de outro cliente. Id que
+        // não existe mais (apagado depois de entrar na fila offline) segue aceito.
+        if (autorFinalize.role !== 'master') {
+          for (const [tabela, id] of [['checklists', checklistId], ['vehicles', vehicleId]]) {
+            if (!Number.isInteger(parseInt(id))) continue;
+            const { rows: dono } = await pool.query(`SELECT store FROM ${tabela} WHERE id = $1`, [parseInt(id)]);
+            if (dono.length > 0 && !mesmaLoja(dono[0].store, store)) {
+              return res.status(403).json({ message: 'Este checklist ou veículo não pertence à sua loja.', error: 'Este checklist ou veículo não pertence à sua loja.' });
+            }
+          }
+        }
+
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
-          "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role, fcm_token FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
           [store]
         );
         if (storeAdmins.length > 0) {
@@ -6267,12 +6599,9 @@ export default async function handler(req, res) {
           console.error('[Envio consciente] Falha ao registrar:', cienciaErr.message);
         }
 
-        // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
-        try {
-          const ninetyDaysAgo = new Date();
-          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-          await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
-        } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
+        // (A limpeza automática de 90 dias NÃO roda mais aqui: era um DELETE global,
+        // de todas as lojas, a cada checklist enviado, no caminho da resposta ao
+        // funcionário. Agora é feita uma vez por dia pelo cron do resumo do ponto.)
 
         // ── INCREMENTAR COTA ──────────────────────────────────
         if (storeAdmins && storeAdmins.length > 0) {
@@ -6348,6 +6677,10 @@ export default async function handler(req, res) {
         // ─────────────────────────────────────────────────────────
 
         // ── NOTIFICAÇÃO VIA WHATSAPP (DONO E FUNCIONÁRIO) ───────
+        // Os envios saem juntos e a resposta espera no máximo 12 s por todos: um
+        // gateway lento (ou a fila de destinatários, um a um) segurava a tela do
+        // funcionário depois de o checklist já estar gravado, e o app reenviava.
+        const enviosDoFinalize = [];
         try {
           const evoUrl = process.env.EVOLUTION_API_URL;
           const evoKey = process.env.EVOLUTION_API_KEY;
@@ -6422,12 +6755,12 @@ export default async function handler(req, res) {
                      `Status: *✅ Tudo em Conformidade*\n` +
                      `Nenhuma irregularidade ou falta de estoque encontrada. Operação segura! 🚀`;
 
-                   await enviarWhatsapp({
+                   enviosDoFinalize.push(enviarWhatsapp({
                      telefone: fullPhone,
                      texto: successMsg,
                      contexto: 'WhatsApp Admin Aprovado',
                      loja: store,
-                   });
+                   }));
                  }
 
                  // Notificação de checklist REPROVADO ou com Alerta de Estoque
@@ -6447,12 +6780,12 @@ export default async function handler(req, res) {
                      stockDetailsMsg + `\n\n` +
                      `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
 
-                   await enviarWhatsapp({
+                   enviosDoFinalize.push(enviarWhatsapp({
                      telefone: fullPhone,
                      texto: textMsg,
                      contexto: 'WhatsApp Admin',
                      loja: store,
-                   });
+                   }));
                  }
                }
              }
@@ -6478,18 +6811,19 @@ export default async function handler(req, res) {
                   `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                   `Obrigado por manter nossa operação segura! 🚀`;
 
-                await enviarWhatsapp({
+                enviosDoFinalize.push(enviarWhatsapp({
                   telefone: fullPhone,
                   texto: textMsg,
                   contexto: 'WhatsApp Funcionario',
                   loja: store,
-                });
+                }));
               }
             }
           }
         } catch (waErr) {
           console.error('Erro geral ao processar notificações do WhatsApp:', waErr);
         }
+        if (enviosDoFinalize.length > 0) await comTeto(Promise.allSettled(enviosDoFinalize), 12000, 'WhatsApp do finalize');
         // ─────────────────────────────────────────────────────────
 
         return res.status(200).json({ success: true, id: rows[0].id });
@@ -6520,6 +6854,9 @@ export default async function handler(req, res) {
         // firebase-admin e o push de ausência lá embaixo chamava
         // admin.messaging() numa linha de banco — nenhum push saía.
         for (const lojaPonto of adminsWithPonto) {
+          // Uma loja com dado ruim (fuso, escala, telefone) não pode derrubar o
+          // aviso das lojas seguintes: o erro fica no log e o laço segue.
+          try {
           const storeName = lojaPonto.store;
           if (!storeName) continue;
 
@@ -6530,7 +6867,7 @@ export default async function handler(req, res) {
           // nem WhatsApp. Ver contaEmDia.
           if (!contaEmDia(lojaPonto)) continue;
 
-          const tz = lojaPonto.timezone || 'America/Sao_Paulo';
+          const tz = fusoDaLoja(lojaPonto.timezone);
           const agora = new Date();
           const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
           const [hAtual, mAtual] = horaAtual.split(':').map(Number);
@@ -6600,6 +6937,10 @@ export default async function handler(req, res) {
 
           if (ausentes.length === 0) continue;
 
+          // O mesmo conjunto de ausentes no mesmo dia avisa UMA vez; quem faltar
+          // depois (a segunda rodada do dia) gera outro aviso.
+          if (!(await reservarAviso(storeName, today, 'ponto_ausencia:' + ausentes.map(a => a.id).sort((x, y) => x - y).join(',')))) continue;
+
           // Buscar gestores/admins da loja para notificar
           const { rows: soRecipients } = await pool.query(
             "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
@@ -6650,6 +6991,9 @@ export default async function handler(req, res) {
             }
             alertasEnviados++;
           }
+          } catch (erroDaLoja) {
+            console.error(`[Ausência] falha na loja "${lojaPonto.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
 
         if (enviosAusencia.length) await comTeto(Promise.allSettled(enviosAusencia), 25000, 'WhatsApp Ausencia');
@@ -6666,6 +7010,18 @@ export default async function handler(req, res) {
       if (!autorizarChamadaInterna(req, res)) return;
       try {
         await garantirResumosDoPonto();
+        // Limpeza de 90 dias das submissões de checklist, UMA vez por dia. Ficava no
+        // /api/finalize (um DELETE global a cada checklist enviado); aqui roda no
+        // cron diário e só na primeira chamada do dia.
+        try {
+          const hojeDaLimpeza = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+          if (await reservarAviso('_sistema', hojeDaLimpeza, 'limpeza_submissoes_90_dias')) {
+            const noventaDiasAtras = new Date();
+            noventaDiasAtras.setDate(noventaDiasAtras.getDate() - 90);
+            const { rowCount } = await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [noventaDiasAtras]);
+            if (rowCount) console.log(`[Limpeza] ${rowCount} submissões com mais de 90 dias removidas.`);
+          }
+        } catch (erroDaLimpeza) { console.error('[Limpeza] falhou:', erroDaLimpeza.message); }
         const { rows: lojas } = await pool.query(
           `SELECT DISTINCT ON (LOWER(TRIM(store))) store, timezone, status, created_at, expiration_date, trial_ends_at
              FROM users
@@ -6675,8 +7031,10 @@ export default async function handler(req, res) {
         const envios = [];
         let resumos = 0;
         for (const loja of lojas) {
+          // Falha numa loja não derruba o resumo das outras.
+          try {
           if (!contaEmDia(loja)) continue;
-          const tz = loja.timezone || 'America/Sao_Paulo';
+          const tz = fusoDaLoja(loja.timezone);
           const ontem = somarDias(new Date().toLocaleDateString('en-CA', { timeZone: tz }), -1);
 
           // Quem recebe: dono e gestores com a chave ligada, mais os números extras.
@@ -6709,6 +7067,9 @@ export default async function handler(req, res) {
               loja: loja.store,
             }));
           }
+          } catch (erroDaLoja) {
+            console.error(`[Resumo do ponto] falha na loja "${loja.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
         // Esperar os envios: na Vercel a instância congela quando a resposta sai.
         if (envios.length) await comTeto(Promise.allSettled(envios), 25000, 'WhatsApp Ponto Diário');
@@ -6739,13 +7100,18 @@ export default async function handler(req, res) {
         );
         const resultados = [];
         for (const loja of lojas) {
+          // Falha numa loja não derruba o fechamento das outras.
+          try {
           // Teste vencido, plano expirado, pendente ou bloqueada: nada sai em nome da loja.
           if (!contaEmDia(loja)) continue;
-          const hoje = new Date().toLocaleDateString('en-CA', { timeZone: loja.timezone || 'America/Sao_Paulo' });
+          const hoje = new Date().toLocaleDateString('en-CA', { timeZone: fusoDaLoja(loja.timezone) });
           const periodo = ultimoPeriodoFechado(loja.fechamento_dia, hoje);
           if (somarDias(periodo.fim, DIAS_PARA_O_FECHAMENTO_SAIR) < hoje) continue;
           const r = await enviarFechamentoDoPonto({ store: loja.store, ...periodo, enviadoPor: 'automático', automatico: true });
           if (r.status !== 'ja_enviado') resultados.push({ store: loja.store, ...periodo, status: r.status, motivo: r.motivo || null });
+          } catch (erroDaLoja) {
+            console.error(`[Fechamento do ponto] falha na loja "${loja.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
         return res.status(200).json({ success: true, lojas: lojas.length, resultados });
       } catch (cronErr) {
@@ -6836,6 +7202,8 @@ export default async function handler(req, res) {
         const enviosPendentes = [];
 
         for (const cl of checklists) {
+          // Um checklist com dado ruim não derruba o aviso dos demais.
+          try {
           if (!checklistCaiHoje(cl, dataHoje, diaSemanaAtual)) continue;
 
           const prazo = horaLimiteDoChecklist(cl);
@@ -6846,7 +7214,11 @@ export default async function handler(req, res) {
           // UMA rodada só, a primeira depois dela (limite 08:00 → aviso 08:30;
           // 08:10 → 08:30). Janela maior mandava o MESMO alerta 2-3 vezes, e
           // alerta repetido é alerta que o gestor silencia.
-          if (minutosAtual > minutosProg && minutosAtual - minutosProg <= 30) {
+          // A rodada de :00/:30 não é pontual (a Vercel atrasa e pula chamadas) e
+          // o aviso de cada checklist sai UMA vez por dia (reservarAviso abaixo),
+          // então a janela ganhou folga de duas horas: um minuto de atraso na
+          // execução não perde mais o aviso para sempre.
+          if (minutosAtual > minutosProg && minutosAtual - minutosProg <= JANELA_DO_ATRASO_DO_CHECKLIST_MIN) {
             // Já houve submissão HOJE? "Hoje" no dia de SÃO PAULO expresso no
             // relógio UTC do banco — com created_at::date (UTC), o checklist
             // preenchido depois das 21h contava como amanhã: o cron cobrava
@@ -6867,6 +7239,10 @@ export default async function handler(req, res) {
               // vencido ou plano expirado: ninguém da loja recebe. Ver contaEmDia.
               const contaDaLoja = adminRows.find(r => r.role === 'admin' || r.role === 'master') || adminRows[0];
               if (!contaEmDia(contaDaLoja)) continue;
+
+              // Já avisei hoje sobre este checklist? Chamada repetida do cron
+              // (ou a rodada seguinte, agora que a janela é maior) não reenvia.
+              if (!(await reservarAviso(cl.store, dataHoje, 'checklist_atrasado:' + cl.id))) continue;
 
               for (const adminData of await comNumerosExtras(cl.store, adminRows)) {
                 const isWaChecklistAtrasadoActive = adminData.wa_checklist_atrasado !== false;
@@ -6897,6 +7273,9 @@ export default async function handler(req, res) {
                 }
               }
             }
+          }
+          } catch (erroDoChecklist) {
+            console.error(`[Checklist atrasado] falha no checklist ${cl.id}, seguindo para o próximo:`, erroDoChecklist.message);
           }
         }
 
@@ -6935,14 +7314,20 @@ export default async function handler(req, res) {
     // ── Auto-Processador de Pendentes (Piggyback) ─────────────────
     // Roda silenciosamente em CADA request ao backend, sem depender do admin
     if (url.includes('/api/auto-process-pending')) {
-      if (!(await autorizarUsuarioOuInterno(req, res))) return;
+      const quemChama = await autorizarUsuarioOuInterno(req, res);
+      if (!quemChama) return;
+      // Sessão de usuário só toca as submissões da PRÓPRIA loja (o master e o
+      // agendador varrem tudo): cada chamada queima uma das 15 tentativas.
+      const soDaLoja = quemChama !== true && quemChama.role !== 'master';
       try {
         const { rows: pending } = await pool.query(
-          `SELECT id FROM checklist_submissions 
+          `SELECT id FROM checklist_submissions
            WHERE (feedback_info IS NULL OR feedback_info = '{}' OR feedback_info::text = 'null')
            AND retry_count < 15
            AND created_at > NOW() - INTERVAL '7 days'
-           ORDER BY created_at DESC LIMIT 3`
+           ${soDaLoja ? 'AND LOWER(TRIM(store)) = LOWER(TRIM($1))' : ''}
+           ORDER BY created_at DESC LIMIT 3`,
+          soDaLoja ? [quemChama.store || ''] : []
         );
         const processed = [];
         for (const row of pending) {
@@ -6962,8 +7347,18 @@ export default async function handler(req, res) {
         // Reprocessa a auditoria de IA de uma submissão pelo id. Aberta, era uma
         // torneira de custo: um laço de POSTs queima a cota do Gemini com o
         // cartão da empresa, e ninguém repara até a fatura.
-        if (!(await autorizarUsuarioOuInterno(req, res))) return;
+        const quemChama = await autorizarUsuarioOuInterno(req, res);
+        if (!quemChama) return;
         const { submissionId } = req.body;
+        // Com sessão de usuário, a submissão tem que ser da loja dele: com ids
+        // sequenciais, um laço de POSTs gastava o Gemini e consumia as 15
+        // tentativas de submissões ALHEIAS (que viravam "revisão manual").
+        if (quemChama !== true && quemChama.role !== 'master') {
+          const { rows: dona } = await pool.query('SELECT store FROM checklist_submissions WHERE id = $1', [submissionId]);
+          if (dona.length === 0 || !mesmaLoja(dona[0].store, quemChama.store)) {
+            return res.status(403).json({ error: 'Você só pode reprocessar auditorias da sua própria loja.' });
+          }
+        }
         const result = await processAuditForSubmission(pool, submissionId);
         return res.status(200).json(result);
       }
@@ -6973,6 +7368,8 @@ export default async function handler(req, res) {
       const authUser = await autenticarComLojaAtual(req);
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
+      // Sem loja, o filtro some e a consulta devolveria as submissões de TODAS as lojas.
+      if (!store && authUser.role !== 'master') return res.status(200).json([]);
       
       // resolved_by_nome: baixas antigas gravaram o e-mail de quem deu baixa;
       // o painel mostra o nome do cadastro no lugar.
@@ -7058,8 +7455,18 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       if (method === 'GET') {
+        // Sem loja, o filtro sumia e a consulta devolvia as câmeras de TODAS as
+        // lojas. Só o master lista sem escolher uma.
+        if (!store && authUser.role !== 'master') return res.status(200).json([]);
         const { rows } = await pool.query('SELECT * FROM store_cameras' + (store ? ' WHERE store = $1' : '') + ' ORDER BY id DESC', store ? [store] : []);
-        return res.status(200).json(rows.map(r => ({ ...r, ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands })));
+        // Usuário e senha da câmera só voltam para quem a administra: eles
+        // ficam em texto no banco e o funcionário só precisa do nome e da regra.
+        const administraCameras = ['admin', 'master', 'gestor'].includes(authUser.role);
+        return res.status(200).json(rows.map(({ username, password, ...r }) => ({
+          ...r,
+          ...(administraCameras ? { username, password } : {}),
+          ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands,
+        })));
       }
       // Escrever câmera é ato de gestão, e a loja NUNCA vem do corpo (só o
       // master escolhe loja): o corpo dizia a loja no POST/PUT e o DELETE
@@ -8064,8 +8471,12 @@ Responda APENAS com JSON válido.`;
         const valores = [];
         if (lojaConsulta) { valores.push(lojaConsulta); condicoes.push(`LOWER(TRIM(store)) = LOWER(TRIM($${valores.length}))`); }
         if (tipoFiltro === 'descarte' || tipoFiltro === 'ocorrencia') { valores.push(tipoFiltro); condicoes.push(`tipo = $${valores.length}`); }
-        if (inicio) { valores.push(inicioDoDiaEmUTC(inicio)); condicoes.push(`created_at >= $${valores.length}`); }
-        if (fim) { valores.push(fimDoDiaEmUTC(fim)); condicoes.push(`created_at <= $${valores.length}`); }
+        // ocorrencias.created_at guarda a hora de PAREDE de São Paulo (e não UTC,
+        // como checklist_submissions): o corte do dia é 00:00–23:59 do próprio
+        // dia. Com o corte em UTC (03:00), o que acontece de 00:00 às 02:59
+        // aparecia no dia anterior e sumia do dia certo.
+        if (inicio) { valores.push(inicio + ' 00:00:00'); condicoes.push(`created_at >= $${valores.length}`); }
+        if (fim) { valores.push(fim + ' 23:59:59.999'); condicoes.push(`created_at <= $${valores.length}`); }
 
         const { rows } = await pool.query(
           `SELECT * FROM ocorrencias ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''} ORDER BY created_at DESC LIMIT 200`,
@@ -8228,7 +8639,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     }
     // --- Tracking Endpoints ---
     if (url.includes('/api/ping')) {
-      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+      const clientIp = ipDoVisitante(req);
       const userAgent = req.headers['user-agent'] || '';
       const isMobile = /mobile|android|iphone|ipad|phone/i.test(userAgent);
       const deviceType = isMobile ? 'mobile' : 'desktop';
@@ -8240,7 +8651,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/track-video')) {
       if (method === 'POST') {
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
         await pool.query("INSERT INTO video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
         return res.status(200).json({ success: true });
       }
@@ -8248,13 +8659,17 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/track-quiz-video')) {
       if (method === 'POST') {
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
         await pool.query("INSERT INTO quiz_video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
         return res.status(200).json({ success: true });
       }
     }
 
     if (url.includes('/api/live-visitors')) {
+      // Painel do suporte: o número de visitantes do site não é de nenhum cliente.
+      const quemVe = await autenticarComLojaAtual(req);
+      if (!quemVe) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (quemVe.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       await pool.query(`DELETE FROM live_pings WHERE last_ping < NOW() - INTERVAL '30 seconds'`);
       const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings");
       const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
@@ -8273,7 +8688,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
         const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton } = req.body;
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
 
         await pool.query(`
           INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button)
@@ -8295,6 +8710,10 @@ A mensagem é lida pelo próprio funcionário, no celular:
     }
 
     if (url.includes('/api/quiz-stats')) {
+      // Devolvia SELECT * de quiz_responses (com o IP de cada visitante) para qualquer um, sem login.
+      const quemVe = await autenticarComLojaAtual(req);
+      if (!quemVe) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (quemVe.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       const { rows } = await pool.query(`
         SELECT *, 
                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at_local,
@@ -8311,11 +8730,14 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/track-event')) {
       if (method === 'POST') {
         const { sessionId, eventType, eventData, page, deviceType } = req.body;
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
+        // Rota pública: sem teto, qualquer um gravava megabytes por chamada.
+        const dadosDoEvento = JSON.stringify(eventData);
+        if (dadosDoEvento && dadosDoEvento.length > 8000) return res.status(413).json({ error: 'Evento grande demais.' });
         await pool.query(`
           INSERT INTO behavior_events (session_id, ip, event_type, event_data, page, device_type)
           VALUES ($1, $2, $3, $4, $5, $6)
-        `, [sessionId, clientIp, eventType, JSON.stringify(eventData), page, deviceType]);
+        `, [sessionId, clientIp, eventType, dadosDoEvento, page, deviceType]);
         return res.status(200).json({ success: true });
       }
     }
@@ -8504,7 +8926,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!dono || !contaEmDia(dono) || !(dono.ponto_active || dono.status === 'trial')) {
         return res.status(403).json({ error: 'O ponto desta loja não está ativo. Fale com o dono da loja.' });
       }
-      const tz = dono.timezone || 'America/Sao_Paulo';
+      const tz = fusoDaLoja(dono.timezone);
 
       // O funcionário que o aparelho diz ter reconhecido: tem que ser desta
       // loja, ter rosto cadastrado e bater no ponto da loja.
@@ -8606,9 +9028,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!authPonto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
       // A loja vem do token, não do cliente. Só o master consulta outras lojas.
       if (authPonto.role !== 'master') {
-        const lojaPedida = searchParams.get('store') || (req.body && req.body.store);
-        if (lojaPedida && String(lojaPedida).trim().toLowerCase() !== String(authPonto.store || '').trim().toLowerCase()) {
-          return res.status(403).json({ error: 'Você só pode acessar dados de ponto da sua própria loja.' });
+        // As DUAS origens são conferidas: com "query || corpo", uma query certa
+        // escondia um corpo apontando para outra loja, e o handler (que lê o
+        // corpo) gravava a batida na loja alheia.
+        for (const lojaPedida of [searchParams.get('store'), req.body && req.body.store]) {
+          if (lojaPedida && String(lojaPedida).trim().toLowerCase() !== String(authPonto.store || '').trim().toLowerCase()) {
+            return res.status(403).json({ error: 'Você só pode acessar dados de ponto da sua própria loja.' });
+          }
         }
       }
     }
@@ -8632,7 +9058,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       let tz = 'America/Sao_Paulo';
       if (store) {
         const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-        if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+        if (admins.length > 0 && admins[0].timezone) tz = fusoDaLoja(admins[0].timezone);
       }
       const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
       // hora_local vem formatada pelo próprio Postgres. A coluna timestamp é
@@ -8680,7 +9106,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // Buscar timezone da loja
       let tz = 'America/Sao_Paulo';
       const { rows: tzAdmins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-      if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = tzAdmins[0].timezone;
+      if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = fusoDaLoja(tzAdmins[0].timezone);
       const startDate = `${month}-01`;
       const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
       // Data e hora formatadas no banco: o valor guardado já é a hora de parede da
@@ -8725,7 +9151,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!(await podeGerirPonto(authPonto))) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar ponto manual.' });
       }
-      const { userId, userName, store, type, timestamp, notes } = req.body;
+      const { userId, userName, type, timestamp, notes } = req.body;
+      // A loja do lançamento é a do token; só o master informa outra.
+      const store = authPonto.role === 'master' ? req.body.store : authPonto.store;
       if (!userId || !userName || !store || !type || !timestamp) {
         return res.status(400).json({ error: 'userId, userName, store, type e timestamp são obrigatórios' });
       }
@@ -8761,7 +9189,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         "SELECT timezone, fechamento_dia FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') ORDER BY (role = 'admin') DESC LIMIT 1",
         [store]
       );
-      const tz = donos[0]?.timezone || 'America/Sao_Paulo';
+      const tz = fusoDaLoja(donos[0]?.timezone);
       const hoje = new Date().toLocaleDateString('en-CA', { timeZone: tz });
       const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
       const inicio = ehData(searchParams.get('inicio')) ? searchParams.get('inicio') : inicioDoPeriodoDeFechamento(donos[0]?.fechamento_dia, hoje);
@@ -8791,7 +9219,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       );
       if (donos.length === 0) return res.status(404).json({ error: 'Loja não encontrada.' });
       const dono = donos[0];
-      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: dono.timezone || 'America/Sao_Paulo' });
+      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: fusoDaLoja(dono.timezone) });
       const atual = { inicio: inicioDoPeriodoDeFechamento(dono.fechamento_dia, hoje), fim: fimDoPeriodoDeFechamento(dono.fechamento_dia, hoje) };
       const fechado = ultimoPeriodoFechado(dono.fechamento_dia, hoje);
       const ontem = somarDias(hoje, -1);
@@ -8870,6 +9298,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // Foto/PDF do atestado: o mesmo upload das selfies do ponto.
         let arquivoUrl = null;
         if (arquivo && String(arquivo).startsWith('data:')) {
+          // O upload publica o arquivo e tira a extensão do MIME do próprio texto:
+          // com "data:text/html" (ou svg) dava para hospedar página no bucket.
+          // Só foto (o que o seletor da tela oferece: image/*, menos SVG, que carrega
+          // script) e PDF de atestado.
+          if (!/^data:(image\/(?!svg)[a-z0-9.+-]+|application\/pdf);base64,/i.test(String(arquivo).slice(0, 80))) {
+            return res.status(400).json({ error: 'O anexo precisa ser uma foto ou um PDF.' });
+          }
           arquivoUrl = await uploadImage(arquivo, `atestados/${store}`).catch(() => null);
         }
         const { rows } = await pool.query(
@@ -8939,7 +9374,10 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/ponto')) {
       if (method === 'POST') {
-        const { store, type, latitude, longitude, accuracy, selfie, address, deviceInfo } = req.body;
+        const { type, latitude, longitude, accuracy, selfie, address, deviceInfo } = req.body;
+        // A loja da batida também é a do token (só o master escolhe): o app manda
+        // a loja no corpo por hábito, mas ela nunca decide onde a batida cai.
+        const store = authPonto.role === 'master' ? req.body.store : authPonto.store;
         // A identidade da batida é a do TOKEN, nunca a do corpo: com
         // userId/userName vindos do cliente, qualquer funcionário batia ponto
         // em nome de outro (o espelho vai para a contabilidade). Ajuste em nome
@@ -8958,6 +9396,24 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // Validar GPS
         if (!latitude || !longitude) return res.status(400).json({ error: 'Geolocalização obrigatória. Ative o GPS.' });
         if (accuracy && accuracy > 200) return res.status(400).json({ error: `Precisão do GPS muito baixa (${Math.round(accuracy)}m). Vá para um local aberto.` });
+        // Duplo toque no botão ou reenvio da mesma batida: o ponto da loja já tinha
+        // esta guarda de 60 s, o app não. Duas "entradas" seguidas deixavam o dia
+        // "incompleto" no banco de horas e a folha seguia para o contador com horas
+        // faltando. Entrada sobre entrada ainda em aberto também é recusada, mas só
+        // dentro de 16 h (a mesma régua do banco de horas): depois disso é saída
+        // esquecida, e travar o funcionário na entrada de hoje seria pior.
+        const { rows: recentes } = await pool.query(
+          `SELECT type, (timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '60 seconds') AS ha_segundos,
+                  (timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '16 hours') AS ha_horas
+             FROM ponto_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 1`,
+          [userId]
+        );
+        if (recentes[0]?.ha_segundos) {
+          return res.status(409).json({ error: 'Seu ponto acabou de ser registrado. Aguarde um minuto antes de registrar de novo.' });
+        }
+        if (type === 'entrada' && recentes[0]?.type === 'entrada' && recentes[0].ha_horas) {
+          return res.status(409).json({ error: 'Você já registrou a entrada e ela ainda está aberta. Registre a saída.' });
+        }
         return registrarBatidaDePonto(res, { userId, userName, store, type, latitude, longitude, accuracy, selfie, address, deviceInfo });
       }
       // GET — listar registros
@@ -9318,6 +9774,12 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/whatsapp/testar') && method === 'POST') {
       const autorTeste = await autenticarComLojaAtual(req);
       if (!autorTeste) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      // O teste manda mensagem para o número do corpo pelo WhatsApp da empresa.
+      // Funcionário não configura notificações, e com um token qualquer a rota
+      // virava disparador para terceiros (foi assim que o número já foi banido).
+      if (!['admin', 'gestor', 'master'].includes(autorTeste.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode testar as notificações.' });
+      }
 
       const { rows } = await pool.query(
         'SELECT name, phone, whatsapp_phone, whatsapp_active, store FROM users WHERE id = $1',
@@ -9966,6 +10428,9 @@ SEMPRE responda em JSON puro com este formato:
       }
       return res.status(400).json({ error: 'Este registro já existe no sistema. Verifique os dados e tente novamente.' });
     }
-    return res.status(500).json({ message: err.message });
+    // O detalhe vai para o log, não para a resposta: err.message de uma falha do
+    // Postgres traz nome de tabela, coluna e trecho da consulta.
+    console.error('[api] erro não tratado:', err);
+    return res.status(500).json({ message: 'Erro interno do servidor. Tente novamente em instantes.' });
   }
 }
