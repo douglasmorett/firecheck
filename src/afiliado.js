@@ -39,6 +39,16 @@ export function comOrigem(link) {
   }
 }
 
+// Nome do anúncio (utm_content do link do Meta) para o painel de conversão.
+export function anuncioDaOrigem() {
+  try {
+    const origem = JSON.parse(sessionStorage.getItem(CHAVE_ORIGEM) || '[]');
+    return (origem.find(([k]) => k === 'utm_content') || [])[1] || null;
+  } catch {
+    return null;
+  }
+}
+
 // O da conta vale mais que o do aparelho: é o de quem trouxe o cliente no cadastro.
 export function afiliadoAtual() {
   try {

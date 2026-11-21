@@ -3635,6 +3635,7 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS checkout_plan VARCHAR(40)");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_planos BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_whatsapp BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS anuncio VARCHAR(150)");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS behavior_events (
           id SERIAL PRIMARY KEY,
@@ -8853,6 +8854,8 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
         const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, checkoutPlan } = req.body;
+        // Anúncio de onde a visita veio (utm_content do link do Meta = nome do anúncio).
+        const anuncio = String(req.body.anuncio || '').replace(/\p{Cc}/gu, '').trim().slice(0, 150) || null;
         const clientIp = ipDoVisitante(req);
         const planoDoCheckout = /^[a-z0-9_]{3,40}$/.test(String(checkoutPlan || '')) ? String(checkoutPlan) : null;
         const botao = String(clickedButton || '');
@@ -8860,10 +8863,11 @@ A mensagem é lida pelo próprio funcionário, no celular:
         const chamouNoZap = /whatsapp|consultor/i.test(botao);
 
         await pool.query(`
-          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button, checkout_plan, clicou_planos, clicou_whatsapp)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
           ON CONFLICT (session_id) DO UPDATE SET
             checkout_plan = COALESCE($11, quiz_responses.checkout_plan),
+            anuncio = COALESCE(quiz_responses.anuncio, $14),
             clicou_planos = COALESCE(quiz_responses.clicou_planos, FALSE) OR $12,
             clicou_whatsapp = COALESCE(quiz_responses.clicou_whatsapp, FALSE) OR $13,
             last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
@@ -8875,7 +8879,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
             completed = $8,
             clicked_cta = COALESCE($9, quiz_responses.clicked_cta),
             clicked_button = COALESCE($10, quiz_responses.clicked_button)
-        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, planoDoCheckout, viuPlanos, chamouNoZap]);
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, planoDoCheckout, viuPlanos, chamouNoZap, anuncio]);
 
         return res.status(200).json({ success: true });
       }
@@ -8898,7 +8902,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // Visitas: created_at já é hora de São Paulo (default da tabela).
       const { rows: visitas } = await pool.query(`
         SELECT EXTRACT(EPOCH FROM (last_updated_at - created_at))::int AS seg,
-               clicked_button, checkout_plan, clicou_planos, clicou_whatsapp
+               clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio
           FROM quiz_responses
          WHERE last_step = 0 AND created_at::date BETWEEN $1::date AND $2::date
       `, [de, ate]);
@@ -8912,16 +8916,29 @@ A mensagem é lida pelo próprio funcionário, no celular:
       const tempos = ficaram.map(v => Math.min(v.seg, 7200));
       const porPlano = {};
       const linha = (k) => (porPlano[k] ||= { cliques: 0, compras: 0, valor: 0 });
+      // Por anúncio: o nome vem do utm_content (visitas) e da URL do checkout gravada pela Cakto (compras).
+      const SEM_ANUNCIO = 'Sem anúncio (direto, Google, orgânico)';
+      const porAnuncio = {};
+      const doAnuncio = (k) => (porAnuncio[k || SEM_ANUNCIO] ||= { acessos: 0, checkout: 0, compras: 0, valor: 0 });
       let checkout = 0, viramPlanos = 0, whatsapp = 0;
       for (const v of visitas) {
         const p = planoDaVisita(v);
-        if (p) { checkout++; linha(p).cliques++; }
+        doAnuncio(v.anuncio).acessos++;
+        if (p) { checkout++; linha(p).cliques++; doAnuncio(v.anuncio).checkout++; }
         if (p || v.clicou_planos || /ver planos/i.test(v.clicked_button || '')) viramPlanos++;
         if (v.clicou_whatsapp || /whatsapp|consultor/i.test(v.clicked_button || '')) whatsapp++;
       }
 
       // Compras: o que a Cakto mandou ao webhook. A tabela só existe em produção;
       // sem ela o painel mostra o funil do site e avisa que as compras não vieram.
+      // A Cakto guarda a URL do checkout com as UTMs que o site repassa (comOrigem em
+      // src/afiliado.js). O formato do payload varia: procura utm_content como campo
+      // ("utm_content":"AD4 — ...") ou dentro de uma URL (utm_content=AD4+%E2%80%94...).
+      const anuncioDaVenda = (d) => {
+        const m = JSON.stringify(d).match(/utm_content(?:"\s*:\s*"|=)([^"&]+)/i);
+        if (!m) return null;
+        try { return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim().slice(0, 150) || null; } catch { return m[1].slice(0, 150); }
+      };
       const vendas = { compras: 0, valor: 0, lista: [], renovacoes: 0, valorRenovacoes: 0, pixGerado: 0, abandonos: 0, recusadas: 0, reembolsos: 0 };
       let comprasOk = true;
       try {
@@ -8957,7 +8974,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
               : /firecheck|checklist/.test(n) ? `checklists_${n.includes('anual') ? 'anual' : 'mensal'}` : 'outro';
             vendas.compras++; vendas.valor += valor;
             linha(plano).compras++; linha(plano).valor += valor;
-            vendas.lista.push({ quando: new Date(quando).toISOString(), oferta: d.offer?.name || d.product?.name || 'Compra', plano, valor, metodo: d.paymentMethod || null, cliente: String(d.customer?.name || '').split(' ')[0] || null });
+            const anuncio = anuncioDaVenda(d);
+            doAnuncio(anuncio).compras++; doAnuncio(anuncio).valor += valor;
+            vendas.lista.push({ quando: new Date(quando).toISOString(), oferta: d.offer?.name || d.product?.name || 'Compra', plano, valor, metodo: d.paymentMethod || null, cliente: String(d.customer?.name || '').split(' ')[0] || null, anuncio });
           } else if (tipo === 'renovacao') { vendas.renovacoes++; vendas.valorRenovacoes += valor; }
           else if (tipo === 'pix') vendas.pixGerado++;
           else if (tipo === 'abandono') vendas.abandonos++;
@@ -8975,7 +8994,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         acessos: visitas.length,
         ficaram: ficaram.length,
         tempoMedioSeg: tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0,
-        viramPlanos, checkout, whatsapp, porPlano, comprasOk, ...vendas,
+        viramPlanos, checkout, whatsapp, porPlano, porAnuncio, comprasOk, ...vendas,
       });
     }
 

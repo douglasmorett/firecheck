@@ -64,6 +64,8 @@ export default function ConversaoDoSite() {
   ] : [];
   const conversao = d ? pct(d.compras, d.ficaram) : 0;
   const linhasExtras = d ? SEM_CICLO.filter(([k]) => d.porPlano[k]) : [];
+  // Quem vende primeiro, depois quem leva mais gente ao checkout.
+  const anuncios = d ? Object.entries(d.porAnuncio || {}).sort(([, a], [, b]) => b.compras - a.compras || b.checkout - a.checkout || b.acessos - a.acessos) : [];
 
   return (
     <section className="fc-conv">
@@ -143,6 +145,24 @@ export default function ConversaoDoSite() {
             </div>
           </div>
 
+          {anuncios.length > 0 && (
+            <div className="card fc-aud" style={{ marginTop: 20 }}>
+              <div className="fc-aud-cab"><h3>Por anúncio</h3><span className="fc-olho-rot" style={{ letterSpacing: '.06em' }}>nome do anúncio no Meta (utm_content)</span></div>
+              <div className="fc-conv-tab">
+                <div className="fc-conv-lin cab"><span>Anúncio</span><span>Acessos</span><span>Foram ao checkout</span><span>Compras</span><span>Faturado</span></div>
+                {anuncios.map(([nome, l]) => (
+                  <div key={nome} className="fc-conv-lin">
+                    <span><b>{nome}</b><small>{l.checkout ? `${fmtPct(pct(l.compras, l.checkout))} do checkout comprou` : '–'}</small></span>
+                    <span className="mono" data-rot="Acessos">{l.acessos}</span>
+                    <span className="mono" data-rot="Checkout">{l.checkout}</span>
+                    <span className="mono" data-rot="Compras" style={{ color: l.compras ? 'var(--ok)' : undefined }}>{l.compras}</span>
+                    <span className="mono" data-rot="Faturado">{reais(l.valor)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="card fc-aud" style={{ marginTop: 20 }}>
             <div className="fc-aud-cab"><h3>Compras do período</h3><span className="fc-olho-rot" style={{ letterSpacing: '.06em' }}>mais recentes primeiro</span></div>
             {!d.comprasOk ? (
@@ -152,7 +172,7 @@ export default function ConversaoDoSite() {
             ) : d.lista.map((c, i) => (
               <div key={i} className="fc-conv-compra">
                 <span className="mono">{new Date(c.quando).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}</span>
-                <span><b>{c.oferta}</b>{c.cliente ? <small>{c.cliente}</small> : null}</span>
+                <span><b>{c.oferta}</b><small>{[c.cliente, c.anuncio ? `anúncio: ${c.anuncio}` : 'sem anúncio'].filter(Boolean).join(' · ')}</small></span>
                 <span className="fc-dado">{c.metodo === 'pix' ? 'Pix' : c.metodo === 'credit_card' ? 'Cartão' : c.metodo === 'boleto' ? 'Boleto' : (c.metodo || 'Cakto')}</span>
                 <b className="mono" style={{ color: 'var(--ok)' }}>{reais(c.valor)}</b>
               </div>

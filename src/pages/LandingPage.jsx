@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
+import { anuncioDaOrigem } from '../afiliado';
 import './LandingPage.css';
 
 // Página inicial do site (firecheckapp.com.br), feita para o celular primeiro:
@@ -224,7 +225,7 @@ export default function LandingPage() {
       fetch(`${API_URL}/api/track-quiz`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, step: 0, completed: false, clickedCta: false, q1: null, q2: null, q3: null, q4: null }),
+        body: JSON.stringify({ sessionId, step: 0, completed: false, clickedCta: false, q1: null, q2: null, q3: null, q4: null, anuncio: anuncioDaOrigem() }),
       }).catch(() => {});
     };
     ping();
