@@ -10,7 +10,7 @@
   --border-color: #DAD6CF;
   --text-main: #16161A;
   --text-muted: #5F5F68;
-  /* Uma cor de destaque só (muda por tema, ver [data-tema] abaixo) */
+  /* Uma cor de destaque só: laranja grafite (paleta escolhida em 21/11/2026) */
   --primary: #EA580C;
   --primary-hover: #C2410C;
   --primary-rgb: 234 88 12;
