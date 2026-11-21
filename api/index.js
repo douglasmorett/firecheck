@@ -1719,6 +1719,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     // Pares entrada→saída, em sequência. Turno de mais de 16 h é batida
     // esquecida, não jornada: o par não conta e o dia fica "incompleto".
     const trabalhadoPorDia = {};
+    const paresPorDia = {}; // dia da entrada → [{ ini: minuto do dia da entrada, dur: minutos }]
     const incompletos = new Set();
     let aberta = null;
     for (const b of minhas) {
@@ -1727,7 +1728,9 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
         aberta = b;
       } else if (b.type === 'saida') {
         if (aberta && b.seg - aberta.seg <= 16 * 3600) {
-          trabalhadoPorDia[aberta.dia] = (trabalhadoPorDia[aberta.dia] || 0) + Math.round((b.seg - aberta.seg) / 60);
+          const duracao = Math.round((b.seg - aberta.seg) / 60);
+          trabalhadoPorDia[aberta.dia] = (trabalhadoPorDia[aberta.dia] || 0) + duracao;
+          (paresPorDia[aberta.dia] ||= []).push({ ini: minutosDoRelogio(aberta.hora), dur: duracao });
         } else {
           incompletos.add(aberta ? aberta.dia : b.dia);
         }
@@ -1743,7 +1746,23 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
       // (a regra da escala 12x36 vive em jornadaNoDia)
       const jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
       const doDia = minhas.filter(b => b.dia === dia);
-      const trabalhado = trabalhadoPorDia[dia] || 0;
+      let trabalhado = trabalhadoPorDia[dia] || 0;
+      // Quem bate só entrada e saída (um par) não bate o almoço, e o par cobre o
+      // intervalo da escala: o almoço não foi trabalhado. Sem isto, escala 08–17
+      // com intervalo 12–13 e batida 08:00–17:00 dava 9 h trabalhadas contra 8 h
+      // esperadas: +1 h de banco por dia, que ia para o espelho do contador. Com
+      // quatro batidas (dois pares) o almoço já fica de fora sozinho.
+      let intervaloDescontado = 0;
+      if (temEscala && jornada.isWorkday && (paresPorDia[dia] || []).length === 1) {
+        const [par] = paresPorDia[dia];
+        const iniAlmoco = minutosDoRelogio(jornada.intervaloInicio);
+        const fimAlmoco = minutosDoRelogio(jornada.intervaloFim);
+        if (iniAlmoco !== null && fimAlmoco !== null && fimAlmoco > iniAlmoco && par.ini !== null
+          && par.ini <= iniAlmoco && par.ini + par.dur >= fimAlmoco) {
+          intervaloDescontado = fimAlmoco - iniAlmoco;
+          trabalhado -= intervaloDescontado;
+        }
+      }
       const emAndamento = dia === hoje && jornada.isWorkday && agoraMin !== null
         && agoraMin < (minutosDoRelogio(jornada.horaSaida) ?? 24 * 60);
       const esperado = temEscala ? minutosEsperadosDaJornada(jornada) : 0;
@@ -1755,6 +1774,7 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
         data: dia,
         batidas: doDia.map(({ id, type, hora, notes, is_manual, edited_by }) => ({ id, type, hora, notes, is_manual, edited_by })),
         trabalhado_min: trabalhado,
+        intervalo_descontado_min: intervaloDescontado,
         esperado_min: temEscala ? esperado : null,
         abonado_min: abonado,
         saldo_min: saldo,
