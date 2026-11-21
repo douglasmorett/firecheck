@@ -9668,6 +9668,12 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/whatsapp/testar') && method === 'POST') {
       const autorTeste = await autenticarComLojaAtual(req);
       if (!autorTeste) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      // O teste manda mensagem para o número do corpo pelo WhatsApp da empresa.
+      // Funcionário não configura notificações, e com um token qualquer a rota
+      // virava disparador para terceiros (foi assim que o número já foi banido).
+      if (!['admin', 'gestor', 'master'].includes(autorTeste.role)) {
+        return res.status(403).json({ error: 'Somente o administrador ou gestor pode testar as notificações.' });
+      }
 
       const { rows } = await pool.query(
         'SELECT name, phone, whatsapp_phone, whatsapp_active, store FROM users WHERE id = $1',
