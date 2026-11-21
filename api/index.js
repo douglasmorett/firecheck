@@ -8405,8 +8405,12 @@ Responda APENAS com JSON válido.`;
         const valores = [];
         if (lojaConsulta) { valores.push(lojaConsulta); condicoes.push(`LOWER(TRIM(store)) = LOWER(TRIM($${valores.length}))`); }
         if (tipoFiltro === 'descarte' || tipoFiltro === 'ocorrencia') { valores.push(tipoFiltro); condicoes.push(`tipo = $${valores.length}`); }
-        if (inicio) { valores.push(inicioDoDiaEmUTC(inicio)); condicoes.push(`created_at >= $${valores.length}`); }
-        if (fim) { valores.push(fimDoDiaEmUTC(fim)); condicoes.push(`created_at <= $${valores.length}`); }
+        // ocorrencias.created_at guarda a hora de PAREDE de São Paulo (e não UTC,
+        // como checklist_submissions): o corte do dia é 00:00–23:59 do próprio
+        // dia. Com o corte em UTC (03:00), o que acontece de 00:00 às 02:59
+        // aparecia no dia anterior e sumia do dia certo.
+        if (inicio) { valores.push(inicio + ' 00:00:00'); condicoes.push(`created_at >= $${valores.length}`); }
+        if (fim) { valores.push(fim + ' 23:59:59.999'); condicoes.push(`created_at <= $${valores.length}`); }
 
         const { rows } = await pool.query(
           `SELECT * FROM ocorrencias ${condicoes.length ? 'WHERE ' + condicoes.join(' AND ') : ''} ORDER BY created_at DESC LIMIT 200`,
