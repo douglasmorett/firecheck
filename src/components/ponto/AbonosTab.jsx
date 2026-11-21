@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Trash2, FileText, CalendarCheck } from 'lucide-react';
+import { Trash2, FileText } from 'lucide-react';
 import API_URL from '../../api';
 import AbonoForm from './AbonoForm';
 
@@ -44,44 +44,53 @@ export default function AbonosTab({ employees, onAlterado }) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', alignItems: 'start' }}>
-      <div className="card" style={{ padding: '24px' }}>
-        <h3 style={{ margin: '0 0 6px 0', fontSize: '1.15rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <CalendarCheck size={20} color="var(--primary)" /> Lançar atestado, abono ou feriado
-        </h3>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: '0 0 16px 0' }}>
-          O dia lançado aparece marcado no espelho e não conta como falta.
-        </p>
+    <div className="pt-grade">
+      <div className="card pt-card">
+        <div className="pt-card-cab">
+          <div>
+            <span className="fc-olho-rot">Novo lançamento</span>
+            <h3>Lançar atestado, abono ou feriado</h3>
+            <p>O dia lançado aparece marcado no espelho e não conta como falta.</p>
+          </div>
+        </div>
         <AbonoForm employees={employees} onSalvo={() => { carregar(); if (onAlterado) onAlterado(); }} />
       </div>
 
-      <div className="card" style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Lançados no mês</h3>
-          <input type="month" className="input-field" style={{ width: 'auto' }} value={mes} onChange={e => setMes(e.target.value)} />
+      <div className="card pt-card pt-lista" style={{ gap: '6px' }}>
+        <div className="pt-card-cab" style={{ padding: '14px 14px 6px', alignItems: 'center' }}>
+          <div>
+            <span className="fc-olho-rot">Histórico</span>
+            <h3>Lançados no mês</h3>
+          </div>
+          <label className="pt-periodo">
+            Mês
+            <input type="month" value={mes} onChange={e => setMes(e.target.value)} />
+          </label>
         </div>
-        {erro && <p style={{ color: 'var(--error)', fontSize: '0.9rem' }}>{erro}</p>}
+        {erro && <p className="pt-erro" style={{ margin: '0 14px' }}>{erro}</p>}
         {carregando ? (
-          <p style={{ color: 'var(--text-muted)' }}>Carregando...</p>
+          <div className="fc-vazio">Carregando...</div>
         ) : lista.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nenhum atestado, abono ou feriado neste mês.</p>
+          <div className="fc-vazio">Nenhum atestado, abono ou feriado neste mês.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div>
             {lista.map(item => (
-              <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '12px', backgroundColor: 'var(--bg-main)' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 10px', borderRadius: '20px', backgroundColor: item.tipo === 'feriado' ? 'rgba(139, 92, 246, 0.12)' : 'rgb(var(--info-rgb) / 0.12)', color: item.tipo === 'feriado' ? '#8B5CF6' : '#3B82F6' }}>{item.rotulo}</span>
-                    <strong>{item.user_name || 'Toda a equipe'}</strong>
+              <div key={item.id} className="fc-lin pt-simples">
+                <div style={{ minWidth: 0 }}>
+                  <div className="fc-t">
+                    {item.user_name || 'Toda a equipe'}
+                    <span className="fc-dado" style={{ '--c': item.tipo === 'feriado' ? 'var(--primary)' : 'var(--info)' }}>{item.rotulo}</span>
                   </div>
-                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                    {dataBR(item.data)}{item.data_fim ? ` a ${dataBR(item.data_fim)}` : ''}{item.observacao ? ` · ${item.observacao}` : ''}
-                  </p>
+                  <div className="fc-m">
+                    <span className="mono">{dataBR(item.data)}{item.data_fim ? ` a ${dataBR(item.data_fim)}` : ''}</span>{item.observacao ? ` · ${item.observacao}` : ''}
+                  </div>
                 </div>
-                {item.arquivo_url && (
-                  <a href={item.arquivo_url} target="_blank" rel="noreferrer" title="Ver anexo" style={{ color: 'var(--primary)', display: 'flex' }}><FileText size={18} /></a>
-                )}
-                <button onClick={() => excluir(item)} title="Excluir" style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: '#EF4444', display: 'flex' }}><Trash2 size={14} /></button>
+                <div className="pt-mini-acoes">
+                  {item.arquivo_url && (
+                    <a href={item.arquivo_url} target="_blank" rel="noreferrer" title="Ver anexo" className="fc-mini-btn info" style={{ textDecoration: 'none' }}><FileText size={13} /> Anexo</a>
+                  )}
+                  <button type="button" className="fc-mini-btn perigo" onClick={() => excluir(item)} title="Excluir" aria-label="Excluir"><Trash2 size={13} /></button>
+                </div>
               </div>
             ))}
           </div>

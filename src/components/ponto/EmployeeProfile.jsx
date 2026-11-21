@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ArrowLeft, UserCircle, MapPin, Calendar as CalendarIcon, Clock, CheckCircle, AlertTriangle, Filter, CalendarDays, List, Plus, X, Camera, MoreVertical, Building2, ShieldAlert, Edit2, Trash2, Repeat, Scale, CalendarCheck } from 'lucide-react';
+import { ArrowLeft, MapPin, Clock, Plus, Camera, Edit2, Trash2, Repeat, CalendarCheck } from 'lucide-react';
 import API_URL from '../../api';
+import { iniciais } from '../painel/Painel';
+import Janela from './Janela';
+import './ponto.css';
 import AbonoForm from './AbonoForm';
 import RostoDoFuncionario from './RostoDoFuncionario';
 import { rotulosDoDia, minutosTrabalhados, formatarMinutos } from '../../utils/pontoBatidas';
@@ -11,23 +14,6 @@ const cabecalhos = (json) => ({
 });
 const dataBR = (d) => (d ? d.split('-').reverse().join('/') : '');
 const comSinal = (min) => (min > 0 ? '+' : '') + formatarMinutos(min);
-
-// Janela por cima da ficha. .modal-overlay não tem CSS no app: o estilo vai aqui.
-function Janela({ titulo, onFechar, children }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', padding: '16px' }}>
-      <div className="card animate-fade-up modal-janela" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', borderRadius: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>{titulo}</h3>
-          <button onClick={onFechar} style={{ background: 'var(--bg-main)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex' }}>
-            <X size={18} color="var(--text-muted)" />
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 export default function EmployeeProfile({ employee, onBack, schedules, userProfile, pontoRecords, onUpdateEmployee, mesSelecionado, onMesChange }) {
   const [viewMode, setViewMode] = useState('list');
@@ -364,10 +350,10 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
     const [year, month] = filterMonth.split('-').map(Number);
     const daysInMonth = new Date(year, month, 0).getDate();
     const firstDay = new Date(year, month - 1, 1).getDay();
-    
+
     let days = [];
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} style={{ padding: '10px' }}></div>);
+      days.push(<div key={`empty-${i}`} className="pt-cal-dia vazio"></div>);
     }
 
     let lastWorkedDateObj = null;
@@ -384,7 +370,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
     for (let d = 1; d <= daysInMonth; d++) {
       const currentDate = new Date(year, month - 1, d);
       const currentDateStr = currentDate.toISOString().split('T')[0];
-      
+
       const dayRecords = filteredRecords.filter(r => r.timestamp.split('T')[0] === currentDateStr);
       const hasRecords = dayRecords.length > 0;
 
@@ -400,170 +386,133 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         isProjectedWorkday = currentDate.getDay() !== 0 && currentDate.getDay() !== 6;
       }
 
-      let bgColor = 'var(--bg-main)';
-      let color = 'var(--text-main)';
-      let border = '1px solid var(--border-color)';
       // Atestado/feriado lançado: o dia sai marcado, não como falta.
       const abonoDoDia = infoDoDia[currentDateStr]?.abono || null;
-
-      if (abonoDoDia && !hasRecords) {
-        bgColor = 'rgb(var(--info-rgb) / 0.08)';
-        border = '1px solid rgb(var(--info-rgb) / 0.3)';
-        color = '#3B82F6';
-      } else if (hasRecords) {
-        bgColor = 'rgba(16, 185, 129, 0.08)';
-        border = '1px solid rgba(16, 185, 129, 0.2)';
-        color = '#10B981';
-      } else if (!isProjectedWorkday) {
-        bgColor = 'rgb(var(--info-rgb) / 0.03)';
-        color = 'var(--text-muted)';
-        border = '1px dashed var(--border-color)';
-      } else if (currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia) {
-        bgColor = 'rgba(239, 68, 68, 0.05)';
-        border = '1px solid rgba(239, 68, 68, 0.3)';
-        color = '#EF4444';
-      }
+      const falta = currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia;
+      const folga = !hasRecords && !isProjectedWorkday && !abonoDoDia;
 
       days.push(
-        <div key={d} style={{ 
-          backgroundColor: bgColor, border, color,
-          height: '85px', borderRadius: '12px', padding: '8px',
-          display: 'flex', flexDirection: 'column', transition: 'all 0.2s', cursor: 'pointer'
-        }} className="hover-lift">
-          <span style={{ fontWeight: '600', fontSize: '1rem', alignSelf: 'flex-start' }}>{d}</span>
-          <div style={{ flex: 1 }}></div>
-          {hasRecords && <span style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}><CheckCircle size={12}/> Presente</span>}
-          {abonoDoDia && <span style={{ fontSize: '0.7rem', fontWeight: '600', color: '#3B82F6' }}>{abonoDoDia.rotulo}</span>}
-          {(!hasRecords && !isProjectedWorkday && !abonoDoDia) && <span style={{ fontSize: '0.7rem', color: '#3B82F6' }}>Folga</span>}
-          {(currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia) && <span style={{ fontSize: '0.75rem', fontWeight: '500' }}>Falta</span>}
+        <div key={d} className={`pt-cal-dia${folga ? ' folga' : ''}`}>
+          <b>{d}</b>
+          <div>
+            {hasRecords && <span className="fc-selo" style={{ '--c': 'var(--ok)' }}><i /><span>Presente</span></span>}
+            {abonoDoDia && <span className="fc-selo" style={{ '--c': 'var(--info)' }}><i /><span>{abonoDoDia.rotulo}</span></span>}
+            {folga && <span className="fc-selo" style={{ '--c': 'var(--text-muted)' }}><i /><span>Folga</span></span>}
+            {falta && <span className="fc-selo" style={{ '--c': 'var(--bad)' }}><i /><span>Falta</span></span>}
+          </div>
         </div>
       );
     }
 
     return (
-      <div className="animate-fade" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '10px' }}>
+      <div className="pt-cal animate-fade">
         {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map(d => (
-          <div key={d} style={{ textAlign: 'center', fontWeight: '600', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '1px' }}>{d}</div>
+          <div key={d} className="pt-cal-dow">{d}</div>
         ))}
         {days}
       </div>
     );
   };
 
+  const saldoMin = saldoFunc?.totais?.saldo_min;
+
   return (
-    <div className="animate-fade-up" style={{ paddingBottom: '40px' }}>
-      {/* Premium Header */}
-      <div style={{ 
-        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgb(var(--info-rgb) / 0.05) 100%)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '20px',
-        padding: '30px',
-        marginBottom: '24px',
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.04)'
-      }}>
-        {/* Background decorative elements */}
-        <div style={{ position: 'absolute', top: -50, right: -50, width: '200px', height: '200px', borderRadius: '50%', background: 'var(--primary)', opacity: 0.05, filter: 'blur(30px)' }}></div>
-        <div style={{ position: 'absolute', bottom: -50, left: 200, width: '150px', height: '150px', borderRadius: '50%', background: '#10B981', opacity: 0.05, filter: 'blur(30px)' }}></div>
-
-        <button onClick={onBack} className="hover-lift" style={{ position: 'absolute', top: '24px', left: '24px', background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '10px', cursor: 'pointer', display: 'flex', zIndex: 10, boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
-          <ArrowLeft size={20} color="var(--text-main)" />
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '30px', marginTop: '40px', position: 'relative', zIndex: 1 }}>
-          <div style={{ position: 'relative' }}>
-            <div style={{ 
-              width: '120px', height: '120px', borderRadius: '50%', 
-              backgroundColor: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.1)', border: '4px solid var(--bg-card)', overflow: 'hidden'
-            }}>
-              {employee.photo ? (
-                <img src={employee.photo} alt={employee.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <span style={{ fontSize: '3rem', color: 'var(--primary)', fontWeight: 'bold' }}>{employee.name.charAt(0).toUpperCase()}</span>
-              )}
+    <div className="pt animate-fade-up" style={{ paddingBottom: '40px' }}>
+      {/* Cabeçalho da ficha: voltar, foto, nome. O título da aba fica no painel. */}
+      <div className="pt-ferr">
+        <div className="pt-ficha-cab">
+          <button type="button" className="pt-voltar" onClick={onBack} aria-label="Voltar para a equipe" title="Voltar">
+            <ArrowLeft size={18} />
+          </button>
+          <div className="pt-foto">
+            <div className="fc-av">
+              {employee.photo
+                ? <img src={employee.photo} alt={employee.name} />
+                : <span className="pt-av-ini">{iniciais(employee.name)}</span>}
             </div>
-            
-            <button 
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploadingPhoto}
-              className="hover-lift"
-              style={{
-                position: 'absolute', bottom: '0', right: '0',
-                background: 'var(--primary)', border: 'none', borderRadius: '50%',
-                width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: isUploadingPhoto ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgb(var(--info-rgb) / 0.4)', color: 'white'
-              }}
-            >
-              {isUploadingPhoto ? <div className="animate-spin" style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}></div> : <Camera size={18} />}
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isUploadingPhoto} aria-label="Trocar foto" title="Trocar foto">
+              <Camera size={13} />
             </button>
             <input type="file" accept="image/*" ref={fileInputRef} style={{ display: 'none' }} onChange={handlePhotoUpload} />
           </div>
-
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h2 style={{ margin: 0, fontSize: '2.2rem', color: 'var(--text-main)', fontWeight: '800', letterSpacing: '-0.5px' }}>{employee.name}</h2>
-              <span style={{ fontSize: '0.85rem', color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '4px 12px', borderRadius: '20px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle size={14} /> Ativo
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginTop: '12px' }}>
-              <span style={{ fontSize: '1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <UserCircle size={18} color="var(--primary)"/> {employee.email}
-              </span>
-              <span style={{ fontSize: '1rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Building2 size={18} color="var(--primary)"/> {employee.role === 'gestor' ? 'Gestor' : 'Funcionário'}
-              </span>
-            </div>
+          <div className="pt-ficha-nome">
+            <h2>{employee.name}</h2>
+            <p>
+              <span className="fc-selo" style={{ '--c': 'var(--ok)' }}><i /><span>Ativo</span></span>
+              <span>{employee.email}</span>
+              <span className="fc-tag-p">{employee.role === 'gestor' ? 'Gestor' : 'Funcionário'}</span>
+              {isUploadingPhoto && <span>Enviando foto…</span>}
+            </p>
           </div>
+        </div>
+        <label className="pt-periodo">
+          Período
+          <input type="month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} />
+        </label>
+      </div>
+
+      {/* Números do mês */}
+      <div className="pt-kpis">
+        <div className="card pt-kpi">
+          <span className="fc-olho-rot">Dias trabalhados</span>
+          <strong>{workedDays}</strong>
+        </div>
+        <div className="card pt-kpi">
+          <span className="fc-olho-rot">Atrasos (mês)</span>
+          <strong style={{ color: atrasos ? 'var(--warning)' : 'var(--text-main)' }}>{atrasos}</strong>
+        </div>
+        <div className="card pt-kpi">
+          <span className="fc-olho-rot">Faltas projetadas</span>
+          <strong style={{ color: faltasDoMes ? 'var(--bad)' : 'var(--text-main)' }}>{faltasDoMes}</strong>
+        </div>
+        {/* Banco de horas do mês: trabalhado (sem o almoço) menos o esperado da escala. */}
+        <div className="card pt-kpi">
+          <span className="fc-olho-rot">Banco de horas</span>
+          <strong style={{ color: !saldoFunc || saldoMin === null ? 'var(--text-muted)' : saldoMin < 0 ? 'var(--bad)' : 'var(--ok)', fontSize: !saldoFunc || saldoMin === null ? '22px' : undefined }}>
+            {!saldoFunc ? '—' : saldoMin === null ? 'Sem escala' : comSinal(saldoMin)}
+          </strong>
+          {saldoFunc && <small>Trabalhado: <span className="mono">{formatarMinutos(saldoFunc.totais.trabalhado_min)}</span></small>}
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '24px', alignItems: 'start' }}>
-        
-        {/* Sidebar: Configurações da Escala */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          <div className="card hover-lift" style={{ padding: '24px', borderTop: '4px solid var(--primary)', borderRadius: '20px' }}>
-            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <CalendarIcon size={22} color="var(--primary)" /> Regra de Ponto
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="pt-ficha-corpo">
+        {/* Coluna: regra de ponto e rosto */}
+        <div className="pt-coluna">
+          <div className="card pt-card">
+            <div className="pt-card-cab">
               <div>
-                <label className="input-label" style={{ fontSize: '0.9rem' }}>Escala Vinculada</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <select className="input-field" style={{ flex: 1, backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px' }} value={selectedSchedule || ''} onChange={e => setSelectedSchedule(e.target.value)}>
-                    <option value="">Nenhuma (Horário Livre)</option>
-                    {schedules.map(sch => (
-                      <option key={sch.id} value={sch.id}>{sch.name} ({sch.type === '12x36' ? '12x36' : 'Fixa'})</option>
-                    ))}
-                  </select>
-                </div>
-                <button className="btn-secondary" onClick={() => setShowScheduleModal(true)} style={{ marginTop: '12px', width: '100%', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem', borderRadius: '10px' }}>
-                  <Plus size={16} /> Nova Escala
+                <span className="fc-olho-rot">Escala</span>
+                <h3>Regra de Ponto</h3>
+              </div>
+            </div>
+            <div className="pt-campos">
+              <div>
+                <label className="input-label">Escala Vinculada</label>
+                <select className="input-field" value={selectedSchedule || ''} onChange={e => setSelectedSchedule(e.target.value)}>
+                  <option value="">Nenhuma (Horário Livre)</option>
+                  {schedules.map(sch => (
+                    <option key={sch.id} value={sch.id}>{sch.name} ({sch.type === '12x36' ? '12x36' : 'Fixa'})</option>
+                  ))}
+                </select>
+                <button type="button" className="fc-mini-btn info" onClick={() => setShowScheduleModal(true)} style={{ marginTop: '10px' }}>
+                  <Plus size={13} /> Nova Escala
                 </button>
               </div>
 
               {is12x36 && (
-                <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgb(var(--info-rgb) / 0.2)' }} className="animate-fade">
-                  <label className="input-label" style={{ color: '#3B82F6', fontSize: '0.9rem' }}>Último dia trabalhado</label>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
-                    Base para cálculo automático das folgas intercaladas.
-                  </p>
-                  <input 
-                    type="date" 
-                    className="input-field" 
-                    value={lastWorkedDay} 
+                <div className="animate-fade">
+                  <label className="input-label">Último dia trabalhado</label>
+                  <input
+                    type="date"
+                    className="input-field mono"
+                    value={lastWorkedDay}
                     onChange={e => setLastWorkedDay(e.target.value)}
-                    style={{ backgroundColor: 'var(--bg-main)', border: 'none', padding: '12px', borderRadius: '10px' }} 
                   />
+                  <p className="pt-dica">Base para cálculo automático das folgas intercaladas.</p>
                 </div>
               )}
 
-              <button className="btn-primary hover-lift" onClick={handleSaveScheduleConfig} disabled={savingSchedule} style={{ marginTop: '8px', width: '100%', padding: '14px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold', fontSize: '1.05rem', boxShadow: '0 8px 24px rgba(255, 136, 0, 0.3)' }}>
-                {savingSchedule ? <div className="animate-spin" style={{ width: '20px', height: '20px', border: '3px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}></div> : <CheckCircle size={20} />}
+              <button type="button" className="btn-primary" onClick={handleSaveScheduleConfig} disabled={savingSchedule} style={{ width: '100%', padding: '12px', fontSize: '0.92rem' }}>
                 {savingSchedule ? 'Salvando...' : 'Salvar Regras'}
               </button>
             </div>
@@ -573,225 +522,122 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
           <RostoDoFuncionario employee={employee} />
         </div>
 
-        {/* Main Area: Relatórios e Filtros */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
-          {/* Stats Bar */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
-            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(16, 185, 129, 0.05))' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <CalendarDays size={28} color="#10B981" />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dias Trabalhados</p>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: 'var(--text-main)' }}>{workedDays}</h3>
-              </div>
+        {/* Extrato e visão mensal */}
+        <div className="card pt-lista" style={{ minWidth: 0 }}>
+          <div className="pt-extrato-cab">
+            <div className="pt-seg peq">
+              <button type="button" className={viewMode === 'list' ? 'on' : ''} onClick={() => setViewMode('list')}>Extrato de Pontos</button>
+              <button type="button" className={viewMode === 'calendar' ? 'on' : ''} onClick={() => setViewMode('calendar')}>Visão Mensal</button>
             </div>
-            
-            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(245, 158, 11, 0.05))' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(245, 158, 11, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <AlertTriangle size={28} color="#F59E0B" />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Atrasos (Mês)</p>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: '#F59E0B' }}>{atrasos}</h3>
-              </div>
-            </div>
-
-            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(239, 68, 68, 0.05))' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <ShieldAlert size={28} color="#EF4444" />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Faltas Projetadas</p>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: '#EF4444' }}>{faltasDoMes}</h3>
-              </div>
-            </div>
-
-            {/* Banco de horas do mês: trabalhado (sem o almoço) menos o esperado da escala. */}
-            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgb(var(--info-rgb) / 0.05))' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Scale size={28} color="#3B82F6" />
-              </div>
-              <div>
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Banco de Horas</p>
-                <h3 style={{ margin: '4px 0 0 0', fontSize: '2.2rem', color: !saldoFunc || saldoFunc.totais.saldo_min === null ? 'var(--text-muted)' : saldoFunc.totais.saldo_min < 0 ? '#EF4444' : '#10B981' }}>
-                  {!saldoFunc ? '—' : saldoFunc.totais.saldo_min === null ? 'Sem escala' : comSinal(saldoFunc.totais.saldo_min)}
-                </h3>
-                {saldoFunc && <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Trabalhado: {formatarMinutos(saldoFunc.totais.trabalhado_min)}</p>}
-              </div>
+            <div className="pt-mini-acoes">
+              <button type="button" className="fc-mini-btn info" onClick={abrirNovaBatida}>
+                <Plus size={13} /> Adicionar batida
+              </button>
+              <button type="button" className="fc-mini-btn info" onClick={() => setAbonoDia(hojeLoja)}>
+                <CalendarCheck size={13} /> Lançar atestado/abono
+              </button>
             </div>
           </div>
 
-          <div className="card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
-            {/* Header da Tabela/Calendário */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', padding: '24px', borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-main)' }}>
-              <div style={{ display: 'flex', gap: '12px', backgroundColor: 'var(--bg-card)', padding: '6px', borderRadius: '14px', border: '1px solid var(--border-color)' }}>
-                <button 
-                  onClick={() => setViewMode('list')}
-                  style={{ 
-                    background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
-                    border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '8px', fontWeight: viewMode === 'list' ? '600' : '500',
-                    boxShadow: viewMode === 'list' ? '0 4px 12px rgb(var(--info-rgb) / 0.3)' : 'none',
-                    color: viewMode === 'list' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s'
-                  }}
-                ><List size={18}/> Extrato de Pontos</button>
-                <button 
-                  onClick={() => setViewMode('calendar')}
-                  style={{ 
-                    background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
-                    border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '8px', fontWeight: viewMode === 'calendar' ? '600' : '500',
-                    boxShadow: viewMode === 'calendar' ? '0 4px 12px rgb(var(--info-rgb) / 0.3)' : 'none',
-                    color: viewMode === 'calendar' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s'
-                  }}
-                ><CalendarDays size={18}/> Visão Mensal</button>
+          {/* Visão mensal */}
+          {viewMode === 'calendar' && renderCalendar()}
+
+          {/* Extrato agrupado por dia */}
+          {viewMode === 'list' && (
+            diasDoExtrato.length === 0 ? (
+              <div className="fc-vazio">
+                <strong style={{ display: 'block', color: 'var(--text-main)', fontWeight: 600, marginBottom: '6px' }}>Nenhum ponto batido</strong>
+                O funcionário não registrou presença neste mês.
               </div>
+            ) : (
+              <div>
+                {diasDoExtrato.map((dia) => {
+                  const registros = registrosPorDia[dia] || [];
+                  const info = infoDoDia[dia] || null;
+                  const emAndamento = dia === hojeLoja;
+                  const rotulos = rotulosDoDia(registros, { comAlmoco, emAndamento });
+                  const trabalhado = info ? info.trabalhado_min : minutosTrabalhados(registros);
+                  const mostraSaldo = info && info.saldo_min !== null && !info.em_andamento && (info.saldo_min !== 0 || registros.length > 0);
+                  const diaSemana = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][new Date(dia + 'T12:00:00').getDay()];
+                  return (
+                    <div key={dia} className="pt-dia">
+                      <div className="pt-dia-cab">
+                        <h4>{dataBR(dia)}<span>{diaSemana}</span></h4>
+                        <div className="pt-dia-info">
+                          {info?.abono && <span className="fc-selo" style={{ '--c': 'var(--info)' }}><i /><span>{info.abono.rotulo + (info.abono.observacao ? ` · ${info.abono.observacao}` : '')}</span></span>}
+                          {info?.falta && <span className="fc-selo" style={{ '--c': 'var(--bad)' }}><i /><span>Falta</span></span>}
+                          {info?.falta && (
+                            <button type="button" className="fc-mini-btn" onClick={() => setAbonoDia(dia)}>Abonar</button>
+                          )}
+                          {info?.incompleto && <span className="fc-selo" style={{ '--c': 'var(--warning)' }}><i /><span>Batida faltando</span></span>}
+                          {registros.length > 0 && <span>Trabalhado <b>{formatarMinutos(trabalhado)}</b></span>}
+                          {mostraSaldo && <b style={{ color: info.saldo_min < 0 ? 'var(--bad)' : 'var(--ok)' }}>{comSinal(info.saldo_min)}</b>}
+                        </div>
+                      </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-card)', padding: '6px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                <Filter size={18} color="var(--primary)" />
-                <span style={{ fontSize: '0.9rem', fontWeight: '600', color: 'var(--text-muted)' }}>Período:</span>
-                <input 
-                  type="month" 
-                  value={filterMonth}
-                  onChange={e => setFilterMonth(e.target.value)}
-                  style={{ padding: '6px 8px', border: 'none', background: 'transparent', color: 'var(--text-main)', fontWeight: 'bold', fontSize: '1rem', outline: 'none' }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <button className="btn-secondary" onClick={abrirNovaBatida} style={{ padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Plus size={16} /> Adicionar batida
-                </button>
-                <button className="btn-secondary" onClick={() => setAbonoDia(hojeLoja)} style={{ padding: '10px 14px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <CalendarCheck size={16} /> Lançar atestado/abono
-                </button>
-              </div>
-            </div>
-
-            <div style={{ padding: '30px' }}>
-              {/* View Mode: Calendário */}
-              {viewMode === 'calendar' && renderCalendar()}
-
-              {/* View Mode: Lista de Logs (agrupada por dia) */}
-              {viewMode === 'list' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  {diasDoExtrato.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
-                      <Clock size={48} color="var(--border-color)" style={{ marginBottom: '16px' }} />
-                      <h3 style={{ margin: '0 0 8px 0' }}>Nenhum ponto batido</h3>
-                      <p style={{ margin: 0 }}>O funcionário não registrou presença neste mês.</p>
-                    </div>
-                  ) : (
-                    diasDoExtrato.map((dia) => {
-                      const registros = registrosPorDia[dia] || [];
-                      const info = infoDoDia[dia] || null;
-                      const emAndamento = dia === hojeLoja;
-                      const rotulos = rotulosDoDia(registros, { comAlmoco, emAndamento });
-                      const trabalhado = info ? info.trabalhado_min : minutosTrabalhados(registros);
-                      const mostraSaldo = info && info.saldo_min !== null && !info.em_andamento && (info.saldo_min !== 0 || registros.length > 0);
-                      const selo = (texto, cor) => (
-                        <span style={{ fontSize: '0.8rem', fontWeight: 'bold', padding: '3px 10px', borderRadius: '20px', backgroundColor: `${cor}1A`, color: cor }}>{texto}</span>
-                      );
-                      return (
-                        <div key={dia}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                            <h4 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <CalendarIcon size={16} color="var(--primary)" /> {dataBR(dia)}
-                            </h4>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', fontSize: '0.9rem' }}>
-                              {info?.abono && selo(info.abono.rotulo + (info.abono.observacao ? ` · ${info.abono.observacao}` : ''), '#3B82F6')}
-                              {info?.falta && selo('Falta', '#EF4444')}
-                              {info?.falta && (
-                                <button className="btn-secondary" onClick={() => setAbonoDia(dia)} style={{ padding: '4px 10px', borderRadius: '8px', fontSize: '0.8rem' }}>Abonar</button>
-                              )}
-                              {info?.incompleto && selo('Batida faltando', '#F59E0B')}
-                              {registros.length > 0 && <span style={{ color: 'var(--text-muted)' }}>Trabalhado: <strong style={{ color: 'var(--text-main)' }}>{formatarMinutos(trabalhado)}</strong></span>}
-                              {mostraSaldo && <strong style={{ color: info.saldo_min < 0 ? '#EF4444' : '#10B981' }}>{comSinal(info.saldo_min)}</strong>}
+                      {registros.map((rec, i) => {
+                        // A API entrega hora_local já no fuso da loja.
+                        // Reconverter com new Date() deslocava o extrato em 3 horas.
+                        const horaStr = rec.hora_local
+                          || (String(rec.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1])
+                          || '--:--';
+                        const isEntrada = rec.type === 'entrada';
+                        const foto = rec.selfie_url || rec.selfie;
+                        return (
+                          <div key={rec.id} className="fc-lin pt-batida">
+                            {/* A coluna no banco é selfie_url. Batida lançada pelo gestor não tem foto. */}
+                            <div className="fc-av">
+                              {foto ? <img src={foto} alt="Selfie" /> : <Clock size={16} />}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="fc-t">
+                                <i className="pt-ponto" style={{ '--c': isEntrada ? 'var(--ok)' : 'var(--ink)' }} />
+                                {rotulos[i]}
+                                <span className="mono">{horaStr}</span>
+                              </div>
+                              <div className="fc-m">
+                                {/* Batida do tablet da loja (reconhecimento facial), não do celular dele. */}
+                                {rec.origem === 'quiosque' && <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>Ponto da loja (rosto)</span>}
+                                {rec.is_manual && (
+                                  <span style={{ color: 'var(--warning)' }}>
+                                    Ajustada{rec.edited_by ? ` por ${rec.edited_by}` : ''}{rec.notes ? ` · ${rec.notes}` : ''}
+                                  </span>
+                                )}
+                                {rec.address && (
+                                  <span className="pt-end" title={rec.address}>
+                                    <MapPin size={11} style={{ verticalAlign: '-1px', marginRight: '4px' }} />{rec.address}{rec.accuracy ? ` · ±${Math.round(rec.accuracy)} m` : ''}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="pt-mini-acoes">
+                              <button type="button" className="fc-mini-btn info" title={`Trocar para ${isEntrada ? 'saída' : 'entrada'}`} onClick={() => trocarTipo(rec)}>
+                                <Repeat size={12} /> Virar {isEntrada ? 'saída' : 'entrada'}
+                              </button>
+                              <button type="button" className="fc-mini-btn info" title="Corrigir horário" onClick={() => abrirEdicao(rec)}>
+                                <Edit2 size={12} /> Horário
+                              </button>
+                              <button type="button" className="fc-mini-btn perigo" title="Excluir batida" aria-label="Excluir batida" onClick={() => excluirBatida(rec, rotulos[i], horaStr)}>
+                                <Trash2 size={12} />
+                              </button>
                             </div>
                           </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {registros.map((rec, i) => {
-                              // A API entrega hora_local já no fuso da loja.
-                              // Reconverter com new Date() deslocava o extrato em 3 horas.
-                              const horaStr = rec.hora_local
-                                || (String(rec.timestamp || '').match(/^\d{4}-\d{2}-\d{2}[T ](\d{2}:\d{2})/)?.[1])
-                                || '--:--';
-                              const isEntrada = rec.type === 'entrada';
-                              const cor = isEntrada ? '#10B981' : '#F59E0B';
-                              const foto = rec.selfie_url || rec.selfie;
-                              const botao = { background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '6px 10px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' };
-                              return (
-                                <div key={rec.id} style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap',
-                                  padding: '14px 16px', border: '1px solid var(--border-color)', borderRadius: '14px',
-                                  backgroundColor: 'var(--bg-card)', position: 'relative', overflow: 'hidden'
-                                }}>
-                                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '6px', backgroundColor: cor }}></div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', paddingLeft: '8px', minWidth: 0 }}>
-                                    {/* A coluna no banco é selfie_url. Batida lançada pelo gestor não tem foto. */}
-                                    {foto ? (
-                                      <img src={foto} alt="Selfie" style={{ width: '52px', height: '52px', borderRadius: '12px', objectFit: 'cover', border: '2px solid var(--border-color)', flexShrink: 0 }} />
-                                    ) : (
-                                      <div style={{ width: '52px', height: '52px', borderRadius: '12px', backgroundColor: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                        <Clock size={22} color="var(--text-muted)" />
-                                      </div>
-                                    )}
-                                    <div style={{ minWidth: 0 }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                        <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '700' }}>{rotulos[i]}</h4>
-                                        <span style={{ fontSize: '0.9rem', backgroundColor: `${cor}1A`, color: cor, padding: '3px 10px', borderRadius: '20px', fontWeight: 'bold' }}>{horaStr}</span>
-                                      </div>
-                                      {/* Batida do tablet da loja (reconhecimento facial), não do celular dele. */}
-                                      {rec.origem === 'quiosque' && (
-                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#8B5CF6', fontWeight: 600 }}>Ponto da loja (rosto)</p>
-                                      )}
-                                      {rec.is_manual && (
-                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: '#F59E0B' }}>
-                                          Ajustada{rec.edited_by ? ` por ${rec.edited_by}` : ''}{rec.notes ? ` · ${rec.notes}` : ''}
-                                        </p>
-                                      )}
-                                      {rec.address && (
-                                        <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '360px' }}>
-                                          <MapPin size={12} style={{ flexShrink: 0 }} /> {rec.address}{rec.accuracy ? ` · ±${Math.round(rec.accuracy)} m` : ''}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                                    <button style={botao} title={`Trocar para ${isEntrada ? 'saída' : 'entrada'}`} onClick={() => trocarTipo(rec)}>
-                                      <Repeat size={14} /> Virar {isEntrada ? 'saída' : 'entrada'}
-                                    </button>
-                                    <button style={botao} title="Corrigir horário" onClick={() => abrirEdicao(rec)}>
-                                      <Edit2 size={14} /> Horário
-                                    </button>
-                                    <button style={{ ...botao, background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444' }} title="Excluir batida" onClick={() => excluirBatida(rec, rotulos[i], horaStr)}>
-                                      <Trash2 size={14} />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          )}
         </div>
       </div>
 
       {/* Corrigir ou lançar batida (gestor) */}
       {batidaEmEdicao && (
-        <Janela titulo={batidaEmEdicao.modo === 'nova' ? 'Adicionar batida esquecida' : 'Corrigir batida'} onFechar={() => setBatidaEmEdicao(null)}>
-          {erroBatida && <div style={{ color: 'var(--error)', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px 12px', borderRadius: '10px', marginBottom: '14px', fontSize: '0.9rem' }}>{erroBatida}</div>}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <Janela rotulo={employee.name} titulo={batidaEmEdicao.modo === 'nova' ? 'Adicionar batida esquecida' : 'Corrigir batida'} onFechar={() => setBatidaEmEdicao(null)}>
+          {erroBatida && <p className="pt-erro" style={{ marginBottom: '14px' }}>{erroBatida}</p>}
+          <div className="pt-campos">
             <div>
               <label className="input-label">Tipo</label>
               <select className="input-field" value={batidaEmEdicao.type} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, type: e.target.value })}>
@@ -799,23 +645,23 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                 <option value="saida">Saída (almoço ou fim do turno)</option>
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="pt-2col">
               <div>
                 <label className="input-label">Data</label>
-                <input type="date" className="input-field" value={batidaEmEdicao.date} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, date: e.target.value })} />
+                <input type="date" className="input-field mono" value={batidaEmEdicao.date} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, date: e.target.value })} />
               </div>
               <div>
                 <label className="input-label">Hora</label>
-                <input type="time" className="input-field" value={batidaEmEdicao.time} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, time: e.target.value })} />
+                <input type="time" className="input-field mono" value={batidaEmEdicao.time} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, time: e.target.value })} />
               </div>
             </div>
             <div>
               <label className="input-label">Motivo (fica registrado no espelho)</label>
               <input type="text" className="input-field" placeholder="Ex.: esqueceu de bater a volta do almoço" value={batidaEmEdicao.notes} onChange={e => setBatidaEmEdicao({ ...batidaEmEdicao, notes: e.target.value })} />
             </div>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" className="btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={() => setBatidaEmEdicao(null)}>Cancelar</button>
-              <button type="button" className="btn-primary" style={{ flex: 1, padding: '12px' }} onClick={salvarBatida} disabled={salvandoBatida}>
+            <div className="pt-acoes" style={{ marginTop: '4px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setBatidaEmEdicao(null)}>Cancelar</button>
+              <button type="button" className="btn-primary" onClick={salvarBatida} disabled={salvandoBatida}>
                 {salvandoBatida ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
@@ -825,7 +671,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
 
       {/* Atestado/abono deste funcionário */}
       {abonoDia && (
-        <Janela titulo="Lançar atestado ou abono" onFechar={() => setAbonoDia(null)}>
+        <Janela rotulo="Atestados e Feriados" titulo="Lançar atestado ou abono" onFechar={() => setAbonoDia(null)}>
           <AbonoForm
             funcionarioFixo={employee}
             dataInicial={abonoDia}
@@ -835,100 +681,86 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
         </Janela>
       )}
 
-      {/* Modal de Nova Escala */}
+      {/* Nova escala, já vinculada a este funcionário */}
       {showScheduleModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)' }}>
-          <div className="card animate-fade-up modal-janela" style={{ width: '100%', maxWidth: '650px', maxHeight: '90vh', overflowY: 'auto', padding: '32px', borderRadius: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.4rem', display: 'flex', alignItems: 'center', gap: '10px', fontWeight: '700' }}>
-                <CalendarIcon color="var(--primary)" size={24} /> Criar Nova Escala
-              </h3>
-              <button onClick={() => setShowScheduleModal(false)} style={{ background: 'var(--bg-main)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex' }}>
-                <X size={20} color="var(--text-muted)" />
+        <Janela rotulo={employee.name} titulo="Criar Nova Escala" onFechar={() => setShowScheduleModal(false)} larga>
+          {newScheduleError && <p className="pt-erro" style={{ marginBottom: '14px' }}>{newScheduleError}</p>}
+
+          <div className="pt-campos" style={{ gap: '16px' }}>
+            <div>
+              <label className="input-label">Nome da Escala (Para identificação)</label>
+              <input type="text" className="input-field" placeholder="Ex: Comercial Seg a Sex" value={scheduleForm.name} onChange={e => setScheduleForm({...scheduleForm, name: e.target.value})} />
+            </div>
+            <div className="pt-2col">
+              <div>
+                <label className="input-label">Modelo Operacional</label>
+                <select className="input-field" value={scheduleForm.type} onChange={e => setScheduleForm({...scheduleForm, type: e.target.value})}>
+                  <option value="fixed">Jornada Semanal Fixa</option>
+                  <option value="12x36">Plantão 12x36</option>
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Cor de Identificação</label>
+                <div className="pt-cores">
+                  {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'].map(color => (
+                    <button key={color} type="button" aria-label={`Cor ${color}`} className={scheduleForm.color === color ? 'on' : ''} onClick={() => setScheduleForm({...scheduleForm, color})} style={{ backgroundColor: color }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="pt-2col">
+              <div>
+                <label className="input-label">Horário Entrada Padrão</label>
+                <input type="time" className="input-field mono" value={scheduleForm.hora_entrada} onChange={e => setScheduleForm({...scheduleForm, hora_entrada: e.target.value})} />
+              </div>
+              <div>
+                <label className="input-label">Horário Saída Padrão</label>
+                <input type="time" className="input-field mono" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
+              </div>
+              {/* Almoço visível também aqui (era gravado 12:00–13:00 sem aparecer). */}
+              <div>
+                <label className="input-label">Saída para Almoço</label>
+                <input type="time" className="input-field mono" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
+              </div>
+              <div>
+                <label className="input-label">Volta do Almoço</label>
+                <input type="time" className="input-field mono" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
+              </div>
+            </div>
+            {scheduleForm.type === 'fixed' && (
+              <div>
+                <label className="input-label">Dias de Trabalho da Semana</label>
+                <div className="pt-dias-form">
+                  {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((dayName, idx) => {
+                    const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { is_workday: false };
+                    return (
+                      <label key={idx}>
+                        <span>
+                          <input type="checkbox" checked={wd.is_workday} onChange={e => {
+                            const newWds = [...scheduleForm.weekdays];
+                            const i = newWds.findIndex(w => w.weekday === idx);
+                            if (i >= 0) newWds[i].is_workday = e.target.checked;
+                            setScheduleForm({...scheduleForm, weekdays: newWds});
+                          }} />
+                          {dayName}
+                        </span>
+                        <span className={wd.is_workday ? 'mono' : ''} style={{ fontSize: '12.5px', color: wd.is_workday ? 'var(--text-main)' : 'var(--text-muted)' }}>
+                          {wd.is_workday ? `${scheduleForm.hora_entrada} - ${scheduleForm.hora_saida}` : 'Folga'}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <div className="pt-acoes" style={{ marginTop: '8px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowScheduleModal(false)}>Cancelar</button>
+              <button type="button" className="btn-primary" onClick={handleSaveNewSchedule} disabled={savingNewSchedule}>
+                {savingNewSchedule ? 'Criando Escala...' : 'Criar Escala e Vincular'}
               </button>
             </div>
-            {newScheduleError && <div style={{ color: 'var(--error)', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '12px', marginBottom: '20px', fontSize: '0.95rem', fontWeight: '500' }}>{newScheduleError}</div>}
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label className="input-label">Nome da Escala (Para identificação)</label>
-                <input type="text" className="input-field" placeholder="Ex: Comercial Seg a Sex" value={scheduleForm.name} onChange={e => setScheduleForm({...scheduleForm, name: e.target.value})} style={{ padding: '14px' }} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label className="input-label">Modelo Operacional</label>
-                  <select className="input-field" value={scheduleForm.type} onChange={e => setScheduleForm({...scheduleForm, type: e.target.value})} style={{ padding: '14px' }}>
-                    <option value="fixed">Jornada Semanal Fixa</option>
-                    <option value="12x36">Plantão 12x36</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="input-label">Cor de Identificação</label>
-                  <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: '8px 0' }}>
-                    {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'].map(color => (
-                      <button key={color} onClick={() => setScheduleForm({...scheduleForm, color})} style={{
-                        width: '32px', height: '32px', borderRadius: '50%', backgroundColor: color, border: 'none', cursor: 'pointer',
-                        boxShadow: scheduleForm.color === color ? '0 0 0 4px var(--bg-card), 0 0 0 6px var(--text-main)' : 'none', transition: 'all 0.2s'
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '16px' }}>
-                <div>
-                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Horário Entrada Padrão</label>
-                  <input type="time" className="input-field" value={scheduleForm.hora_entrada} onChange={e => setScheduleForm({...scheduleForm, hora_entrada: e.target.value})} />
-                </div>
-                <div>
-                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Horário Saída Padrão</label>
-                  <input type="time" className="input-field" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
-                </div>
-                {/* Almoço visível também aqui (era gravado 12:00–13:00 sem aparecer). */}
-                <div>
-                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Saída para Almoço</label>
-                  <input type="time" className="input-field" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
-                </div>
-                <div>
-                  <label className="input-label" style={{ fontSize: '0.9rem' }}>Volta do Almoço</label>
-                  <input type="time" className="input-field" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
-                </div>
-              </div>
-              {scheduleForm.type === 'fixed' && (
-                <div>
-                  <label className="input-label" style={{ marginBottom: '12px', display: 'block' }}>Dias de Trabalho da Semana</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((dayName, idx) => {
-                      const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { is_workday: false };
-                      return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', backgroundColor: wd.is_workday ? 'rgb(var(--info-rgb) / 0.05)' : 'var(--bg-main)', borderRadius: '12px', border: wd.is_workday ? '1px solid rgb(var(--info-rgb) / 0.2)' : '1px solid var(--border-color)', transition: 'all 0.2s' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <input type="checkbox" checked={wd.is_workday} onChange={e => {
-                              const newWds = [...scheduleForm.weekdays];
-                              const i = newWds.findIndex(w => w.weekday === idx);
-                              if (i >= 0) newWds[i].is_workday = e.target.checked;
-                              setScheduleForm({...scheduleForm, weekdays: newWds});
-                            }} style={{ width: '20px', height: '20px', cursor: 'pointer', accentColor: 'var(--primary)' }} />
-                            <span style={{ fontWeight: '600', color: wd.is_workday ? 'var(--primary)' : 'var(--text-main)' }}>{dayName}</span>
-                          </div>
-                          <span style={{ fontSize: '0.85rem', color: wd.is_workday ? 'var(--text-main)' : 'var(--text-muted)' }}>
-                            {wd.is_workday ? `${scheduleForm.hora_entrada} - ${scheduleForm.hora_saida}` : 'Folga'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: '16px', marginTop: '24px' }}>
-                <button className="btn-secondary" style={{ flex: 1, padding: '16px', borderRadius: '14px', fontSize: '1.05rem', fontWeight: '600' }} onClick={() => setShowScheduleModal(false)}>Cancelar</button>
-                <button className="btn-primary hover-lift" style={{ flex: 1, padding: '16px', borderRadius: '14px', fontSize: '1.05rem', fontWeight: '600', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }} onClick={handleSaveNewSchedule} disabled={savingNewSchedule}>
-                  {savingNewSchedule ? <div className="animate-spin" style={{ width: '20px', height: '20px', border: '3px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}></div> : <CheckCircle size={20} />}
-                  {savingNewSchedule ? 'Criando Escala...' : 'Criar Escala e Vincular'}
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
+        </Janela>
       )}
     </div>
   );

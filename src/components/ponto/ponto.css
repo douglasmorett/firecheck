@@ -1,0 +1,182 @@
+/* Módulo de Ponto no visual "profissional" do painel (aprovado em 21/11/2026).
+   Reusa as peças de src/components/painel/painel.css (.fc-olho-rot, .fc-lin,
+   .fc-av, .fc-selo, .fc-dado, .fc-mini-btn, .fc-pilula, .fc-vazio); aqui fica
+   só o que é do ponto. Tudo dentro de .pt para não vazar para outras telas. */
+
+.pt { display: flex; flex-direction: column; gap: 22px; }
+.pt-sub { color: var(--text-muted); margin: -18px 0 0 2px; font-size: 0.92rem; }
+
+/* seletor de abas em pílulas (segmentado) */
+.pt-seg { display: inline-flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-color); max-width: 100%; overflow-x: auto; scrollbar-width: none; align-self: flex-start; }
+.pt-seg::-webkit-scrollbar { display: none; }
+.pt-seg button { font: inherit; font-size: 13px; font-weight: 500; white-space: nowrap; border: 0; background: none; color: var(--text-muted); padding: 8px 16px; border-radius: 999px; cursor: pointer; transition: background .4s var(--mola), color .3s; }
+.pt-seg button:hover { color: var(--text-main); }
+.pt-seg button.on { background: var(--ink); color: #fff; }
+.pt-seg.peq button { font-size: 12.5px; padding: 6px 14px; }
+
+/* barra de ferramentas acima das listas */
+.pt-ferr { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pt-ferr h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.pt-busca { position: relative; flex: 1; max-width: 340px; min-width: 220px; }
+.pt-busca svg { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+.pt-busca input { width: 100%; font: inherit; font-size: 13.5px; color: var(--text-main); background: var(--bg-card); border: 0; box-shadow: 0 0 0 1px var(--border-color); border-radius: 999px; padding: 10px 16px 10px 38px; outline: none; transition: box-shadow .3s; }
+.pt-busca input:focus { box-shadow: 0 0 0 1px var(--ink), 0 0 0 4px rgb(var(--ink-rgb) / .08); }
+
+/* campos dentro do módulo: um pouco mais baixos que o padrão do app */
+.pt .input-field { padding: 10px 14px; font-size: 0.92rem; border-radius: 12px; }
+.pt .input-label { font-size: 0.78rem; margin-bottom: 6px; }
+.pt-campos { display: flex; flex-direction: column; gap: 14px; }
+.pt-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pt-dica { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.45; }
+.pt-erro { font-size: 13px; color: var(--bad); margin: 0; padding: 10px 14px; border-radius: 12px; box-shadow: inset 3px 0 0 var(--bad), 0 0 0 1px var(--border-color); background: var(--bg-card); }
+.pt-ok { font-size: 13px; color: var(--ok); margin: 0; font-weight: 500; }
+.pt-acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+.pt-acoes > button { flex: 1; padding: 11px 16px; font-size: 0.9rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+
+/* cartão com cabeçalho (rótulo pequeno + título) */
+.pt-card { padding: 22px !important; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.pt-card-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.pt-card-cab h3 { margin: 4px 0 0; font-size: 16px; font-weight: 600; }
+.pt-card-cab p { margin: 4px 0 0; font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.pt-lista { padding: 8px !important; }
+.pt-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; align-items: start; }
+
+/* linhas da lista (Funcionários, Banco de Horas, aparelhos) */
+.pt .fc-lin.pt-func { grid-template-columns: 40px minmax(0, 1.5fr) minmax(0, 1fr) 110px 18px; }
+.pt-func .fc-chev { color: var(--text-muted); transition: transform .5s var(--mola); }
+.pt-func:hover .fc-chev { transform: translateX(3px); color: var(--text-main); }
+.pt-av-ini { font-family: var(--mono); letter-spacing: 0; }
+.pt-sem { color: var(--text-muted); font-size: 12.5px; }
+.pt .fc-lin.pt-simples { grid-template-columns: minmax(0, 1fr) auto; cursor: default; }
+.pt .fc-lin.pt-simples:hover { background: none; }
+.pt .fc-mini-btn.perigo:hover { border-color: var(--bad); color: var(--bad); }
+.pt .fc-mini-btn { display: inline-flex; align-items: center; gap: 6px; }
+.pt-mini-acoes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+
+/* escalas */
+.pt-escala { display: flex; flex-direction: column; gap: 16px; }
+.pt-escala-t { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.pt-escala-t h4 { margin: 6px 0 0; font-size: 16px; font-weight: 600; }
+.pt-hora { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: -1px; }
+.pt-hora small { font-family: 'Geist', sans-serif; font-size: 12px; color: var(--text-muted); letter-spacing: 0; font-weight: 400; margin-left: 8px; }
+.pt-semana { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.pt-semana span { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10.5px; color: var(--text-muted); }
+.pt-semana i { display: block; width: 100%; height: 8px; border-radius: 2px; background: var(--track); }
+.pt-semana .on i { background: var(--ink); }
+.pt-semana .on { color: var(--text-main); font-weight: 500; }
+.pt-nota { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+
+/* números do banco de horas e da ficha */
+.pt-nums { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.pt-num { display: flex; flex-direction: column; gap: 6px; padding: 2px 16px; }
+.pt-num + .pt-num { box-shadow: -1px 0 0 var(--bg-inset); }
+.pt-num:first-child { padding-left: 0; }
+.pt-num strong { font-family: var(--mono); font-size: 22px; font-weight: 500; letter-spacing: -1px; line-height: 1; }
+.pt-banco { display: flex; flex-direction: column; gap: 18px; }
+.pt-banco-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pt-quem { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.pt-quem h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.pt-quem p { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
+.pt-aviso { font-size: 12.5px; color: var(--text-main); padding: 9px 14px; border-radius: 12px; box-shadow: inset 3px 0 0 var(--c, var(--warning)), 0 0 0 1px var(--border-color); margin: 0; }
+
+/* tabela dos dias (banco de horas) */
+.pt-tabela { width: 100%; font-size: 13px; }
+.pt-tabela th { text-align: left; padding: 8px 10px; box-shadow: inset 0 -1px 0 var(--border-color); white-space: nowrap; }
+.pt-tabela td { padding: 10px; box-shadow: inset 0 -1px 0 var(--bg-inset); vertical-align: top; }
+.pt-tabela .mono { white-space: nowrap; }
+
+/* filtros (banco de horas, período) */
+.pt-filtros { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.pt-periodo { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-card); padding: 6px 14px; border-radius: 999px; box-shadow: 0 0 0 1px var(--border-color); font-size: 12px; color: var(--text-muted); }
+.pt-periodo input { background: none; border: 0; outline: none; color: var(--text-main); font-family: inherit; font-weight: 500; font-size: 12.5px; }
+
+/* ficha do funcionário */
+.pt-ficha-cab { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.pt-voltar { width: 40px; height: 40px; border-radius: 999px; border: 0; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-color); display: grid; place-items: center; cursor: pointer; color: var(--text-main); transition: transform .5s var(--mola), box-shadow .3s; flex: none; }
+.pt-voltar:hover { transform: translateX(-2px); box-shadow: 0 0 0 1px var(--ink); }
+.pt-foto { position: relative; flex: none; }
+.pt-foto .fc-av { width: 64px; height: 64px; border-radius: 18px; font-size: 18px; }
+.pt-foto button { position: absolute; right: -6px; bottom: -6px; width: 28px; height: 28px; border-radius: 999px; border: 2px solid var(--bg-color); background: var(--ink); color: #fff; display: grid; place-items: center; cursor: pointer; }
+.pt-foto button:disabled { opacity: .6; cursor: wait; }
+.pt-ficha-nome h2 { margin: 0; font-size: 1.6rem; font-weight: 600; letter-spacing: -0.03em; line-height: 1.15; }
+.pt-ficha-nome p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); display: flex; gap: 8px 14px; flex-wrap: wrap; align-items: center; }
+.pt-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.pt-kpi { padding: 20px !important; display: flex; flex-direction: column; gap: 12px; }
+.pt-kpi strong { font-family: var(--mono); font-size: 34px; font-weight: 500; letter-spacing: -1.5px; line-height: 1; }
+.pt-kpi small { font-size: 12px; color: var(--text-muted); }
+.pt-ficha-corpo { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 22px; align-items: start; }
+.pt-coluna { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.pt-extrato-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 14px 10px; }
+.pt-dia { padding: 6px 0 10px; }
+.pt-dia + .pt-dia { box-shadow: 0 -1px 0 var(--bg-inset); padding-top: 14px; }
+.pt-dia-cab { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 14px 6px; }
+.pt-dia-cab h4 { margin: 0; font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: -0.01em; }
+.pt-dia-cab h4 span { font-family: 'Geist', sans-serif; color: var(--text-muted); font-weight: 400; margin-left: 8px; }
+.pt-dia-info { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12.5px; color: var(--text-muted); }
+.pt-dia-info b { font-family: var(--mono); font-weight: 500; color: var(--text-main); }
+.pt .fc-lin.pt-batida { grid-template-columns: 40px minmax(0, 1fr) auto; cursor: default; padding: 10px 14px; }
+.pt-batida .fc-t .mono { font-size: 13px; color: var(--text-muted); }
+.pt-batida .fc-m { display: flex; gap: 4px 12px; flex-wrap: wrap; }
+.pt-batida .fc-m span { display: inline-flex; align-items: center; gap: 4px; min-width: 0; }
+.pt-end { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px; display: inline-block !important; }
+
+/* visão mensal */
+.pt-cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; padding: 6px 14px 14px; }
+.pt-cal-dow { text-align: center; font-size: 10.5px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--text-muted); padding-bottom: 4px; }
+.pt-cal-dia { height: 78px; border-radius: 12px; padding: 9px 10px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 0 0 1px var(--border-color); background: var(--bg-card); }
+.pt-cal-dia b { font-family: var(--mono); font-size: 13px; font-weight: 500; }
+.pt-cal-dia.folga { background: none; box-shadow: 0 0 0 1px var(--bg-inset); color: var(--text-muted); }
+.pt-cal-dia.vazio { box-shadow: none; background: none; }
+.pt-cal-dia .fc-selo { font-size: 11.5px; }
+.pt-cal-dia .fc-selo > i { margin-top: 5px; }
+
+/* janela (modal) */
+.pt-fundo { position: fixed; inset: 0; background: rgba(16, 16, 20, .45); backdrop-filter: blur(6px); z-index: 100000; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.pt-janela { width: 100%; max-width: 480px; padding: 26px !important; border-radius: 24px !important; }
+.pt-janela.larga { max-width: 620px; }
+.pt-janela-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+.pt-janela-cab h3 { margin: 4px 0 0; font-size: 18px; font-weight: 600; }
+.pt-fechar { width: 34px; height: 34px; border-radius: 999px; border: 0; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-color); display: grid; place-items: center; cursor: pointer; color: var(--text-muted); flex: none; }
+.pt-fechar:hover { color: var(--text-main); box-shadow: 0 0 0 1px var(--ink); }
+
+/* dias da semana no formulário de escala */
+.pt-dias-form { display: flex; flex-direction: column; }
+.pt-dias-form label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 4px; cursor: pointer; font-size: 13.5px; }
+.pt-dias-form label + label { box-shadow: 0 -1px 0 var(--bg-inset); }
+.pt-dias-form label > span:first-child { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.pt-dias-form input { width: 16px; height: 16px; }
+.pt-cores { display: flex; gap: 8px; flex-wrap: wrap; padding: 6px 0; }
+.pt-cores button { width: 22px; height: 22px; border-radius: 50%; border: 0; cursor: pointer; transition: box-shadow .3s; }
+.pt-cores button.on { box-shadow: 0 0 0 3px var(--bg-card), 0 0 0 4.5px var(--ink); }
+
+/* aviso de salvo (Configurações) */
+.pt-toast { position: fixed; bottom: 22px; right: 22px; z-index: 9999; display: inline-flex; align-items: center; gap: 10px; background: var(--ink); color: #fff; font-size: 13.5px; font-weight: 500; padding: 11px 18px 11px 14px; border-radius: 999px; box-shadow: 0 20px 40px -18px rgba(22, 22, 26, .6); }
+.pt-toast i { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+
+/* cadastro do rosto */
+.pt-camera { border-radius: 16px; min-height: 220px; display: grid; place-items: center; overflow: hidden; background: var(--bg-inset); box-shadow: 0 0 0 1px var(--border-color); margin-bottom: 12px; color: var(--text-muted); }
+.pt-camera.achou { box-shadow: 0 0 0 2px var(--ok); }
+.pt-termo { font-size: 12.5px; line-height: 1.5; color: var(--text-muted); margin: 0 0 10px; }
+.pt-autoriza { display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px; font-weight: 500; cursor: pointer; }
+.pt-autoriza input { margin-top: 3px; }
+.pt-anexo { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text-muted); }
+.pt-anexo:hover { color: var(--text-main); }
+
+@media (max-width: 1100px) {
+  .pt-ficha-corpo { grid-template-columns: 1fr; }
+  .pt-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 760px) {
+  .pt .fc-lin.pt-func { grid-template-columns: 40px minmax(0, 1fr) 18px; }
+  .pt .fc-lin.pt-func > .pt-func-esc, .pt .fc-lin.pt-func > .pt-func-papel { grid-column: 2 / -1; }
+  .pt .fc-lin.pt-batida { grid-template-columns: 40px minmax(0, 1fr); }
+  .pt .fc-lin.pt-batida > .pt-mini-acoes { grid-column: 2 / -1; justify-content: flex-start; }
+  .pt-nums { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: 16px; }
+  .pt-num:nth-child(4) { padding-left: 0; box-shadow: none; }
+  .pt-2col { grid-template-columns: 1fr; }
+  .pt-cal { gap: 4px; padding: 6px 4px 10px; }
+  .pt-cal-dia { height: 60px; padding: 6px; }
+  .pt-cal-dia .fc-selo span { display: none; }
+}
+.pt .fc-pilula:disabled { opacity: .55; cursor: not-allowed; }
+.pt-ponto { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; }

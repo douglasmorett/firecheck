@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScanFace, Tablet, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Tablet, Trash2 } from 'lucide-react';
 import API_URL from '../../api';
 import { GUARDA_DO_QUIOSQUE } from '../../utils/quiosque';
 
@@ -73,53 +73,64 @@ export default function PontoDaLojaTab() {
   const comRosto = equipe.filter(f => f.rosto).length;
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px', alignItems: 'start' }}>
-      <div className="card" style={{ padding: '24px', borderRadius: '20px', borderTop: '4px solid #8B5CF6' }}>
-        <h3 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '10px' }}><ScanFace size={22} color="#8B5CF6" /> Ponto pelo rosto</h3>
-        <p style={{ margin: '0 0 16px 0', color: 'var(--text-muted)', fontSize: '0.92rem', lineHeight: 1.5 }}>
-          Deixe um tablet ou celular da loja como relógio de ponto: a equipe olha para a câmera, o aparelho reconhece quem é e registra a batida com a selfie — ninguém precisa entrar na própria conta.
-          Cadastre o rosto de cada um na ficha do funcionário (aba Funcionários).
-        </p>
-        {erro && <p style={{ color: 'var(--error)', fontSize: '0.88rem', display: 'flex', gap: '6px' }}><AlertTriangle size={16} /> {erro}</p>}
-        <label className="input-label">Nome deste aparelho</label>
-        <input className="input-field" value={nome} onChange={e => setNome(e.target.value)} maxLength={80} style={{ marginBottom: '12px' }} />
-        <button className="btn-primary" onClick={ativarEsteAparelho} disabled={ativando} style={{ width: '100%', padding: '14px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 'bold' }}>
-          <Tablet size={18} /> {ativando ? 'Ativando…' : 'Usar este aparelho como ponto da loja'}
+    <div className="pt-grade">
+      <div className="card pt-card">
+        <div className="pt-card-cab">
+          <div>
+            <span className="fc-olho-rot">Este aparelho</span>
+            <h3>Ponto pelo rosto</h3>
+            <p>
+              Deixe um tablet ou celular da loja como relógio de ponto: a equipe olha para a câmera, o aparelho reconhece quem é e registra a batida com a selfie — ninguém precisa entrar na própria conta.
+              Cadastre o rosto de cada um na ficha do funcionário (aba Funcionários).
+            </p>
+          </div>
+        </div>
+        {erro && <p className="pt-erro">{erro}</p>}
+        <div>
+          <label className="input-label">Nome deste aparelho</label>
+          <input className="input-field" value={nome} onChange={e => setNome(e.target.value)} maxLength={80} />
+        </div>
+        <button type="button" className="fc-pilula" onClick={ativarEsteAparelho} disabled={ativando}>
+          {ativando ? 'Ativando…' : 'Usar este aparelho como ponto da loja'} <i><Tablet size={15} /></i>
         </button>
-        <p style={{ margin: '10px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          Abra esta tela no próprio tablet que vai ficar na loja, logado como dono ou gestor.
-        </p>
+        <p className="pt-dica" style={{ margin: 0 }}>Abra esta tela no próprio tablet que vai ficar na loja, logado como dono ou gestor.</p>
       </div>
 
-      <div className="card" style={{ padding: '24px', borderRadius: '20px' }}>
-        <h3 style={{ margin: '0 0 14px 0', display: 'flex', alignItems: 'center', gap: '10px' }}><Tablet size={20} color="var(--primary)" /> Aparelhos ativos</h3>
+      <div className="card pt-card pt-lista" style={{ gap: '4px' }}>
+        <div className="pt-card-cab" style={{ padding: '14px 14px 6px' }}>
+          <div>
+            <span className="fc-olho-rot">Aparelhos ativos · <span className="mono" style={{ letterSpacing: 0 }}>{aparelhos.length}</span></span>
+          </div>
+        </div>
         {aparelhos.length === 0 ? (
-          <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Nenhum aparelho é ponto da loja agora.</p>
+          <p className="pt-nota" style={{ padding: '4px 14px 10px' }}>Nenhum aparelho é ponto da loja agora.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }} data-testid="aparelhos">
+          <div data-testid="aparelhos">
             {aparelhos.map(ap => (
-              <div key={ap.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                <div>
-                  <strong>{ap.nome}</strong>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Ativado em {dataHoraBR(ap.criado_em)}{ap.criado_por ? ` por ${ap.criado_por}` : ''} · último uso {dataHoraBR(ap.ultimo_uso_em)}
-                  </p>
+              <div key={ap.id} className="fc-lin pt-simples">
+                <div style={{ minWidth: 0 }}>
+                  <div className="fc-t"><span className="fc-selo" style={{ '--c': 'var(--ok)' }}><i /></span>{ap.nome}</div>
+                  <div className="fc-m">
+                    Ativado em <span className="mono">{dataHoraBR(ap.criado_em)}</span>{ap.criado_por ? ` por ${ap.criado_por}` : ''} · último uso <span className="mono">{dataHoraBR(ap.ultimo_uso_em)}</span>
+                  </div>
                 </div>
-                <button onClick={() => desativar(ap)} style={{ padding: '8px 12px', borderRadius: '10px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <Trash2 size={14} /> Desativar
+                <button type="button" className="fc-mini-btn perigo" onClick={() => desativar(ap)}>
+                  <Trash2 size={13} /> Desativar
                 </button>
               </div>
             ))}
           </div>
         )}
 
-        <h4 style={{ margin: '22px 0 10px 0' }}>Equipe: {comRosto} de {equipe.length} com rosto cadastrado</h4>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <div className="pt-card-cab" style={{ padding: '18px 14px 6px', boxShadow: '0 -1px 0 var(--bg-inset)', marginTop: '6px' }}>
+          <span className="fc-olho-rot">Equipe: <span className="mono" style={{ letterSpacing: 0 }}>{comRosto}</span> de <span className="mono" style={{ letterSpacing: 0 }}>{equipe.length}</span> com rosto cadastrado</span>
+        </div>
+        <div style={{ padding: '0 14px 8px' }}>
           {equipe.map(f => (
-            <div key={f.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', fontSize: '0.88rem' }}>
-              <span>{f.nome}</span>
-              <span style={{ color: f.rosto ? '#10B981' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                {f.rosto ? <><CheckCircle size={14} /> rosto · {NOME_DO_MODO[f.ponto_modo]}</> : `sem rosto · ${NOME_DO_MODO[f.ponto_modo]}`}
+            <div key={f.user_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '8px 0', fontSize: '13.5px', boxShadow: '0 -1px 0 var(--bg-inset)' }}>
+              <span style={{ fontWeight: 500 }}>{f.nome}</span>
+              <span className="fc-selo" style={{ '--c': f.rosto ? 'var(--ok)' : 'var(--text-muted)' }}>
+                <i /><span>{f.rosto ? 'rosto' : 'sem rosto'} · {NOME_DO_MODO[f.ponto_modo]}</span>
               </span>
             </div>
           ))}

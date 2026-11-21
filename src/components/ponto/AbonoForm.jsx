@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CheckCircle, Paperclip } from 'lucide-react';
+import { Paperclip } from 'lucide-react';
 import API_URL from '../../api';
 import { FALTA_JUSTIFICADA_SEM_ABONO, tipoParaNovoAbono } from '../../../api/ponto-abonos.js';
 
@@ -64,14 +64,14 @@ export default function AbonoForm({ employees = [], funcionarioFixo = null, data
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-      {erro && <div style={{ color: 'var(--error)', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px 12px', borderRadius: '10px', fontSize: '0.9rem' }}>{erro}</div>}
+    <div className="pt-campos">
+      {erro && <p className="pt-erro">{erro}</p>}
       <div>
         <label className="input-label">O que lançar</label>
         <select className="input-field" value={tipo} onChange={e => setTipo(e.target.value)}>
           {TIPOS_ABONO.filter(t => !funcionarioFixo || t.valor !== 'feriado').map(t => <option key={t.valor} value={t.valor}>{t.rotulo}</option>)}
         </select>
-        {dica && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>{dica}</p>}
+        {dica && <p className="pt-dica">{dica}</p>}
       </div>
       {!ehFeriado && !funcionarioFixo && (
         <div>
@@ -82,15 +82,15 @@ export default function AbonoForm({ employees = [], funcionarioFixo = null, data
           </select>
         </div>
       )}
-      {funcionarioFixo && <p style={{ margin: 0, fontSize: '0.9rem' }}>Funcionário: <strong>{funcionarioFixo.name}</strong></p>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+      {funcionarioFixo && <p className="pt-nota">Funcionário: <strong style={{ color: 'var(--text-main)', fontWeight: 600 }}>{funcionarioFixo.name}</strong></p>}
+      <div className="pt-2col">
         <div>
           <label className="input-label">Data</label>
-          <input type="date" className="input-field" value={data} onChange={e => setData(e.target.value)} />
+          <input type="date" className="input-field mono" value={data} onChange={e => setData(e.target.value)} />
         </div>
         <div>
           <label className="input-label">Até (opcional)</label>
-          <input type="date" className="input-field" value={dataFim} min={data} onChange={e => setDataFim(e.target.value)} />
+          <input type="date" className="input-field mono" value={dataFim} min={data} onChange={e => setDataFim(e.target.value)} />
         </div>
       </div>
       <div>
@@ -98,16 +98,16 @@ export default function AbonoForm({ employees = [], funcionarioFixo = null, data
         <input type="text" className="input-field" placeholder={ehFeriado ? 'Ex.: Proclamação da República' : 'Ex.: atestado de 2 dias, CID não informado'} value={observacao} onChange={e => setObservacao(e.target.value)} />
       </div>
       {!ehFeriado && (
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          <Paperclip size={16} color="var(--primary)" />
+        <label className="pt-anexo">
+          <Paperclip size={15} />
           {nomeArquivo ? <span style={{ color: 'var(--text-main)' }}>{nomeArquivo}</span> : 'Anexar foto ou PDF do atestado (opcional)'}
           <input type="file" accept="image/*,application/pdf" onChange={escolherArquivo} style={{ display: 'none' }} />
         </label>
       )}
-      <div style={{ display: 'flex', gap: '12px' }}>
-        {onCancelar && <button type="button" className="btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={onCancelar}>Cancelar</button>}
-        <button type="button" className="btn-primary" style={{ flex: 1, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={salvar} disabled={salvando}>
-          <CheckCircle size={18} /> {salvando ? 'Salvando...' : 'Lançar'}
+      <div className="pt-acoes" style={{ marginTop: '4px' }}>
+        {onCancelar && <button type="button" className="btn-secondary" onClick={onCancelar}>Cancelar</button>}
+        <button type="button" className="btn-primary" onClick={salvar} disabled={salvando}>
+          {salvando ? 'Salvando...' : 'Lançar'}
         </button>
       </div>
     </div>

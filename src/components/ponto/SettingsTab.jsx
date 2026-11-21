@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Clock, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import API_URL from '../../api';
 import FechamentoContador from './FechamentoContador';
 
@@ -57,30 +57,29 @@ export default function SettingsTab({ userProfile }) {
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+    <div className="pt-grade" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
        {toast && (
-         <div style={{ position: 'fixed', bottom: '20px', right: '20px', backgroundColor: 'var(--success)', color: 'white', padding: '12px 24px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '8px', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-           <CheckCircle size={18} /> {toast}
-         </div>
+         <div className="pt-toast" role="status"><i />{toast}</div>
        )}
 
        {/* Horários e Tolerância do Ponto */}
-       <div className="card" style={{ padding: '24px' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--info)' }}>
-             <Clock size={20} /> Horários Padrão e Tolerância
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
-             Defina o horário base da loja e a tolerância de atraso. Isso será usado caso o funcionário não tenha uma escala específica vinculada.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+       <div className="card pt-card">
+          <div className="pt-card-cab">
+             <div>
+                <span className="fc-olho-rot">Jornada padrão</span>
+                <h3>Horários Padrão e Tolerância</h3>
+                <p>Defina o horário base da loja e a tolerância de atraso. Isso será usado caso o funcionário não tenha uma escala específica vinculada.</p>
+             </div>
+          </div>
+          <div className="pt-campos">
+             <div className="pt-2col">
                 <div>
                    <label className="input-label">Entrada Padrão</label>
-                   <input type="time" className="input-field" value={pontoHoraEntrada} onChange={e => setPontoHoraEntrada(e.target.value)} />
+                   <input type="time" className="input-field mono" value={pontoHoraEntrada} onChange={e => setPontoHoraEntrada(e.target.value)} />
                 </div>
                 <div>
                    <label className="input-label">Saída Padrão</label>
-                   <input type="time" className="input-field" value={pontoHoraSaida} onChange={e => setPontoHoraSaida(e.target.value)} />
+                   <input type="time" className="input-field mono" value={pontoHoraSaida} onChange={e => setPontoHoraSaida(e.target.value)} />
                 </div>
              </div>
              <div>
@@ -95,27 +94,25 @@ export default function SettingsTab({ userProfile }) {
                    <option value={60}>1 hora</option>
                 </select>
              </div>
-             <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.06)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgb(var(--info-rgb) / 0.15)' }}>
-                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                   Se o funcionário bater ponto após <strong>{pontoHoraEntrada}</strong> + <strong>{pontoTolerancia}min</strong>, você receberá uma notificação push.
-                </p>
-             </div>
-             <button className="btn-primary hover-lift" onClick={handleSave} disabled={saving} style={{ marginTop: '16px', width: '100%', padding: '14px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(255, 136, 0, 0.25)', fontWeight: 'bold' }}>
-                <CheckCircle size={20} />
-                {saving ? 'Salvando Alterações...' : 'Salvar Regras'}
+             <p className="pt-aviso" style={{ '--c': 'var(--ink)', color: 'var(--text-muted)' }}>
+                Se o funcionário bater ponto após <strong className="mono" style={{ color: 'var(--text-main)' }}>{pontoHoraEntrada}</strong> + <strong className="mono" style={{ color: 'var(--text-main)' }}>{pontoTolerancia}min</strong>, você receberá uma notificação push.
+             </p>
+             <button type="button" className="fc-pilula" onClick={handleSave} disabled={saving}>
+                {saving ? 'Salvando Alterações...' : 'Salvar Regras'} <i><CheckCircle size={15} /></i>
              </button>
           </div>
        </div>
 
        {/* Automação Contábil + Timezone */}
-       <div className="card" style={{ padding: '24px' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--primary)' }}>
-             <Mail size={20} /> Automação Contábil e Região
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
-             Configure o fuso horário da sua loja e automatize o envio da folha de ponto para o contador.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+       <div className="card pt-card">
+          <div className="pt-card-cab">
+             <div>
+                <span className="fc-olho-rot">Contador e fuso</span>
+                <h3>Automação Contábil e Região</h3>
+                <p>Configure o fuso horário da sua loja e automatize o envio da folha de ponto para o contador.</p>
+             </div>
+          </div>
+          <div className="pt-campos">
              <div>
                 <label className="input-label">Fuso Horário Local</label>
                 <select className="input-field" value={pontoTimezone} onChange={e => setPontoTimezone(e.target.value)}>
@@ -138,7 +135,7 @@ export default function SettingsTab({ userProfile }) {
                    <option value="dia_10">Todo Dia 10</option>
                 </select>
              </div>
-             <button className="btn-secondary" onClick={handleSave} disabled={saving} style={{ marginTop: '8px', padding: '12px' }}>
+             <button type="button" className="btn-secondary" onClick={handleSave} disabled={saving} style={{ padding: '11px 18px', alignSelf: 'flex-start', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>
                {saving ? 'Salvando...' : 'Salvar Automação'}
              </button>
              <FechamentoContador userProfile={userProfile} versao={versaoSalva} />
