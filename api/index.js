@@ -1120,6 +1120,9 @@ async function enviarWhatsappPor({ telefone, texto, contexto, evoUrl, evoKey, ev
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: evoKey },
       body: JSON.stringify({ number: numero, text: texto }),
+      // Sem teto, um gateway lento segurava a resposta ao usuário até o limite da
+      // função (o app via erro e reenviava). 15 s e o envio vira falha registrada.
+      signal: AbortSignal.timeout(15000),
     });
 
     const bruto = await resp.text();
@@ -1156,6 +1159,7 @@ async function estadoWhatsapp(qual) {
   try {
     const resp = await fetch(`${evoUrl}/instance/connectionState/${evoInstance}`, {
       headers: { apikey: evoKey },
+      signal: AbortSignal.timeout(15000),
     });
     if (!resp.ok) {
       const detalhe = await resp.text().catch(() => '');
@@ -1446,7 +1450,8 @@ async function sendTrialWelcomeMessage(userPhone, userName, userStore) {
     const response = await fetch(`${evoUrl}/message/sendText/${evoInstance}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'apikey': evoKey },
-      body: JSON.stringify({ number: fullPhone, text: welcomeMsg })
+      body: JSON.stringify({ number: fullPhone, text: welcomeMsg }),
+      signal: AbortSignal.timeout(15000),
     });
     const data = await response.json();
     console.log(`[WhatsApp Suporte] Boas-vindas enviada para ${fullPhone} (instância: ${evoInstance}):`, data?.key?.id || 'ok');
@@ -6428,7 +6433,7 @@ export default async function handler(req, res) {
 
         // ── VERIFICAÇÃO DE COTA ──────────────────────────────────
         const { rows: storeAdmins } = await pool.query(
-          "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
+          "SELECT id, checklist_limit, checklists_used, quota_reset_date, status, plan, role, fcm_token FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1",
           [store]
         );
         if (storeAdmins.length > 0) {
@@ -6549,12 +6554,9 @@ export default async function handler(req, res) {
           console.error('[Envio consciente] Falha ao registrar:', cienciaErr.message);
         }
 
-        // --- ROTINA DE LIMPEZA AUTOMÁTICA (90 DIAS) ---
-        try {
-          const ninetyDaysAgo = new Date();
-          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-          await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [ninetyDaysAgo]);
-        } catch (cleanErr) { console.error('Erro na limpeza automática:', cleanErr); }
+        // (A limpeza automática de 90 dias NÃO roda mais aqui: era um DELETE global,
+        // de todas as lojas, a cada checklist enviado, no caminho da resposta ao
+        // funcionário. Agora é feita uma vez por dia pelo cron do resumo do ponto.)
 
         // ── INCREMENTAR COTA ──────────────────────────────────
         if (storeAdmins && storeAdmins.length > 0) {
@@ -6630,6 +6632,10 @@ export default async function handler(req, res) {
         // ─────────────────────────────────────────────────────────
 
         // ── NOTIFICAÇÃO VIA WHATSAPP (DONO E FUNCIONÁRIO) ───────
+        // Os envios saem juntos e a resposta espera no máximo 12 s por todos: um
+        // gateway lento (ou a fila de destinatários, um a um) segurava a tela do
+        // funcionário depois de o checklist já estar gravado, e o app reenviava.
+        const enviosDoFinalize = [];
         try {
           const evoUrl = process.env.EVOLUTION_API_URL;
           const evoKey = process.env.EVOLUTION_API_KEY;
@@ -6704,12 +6710,12 @@ export default async function handler(req, res) {
                      `Status: *✅ Tudo em Conformidade*\n` +
                      `Nenhuma irregularidade ou falta de estoque encontrada. Operação segura! 🚀`;
 
-                   await enviarWhatsapp({
+                   enviosDoFinalize.push(enviarWhatsapp({
                      telefone: fullPhone,
                      texto: successMsg,
                      contexto: 'WhatsApp Admin Aprovado',
                      loja: store,
-                   });
+                   }));
                  }
 
                  // Notificação de checklist REPROVADO ou com Alerta de Estoque
@@ -6729,12 +6735,12 @@ export default async function handler(req, res) {
                      stockDetailsMsg + `\n\n` +
                      `Acesse o painel em firecheckapp.com.br/login para ver o relatório completo. 🔥`;
 
-                   await enviarWhatsapp({
+                   enviosDoFinalize.push(enviarWhatsapp({
                      telefone: fullPhone,
                      texto: textMsg,
                      contexto: 'WhatsApp Admin',
                      loja: store,
-                   });
+                   }));
                  }
                }
              }
@@ -6760,18 +6766,19 @@ export default async function handler(req, res) {
                   `🕐 Início: *${horaInicio}* → Fim: *${horaFim}*\n\n` +
                   `Obrigado por manter nossa operação segura! 🚀`;
 
-                await enviarWhatsapp({
+                enviosDoFinalize.push(enviarWhatsapp({
                   telefone: fullPhone,
                   texto: textMsg,
                   contexto: 'WhatsApp Funcionario',
                   loja: store,
-                });
+                }));
               }
             }
           }
         } catch (waErr) {
           console.error('Erro geral ao processar notificações do WhatsApp:', waErr);
         }
+        if (enviosDoFinalize.length > 0) await comTeto(Promise.allSettled(enviosDoFinalize), 12000, 'WhatsApp do finalize');
         // ─────────────────────────────────────────────────────────
 
         return res.status(200).json({ success: true, id: rows[0].id });
@@ -6958,6 +6965,18 @@ export default async function handler(req, res) {
       if (!autorizarChamadaInterna(req, res)) return;
       try {
         await garantirResumosDoPonto();
+        // Limpeza de 90 dias das submissões de checklist, UMA vez por dia. Ficava no
+        // /api/finalize (um DELETE global a cada checklist enviado); aqui roda no
+        // cron diário e só na primeira chamada do dia.
+        try {
+          const hojeDaLimpeza = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+          if (await reservarAviso('_sistema', hojeDaLimpeza, 'limpeza_submissoes_90_dias')) {
+            const noventaDiasAtras = new Date();
+            noventaDiasAtras.setDate(noventaDiasAtras.getDate() - 90);
+            const { rowCount } = await pool.query('DELETE FROM checklist_submissions WHERE created_at < $1', [noventaDiasAtras]);
+            if (rowCount) console.log(`[Limpeza] ${rowCount} submissões com mais de 90 dias removidas.`);
+          }
+        } catch (erroDaLimpeza) { console.error('[Limpeza] falhou:', erroDaLimpeza.message); }
         const { rows: lojas } = await pool.query(
           `SELECT DISTINCT ON (LOWER(TRIM(store))) store, timezone, status, created_at, expiration_date, trial_ends_at
              FROM users
