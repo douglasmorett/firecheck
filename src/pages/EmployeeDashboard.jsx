@@ -52,6 +52,14 @@ const setupPushNotifications = async (email) => {
       return;
     }
     if (Capacitor.isNativePlatform()) {
+      // Android: este build não tem o Firebase configurado (sem google-services.json).
+      // PushNotifications.register() lança IllegalStateException na thread nativa e o app
+      // inteiro fecha ao abrir — o try/catch do JavaScript não alcança (21/11/2026, 24 falhas
+      // no Play, POCO M6 Pro / Android 15). iPhone usa APNs e não passa por aqui.
+      if (Capacitor.getPlatform() === 'android') {
+        console.log('[Push] Android sem Firebase: registro de notificações ignorado.');
+        return;
+      }
       console.log('[Push] App nativo detectado, solicitando permissão...');
       PushNotifications.addListener('registration', async (token) => {
         console.log('[Push] Token recebido:', token.value?.substring(0, 30) + '...');
