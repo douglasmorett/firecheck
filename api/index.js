@@ -8669,9 +8669,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!authPonto) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
       // A loja vem do token, não do cliente. Só o master consulta outras lojas.
       if (authPonto.role !== 'master') {
-        const lojaPedida = searchParams.get('store') || (req.body && req.body.store);
-        if (lojaPedida && String(lojaPedida).trim().toLowerCase() !== String(authPonto.store || '').trim().toLowerCase()) {
-          return res.status(403).json({ error: 'Você só pode acessar dados de ponto da sua própria loja.' });
+        // As DUAS origens são conferidas: com "query || corpo", uma query certa
+        // escondia um corpo apontando para outra loja, e o handler (que lê o
+        // corpo) gravava a batida na loja alheia.
+        for (const lojaPedida of [searchParams.get('store'), req.body && req.body.store]) {
+          if (lojaPedida && String(lojaPedida).trim().toLowerCase() !== String(authPonto.store || '').trim().toLowerCase()) {
+            return res.status(403).json({ error: 'Você só pode acessar dados de ponto da sua própria loja.' });
+          }
         }
       }
     }
@@ -8788,7 +8792,9 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!(await podeGerirPonto(authPonto))) {
         return res.status(403).json({ error: 'Somente o administrador ou gestor pode lançar ponto manual.' });
       }
-      const { userId, userName, store, type, timestamp, notes } = req.body;
+      const { userId, userName, type, timestamp, notes } = req.body;
+      // A loja do lançamento é a do token; só o master informa outra.
+      const store = authPonto.role === 'master' ? req.body.store : authPonto.store;
       if (!userId || !userName || !store || !type || !timestamp) {
         return res.status(400).json({ error: 'userId, userName, store, type e timestamp são obrigatórios' });
       }
@@ -9002,7 +9008,10 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/ponto')) {
       if (method === 'POST') {
-        const { store, type, latitude, longitude, accuracy, selfie, address, deviceInfo } = req.body;
+        const { type, latitude, longitude, accuracy, selfie, address, deviceInfo } = req.body;
+        // A loja da batida também é a do token (só o master escolhe): o app manda
+        // a loja no corpo por hábito, mas ela nunca decide onde a batida cai.
+        const store = authPonto.role === 'master' ? req.body.store : authPonto.store;
         // A identidade da batida é a do TOKEN, nunca a do corpo: com
         // userId/userName vindos do cliente, qualquer funcionário batia ponto
         // em nome de outro (o espelho vai para a contabilidade). Ajuste em nome
