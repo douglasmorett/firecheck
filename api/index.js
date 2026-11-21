@@ -9298,6 +9298,13 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // Foto/PDF do atestado: o mesmo upload das selfies do ponto.
         let arquivoUrl = null;
         if (arquivo && String(arquivo).startsWith('data:')) {
+          // O upload publica o arquivo e tira a extensão do MIME do próprio texto:
+          // com "data:text/html" (ou svg) dava para hospedar página no bucket.
+          // Só foto (o que o seletor da tela oferece: image/*, menos SVG, que carrega
+          // script) e PDF de atestado.
+          if (!/^data:(image\/(?!svg)[a-z0-9.+-]+|application\/pdf);base64,/i.test(String(arquivo).slice(0, 80))) {
+            return res.status(400).json({ error: 'O anexo precisa ser uma foto ou um PDF.' });
+          }
           arquivoUrl = await uploadImage(arquivo, `atestados/${store}`).catch(() => null);
         }
         const { rows } = await pool.query(
