@@ -7111,8 +7111,18 @@ export default async function handler(req, res) {
       if (!authUser) return res.status(401).json({ error: 'Token inválido ou ausente.' });
       const store = authUser.role === 'master' ? searchParams.get('store') : authUser.store;
       if (method === 'GET') {
+        // Sem loja, o filtro sumia e a consulta devolvia as câmeras de TODAS as
+        // lojas. Só o master lista sem escolher uma.
+        if (!store && authUser.role !== 'master') return res.status(403).json({ error: 'Sua conta não está vinculada a uma loja.' });
         const { rows } = await pool.query('SELECT * FROM store_cameras' + (store ? ' WHERE store = $1' : '') + ' ORDER BY id DESC', store ? [store] : []);
-        return res.status(200).json(rows.map(r => ({ ...r, ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands })));
+        // Usuário e senha da câmera só voltam para quem a administra: eles
+        // ficam em texto no banco e o funcionário só precisa do nome e da regra.
+        const administraCameras = ['admin', 'master', 'gestor'].includes(authUser.role);
+        return res.status(200).json(rows.map(({ username, password, ...r }) => ({
+          ...r,
+          ...(administraCameras ? { username, password } : {}),
+          ai_commands: typeof r.ai_commands === 'string' ? JSON.parse(r.ai_commands) : r.ai_commands,
+        })));
       }
       // Escrever câmera é ato de gestão, e a loja NUNCA vem do corpo (só o
       // master escolhe loja): o corpo dizia a loja no POST/PUT e o DELETE
