@@ -136,7 +136,12 @@
 .lp-troca { display: flex; background: #EEF0F3; border-radius: 999px; padding: 4px; margin-top: 14px; font-size: 13px; font-weight: 700; max-width: 420px; }
 .lp-troca button { flex: 1; text-align: center; padding: 9px; border-radius: 999px; color: var(--lp-mu); background: none; border: 0; font-weight: 700; font-size: 13px; }
 .lp-troca button.on { background: #fff; color: var(--lp-tx); box-shadow: 0 2px 8px rgba(0,0,0,.08); }
-.lp-planos { display: grid; gap: 14px; margin-top: 18px; }
+.lp-precos { text-align: center; }
+.lp-sub-centro { color: var(--lp-mu); font-size: 14px; margin: 8px auto 0; max-width: 520px; }
+.lp-precos .lp-troca { margin-left: auto; margin-right: auto; }
+.lp-precos .lp-plano { text-align: left; }
+.lp-plano .pr b.txt { font-size: 28px; letter-spacing: -1px; }
+.lp-planos { display: grid; gap: 22px; margin-top: 26px; }
 .lp-plano { background: #fff; border: 2px solid var(--lp-p); border-radius: 20px; padding: 20px 18px 18px; position: relative; }
 .lp-plano .tag { position: absolute; top: -12px; left: 16px; background: var(--lp-p); color: #fff; font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px; letter-spacing: .5px; }
 .lp-plano h3 { font-size: 20px; font-weight: 900; margin: 0; }
@@ -196,7 +201,9 @@
   .lp-mod { padding: 20px; }
   .lp-passos { flex-direction: row; gap: 24px; }
   .lp-passo { flex: 1; }
-  .lp-planos { grid-template-columns: minmax(0, 520px); justify-content: center; }
+  .lp-planos { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; max-width: 1020px; margin-left: auto; margin-right: auto; }
+  .lp-plano { display: flex; flex-direction: column; }
+  .lp-plano ul { flex: 1; }
   .lp-faq { max-width: 760px; }
   .lp-fixa { display: none; }
   .lp-zap { display: grid; bottom: 24px; right: 24px; width: 60px; height: 60px; }

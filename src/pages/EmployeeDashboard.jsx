@@ -41,22 +41,6 @@ const handle401 = (res, navigate) => {
   return res;
 };
 
-// O navegador dispara 'beforeinstallprompt' UMA única vez, logo após o
-// carregamento — em geral com a pessoa ainda no /login. Um listener registrado
-// só quando alguma tela monta chega tarde demais, e o botão "WebApp" caía
-// sempre nas instruções manuais mesmo onde o prompt nativo existia. Este
-// módulo é importado estaticamente pelo App, então este código roda no boot,
-// antes do primeiro render — a tempo de capturar o evento para qualquer tela.
-if (typeof window !== 'undefined' && !window.__firecheckPwaListenerRegistrado) {
-  window.__firecheckPwaListenerRegistrado = true;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    // Sem o preventDefault o Chrome consome o evento na mini-barra dele e
-    // .prompt() deixa de funcionar depois.
-    e.preventDefault();
-    window.__firecheckPwaPrompt = e;
-  });
-}
-
 const setupPushNotifications = async (email) => {
   try {
     // Em simulação, o aparelho é o do administrador. Registrá-lo aqui gravava o
@@ -722,7 +706,7 @@ export default function EmployeeDashboard() {
       </div>
 
       {/* BANNER WEBAPP + WHATSAPP — esconde se já está no app nativo ou se o usuário dispensou */}
-      {!Capacitor.isNativePlatform() && !bannerWebAppDismissed && (
+      {!Capacitor.isNativePlatform() && !bannerWebAppDismissed && lojaDoAparelho() && (
       <div style={{
         ...ord(6),
         backgroundColor: 'var(--bg-card)',
@@ -748,39 +732,14 @@ export default function EmployeeDashboard() {
             <Smartphone size={20} color="#fff" />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Acesse pelo celular!</h4>
-            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{lojaDoAparelho() ? `Baixe o app FireCheck grátis na ${LOJAS[lojaDoAparelho()].nome}.` : 'Notificações via WhatsApp. Instale o webapp para acesso rápido.'}</p>
+            <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold' }}>Use o app no celular</h4>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>{`Baixe o app FireCheck grátis na ${LOJAS[lojaDoAparelho()].nome}.`}</p>
           </div>
         </div>
-        {lojaDoAparelho() ? (
-          <a href={LOJAS[lojaDoAparelho()].url} target="_blank" rel="noopener noreferrer" className="btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0, textDecoration: 'none', color: '#fff' }}>
-            <Download size={16} /> Baixar app
-          </a>
-        ) : (
-        <button 
-          // Antes procurava [data-pwa-install] e chamava .click() nele — mas o
-          // atributo está numa <div>, não num botão, e o componente nem renderiza
-          // quando o banner foi dispensado. O clique não fazia absolutamente nada.
-          onClick={async () => {
-            const prompt = window.__firecheckPwaPrompt;
-            if (prompt) {
-              prompt.prompt();
-              const { outcome } = await prompt.userChoice;
-              if (outcome === 'accepted') window.__firecheckPwaPrompt = null;
-              return;
-            }
-            const ehIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-            alert(ehIOS
-              ? 'Para instalar no iPhone: toque no botão Compartilhar do Safari e escolha "Adicionar à Tela de Início".'
-              : 'Abra o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar à tela inicial". Se a opção não aparecer, o app já está instalado neste aparelho.');
-          }}
-          className="btn" 
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0 }}
-        >
-          <Download size={16} /> WebApp
-        </button>
-        )}
+        <a href={LOJAS[lojaDoAparelho()].url} target="_blank" rel="noopener noreferrer" className="btn"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'var(--primary)', padding: '10px 14px', fontSize: '0.82rem', flexShrink: 0, textDecoration: 'none', color: '#fff' }}>
+          <Download size={16} /> Baixar app
+        </a>
       </div>
       )}
 

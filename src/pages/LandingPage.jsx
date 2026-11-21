@@ -364,16 +364,32 @@ export default function LandingPage() {
 
       {/* Preço */}
       <section className="lp-sec" id="pricing">
-        <div className="lp-in">
+        <div className="lp-in lp-precos">
           <h2>Preço simples. <em>7 dias grátis.</em></h2>
+          <p className="lp-sub-centro">Todos os planos têm tudo: IA, frota, compras, estoque, descarte e aviso no WhatsApp. O que muda é o tamanho da equipe.</p>
           <div className="lp-troca" role="tablist">
             <button className={!anual ? 'on' : ''} onClick={() => setBillingCycle('mensal')}>Mensal</button>
             <button className={anual ? 'on' : ''} onClick={() => setBillingCycle('anual')}>Anual · economize até 35%</button>
           </div>
           <div className="lp-planos">
+            <div className="lp-plano sec">
+              <h3>Até 10 pessoas</h3>
+              <div className="pr"><b>R$ {anual ? '47' : '67'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
+              <div className="ex">{anual ? 'Faturado R$ 564/ano (economiza R$ 240/ano)' : 'Sem fidelidade'}</div>
+              <ul>
+                <li>Checklists ilimitados</li>
+                <li>Até 10 pessoas na equipe</li>
+                <li>IA monta e confere as fotos</li>
+                <li>Frota, compras, estoque, descarte e ranking</li>
+                <li>Avisos no WhatsApp da sua empresa</li>
+                <li>Relatório em PDF de cada checklist</li>
+              </ul>
+              <button className="lp-cta" onClick={() => testar('Plano até 10 pessoas: testar grátis')}>Começar meus 7 dias grátis</button>
+              <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
+            </div>
             <div className="lp-plano">
               <span className="tag">MAIS ESCOLHIDO</span>
-              <h3>Só Checklists</h3>
+              <h3>Até 30 pessoas</h3>
               <div className="pr"><b>R$ {anual ? '97' : '149'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
               <div className="ex">{anual ? 'Faturado R$ 1.164/ano (economiza R$ 624/ano)' : 'Sem fidelidade'}</div>
               <ul>
@@ -384,13 +400,21 @@ export default function LandingPage() {
                 <li>Avisos no WhatsApp da sua empresa</li>
                 <li>Relatório em PDF de cada checklist</li>
               </ul>
-              <button className="lp-cta" onClick={() => testar('Plano Só Checklists: testar grátis')}>Começar meus 7 dias grátis</button>
+              <button className="lp-cta" onClick={() => testar('Plano até 30 pessoas: testar grátis')}>Começar meus 7 dias grátis</button>
               <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
             </div>
+            <div className="lp-plano sec">
+              <h3>Mais de 30 pessoas</h3>
+              <div className="pr"><b className="txt">Sob medida</b></div>
+              <div className="ex">Preço pelo tamanho da sua rede</div>
+              <ul>
+                <li>Tudo dos outros planos</li>
+                <li>Várias lojas ou equipes grandes</li>
+                <li>A gente monta com você</li>
+              </ul>
+              <button className="lp-cta" onClick={() => handleTrackAndNavigate('Falar com consultor (Custom >30)', ZAP_30)}>Falar pelo WhatsApp</button>
+            </div>
           </div>
-          <p className="lp-nota" style={{ color: 'var(--lp-mu)' }}>
-            Mais de 30 funcionários? <a style={{ color: 'var(--lp-p)', fontWeight: 700 }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom >30)', ZAP_30)}>Fale com a gente pelo WhatsApp</a>.
-          </p>
         </div>
       </section>
 

@@ -633,6 +633,8 @@ const PLAN_LIMITS = {
   // checklists. Sem estas chaves, uma conta nesses planos caía no padrão de 300
   // e o cliente batia num limite que nunca lhe foi anunciado.
   'checklists_mensal': ILIMITADO, 'checklists_anual': ILIMITADO,
+  // Plano de entrada: até 10 colaboradores (R$ 67/mês), mesmos recursos.
+  'checklists10_mensal': ILIMITADO, 'checklists10_anual': ILIMITADO,
   'combo_mensal': ILIMITADO, 'combo_anual': ILIMITADO,
   // "Só Ponto Eletrônico" não vende checklists ilimitados: o cliente compra o
   // módulo de ponto. Mantém a cota básica, que é o que o webhook de fato concede.
@@ -658,11 +660,13 @@ function getPlanLimit(plan) {
 // Estes números são os da página de vendas, e o produto não pode entregar
 // menos do que anuncia:
 //
+//   Só Checklists 10 R$ 67/mês                 — até 10 colaboradores
 //   Só Checklists    R$ 149/mês ou 12x R$ 97   — até 30 colaboradores
 //   Combo Tudo em 1  R$ 197/mês ou 12x R$ 167  — até 50 (bônus)
 //   Só Ponto         R$ 149/mês ou 12x R$ 97   — até 30 colaboradores
 //
 const COLABORADORES_POR_PLANO = {
+  'checklists10_mensal': 10, 'checklists10_anual': 10,
   'checklists_mensal': 30, 'checklists_anual': 30,
   'combo_mensal': 50, 'combo_anual': 50,
   'ponto_mensal': 30, 'ponto_anual': 30,

@@ -7,6 +7,9 @@
   --bg-card: #FFFFFF;
   --bg-card-hover: #F6F4F1;
   --bg-inset: #F5F3F0; /* blocos dentro de um cartão (linhas, campos, faixas) */
+  /* Nomes usados em várias telas e nunca definidos (blocos ficavam sem fundo): apontam para o tema */
+  --bg-main: var(--bg-inset);
+  --text-color: var(--text-main);
   --border-color: #DAD6CF;
   --text-main: #16161A;
   --text-muted: #5F5F68;

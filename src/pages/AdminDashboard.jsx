@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrimeirosPassos from '../components/PrimeirosPassos';
+import AlterarSenha from '../components/AlterarSenha';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import { vendeNoApp } from '../vendaNoApp';
-import PWAInstall from '../components/PWAInstall';
 import BarraDeAcessoRemoto from '../components/BarraDeAcessoRemoto';
 import PontoModule from '../components/ponto/PontoModule';
 import WhatsappDaLoja from '../components/WhatsappDaLoja';
@@ -403,7 +403,6 @@ export default function AdminDashboard() {
   const [videoPlays, setVideoPlays] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [bannerWebAppDismissed, setBannerWebAppDismissed] = useState(() => localStorage.getItem('firecheck_webapp_banner_dismissed') === 'true');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [quizStats, setQuizStats] = useState([]);
   const [quizOnline, setQuizOnline] = useState(0);
@@ -424,6 +423,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const tourDismissed = localStorage.getItem('firecheck_tour_dismissed');
+    // O master administra clientes: o convite do tour de loja não faz sentido para ele.
+    if (lerUsuario()?.role === 'master') return;
     // Quando a central de tutoriais em vídeo vai abrir sozinha, ela é a boas-vindas:
     // o convite do tour antigo não abre junto nem na próxima visita (o tour
     // continua no botão "Tour do Sistema" do menu).
@@ -2863,53 +2864,6 @@ export default function AdminDashboard() {
           </div>
         )}
         
-        {/* BANNER WEBAPP + WHATSAPP */}
-        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && tab === 'auditoria' && !whatsForaDoAr?.lojaSemWhatsapp && !mostrarPassos && (
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '16px 24px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '16px',
-            position: 'relative'
-          }}>
-            <button 
-              onClick={() => { setBannerWebAppDismissed(true); localStorage.setItem('firecheck_webapp_banner_dismissed', 'true'); }}
-              style={{ position: 'absolute', top: '8px', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              title="Fechar"
-            >
-              <X size={18} />
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-              <div style={{ backgroundColor: '#25D366', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Smartphone size={24} color="#fff" />
-              </div>
-              <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: 'var(--text-main)' }}>Instale o WebApp &amp; Configure o Robô do WhatsApp</h3>
-                <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Conecte o WhatsApp da empresa, cadastre os números e ative as notificações automáticas na aba "Notificações". Para instalar na tela inicial, clique no menu do navegador (⋮ ou compartilhar) e selecione <strong>"Adicionar à Tela Inicial"</strong>.</p>
-              </div>
-            </div>
-            {/* O texto mandava procurar o menu; o botão leva direto. */}
-            {tab !== 'notificacoes' && (
-              <button
-                type="button"
-                onClick={() => setTab('notificacoes')}
-                style={{
-                  padding: '10px 18px', borderRadius: '8px', border: 'none', marginRight: '24px',
-                  backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 'bold', fontSize: '0.9rem',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
-                }}
-              >
-                Configurar o WhatsApp
-              </button>
-            )}
-          </div>
-        )}
 
         {/* HEADER SUPERIOR */}
         <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tab === 'auditoria' ? '32px' : '20px', flexWrap: 'wrap', gap: tab === 'auditoria' ? '20px' : '10px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
@@ -3071,8 +3025,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Instalação do App: só no dashboard (nas outras abas empurrava o conteúdo). */}
-      {tab === 'auditoria' && <PWAInstall />}
 
       {/* ── Card de Cota de Checklists (Admin Only) ─────────────────── */}
       {!isMaster && quotaInfo && !quotaInfo.isUnlimited && tab === 'auditoria' && (
@@ -4975,9 +4927,9 @@ export default function AdminDashboard() {
               </div>
 
               {/* Coluna Direita: Informações do Plano Atual e Upgrades */}
-              <div style={{ backgroundColor: 'var(--bg-main)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ backgroundColor: 'var(--bg-inset)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-color)' }}>Plano Atual</h4>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text-main)' }}>Plano Atual</h4>
                   <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)', textTransform: 'uppercase' }}>
                     {userProfile?.plan || 'starter'} ({(userProfile?.status === 'trial') ? 'Trial / Teste' : 'Ativo'})
                   </p>
@@ -5022,6 +4974,7 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
+          <AlterarSenha apiUrl={API_URL} />
         </div>
       )}
 
@@ -6133,6 +6086,7 @@ export default function AdminDashboard() {
                 // Espelha PLAN_LIMITS do backend (api/index.js). Os planos atuais
                 // vendem checklists ilimitados; o teto comercial é de colaboradores.
                 const limitMap = {
+                  checklists10_mensal: 999999, checklists10_anual: 999999,
                   checklists_mensal: 999999, checklists_anual: 999999,
                   combo_mensal: 999999, combo_anual: 999999,
                   ponto_mensal: 999999, ponto_anual: 999999,
@@ -6145,6 +6099,7 @@ export default function AdminDashboard() {
                 // pessoas no valor antigo.
                 const colabMap = {
                   combo_mensal: 50, combo_anual: 50,
+                  checklists10_mensal: 10, checklists10_anual: 10,
                   checklists_mensal: 30, checklists_anual: 30,
                   ponto_mensal: 30, ponto_anual: 30,
                   enterprise: 999999,
@@ -6160,12 +6115,14 @@ export default function AdminDashboard() {
                 {/* Conta cujo plano não está na lista (ex.: 'trial') mostraria a
                     primeira opção por padrão, e um Salvar sem querer trocaria o
                     plano dela. Esta opção preserva o valor atual até haver escolha. */}
-                {!['checklists_mensal','checklists_anual','combo_mensal','combo_anual','ponto_mensal','ponto_anual','enterprise','starter','pro','business','mensal','anual'].includes(editingPlan.plan) && (
+                {!['checklists10_mensal','checklists10_anual','checklists_mensal','checklists_anual','combo_mensal','combo_anual','ponto_mensal','ponto_anual','enterprise','starter','pro','business','mensal','anual'].includes(editingPlan.plan) && (
                   <option value={editingPlan.plan || ''}>
                     {editingPlan.plan === 'trial' || !editingPlan.plan ? 'Em teste — sem plano contratado' : `Plano atual: ${editingPlan.plan}`}
                   </option>
                 )}
                 <optgroup label="Planos atuais">
+                  <option value="checklists10_mensal">Só Checklists — até 10 pessoas, mensal (R$ 67/mês · até 10 colaboradores)</option>
+                  <option value="checklists10_anual">Só Checklists — até 10 pessoas, anual (12x R$ 47 · até 10 colaboradores)</option>
                   <option value="checklists_mensal">Só Checklists — mensal (R$ 149/mês · até 30 colaboradores)</option>
                   <option value="checklists_anual">Só Checklists — anual (12x R$ 97 · até 30 colaboradores)</option>
                   <option value="combo_mensal">Combo Tudo em 1 — mensal (R$ 197/mês · até 50 colaboradores)</option>
