@@ -1,6 +1,18 @@
 import React, { useState } from 'react';
-import { Calendar, Plus, Edit2, Trash2, Clock, X } from 'lucide-react';
+import { Plus, Edit2, Trash2 } from 'lucide-react';
 import API_URL from '../../api';
+import Janela from './Janela';
+
+const LETRAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+const CORES = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+
+// Dias da escala como vêm do banco (texto JSON ou lista).
+const diasDaEscala = (sch) => {
+  try {
+    const wds = typeof sch.weekdays === 'string' ? JSON.parse(sch.weekdays) : sch.weekdays;
+    return Array.isArray(wds) ? wds : [];
+  } catch (e) { return []; }
+};
 
 export default function SchedulesTab({ schedules, userProfile, onSchedulesChanged }) {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -98,222 +110,177 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
     setSaving(false);
   };
 
+  const novaEscala = () => {
+    setEditingSchedule(null);
+    setScheduleForm({
+      name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+      weekdays: [
+        { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 2, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 3, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 4, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 5, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
+        { weekday: 6, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' }
+      ]
+    });
+    setShowScheduleModal(true);
+  };
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-color)' }}>
-          Tipos de Escalas e Jornadas
-        </h3>
-        <button className="btn-primary" onClick={() => {
-          setEditingSchedule(null);
-          setScheduleForm({
-            name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
-            weekdays: [
-              { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 2, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 3, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 4, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 5, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
-              { weekday: 6, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' }
-            ]
-          });
-          setShowScheduleModal(true);
-        }} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px' }}>
-          <Plus size={18} /> Nova Escala
+    <div className="pt-campos" style={{ gap: '18px' }}>
+      <div className="pt-ferr">
+        <div>
+          <span className="fc-olho-rot">Jornadas</span>
+          <h3 style={{ marginTop: '4px' }}>Tipos de Escalas e Jornadas</h3>
+        </div>
+        <button type="button" className="fc-pilula" onClick={novaEscala}>
+          Nova Escala <i><Plus size={15} /></i>
         </button>
       </div>
 
       {schedules.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '60px 20px', border: '2px dashed var(--border-color)', borderRadius: '16px' }}>
-          <Calendar size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }} />
-          <h3 style={{ margin: '0 0 8px 0', color: 'var(--text-main)' }}>Nenhuma escala cadastrada</h3>
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>Crie escalas como "Comercial 5x2", "Segurança 12x36" ou "Revezamento 6x1" para organizar sua equipe.</p>
+        <div className="card fc-vazio">
+          <strong style={{ display: 'block', color: 'var(--text-main)', fontWeight: 600, marginBottom: '6px' }}>Nenhuma escala cadastrada</strong>
+          Crie escalas como "Comercial 5x2", "Segurança 12x36" ou "Revezamento 6x1" para organizar sua equipe.
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
-          {schedules.map(sch => (
-            <div key={sch.id} style={{ 
-              backgroundColor: 'var(--bg-card)', borderRadius: '16px', padding: '20px', 
-              border: '1px solid var(--border-color)', position: 'relative',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', transition: 'transform 0.2s, box-shadow 0.2s'
-            }} className="hover-lift">
-              
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ 
-                    width: '40px', height: '40px', borderRadius: '10px', 
-                    backgroundColor: `${sch.color || '#3B82F6'}15`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center'
-                  }}>
-                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', backgroundColor: sch.color || '#3B82F6' }}></div>
-                  </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-main)' }}>{sch.name}</h4>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div className="pt-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+          {schedules.map(sch => {
+            const wds = diasDaEscala(sch);
+            return (
+              <div key={sch.id} className="card pt-card pt-escala">
+                <div className="pt-escala-t">
+                  <div style={{ minWidth: 0 }}>
+                    <span className="fc-dado" style={{ '--c': sch.color || '#3B82F6' }}>
                       {sch.type === '12x36' ? 'Escala 12x36' : (sch.type === 'fixed' ? 'Horário Fixo Semanal' : 'Revezamento')}
                     </span>
+                    <h4>{sch.name}</h4>
+                  </div>
+                  <div className="pt-mini-acoes">
+                    <button type="button" className="fc-mini-btn info" title="Editar escala" onClick={() => handleEditSchedule(sch)}><Edit2 size={13} /> Editar</button>
+                    <button type="button" className="fc-mini-btn perigo" title="Excluir escala" aria-label="Excluir escala" onClick={() => handleDeleteSchedule(sch.id)}><Trash2 size={13} /></button>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button onClick={() => handleEditSchedule(sch)} style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><Edit2 size={14} /></button>
-                  <button onClick={() => handleDeleteSchedule(sch.id)} style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '6px', padding: '6px', cursor: 'pointer', color: '#EF4444', display: 'flex' }}><Trash2 size={14} /></button>
-                </div>
-              </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '500' }}>
-                <Clock size={16} color="var(--primary)" /> {sch.hora_entrada} às {sch.hora_saida}
-                {sch.intervalo_inicio && sch.intervalo_fim && (
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>· almoço {sch.intervalo_inicio} às {sch.intervalo_fim}</span>
+                <div className="pt-hora">
+                  {sch.hora_entrada}–{sch.hora_saida}
+                  {sch.intervalo_inicio && sch.intervalo_fim && (
+                    <small>almoço <span className="mono">{sch.intervalo_inicio}–{sch.intervalo_fim}</span></small>
+                  )}
+                </div>
+
+                {sch.type === '12x36' ? (
+                  <p className="pt-nota">Trabalha 12 horas seguidas e folga 36 horas. A folga é dinâmica e se auto-calcula por funcionário.</p>
+                ) : (
+                  <div className="pt-semana" aria-label="Dias de trabalho">
+                    {LETRAS.map((dia, idx) => {
+                      const wd = wds.find(w => w.weekday === idx);
+                      const trabalha = wd ? wd.is_workday : true;
+                      return <span key={idx} className={trabalha ? 'on' : ''}><i />{dia}</span>;
+                    })}
+                  </div>
                 )}
               </div>
-
-              {sch.type === '12x36' ? (
-                <div style={{ backgroundColor: 'var(--bg-main)', padding: '12px', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', border: '1px solid var(--border-color)' }}>
-                  Trabalha 12 horas seguidas e folga 36 horas. A folga é dinâmica e se auto-calcula por funcionário.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
-                  {['D','S','T','Q','Q','S','S'].map((day, idx) => {
-                    let isActive = true;
-                    try {
-                      const wds = typeof sch.weekdays === 'string' ? JSON.parse(sch.weekdays) : sch.weekdays;
-                      const wd = wds.find(w => w.weekday === idx);
-                      if (wd) isActive = wd.is_workday;
-                    } catch(e) {}
-                    return (
-                      <span key={idx} style={{ 
-                        flex: 1, height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                        borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', 
-                        backgroundColor: isActive ? (sch.color || '#3B82F6') : 'var(--bg-main)', 
-                        color: isActive ? '#fff' : 'var(--text-muted)',
-                        border: isActive ? 'none' : '1px solid var(--border-color)'
-                      }}>
-                        {day}
-                      </span>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Modal de Escala (mesmo do AdminDashboard, mas aqui) */}
+      {/* Janela de escala (criar ou editar) */}
       {showScheduleModal && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div className="card animate-fade-up modal-janela" style={{ width: '90%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar color="var(--primary)" /> {editingSchedule ? 'Editar Escala' : 'Nova Escala'}
-              </h3>
-              <button onClick={() => setShowScheduleModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}>
-                <X size={20} color="var(--text-muted)" />
+        <Janela rotulo="Escalas de Trabalho" titulo={editingSchedule ? 'Editar Escala' : 'Nova Escala'} onFechar={() => setShowScheduleModal(false)} larga>
+          {error && <p className="pt-erro" style={{ marginBottom: '14px' }}>{error}</p>}
+
+          <div className="pt-campos" style={{ gap: '16px' }}>
+            <div>
+              <label className="input-label">Nome da Escala</label>
+              <input type="text" className="input-field" placeholder="Ex: Comercial 5x2, Portaria 12x36" value={scheduleForm.name} onChange={e => setScheduleForm({...scheduleForm, name: e.target.value})} />
+            </div>
+
+            <div className="pt-2col">
+              <div>
+                <label className="input-label">Tipo de Escala</label>
+                <select className="input-field" value={scheduleForm.type} onChange={e => setScheduleForm({...scheduleForm, type: e.target.value})}>
+                  <option value="fixed">Semanal Fixa (ex: 5x2, 6x1)</option>
+                  <option value="12x36">Plantão 12x36</option>
+                </select>
+              </div>
+              <div>
+                <label className="input-label">Cor de Identificação</label>
+                <div className="pt-cores">
+                  {CORES.map(color => (
+                    <button key={color} type="button" aria-label={`Cor ${color}`} className={scheduleForm.color === color ? 'on' : ''} onClick={() => setScheduleForm({...scheduleForm, color})} style={{ backgroundColor: color }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2col">
+              <div>
+                <label className="input-label">Horário de Entrada (Padrão)</label>
+                <input type="time" className="input-field mono" value={scheduleForm.hora_entrada} onChange={e => setScheduleForm({...scheduleForm, hora_entrada: e.target.value})} />
+              </div>
+              <div>
+                <label className="input-label">Horário de Saída (Padrão)</label>
+                <input type="time" className="input-field mono" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
+              </div>
+            </div>
+
+            {/* O intervalo já era gravado (12:00–13:00 fixo, escondido) mas não
+                aparecia na tela: o gestor não tinha onde dizer o horário de
+                almoço. Ele desconta das horas esperadas no banco de horas e faz
+                a 2ª batida do dia aparecer como "Saída almoço". */}
+            <div>
+              <label className="input-label">Horário de Almoço / Intervalo</label>
+              <div className="pt-2col">
+                <input type="time" className="input-field mono" aria-label="Início do almoço" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
+                <input type="time" className="input-field mono" aria-label="Fim do almoço" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
+              </div>
+              <p className="pt-dica">Saída e volta do almoço. Deixe em branco se a jornada não tem intervalo.</p>
+            </div>
+
+            {scheduleForm.type === 'fixed' && (
+              <div>
+                <label className="input-label">Dias de Trabalho da Semana</label>
+                <p className="pt-dica" style={{ margin: '0 0 4px' }}>Selecione os dias em que o funcionário deve trabalhar.</p>
+                <div className="pt-dias-form">
+                  {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((dayName, idx) => {
+                    const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { is_workday: false };
+                    return (
+                      <label key={idx}>
+                        <span>
+                          <input type="checkbox" checked={wd.is_workday} onChange={e => {
+                            const newWds = [...scheduleForm.weekdays];
+                            const i = newWds.findIndex(w => w.weekday === idx);
+                            if (i >= 0) newWds[i].is_workday = e.target.checked;
+                            else newWds.push({ weekday: idx, is_workday: e.target.checked });
+                            setScheduleForm({...scheduleForm, weekdays: newWds});
+                          }} />
+                          {dayName}
+                        </span>
+                        <span className="fc-selo" style={{ '--c': wd.is_workday ? 'var(--ok)' : 'var(--text-muted)' }}><i /><span>{wd.is_workday ? 'Trabalha' : 'Folga'}</span></span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {scheduleForm.type === '12x36' && (
+              <p className="pt-aviso" style={{ '--c': 'var(--ink)' }}>
+                <strong>Sobre a 12x36:</strong> os dias de folga são calculados automaticamente para cada funcionário com base no "último dia trabalhado". Você poderá definir isso na ficha individual de cada funcionário.
+              </p>
+            )}
+
+            <div className="pt-acoes" style={{ marginTop: '8px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowScheduleModal(false)}>Cancelar</button>
+              <button type="button" className="btn-primary" onClick={handleSaveSchedule} disabled={saving}>
+                {saving ? 'Salvando...' : 'Salvar Escala'}
               </button>
             </div>
-
-            {error && <div style={{ color: 'var(--error)', marginBottom: '16px', fontSize: '0.9rem' }}>{error}</div>}
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label className="input-label">Nome da Escala</label>
-                <input type="text" className="input-field" placeholder="Ex: Comercial 5x2, Portaria 12x36" value={scheduleForm.name} onChange={e => setScheduleForm({...scheduleForm, name: e.target.value})} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label className="input-label">Tipo de Escala</label>
-                  <select className="input-field" value={scheduleForm.type} onChange={e => setScheduleForm({...scheduleForm, type: e.target.value})}>
-                    <option value="fixed">Semanal Fixa (ex: 5x2, 6x1)</option>
-                    <option value="12x36">Plantão 12x36</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="input-label">Cor de Identificação</label>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'].map(color => (
-                      <button key={color} onClick={() => setScheduleForm({...scheduleForm, color})} style={{
-                        width: '24px', height: '24px', borderRadius: '50%', backgroundColor: color, border: 'none', cursor: 'pointer',
-                        boxShadow: scheduleForm.color === color ? '0 0 0 3px var(--bg-card), 0 0 0 5px var(--text-color)' : 'none'
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label className="input-label">Horário de Entrada (Padrão)</label>
-                  <input type="time" className="input-field" value={scheduleForm.hora_entrada} onChange={e => setScheduleForm({...scheduleForm, hora_entrada: e.target.value})} />
-                </div>
-                <div>
-                  <label className="input-label">Horário de Saída (Padrão)</label>
-                  <input type="time" className="input-field" value={scheduleForm.hora_saida} onChange={e => setScheduleForm({...scheduleForm, hora_saida: e.target.value})} />
-                </div>
-              </div>
-
-              {/* O intervalo já era gravado (12:00–13:00 fixo, escondido) mas não
-                  aparecia na tela: o gestor não tinha onde dizer o horário de
-                  almoço. Ele desconta das horas esperadas no banco de horas e faz
-                  a 2ª batida do dia aparecer como "Saída almoço". */}
-              <div>
-                <label className="input-label">Horário de Almoço / Intervalo</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <input type="time" className="input-field" aria-label="Início do almoço" value={scheduleForm.intervalo_inicio || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_inicio: e.target.value})} />
-                  <input type="time" className="input-field" aria-label="Fim do almoço" value={scheduleForm.intervalo_fim || ''} onChange={e => setScheduleForm({...scheduleForm, intervalo_fim: e.target.value})} />
-                </div>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0 0' }}>
-                  Saída e volta do almoço. Deixe em branco se a jornada não tem intervalo.
-                </p>
-              </div>
-
-              {scheduleForm.type === 'fixed' && (
-                <div>
-                  <label className="input-label">Dias de Trabalho da Semana</label>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>Selecione os dias em que o funcionário deve trabalhar.</p>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((dayName, idx) => {
-                      const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { is_workday: false };
-                      return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px', backgroundColor: 'var(--bg-main)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <input type="checkbox" checked={wd.is_workday} onChange={e => {
-                              const newWds = [...scheduleForm.weekdays];
-                              const i = newWds.findIndex(w => w.weekday === idx);
-                              if (i >= 0) newWds[i].is_workday = e.target.checked;
-                              else newWds.push({ weekday: idx, is_workday: e.target.checked });
-                              setScheduleForm({...scheduleForm, weekdays: newWds});
-                            }} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                            <span style={{ fontWeight: '500' }}>{dayName}</span>
-                          </div>
-                          <span style={{ fontSize: '0.8rem', color: wd.is_workday ? 'var(--success)' : 'var(--text-muted)' }}>
-                            {wd.is_workday ? 'Trabalha' : 'Folga'}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {scheduleForm.type === '12x36' && (
-                <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid rgb(var(--info-rgb) / 0.3)' }}>
-                  <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                    <strong>ℹ️ Informação sobre 12x36:</strong> Na escala 12x36, os dias de folga são calculados automaticamente para cada funcionário com base no "último dia trabalhado". Você poderá definir isso na ficha individual de cada funcionário.
-                  </p>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
-                <button className="btn-secondary" style={{ flex: 1, padding: '12px' }} onClick={() => setShowScheduleModal(false)}>Cancelar</button>
-                <button className="btn-primary" style={{ flex: 1, padding: '12px' }} onClick={handleSaveSchedule} disabled={saving}>
-                  {saving ? 'Salvando...' : 'Salvar Escala'}
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
+        </Janela>
       )}
     </div>
   );

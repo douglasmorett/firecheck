@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, Settings, Clock, UserCheck, Scale, CalendarCheck, ScanFace } from 'lucide-react';
 import API_URL from '../../api';
+import '../painel/painel.css';
+import './ponto.css';
 
 // Sub-components
 import EmployeesTab from './EmployeesTab';
@@ -10,6 +11,15 @@ import SettingsTab from './SettingsTab';
 import BancoHorasTab from './BancoHorasTab';
 import AbonosTab from './AbonosTab';
 import PontoDaLojaTab from './PontoDaLojaTab';
+
+const ABAS = [
+  ['employees', 'Funcionários'],
+  ['schedules', 'Escalas de Trabalho'],
+  ['banco', 'Banco de Horas'],
+  ['abonos', 'Atestados e Feriados'],
+  ['loja', 'Ponto da Loja'],
+  ['settings', 'Configurações Gerais'],
+];
 
 export default function PontoModule({ userProfile }) {
   const [activeTab, setActiveTab] = useState('employees'); // 'employees', 'schedules', 'settings'
@@ -103,71 +113,25 @@ export default function PontoModule({ userProfile }) {
   }
 
   return (
-    <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="pt animate-fade">
       {/* O título "Controle de Ponto" já está no cabeçalho do painel (visual de 21/11/2026). */}
-      <p style={{ color: 'var(--text-muted)', margin: '-18px 0 0 2px', fontSize: '0.92rem' }}>Presença, escalas e folgas da equipe.</p>
+      <p className="pt-sub">Presença, escalas e folgas da equipe.</p>
 
-      {/* Navegação de Abas Internas */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px', overflowX: 'auto' }}>
-        <button 
-          onClick={() => setActiveTab('employees')}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '500',
-            padding: '12px 4px', borderBottom: activeTab === 'employees' ? '3px solid var(--primary)' : '3px solid transparent',
-            color: activeTab === 'employees' ? 'var(--primary)' : 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
-          }}
-        >
-          <Users size={18} /> Funcionários
-        </button>
-        <button 
-          onClick={() => setActiveTab('schedules')}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '500',
-            padding: '12px 4px', borderBottom: activeTab === 'schedules' ? '3px solid var(--primary)' : '3px solid transparent',
-            color: activeTab === 'schedules' ? 'var(--primary)' : 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
-          }}
-        >
-          <Calendar size={18} /> Escalas de Trabalho
-        </button>
-        {/* Banco de horas (saldo parcial + impressão por funcionário) e
-            atestados/feriados: pedidos da Pet Nature para implantar o ponto. */}
-        {[['banco', <Scale size={18} />, 'Banco de Horas'], ['abonos', <CalendarCheck size={18} />, 'Atestados e Feriados'], ['loja', <ScanFace size={18} />, 'Ponto da Loja']].map(([chave, icone, nome]) => (
-          <button
-            key={chave}
-            onClick={() => setActiveTab(chave)}
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '500', whiteSpace: 'nowrap',
-              padding: '12px 4px', borderBottom: activeTab === chave ? '3px solid var(--primary)' : '3px solid transparent',
-              color: activeTab === chave ? 'var(--primary)' : 'var(--text-muted)',
-              display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
-            }}
-          >
-            {icone} {nome}
+      {/* Abas internas em pílulas (seletor segmentado). Banco de horas e
+          atestados/feriados foram pedidos da Pet Nature para implantar o ponto. */}
+      <nav className="pt-seg" aria-label="Seções do ponto">
+        {ABAS.map(([chave, nome]) => (
+          <button key={chave} type="button" className={activeTab === chave ? 'on' : ''} aria-pressed={activeTab === chave} onClick={() => setActiveTab(chave)}>
+            {nome}
           </button>
         ))}
-        <button 
-          onClick={() => setActiveTab('settings')}
-          style={{
-            background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.05rem', fontWeight: '500',
-            padding: '12px 4px', borderBottom: activeTab === 'settings' ? '3px solid var(--primary)' : '3px solid transparent',
-            color: activeTab === 'settings' ? 'var(--primary)' : 'var(--text-muted)',
-            display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s'
-          }}
-        >
-          <Settings size={18} /> Configurações Gerais
-        </button>
-      </div>
+      </nav>
 
       {/* Renderização do Conteúdo da Aba */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>
-           <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', margin: '0 auto' }}></div>
-           <p style={{ marginTop: '16px', color: 'var(--text-muted)' }}>Carregando dados do ponto...</p>
-        </div>
+        <div className="fc-vazio">Carregando dados do ponto...</div>
       ) : (
-        <div style={{ marginTop: '8px' }}>
+        <div>
           {activeTab === 'employees' && (
             <EmployeesTab 
               employees={employees} 

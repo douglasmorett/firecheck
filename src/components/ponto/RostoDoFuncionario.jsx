@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { ScanFace, Camera, Image as ImageIcon, Trash2, X, CheckCircle, AlertTriangle, UserCircle } from 'lucide-react';
+import { Camera, Image as ImageIcon, Trash2, UserCircle } from 'lucide-react';
 import API_URL from '../../api';
+import Janela from './Janela';
 import { carregarReconhecimento, lerRostos, abrirImagem, MODELO_DO_ROSTO } from '../../utils/rosto';
 
 // Cartão "Ponto da loja (rosto)" na ficha do funcionário (gestor).
@@ -61,36 +62,38 @@ export default function RostoDoFuncionario({ employee }) {
   };
 
   return (
-    <div className="card" style={{ padding: '24px', borderTop: '4px solid #8B5CF6', borderRadius: '20px' }} data-testid="cartao-rosto">
-      <h3 style={{ margin: '0 0 14px 0', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <ScanFace size={22} color="#8B5CF6" /> Ponto da loja (rosto)
-      </h3>
-      {erro && <p style={{ margin: '0 0 12px 0', color: 'var(--error)', fontSize: '0.85rem' }}>{erro}</p>}
+    <div className="card pt-card" data-testid="cartao-rosto">
+      <div className="pt-card-cab">
+        <div>
+          <span className="fc-olho-rot">Reconhecimento facial</span>
+          <h3>Ponto da loja (rosto)</h3>
+        </div>
+      </div>
+      {erro && <p className="pt-erro">{erro}</p>}
       {!info ? (
-        <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>Carregando…</p>
+        <p className="pt-nota">Carregando…</p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="pt-campos">
           {info.rosto ? (
-            <p style={{ margin: 0, fontSize: '0.95rem', color: '#10B981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }} data-testid="rosto-status">
-              <CheckCircle size={16} /> Rosto cadastrado em {dataBR(info.rosto.cadastrado_em)}
-            </p>
+            <span className="fc-selo" style={{ '--c': 'var(--ok)' }} data-testid="rosto-status">
+              <i /><span>Rosto cadastrado em <span className="mono">{dataBR(info.rosto.cadastrado_em)}</span></span>
+            </span>
           ) : (
-            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }} data-testid="rosto-status">Sem rosto cadastrado.</p>
+            <span className="fc-selo" style={{ '--c': 'var(--text-muted)' }} data-testid="rosto-status"><i /><span>Sem rosto cadastrado.</span></span>
           )}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="btn-secondary" onClick={() => setAberto(true)} style={{ flex: 1, padding: '10px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <Camera size={16} /> {info.rosto ? 'Trocar rosto' : 'Cadastrar rosto'}
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" className="btn-secondary" onClick={() => setAberto(true)} style={{ flex: 1, padding: '9px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+              <Camera size={14} /> {info.rosto ? 'Trocar rosto' : 'Cadastrar rosto'}
             </button>
             {info.rosto && (
-              <button onClick={apagar} style={{ padding: '10px 12px', borderRadius: '10px', background: '#FEF2F2', border: '1px solid #FECACA', color: '#EF4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Trash2 size={16} /> Apagar rosto
+              <button type="button" className="fc-mini-btn perigo" onClick={apagar} style={{ padding: '9px 12px' }}>
+                <Trash2 size={13} /> Apagar rosto
               </button>
             )}
           </div>
           <div>
-            <label className="input-label" style={{ fontSize: '0.9rem' }}>Como bate o ponto</label>
-            <select className="input-field" value={info.ponto_modo} disabled={salvandoModo} onChange={e => trocarModo(e.target.value)} data-testid="modo-ponto"
-              style={{ backgroundColor: 'var(--bg-main)', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px' }}>
+            <label className="input-label">Como bate o ponto</label>
+            <select className="input-field" value={info.ponto_modo} disabled={salvandoModo} onChange={e => trocarModo(e.target.value)} data-testid="modo-ponto">
               {MODOS.map(([valor, nome]) => (
                 <option key={valor} value={valor} disabled={valor === 'loja' && !info.rosto}>{nome}{valor === 'loja' && !info.rosto ? ' — cadastre o rosto antes' : ''}</option>
               ))}
@@ -201,66 +204,58 @@ function CadastroDoRosto({ employee, termo, onFechar, onSalvo }) {
     }
   };
 
-  const botao = { padding: '10px 12px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flex: 1 };
+  const botao = { padding: '9px 14px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px', flex: 1, fontSize: '13px', fontWeight: 600, cursor: 'pointer' };
+  const procurando = aviso.startsWith('Procurando');
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 100000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)', padding: '16px' }}>
-      <div className="card animate-fade-up modal-janela" style={{ width: '100%', maxWidth: '480px', maxHeight: '90vh', overflowY: 'auto', padding: '24px', borderRadius: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-          <h3 style={{ margin: 0, fontSize: '1.2rem' }}>Cadastrar rosto — {employee.name}</h3>
-          <button onClick={() => { desligarCamera(); onFechar(); }} style={{ background: 'var(--bg-main)', border: 'none', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex' }}>
-            <X size={18} color="var(--text-muted)" />
-          </button>
-        </div>
-        <p style={{ margin: '0 0 14px 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Com o funcionário presente, de frente para a câmera e com boa luz. Só um código numérico do rosto é guardado, não a foto.
-        </p>
+    <Janela rotulo="Cadastrar rosto" titulo={employee.name} onFechar={() => { desligarCamera(); onFechar(); }}>
+      <p className="pt-nota" style={{ marginBottom: '14px' }}>
+        Com o funcionário presente, de frente para a câmera e com boa luz. Só um código numérico do rosto é guardado, não a foto.
+      </p>
 
-        {preparando ? (
-          <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Preparando o reconhecimento facial…</p>
-        ) : (
-          <>
-            <div style={{ backgroundColor: 'var(--bg-main)', borderRadius: '14px', minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: '12px', border: rosto ? '3px solid #10B981' : '1px solid var(--border-color)' }}>
-              {cameraLigada ? (
-                <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', transform: 'scaleX(-1)' }} />
-              ) : foto ? (
-                <img src={foto} alt="Foto do cadastro" style={{ width: '100%', maxHeight: '320px', objectFit: 'contain' }} />
-              ) : (
-                <UserCircle size={72} color="var(--border-color)" />
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
-              {cameraLigada ? (
-                <button className="btn-primary" style={botao} onClick={tirarFoto}><Camera size={16} /> Tirar foto</button>
-              ) : (
-                <button className="btn-secondary" style={botao} onClick={ligarCamera}><Camera size={16} /> Abrir câmera</button>
-              )}
-              <button className="btn-secondary" style={botao} onClick={() => arquivoRef.current?.click()}><ImageIcon size={16} /> Escolher foto</button>
-              {employee.photo && (
-                <button className="btn-secondary" style={botao} onClick={() => { desligarCamera(); analisar(employee.photo); }}><UserCircle size={16} /> Foto do perfil</button>
-              )}
-              <input ref={arquivoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={escolherArquivo} data-testid="arquivo-rosto" />
-            </div>
-            {aviso && (
-              <p style={{ margin: '0 0 12px 0', fontSize: '0.88rem', color: aviso.startsWith('Procurando') ? 'var(--text-muted)' : 'var(--error)', display: 'flex', gap: '6px' }}>
-                {!aviso.startsWith('Procurando') && <AlertTriangle size={16} style={{ flexShrink: 0 }} />} {aviso}
-              </p>
+      {preparando ? (
+        <div className="fc-vazio">Preparando o reconhecimento facial…</div>
+      ) : (
+        <>
+          <div className={`pt-camera${rosto ? ' achou' : ''}`}>
+            {cameraLigada ? (
+              <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', transform: 'scaleX(-1)' }} />
+            ) : foto ? (
+              <img src={foto} alt="Foto do cadastro" style={{ width: '100%', maxHeight: '320px', objectFit: 'contain' }} />
+            ) : (
+              <span className="fc-olho-rot">Sem foto</span>
             )}
-            {rosto && <p style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: '#10B981', fontWeight: 600 }}>✓ Rosto encontrado.</p>}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            {cameraLigada ? (
+              <button type="button" className="btn-primary" style={botao} onClick={tirarFoto}><Camera size={14} /> Tirar foto</button>
+            ) : (
+              <button type="button" className="btn-secondary" style={botao} onClick={ligarCamera}><Camera size={14} /> Abrir câmera</button>
+            )}
+            <button type="button" className="btn-secondary" style={botao} onClick={() => arquivoRef.current?.click()}><ImageIcon size={14} /> Escolher foto</button>
+            {employee.photo && (
+              <button type="button" className="btn-secondary" style={botao} onClick={() => { desligarCamera(); analisar(employee.photo); }}><UserCircle size={14} /> Foto do perfil</button>
+            )}
+            <input ref={arquivoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={escolherArquivo} data-testid="arquivo-rosto" />
+          </div>
+          {aviso && (procurando
+            ? <p className="pt-nota" style={{ marginBottom: '12px' }}>{aviso}</p>
+            : <p className="pt-erro" style={{ marginBottom: '12px' }}>{aviso}</p>)}
+          {rosto && <p className="pt-ok" style={{ marginBottom: '12px' }}>✓ Rosto encontrado.</p>}
 
-            <div style={{ backgroundColor: 'rgba(139, 92, 246, 0.06)', border: '1px solid rgba(139, 92, 246, 0.25)', borderRadius: '12px', padding: '12px', marginBottom: '12px' }}>
-              <p style={{ margin: '0 0 10px 0', fontSize: '0.82rem', lineHeight: 1.45 }}>{termo}</p>
-              <label style={{ display: 'flex', gap: '8px', alignItems: 'flex-start', fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer' }}>
-                <input type="checkbox" checked={autorizou} onChange={e => setAutorizou(e.target.checked)} style={{ marginTop: '3px' }} data-testid="consentimento" />
-                {employee.name} leu e autorizou o uso do rosto para o ponto.
-              </label>
-            </div>
-            <button className="btn-primary" style={{ width: '100%', padding: '12px', borderRadius: '12px' }} disabled={!rosto || !autorizou || salvando} onClick={salvar}>
-              {salvando ? 'Salvando…' : 'Salvar rosto'}
-            </button>
-          </>
-        )}
-      </div>
-    </div>
+          <div style={{ boxShadow: '0 -1px 0 var(--bg-inset)', paddingTop: '14px', marginBottom: '16px' }}>
+            <span className="fc-olho-rot" style={{ marginBottom: '6px' }}>Consentimento (LGPD)</span>
+            <p className="pt-termo">{termo}</p>
+            <label className="pt-autoriza">
+              <input type="checkbox" checked={autorizou} onChange={e => setAutorizou(e.target.checked)} data-testid="consentimento" />
+              {employee.name} leu e autorizou o uso do rosto para o ponto.
+            </label>
+          </div>
+          <button type="button" className="btn-primary" style={{ width: '100%', padding: '12px', fontSize: '0.92rem' }} disabled={!rosto || !autorizou || salvando} onClick={salvar}>
+            {salvando ? 'Salvando…' : 'Salvar rosto'}
+          </button>
+        </>
+      )}
+    </Janela>
   );
 }
