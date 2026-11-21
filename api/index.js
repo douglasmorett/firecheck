@@ -10428,6 +10428,9 @@ SEMPRE responda em JSON puro com este formato:
       }
       return res.status(400).json({ error: 'Este registro já existe no sistema. Verifique os dados e tente novamente.' });
     }
-    return res.status(500).json({ message: err.message });
+    // O detalhe vai para o log, não para a resposta: err.message de uma falha do
+    // Postgres traz nome de tabela, coluna e trecho da consulta.
+    console.error('[api] erro não tratado:', err);
+    return res.status(500).json({ message: 'Erro interno do servidor. Tente novamente em instantes.' });
   }
 }
