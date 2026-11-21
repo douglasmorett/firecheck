@@ -311,6 +311,8 @@ function checklistCaiHoje(cl, hojeISO, diaSemanaHoje) {
 // Limite"; tarefa com notifyDelay desligado não conta) ou o "HH:MM" antigo em
 // scheduled_date. O funcionário envia o checklist inteiro de uma vez, então a
 // primeira hora vencida sem envio já é o atraso. null quando não há hora.
+// Quanto tempo depois da hora limite o cron de atraso ainda avisa (ver o cron).
+const JANELA_DO_ATRASO_DO_CHECKLIST_MIN = 120;
 function horaLimiteDoChecklist(cl) {
   let tarefas = cl.tasks;
   if (typeof tarefas === 'string') { try { tarefas = JSON.parse(tarefas); } catch (e) { tarefas = []; } }
@@ -7048,7 +7050,11 @@ export default async function handler(req, res) {
           // UMA rodada só, a primeira depois dela (limite 08:00 → aviso 08:30;
           // 08:10 → 08:30). Janela maior mandava o MESMO alerta 2-3 vezes, e
           // alerta repetido é alerta que o gestor silencia.
-          if (minutosAtual > minutosProg && minutosAtual - minutosProg <= 30) {
+          // A rodada de :00/:30 não é pontual (a Vercel atrasa e pula chamadas) e
+          // o aviso de cada checklist sai UMA vez por dia (reservarAviso abaixo),
+          // então a janela ganhou folga de duas horas: um minuto de atraso na
+          // execução não perde mais o aviso para sempre.
+          if (minutosAtual > minutosProg && minutosAtual - minutosProg <= JANELA_DO_ATRASO_DO_CHECKLIST_MIN) {
             // Já houve submissão HOJE? "Hoje" no dia de SÃO PAULO expresso no
             // relógio UTC do banco — com created_at::date (UTC), o checklist
             // preenchido depois das 21h contava como amanhã: o cron cobrava
