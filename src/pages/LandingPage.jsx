@@ -171,8 +171,8 @@ const FAQ = [
   ['Posso cancelar quando quiser?', 'Pode. Sem fidelidade e sem multa no plano mensal.'],
 ];
 
-const ZAP = 'https://wa.me/5522998851680?text=Olá,%20estou%20no%20site%20do%20FireCheck%20e%20gostaria%20de%20tirar%20uma%20dúvida.';
-const ZAP_30 = 'https://wa.me/5522998851680?text=Olá,%20tenho%20mais%20de%2030%20funcionários%20e%20gostaria%20de%20um%20plano%20personalizado%20do%20FireCheck.';
+const ZAP = 'https://wa.me/5522981118514?text=Olá,%20estou%20no%20site%20do%20FireCheck%20e%20gostaria%20de%20tirar%20uma%20dúvida.';
+const ZAP_30 = 'https://wa.me/5522981118514?text=Olá,%20tenho%20mais%20de%2030%20funcionários%20e%20gostaria%20de%20um%20plano%20personalizado%20do%20FireCheck.';
 
 // QR ilustrativo (desenho fixo, não é um código de verdade).
 function QrIlustrativo() {

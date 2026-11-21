@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrimeirosPassos from '../components/PrimeirosPassos';
 import AlterarSenha from '../components/AlterarSenha';
-import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Plus, MessageCircle, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -2595,7 +2595,7 @@ export default function AdminDashboard() {
 
         <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '20px' }}>
           Precisa de mais de 50 colaboradores?{' '}
-          <a href="https://wa.me/5522998851680?text=Ol%C3%A1,%20preciso%20de%20um%20plano%20para%20mais%20de%2050%20colaboradores%20no%20FireCheck." target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
+          <a href="https://wa.me/5522981118514?text=Ol%C3%A1,%20preciso%20de%20um%20plano%20para%20mais%20de%2050%20colaboradores%20no%20FireCheck." target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
             Fale com um consultor
           </a>
         </p>
@@ -2613,7 +2613,7 @@ export default function AdminDashboard() {
   // "Primeiros passos" (só o dono, até a loja terminar de configurar ou ele esconder).
   const passosDoDono = [
     { feito: whatsChecado && !whatsForaDoAr, titulo: 'Conectar o WhatsApp da empresa', texto: 'Para o aviso de checklist reprovado ou atrasado chegar no seu celular.', acao: 'Conectar', onClick: () => setTab('notificacoes') },
-    { feito: checklists.length > 0, titulo: 'Criar o primeiro checklist', texto: 'Fale a rotina e a IA monta as tarefas, com foto obrigatória e horário.', acao: 'Criar checklist', onClick: () => navigate('/admin/creator'), extra: { texto: 'ou mande sua rotina no WhatsApp que a gente monta', href: `https://wa.me/5522998851680?text=${encodeURIComponent('Olá! Uso o FireCheck (' + (userProfile?.email || '') + ') e quero ajuda para montar meus checklists.')}` } },
+    { feito: checklists.length > 0, titulo: 'Criar o primeiro checklist', texto: 'Fale a rotina e a IA monta as tarefas, com foto obrigatória e horário.', acao: 'Criar checklist', onClick: () => navigate('/admin/creator'), extra: { texto: 'ou mande sua rotina no WhatsApp que a gente monta', href: `https://wa.me/5522981118514?text=${encodeURIComponent('Olá! Uso o FireCheck (' + (userProfile?.email || '') + ') e quero ajuda para montar meus checklists.')}` } },
     { feito: team.length > 1, titulo: 'Cadastrar a equipe', texto: 'Quem vai fazer os checklists pelo celular.', acao: 'Cadastrar equipe', onClick: () => setTab('equipe') },
   ];
   const mostrarPassos = userProfile?.role === 'admin' && !isMaster && !passosOcultos && whatsChecado && dadosCarregados && passosDoDono.some((p) => !p.feito);
@@ -2747,6 +2747,24 @@ export default function AdminDashboard() {
             <span><Sparkles size={18} color="currentColor" /></span>
             {!isSidebarCollapsed && 'Tour do Sistema'}
           </button>
+
+          {/* Suporte no WhatsApp do FireHub (Douglas, 21/11): dono e gestor chamam a equipe direto. */}
+          {!isMaster && !isFuncionario && (
+            <a
+              href={`https://wa.me/5522981118514?text=${encodeURIComponent(`Olá! Sou cliente do FireCheck (${userProfile?.store_name || userProfile?.store || ''} · ${userProfile?.email || ''}) e preciso de ajuda.`)}`}
+              target="_blank" rel="noopener noreferrer" title="Suporte no WhatsApp"
+              onClick={() => setIsSidebarOpen(false)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px',
+                justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
+                borderRadius: '8px', border: '1px solid rgba(37,211,102,.45)', fontWeight: '600', fontSize: '0.9rem',
+                color: '#4ade80', textDecoration: 'none', marginTop: '8px'
+              }}
+            >
+              <span><MessageCircle size={18} color="currentColor" /></span>
+              {!isSidebarCollapsed && 'Suporte no WhatsApp'}
+            </a>
+          )}
         </div>
 
         {/* FOOTER DA SIDEBAR */}
@@ -3084,7 +3102,7 @@ export default function AdminDashboard() {
                     Combo anual, que custa 12x R$167, não 12x R$97. */}
                 ⚡ Só Checklists anual — 12x R$ 97/mês
               </button>
-              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522998851680?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
+              <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
                 💬 Plano Custom (&gt;50 funcionários no WhatsApp)
               </button>
             </div>

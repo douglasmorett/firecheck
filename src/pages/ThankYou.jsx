@@ -110,7 +110,7 @@ export default function ThankYou() {
         {/* Passo principal: chamar no WhatsApp para montarmos os checklists junto
             (igual ao cardápio do FireHub: o cliente não fica sozinho configurando). */}
         <a
-          href={`https://wa.me/5522998851680?text=${encodeURIComponent(`Olá! Acabei de assinar o FireCheck${email ? ` (${email})` : ''}. Quero ajuda para montar meus checklists.`)}`}
+          href={`https://wa.me/5522981118514?text=${encodeURIComponent(`Olá! Acabei de assinar o FireCheck${email ? ` (${email})` : ''}. Quero ajuda para montar meus checklists.`)}`}
           target="_blank" rel="noopener noreferrer"
           style={{ width: '100%', padding: '16px', borderRadius: '14px', backgroundColor: '#25D366', color: '#fff', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', marginBottom: '10px', boxShadow: '0 4px 20px rgba(37,211,102,.3)' }}
         >
@@ -149,7 +149,7 @@ export default function ThankYou() {
         <p style={{ fontSize: '0.9rem', color: '#94a3b8' }}>
           Precisa de ajuda para começar?{' '}
           <a 
-            href={`https://wa.me/5522998851680?text=Olá,%20acabei%20de%20assinar%20o%20FireCheck%20com%20o%20email%20${encodeURIComponent(email)}%20e%20gostaria%20de%20ajuda%20para%20começar.`}
+            href={`https://wa.me/5522981118514?text=Olá,%20acabei%20de%20assinar%20o%20FireCheck%20com%20o%20email%20${encodeURIComponent(email)}%20e%20gostaria%20de%20ajuda%20para%20começar.`}
             target="_blank"
             rel="noopener noreferrer"
             style={{ 
