@@ -1495,6 +1495,21 @@ function jornadaNoDia({ user, schedule, weekdays, admin }, date) {
     const texto = date instanceof Date
       ? date.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' })
       : String(date).slice(0, 10);
+    // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados a
+    // partir do "último dia trabalhado" da ficha. A regra mora AQUI para valer em
+    // todo lugar que pergunta "hoje é dia de trabalho?" (cron de ausência, aviso
+    // de atraso na batida, tela do ponto), e não só no banco de horas.
+    if (schedule.type === '12x36') {
+      const base = user.ponto_last_worked_day
+        ? new Date(user.ponto_last_worked_day).toISOString().slice(0, 10) : null;
+      const diff = base ? Math.round((Date.parse(texto) - Date.parse(base)) / 86400000) : 0;
+      return {
+        isWorkday: !base || Math.abs(diff) % 2 === 0,
+        horaEntrada: schedule.hora_entrada, horaSaida: schedule.hora_saida,
+        intervaloInicio: schedule.intervalo_inicio, intervaloFim: schedule.intervalo_fim,
+        tolerancia: schedule.tolerancia
+      };
+    }
     const [aa, mm, dd] = texto.split('-').map(Number);
     const jsDay = (aa && mm && dd) // 0 = domingo
       ? new Date(Date.UTC(aa, mm - 1, dd)).getUTCDay()
@@ -1725,16 +1740,8 @@ async function calcularBancoDeHoras(pool, store, { userId, inicio, fim, tz }) {
     const tot = { trabalhado: 0, esperado: 0, abonado: 0, saldo: 0, faltas: 0, diasAbonados: 0, incompletos: 0 };
     for (const dia of dias) {
       if (!primeiroDia || dia < primeiroDia) continue;
-      let jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
-      // 12x36: a escala não tem dias da semana; trabalha-se em dias alternados
-      // a partir do "último dia trabalhado" da ficha (mesma regra da tela).
-      if (escala?.schedule?.type === '12x36') {
-        const base = escala.user.ponto_last_worked_day
-          ? new Date(escala.user.ponto_last_worked_day).toISOString().slice(0, 10) : null;
-        const s = escala.schedule;
-        const diff = base ? Math.round((Date.parse(dia) - Date.parse(base)) / 86400000) : 0;
-        jornada = { isWorkday: !base || Math.abs(diff) % 2 === 0, horaEntrada: s.hora_entrada, horaSaida: s.hora_saida, intervaloInicio: s.intervalo_inicio, intervaloFim: s.intervalo_fim };
-      }
+      // (a regra da escala 12x36 vive em jornadaNoDia)
+      const jornada = escala ? jornadaNoDia(escala, dia) : { isWorkday: false };
       const doDia = minhas.filter(b => b.dia === dia);
       const trabalhado = trabalhadoPorDia[dia] || 0;
       const emAndamento = dia === hoje && jornada.isWorkday && agoraMin !== null
