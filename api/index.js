@@ -4844,14 +4844,19 @@ export default async function handler(req, res) {
 
           // Regra de Bloqueio/Liberação
           // Se o pagamento for aprovado, pago, ou assinatura ativa
-          const activeStatuses = ['paid', 'approved', 'authorized', 'active', 'charge.paid', 'subscription.active'];
-          const blockedStatuses = ['refunded', 'chargeback', 'refused', 'canceled', 'overdue', 'charge.refunded', 'subscription.canceled'];
+          const activeStatuses = ['paid', 'approved', 'authorized', 'active'];
+          const blockedStatuses = ['refunded', 'chargeback', 'chargedback', 'refused', 'canceled', 'cancelled', 'overdue'];
 
-          const lowerStatus = String(status).toLowerCase();
+          // O status é comparado por PALAVRA inteira (o evento da Cakto vem como
+          // "purchase_approved", "charge.paid", "subscription.canceled"...). Com
+          // substring, "unpaid", "disapproved", "unauthorized" e "inactive"
+          // ativavam a conta e renovavam 30/365 dias: contêm "paid", "approved",
+          // "authorized" e "active".
+          const palavrasDoStatus = String(status).toLowerCase().split(/[^a-z]+/).filter(Boolean);
 
           let newStatus = null;
-          if (activeStatuses.some(s => lowerStatus.includes(s))) newStatus = 'active';
-          if (blockedStatuses.some(s => lowerStatus.includes(s))) newStatus = 'blocked';
+          if (activeStatuses.some(s => palavrasDoStatus.includes(s))) newStatus = 'active';
+          if (blockedStatuses.some(s => palavrasDoStatus.includes(s))) newStatus = 'blocked';
 
           // Adiciona a coluna para expiração do módulo de câmeras se não existir
           await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS camera_expiration TIMESTAMP");
