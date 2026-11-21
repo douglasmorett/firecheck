@@ -4070,7 +4070,11 @@ export default async function handler(req, res) {
               if (Array.isArray(parsed) && parsed.length > 0) {
                 assignedToVal = JSON.stringify(parsed);
               }
-            } catch(e) {}
+            } catch(e) {
+              // JSON quebrado virava "toda a equipe" em silêncio: o checklist de
+              // uma pessoa passava a aparecer para todos. Recusa em vez de adivinhar.
+              return res.status(400).json({ error: 'assignedTo inválido: envie uma lista de e-mails.' });
+            }
           }
         }
 
