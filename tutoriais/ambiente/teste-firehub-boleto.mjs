@@ -10,13 +10,16 @@
 //                            (+ semente.mjs da loja demo)
 //   node tutoriais/ambiente/teste-firehub-boleto.mjs 15 15
 //
-// Cobre: criar a conta pelo FireHub (nasce parada), ligar com termo, combo,
+// Cobre: ligar já cria a conta (o login é o do FireHub, nasce parada), a senha
+// do FireHub entrando no FireCheck, o "Abrir o FireCheck" (bilhete de uso único),
+// ligar com termo, combo,
 // desligar no teste (corta na hora), checklist desligado travado no servidor,
 // mensalidade em aberto bloqueando tudo e voltando ao pagar, Cakto valendo
 // recusando, cancelamento da Cakto ignorado, desconectar recusado com módulo
 // ligado e o dono sem conseguir ligar o ponto pelo cadastro.
 process.env.TZ = 'UTC';
 import pg from 'pg';
+import jwt from 'jsonwebtoken';
 
 const nFc = Number(process.argv[2] || 15), nFh = Number(process.argv[3] || 15);
 const FC = `http://127.0.0.1:${3170 + nFc}`;
@@ -89,37 +92,55 @@ await fc('/api/health').catch(() => null); // acorda o FireCheck (e as colunas n
 await bfc.query("DELETE FROM integracao_firehub WHERE firehub_loja_id = $1", [lojaFh.id]);
 await bfc.query("DELETE FROM users WHERE LOWER(email) = LOWER($1)", [LOJA.email]);
 
-console.log('\n1) Conta nova pelo FireHub');
+console.log('\n1) Ligar já cria a conta, com o login do FireHub');
 confere('entra no FireHub', await entrarNoFirehub());
 let r = await fh('/api/store/firecheck/modulos');
 confere('GET módulos: desconectado, os dois desligados', r.status === 200 && !r.dados.conectado && !r.dados.estado.modulos.checklists.ativo && !r.dados.estado.modulos.ponto.ativo, JSON.stringify(r.dados).slice(0, 160));
 confere('preços: 149 por módulo, combo 197, 7 dias', r.dados?.precos?.porModulo?.ponto === 149 && r.dados?.precos?.combo === 197 && r.dados?.precos?.diasDeTeste === 7);
-r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { modulo: 'checklists', ligar: true, aceite: { versao: '2026-10-28' } } });
-confere('ligar sem conta do FireCheck: recusa e pede para conectar', r.status === 400 && r.dados?.precisaConectar === true, `${r.status} ${r.dados?.error}`);
-r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { acao: 'criar-conta' } });
-const senhaNova = r.dados?.conta?.senha;
-confere('criar a conta: volta e-mail e senha', r.status === 200 && r.dados?.conta?.email === LOJA.email && typeof senhaNova === 'string' && senhaNova.length >= 8, `${r.status} ${JSON.stringify(r.dados)}`);
+r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { modulo: 'checklists', ligar: true } });
+confere('ligar sem o termo: recusa', r.status === 400 && r.dados?.precisaDoTermo === true, `${r.status} ${r.dados?.error}`);
 let d = await dono();
-confere('conta nasce parada (desligado) e seguindo o FireHub', d?.status === 'blocked' && d?.cobranca_firehub === true && d?.firehub_motivo === 'desligado' && d?.role === 'admin');
+confere('a conta do FireCheck já nasceu: e-mail da loja, parada (desligado) e seguindo o FireHub', d?.status === 'blocked' && d?.cobranca_firehub === true && d?.firehub_motivo === 'desligado' && d?.role === 'admin');
+r = await fh('/api/store/firecheck/modulos');
+confere('GET módulos: conectado, com o mesmo login do FireHub', r.dados?.conectado?.email === LOJA.email && r.dados?.conectado?.mesmoLogin === true, JSON.stringify(r.dados?.conectado));
+r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: LOJA.senha } });
+confere('login no FireCheck com a senha do FIREHUB: confere (403 só porque está desligado no FireHub)', r.status === 403 && r.dados?.firehub === true && /desligado no FireHub/.test(r.dados?.error || ''), `${r.status} ${r.dados?.error}`);
+r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: 'senha-errada-123' } });
+confere('senha errada: 401', r.status === 401, `${r.status} ${r.dados?.error}`);
 r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { acao: 'criar-conta' } });
-confere('criar de novo: recusa (já conectada)', r.status === 409, `${r.status} ${r.dados?.error}`);
-r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: senhaNova } });
-confere('login no FireCheck antes de ligar: 403 explicando que está desligado no FireHub', r.status === 403 && r.dados?.firehub === true && /desligado no FireHub/.test(r.dados?.error || ''), `${r.status} ${r.dados?.error}`);
+const { rows: [{ n: contasDoEmail }] } = await bfc.query('SELECT COUNT(*)::int AS n FROM users WHERE LOWER(email) = LOWER($1)', [LOJA.email]);
+confere('tela velha ("Criar minha conta"): devolve a mesma conta, sem duplicar', r.status === 200 && r.dados?.conta?.senha === 'a mesma do FireHub' && contasDoEmail === 1, `${r.status} ${JSON.stringify(r.dados)} contas=${contasDoEmail}`);
 
 console.log('\n2) Ligar o Checklist');
-r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { modulo: 'checklists', ligar: true } });
-confere('ligar sem o termo: recusa', r.status === 400 && r.dados?.precisaDoTermo === true, `${r.status}`);
 r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { modulo: 'checklists', ligar: true, aceite: { versao: '2026-10-28' } } });
 confere('ligar com o termo: ok, em teste, e o FireCheck sincronizou', r.status === 200 && r.dados?.estado?.modulos?.checklists?.ativo && r.dados?.estado?.modulos?.checklists?.emTeste && r.dados?.sincronizado === true, `${r.status} ${JSON.stringify(r.dados).slice(0, 200)}`);
 d = await dono();
 confere('FireCheck: ativo, checklists_mensal, sem vencimento, checklist ligado, ponto desligado, 30 colaboradores',
   d.status === 'active' && d.plan === 'checklists_mensal' && d.expiration_date === null && d.checklists_active === true && d.ponto_active === false && Number(d.ponto_limit) === 30,
   `${d.status} ${d.plan} ${d.expiration_date} ${d.checklists_active} ${d.ponto_active} ${d.ponto_limit}`);
-r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: senhaNova } });
+r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: LOJA.senha } });
 const token = r.dados?.token;
-confere('login no FireCheck: entra, e o perfil já vem com o plano do FireHub', r.status === 200 && !!token && r.dados?.user?.plan === 'checklists_mensal', `${r.status} ${r.dados?.error || ''}`);
+confere('login no FireCheck com a senha do FireHub: entra, e o perfil já vem com o plano do FireHub', r.status === 200 && !!token && r.dados?.user?.plan === 'checklists_mensal', `${r.status} ${r.dados?.error || ''}`);
 r = await fc('/api/checklists', { token, metodo: 'POST', corpo: { title: `Abertura ${RODADA}`, tasks: [{ text: 'Ligar a chapa' }], recurrence: 'daily' } });
 confere('criar checklist com o Checklist ligado: passa', r.status === 200 || r.status === 201, `${r.status} ${r.dados?.error || ''}`);
+
+console.log('\n2b) "Abrir o FireCheck" no painel do FireHub');
+r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { acao: 'abrir' } });
+const link = r.dados?.url || '';
+confere('o FireHub devolve o link de entrada, com o bilhete depois do #', r.status === 200 && link.startsWith(`${FC}/login#firehub=`), `${r.status} ${link.slice(0, 80)} ${r.dados?.error || ''}`);
+const bilhete = new URLSearchParams(link.split('#')[1] || '').get('firehub');
+r = await fc('/api/users', { token: bilhete });
+confere('o bilhete não vale como token de sessão', r.status === 401, `${r.status}`);
+r = await fc('/api/integracoes/firehub/entrar', { metodo: 'POST', corpo: { bilhete } });
+const tokenDoBotao = r.dados?.token;
+confere('o bilhete entra como o dono, com o plano do FireHub', r.status === 200 && !!tokenDoBotao && r.dados?.user?.email === LOJA.email && r.dados?.user?.plan === 'checklists_mensal' && !r.dados?.user?.password, `${r.status} ${r.dados?.error || ''}`);
+r = await fc('/api/users', { token: tokenDoBotao });
+confere('o token que veio do botão funciona', r.status === 200, `${r.status}`);
+r = await fc('/api/integracoes/firehub/entrar', { metodo: 'POST', corpo: { bilhete } });
+confere('o mesmo bilhete de novo: recusa (uso único)', r.status === 401 && /já foi usado ou venceu/.test(r.dados?.error || ''), `${r.status} ${r.dados?.error}`);
+const forjado = jwt.sign({ id: d.id, marca: null }, 'tutoriais-local', { expiresIn: '2m' });
+r = await fc('/api/integracoes/firehub/entrar', { metodo: 'POST', corpo: { bilhete: forjado } });
+confere('bilhete assinado com o segredo das sessões: recusa', r.status === 401, `${r.status}`);
 
 console.log('\n3) Ligar o Ponto (combo)');
 r = await fh('/api/store/firecheck/modulos', { metodo: 'POST', corpo: { modulo: 'ponto', ligar: true, aceite: { versao: '2026-10-28' } } });
@@ -173,11 +194,11 @@ d = await dono();
 confere('FireCheck bloqueado pela mensalidade', r.dados?.status === 'blocked' && d.status === 'blocked' && d.firehub_motivo === 'mensalidade', `${JSON.stringify(r.dados)} ${d.status} ${d.firehub_motivo}`);
 r = await fc('/api/users', { token });
 confere('o token que já estava logado deixa de valer', r.status === 401, `${r.status}`);
-r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: senhaNova } });
+r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: LOJA.senha } });
 confere('login: 403 dizendo que a mensalidade do FireHub está em aberto', r.status === 403 && /mensalidade do FireHub/.test(r.dados?.error || ''), `${r.status} ${r.dados?.error}`);
 await bfh.query(`UPDATE "FranchiseeBillingCycle" SET status = 'PAID', "amountPending" = 0 WHERE id = $1`, [`ciclo-${RODADA}`]);
 await dormir(62000);
-r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: senhaNova } });
+r = await fc('/api/auth', { metodo: 'POST', corpo: { email: LOJA.email, password: LOJA.senha } });
 d = await dono();
 confere('pagou: o login volta sozinho e a conta fica como estava (combo)', r.status === 200 && d.status === 'active' && d.plan === 'combo_mensal', `${r.status} ${d.status} ${d.plan}`);
 
@@ -194,6 +215,19 @@ r = await fc('/api/integracoes/firehub/criar-conta', { metodo: 'POST', corpo: { 
 confere('criar conta com chave que o FireHub não conhece: 401', r.status === 401, `${r.status}`);
 r = await fc('/api/integracoes/firehub/criar-conta', { metodo: 'POST', corpo: { chave: integ.chave, firehubLojaId: lojaFh.id, urlDoFirehub: 'https://evil.example.com' } });
 confere('criar conta apontando para outro servidor: recusa', r.status === 400, `${r.status}`);
+r = await fc('/api/integracoes/firehub/criar-conta', { metodo: 'POST', corpo: { chave: integ.chave, firehubLojaId: lojaFh.id, urlDoFirehub: FH } });
+const { rows: [{ n: contasDepois }] } = await bfc.query('SELECT COUNT(*)::int AS n FROM users WHERE LOWER(email) = LOWER($1)', [LOJA.email]);
+confere('criar conta de novo para a mesma loja: religa, sem duplicar', r.status === 200 && r.dados?.ok && contasDepois === 1, `${r.status} ${r.dados?.error || ''} contas=${contasDepois}`);
+// O e-mail já tem conta no FireCheck, mas sem ligação com esta loja: não liga só pelo e-mail.
+const { rows: [ligacaoGuardada] } = await bfc.query('DELETE FROM integracao_firehub WHERE firehub_loja_id = $1 RETURNING *', [lojaFh.id]);
+r = await fc('/api/integracoes/firehub/criar-conta', { metodo: 'POST', corpo: { chave: integ.chave, firehubLojaId: lojaFh.id, urlDoFirehub: FH } });
+confere('e-mail com conta no FireCheck sem ligação: recusa (contaExiste), não liga só pelo e-mail', r.status === 409 && r.dados?.contaExiste === true, `${r.status} ${r.dados?.error || ''}`);
+await bfc.query('INSERT INTO integracao_firehub (store, firehub_loja_id, firehub_loja_nome, chave, url, conectado_por, conectado_em) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+  [ligacaoGuardada.store, ligacaoGuardada.firehub_loja_id, ligacaoGuardada.firehub_loja_nome, ligacaoGuardada.chave, ligacaoGuardada.url, ligacaoGuardada.conectado_por, ligacaoGuardada.conectado_em]);
+let resp = await fetch(`${FH}/api/integracoes/firecheck/senha`, { method: 'POST', headers: { Authorization: `Bearer ${integ.chave}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'outro@teste.local', senha: LOJA.senha }) });
+confere('FireHub: senha certa com OUTRO e-mail não confere (só o da loja da chave)', (await json(resp))?.confere === false);
+resp = await fetch(`${FH}/api/integracoes/firecheck/senha`, { method: 'POST', headers: { Authorization: `Bearer ${'z'.repeat(64)}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email: LOJA.email, senha: LOJA.senha }) });
+confere('FireHub: conferir senha com chave errada: 401', resp.status === 401, `${resp.status}`);
 await bfc.query('DELETE FROM integracao_firehub WHERE chave = $1', [chaveCakto]);
 await bfc.query('DELETE FROM users WHERE email = $1', [`cakto-${RODADA}@teste.local`]);
 
