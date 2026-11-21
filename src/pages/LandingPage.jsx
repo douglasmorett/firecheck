@@ -191,6 +191,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState('mensal'); // 'mensal' ou 'anual' — abre no mensal: o anúncio fala em R$ 67
   const [videoTocando, setVideoTocando] = useState(false);
+  const [videoAcabou, setVideoAcabou] = useState(false);
   const [barraVisivel, setBarraVisivel] = useState(false);
   const videoRef = useRef(null);
   const heroCtaRef = useRef(null);
@@ -280,17 +281,23 @@ export default function LandingPage() {
           <div className="lp-video">
             <video
               ref={videoRef}
-              src="/firecheck-checklist-clipe.mp4"
-              poster="/firecheck-checklist-clipe-capa.jpg"
+              src="/firecheck-clipe-v3.mp4"
+              poster="/firecheck-clipe-v3-capa.jpg"
               playsInline
               preload="none"
               controls={videoTocando}
-              onEnded={() => setVideoTocando(false)}
+              onEnded={() => { setVideoTocando(false); setVideoAcabou(true); }}
             />
-            {!videoTocando && (
+            {!videoTocando && !videoAcabou && (
               <button className="lp-play" onClick={tocarVideo} aria-label="Ver o vídeo">
-                <span>▶ Veja funcionando · 37 s</span>
+                <span>▶ Veja funcionando · 33 s</span>
               </button>
+            )}
+            {videoAcabou && (
+              <div className="lp-video-fim">
+                <button className="lp-cta" onClick={() => testar('Vídeo: assinar agora')}>Assinar agora</button>
+                <button className="lp-video-rever" onClick={() => { setVideoAcabou(false); tocarVideo(); }}>↻ Ver de novo</button>
+              </div>
             )}
           </div>
         </div>
@@ -392,7 +399,7 @@ export default function LandingPage() {
                 <li>Relatório em PDF de cada checklist</li>
                 <li><b>A gente monta seus checklists com você pelo WhatsApp</b></li>
               </ul>
-              <button className="lp-cta" onClick={() => assinar('Plano até 10 pessoas: assinar', 'checklists10')}>Assinar</button>
+              <button className="lp-cta" onClick={() => assinar('Plano até 10 pessoas: assinar', 'checklists10')}>Assinar agora</button>
               <p className="lp-fine">Garantia de 7 dias. Cancela quando quiser.</p>
             </div>
             <div className="lp-plano">
@@ -409,7 +416,7 @@ export default function LandingPage() {
                 <li>Relatório em PDF de cada checklist</li>
                 <li><b>A gente monta seus checklists com você pelo WhatsApp</b></li>
               </ul>
-              <button className="lp-cta" onClick={() => assinar('Plano até 30 pessoas: assinar', 'checklists')}>Assinar</button>
+              <button className="lp-cta" onClick={() => assinar('Plano até 30 pessoas: assinar', 'checklists')}>Assinar agora</button>
               <p className="lp-fine">Garantia de 7 dias. Cancela quando quiser.</p>
             </div>
             <div className="lp-plano sec">

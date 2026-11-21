@@ -210,3 +210,8 @@
   .lp-centro { text-align: center; }
   .lp-centro .lp-cta { display: inline-block; width: auto; padding: 16px 40px; }
 }
+
+/* Fim do vídeo: o botão de assinar aparece em cima do último quadro (21/11/2026). */
+.lp-video-fim { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 18px 22px; display: grid; gap: 10px; background: linear-gradient(to top, rgba(0,0,0,.55), transparent); }
+.lp-video-fim .lp-cta { margin-top: 0; }
+.lp-video-rever { background: rgba(255,255,255,.92); color: var(--lp-tx); border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 700; font-size: 14px; justify-self: center; }
