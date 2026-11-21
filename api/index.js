@@ -548,14 +548,15 @@ function autorizarChamadaInterna(req, res) {
 // pelo cron, que varre o que ficou para trás. Exigir só o segredo de cron aqui
 // mataria a auditoria imediata: a foto seria enviada e o feedback nunca viria.
 //
-// Devolve true se qualquer um dos dois se identificou. Não responde nada quando
-// aceita; quando recusa, já respondeu 401.
+// Devolve `true` se foi o agendador (segredo de cron) e o OBJETO do usuário se foi
+// uma sessão: quem precisa limitar à loja dele usa o objeto. Não responde nada
+// quando aceita; quando recusa, já respondeu 401.
 async function autorizarUsuarioOuInterno(req, res) {
   const esperado = process.env.CRON_SECRET;
   const enviado = String(req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.headers['x-cron-secret'] || '';
   if (esperado && comparaSegredo(String(enviado), esperado)) return true;
   const usuario = await autenticarComLojaAtual(req);
-  if (usuario) return true;
+  if (usuario) return usuario;
   res.status(401).json({ error: 'Token inválido ou ausente.' });
   return false;
 }
@@ -7147,14 +7148,20 @@ export default async function handler(req, res) {
     // ── Auto-Processador de Pendentes (Piggyback) ─────────────────
     // Roda silenciosamente em CADA request ao backend, sem depender do admin
     if (url.includes('/api/auto-process-pending')) {
-      if (!(await autorizarUsuarioOuInterno(req, res))) return;
+      const quemChama = await autorizarUsuarioOuInterno(req, res);
+      if (!quemChama) return;
+      // Sessão de usuário só toca as submissões da PRÓPRIA loja (o master e o
+      // agendador varrem tudo): cada chamada queima uma das 15 tentativas.
+      const soDaLoja = quemChama !== true && quemChama.role !== 'master';
       try {
         const { rows: pending } = await pool.query(
-          `SELECT id FROM checklist_submissions 
+          `SELECT id FROM checklist_submissions
            WHERE (feedback_info IS NULL OR feedback_info = '{}' OR feedback_info::text = 'null')
            AND retry_count < 15
            AND created_at > NOW() - INTERVAL '7 days'
-           ORDER BY created_at DESC LIMIT 3`
+           ${soDaLoja ? 'AND LOWER(TRIM(store)) = LOWER(TRIM($1))' : ''}
+           ORDER BY created_at DESC LIMIT 3`,
+          soDaLoja ? [quemChama.store || ''] : []
         );
         const processed = [];
         for (const row of pending) {
@@ -7174,8 +7181,18 @@ export default async function handler(req, res) {
         // Reprocessa a auditoria de IA de uma submissão pelo id. Aberta, era uma
         // torneira de custo: um laço de POSTs queima a cota do Gemini com o
         // cartão da empresa, e ninguém repara até a fatura.
-        if (!(await autorizarUsuarioOuInterno(req, res))) return;
+        const quemChama = await autorizarUsuarioOuInterno(req, res);
+        if (!quemChama) return;
         const { submissionId } = req.body;
+        // Com sessão de usuário, a submissão tem que ser da loja dele: com ids
+        // sequenciais, um laço de POSTs gastava o Gemini e consumia as 15
+        // tentativas de submissões ALHEIAS (que viravam "revisão manual").
+        if (quemChama !== true && quemChama.role !== 'master') {
+          const { rows: dona } = await pool.query('SELECT store FROM checklist_submissions WHERE id = $1', [submissionId]);
+          if (dona.length === 0 || !mesmaLoja(dona[0].store, quemChama.store)) {
+            return res.status(403).json({ error: 'Você só pode reprocessar auditorias da sua própria loja.' });
+          }
+        }
         const result = await processAuditForSubmission(pool, submissionId);
         return res.status(200).json(result);
       }
