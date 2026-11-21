@@ -2671,6 +2671,13 @@ export default function AdminDashboard() {
 
         {/* MENU ITENS */}
         <div style={{ padding: '10px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          {/* Tutoriais em vídeo no alto do menu, destacado (Douglas, 21/11): abre a central com
+              todos os vídeos. Só aparece quando há vídeo publicado para quem está logado. */}
+          {!isMaster && (
+            <div style={{ marginBottom: '8px' }}>
+              <BotaoTutoriaisEmVideo usuario={userProfile} recolhido={isSidebarCollapsed} onClick={() => setIsSidebarOpen(false)} />
+            </div>
+          )}
           {(isMaster ? [
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
             { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
@@ -2717,11 +2724,6 @@ export default function AdminDashboard() {
             );
           })}
 
-          {/* Tutoriais em vídeo (igual ao FireHub): abre a central com todos os vídeos.
-              Só aparece quando há vídeo publicado para quem está logado. */}
-          {!isMaster && (
-            <BotaoTutoriaisEmVideo usuario={userProfile} recolhido={isSidebarCollapsed} onClick={() => setIsSidebarOpen(false)} />
-          )}
 
           {/* Botão para Acessar a Central de Tutoriais */}
           <button 
