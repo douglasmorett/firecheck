@@ -3630,6 +3630,11 @@ export default async function handler(req, res) {
       `);
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_cta BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicked_button VARCHAR(255)");
+      // Painel de conversão do site (21/11/2026): clicked_button guarda só o ÚLTIMO
+      // clique (o play do vídeo apagava o "assinar"); estas colunas não se perdem.
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS checkout_plan VARCHAR(40)");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_planos BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_whatsapp BOOLEAN DEFAULT FALSE");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS behavior_events (
           id SERIAL PRIMARY KEY,
@@ -8847,13 +8852,20 @@ A mensagem é lida pelo próprio funcionário, no celular:
     // --- Quiz Analytics ---
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
-        const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton } = req.body;
+        const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, checkoutPlan } = req.body;
         const clientIp = ipDoVisitante(req);
+        const planoDoCheckout = /^[a-z0-9_]{3,40}$/.test(String(checkoutPlan || '')) ? String(checkoutPlan) : null;
+        const botao = String(clickedButton || '');
+        const viuPlanos = !!planoDoCheckout || /ver planos|assinar/i.test(botao);
+        const chamouNoZap = /whatsapp|consultor/i.test(botao);
 
         await pool.query(`
-          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-          ON CONFLICT (session_id) DO UPDATE SET 
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button, checkout_plan, clicou_planos, clicou_whatsapp)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          ON CONFLICT (session_id) DO UPDATE SET
+            checkout_plan = COALESCE($11, quiz_responses.checkout_plan),
+            clicou_planos = COALESCE(quiz_responses.clicou_planos, FALSE) OR $12,
+            clicou_whatsapp = COALESCE(quiz_responses.clicou_whatsapp, FALSE) OR $13,
             last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
             last_step = $3,
             q1_answer = COALESCE($4, quiz_responses.q1_answer),
@@ -8863,10 +8875,108 @@ A mensagem é lida pelo próprio funcionário, no celular:
             completed = $8,
             clicked_cta = COALESCE($9, quiz_responses.clicked_cta),
             clicked_button = COALESCE($10, quiz_responses.clicked_button)
-        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton]);
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, planoDoCheckout, viuPlanos, chamouNoZap]);
 
         return res.status(200).json({ success: true });
       }
+    }
+
+    // ── Conversão do site (painel Master, 21/11/2026) ─────────────────────
+    //   GET /api/conversao-do-site?de=AAAA-MM-DD&ate=AAAA-MM-DD  (dias de São Paulo)
+    // Funil: acessos → ficaram 10 s ou mais → viram os planos → foram ao checkout
+    // (o "Assinar" leva direto à Cakto) → compraram (webhook da Cakto, webhook_logs).
+    if (url.includes('/api/conversao-do-site')) {
+      const quemVe = await autenticarComLojaAtual(req);
+      if (!quemVe) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (quemVe.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
+      const diaSP = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+      const hojeSP = diaSP(Date.now());
+      const dia = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? String(v) : hojeSP);
+      let de = dia(searchParams.get('de')), ate = dia(searchParams.get('ate'));
+      if (de > ate) [de, ate] = [ate, de];
+
+      // Visitas: created_at já é hora de São Paulo (default da tabela).
+      const { rows: visitas } = await pool.query(`
+        SELECT EXTRACT(EPOCH FROM (last_updated_at - created_at))::int AS seg,
+               clicked_button, checkout_plan, clicou_planos, clicou_whatsapp
+          FROM quiz_responses
+         WHERE last_step = 0 AND created_at::date BETWEEN $1::date AND $2::date
+      `, [de, ate]);
+      // Planos: o "Assinar" guarda plano_ciclo. Antes disso só havia o nome do botão
+      // (sem o ciclo): esses cliques entram como "_sem_ciclo".
+      const planoDaVisita = (v) => v.checkout_plan
+        || (/até 10 pessoas: assinar/i.test(v.clicked_button || '') ? 'checklists10_sem_ciclo'
+          : /até 30 pessoas: assinar/i.test(v.clicked_button || '') ? 'checklists_sem_ciclo' : null);
+      // Quem clicou em algo é gente, mesmo saindo antes de 10 s (o Assinar sai da página na hora).
+      const ficaram = visitas.filter(v => v.seg >= 10 || planoDaVisita(v) || v.clicou_planos || v.clicou_whatsapp || v.clicked_button);
+      const tempos = ficaram.map(v => Math.min(v.seg, 7200));
+      const porPlano = {};
+      const linha = (k) => (porPlano[k] ||= { cliques: 0, compras: 0, valor: 0 });
+      let checkout = 0, viramPlanos = 0, whatsapp = 0;
+      for (const v of visitas) {
+        const p = planoDaVisita(v);
+        if (p) { checkout++; linha(p).cliques++; }
+        if (p || v.clicou_planos || /ver planos/i.test(v.clicked_button || '')) viramPlanos++;
+        if (v.clicou_whatsapp || /whatsapp|consultor/i.test(v.clicked_button || '')) whatsapp++;
+      }
+
+      // Compras: o que a Cakto mandou ao webhook. A tabela só existe em produção;
+      // sem ela o painel mostra o funil do site e avisa que as compras não vieram.
+      const vendas = { compras: 0, valor: 0, lista: [], renovacoes: 0, valorRenovacoes: 0, pixGerado: 0, abandonos: 0, recusadas: 0, reembolsos: 0 };
+      let comprasOk = true;
+      try {
+        const dias = Math.max(2, Math.round((Date.now() - new Date(`${de}T00:00:00-03:00`).getTime()) / 86400000) + 2);
+        const { rows: logs } = await pool.query(
+          `SELECT id, payload, created_at FROM webhook_logs WHERE created_at > NOW() - make_interval(days => $1::int) ORDER BY id`, [dias]);
+        const vistos = new Set();
+        for (const l of logs) {
+          let p; try { p = typeof l.payload === 'string' ? JSON.parse(l.payload) : l.payload; } catch { continue; }
+          if (!p || typeof p !== 'object') continue;
+          const d = (p.data && typeof p.data === 'object') ? p.data : p;
+          const quando = d.paidAt || d.createdAt || l.created_at;
+          const diaDaVenda = diaSP(quando);
+          if (diaDaVenda < de || diaDaVenda > ate) continue;
+          const evento = String(p.event || '').toLowerCase();
+          const palavras = String(d.status || p.status || evento).toLowerCase().split(/[^a-z]+/).filter(Boolean);
+          const tipo = /renew/.test(evento) ? 'renovacao'
+            : /pix_gerado|boleto_gerado|_gerado$/.test(evento) ? 'pix'
+            : /abandon/.test(evento) ? 'abandono'
+            : /refus/.test(evento) ? 'recusada'
+            : /refund|chargeback/.test(evento) ? 'reembolso'
+            : (evento === 'purchase_approved' || (!evento && palavras.some(s => ['paid', 'approved'].includes(s)))) ? 'compra'
+            : null;
+          if (!tipo) continue;
+          const chave = `${tipo}:${d.id || d.refId || `log${l.id}`}`;
+          if (vistos.has(chave)) continue;
+          vistos.add(chave);
+          const valor = Number(d.amount ?? d.baseAmount ?? d.offer?.price) || 0;
+          if (tipo === 'compra') {
+            const nome = `${d.product?.name || ''} ${d.offer?.name || ''}`.trim();
+            const n = nome.toLowerCase();
+            const plano = /10 pessoas|at[eé] 10/.test(n) ? `checklists10_${n.includes('anual') ? 'anual' : 'mensal'}`
+              : /firecheck|checklist/.test(n) ? `checklists_${n.includes('anual') ? 'anual' : 'mensal'}` : 'outro';
+            vendas.compras++; vendas.valor += valor;
+            linha(plano).compras++; linha(plano).valor += valor;
+            vendas.lista.push({ quando: new Date(quando).toISOString(), oferta: d.offer?.name || d.product?.name || 'Compra', plano, valor, metodo: d.paymentMethod || null, cliente: String(d.customer?.name || '').split(' ')[0] || null });
+          } else if (tipo === 'renovacao') { vendas.renovacoes++; vendas.valorRenovacoes += valor; }
+          else if (tipo === 'pix') vendas.pixGerado++;
+          else if (tipo === 'abandono') vendas.abandonos++;
+          else if (tipo === 'recusada') vendas.recusadas++;
+          else vendas.reembolsos++;
+        }
+        vendas.lista.sort((a, b) => b.quando.localeCompare(a.quando));
+      } catch (erro) {
+        comprasOk = false;
+        console.warn('[CONVERSAO] webhook_logs indisponível:', erro?.message);
+      }
+
+      return res.status(200).json({
+        de, ate,
+        acessos: visitas.length,
+        ficaram: ficaram.length,
+        tempoMedioSeg: tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0,
+        viramPlanos, checkout, whatsapp, porPlano, comprasOk, ...vendas,
+      });
     }
 
     if (url.includes('/api/quiz-stats')) {

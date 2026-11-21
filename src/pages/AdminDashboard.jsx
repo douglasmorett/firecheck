@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import PrimeirosPassos from '../components/PrimeirosPassos';
 import AlterarSenha from '../components/AlterarSenha';
 import { BarraLuz, Velocimetro, Selo, iniciais } from '../components/painel/Painel';
+import ConversaoDoSite from '../components/painel/ConversaoDoSite';
 import { Plus, ArrowUpRight, MessageCircle, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -3808,6 +3809,7 @@ export default function AdminDashboard() {
       {/* ── Tab: Landing Page Analytics ─────────────────────────────────────── */}
       {tab === 'codigos' && isMaster && <CodigosDeAtivacao addToast={addToast} />}
 
+      {tab === 'quiz' && isMaster && <ConversaoDoSite />}
       {tab === 'quiz' && (
         <div className="card" style={{ padding: '0' }}>
           <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
