@@ -422,10 +422,12 @@ async function autenticarComLojaAtual(req) {
   if (!authUser || !authUser.id) return authUser;
   try {
     const { rows } = await pool.query(
-      `SELECT u.store, u.password_changed_at, u.role, d.cobranca_firehub, d.status AS status_do_dono, d.firehub_sincronizado_em
+      `SELECT u.store, u.password_changed_at, u.role, u.status, u.created_at, u.expiration_date, u.trial_ends_at,
+              d.cobranca_firehub, d.status AS status_do_dono, d.firehub_sincronizado_em,
+              d.created_at AS dono_created_at, d.expiration_date AS dono_expiration_date, d.trial_ends_at AS dono_trial_ends_at
          FROM users u
          LEFT JOIN LATERAL (
-           SELECT cobranca_firehub, status, firehub_sincronizado_em FROM users d
+           SELECT cobranca_firehub, status, firehub_sincronizado_em, created_at, expiration_date, trial_ends_at FROM users d
             WHERE LOWER(TRIM(d.store)) = LOWER(TRIM(u.store)) AND d.role = 'admin' LIMIT 1
          ) d ON TRUE
         WHERE u.id = $1`,
@@ -460,7 +462,29 @@ async function autenticarComLojaAtual(req) {
       if (status === 'blocked') return null;
     }
 
-    if (rows[0].store) return { ...authUser, store: rows[0].store };
+    // ── Conta bloqueada, pendente ou vencida: a sessão cai na hora ──────────
+    // A régua é a do login (contaEmDia), mas o login só roda uma vez: o token
+    // vale sete dias, e loja bloqueada por chargeback, cancelada ou com o teste
+    // ou plano vencidos continuava operando até ele expirar. O dono é julgado
+    // pela própria ficha; gestor e funcionário herdam a situação do dono, como
+    // no login. O master não tem plano. Conta paga pelo FireHub só cai por
+    // 'blocked' (acima): quem manda no vencimento dela é o FireHub, e as datas
+    // lidas aqui podem estar atrasadas em relação à última sincronização.
+    if (rows[0].role !== 'master' && rows[0].cobranca_firehub !== true) {
+      const julgada = rows[0].role === 'admin'
+        ? rows[0]
+        : (rows[0].store ? {
+            status: rows[0].status_do_dono, created_at: rows[0].dono_created_at,
+            expiration_date: rows[0].dono_expiration_date, trial_ends_at: rows[0].dono_trial_ends_at,
+          } : null);
+      // Sem dono encontrado (loja só do master, por exemplo) não há o que cobrar.
+      if (julgada && julgada.status !== undefined && julgada.status !== null && !contaEmDia(julgada)) return null;
+    }
+
+    // O papel vem do BANCO, não do token: gestor rebaixado a funcionário (ou
+    // funcionário promovido) vale na hora, e não daqui a sete dias.
+    if (rows[0].store) return { ...authUser, role: rows[0].role, store: rows[0].store };
+    return { ...authUser, role: rows[0].role };
   } catch (e) {
     // Banco fora do ar não pode transformar uma requisição legítima em 401: sem
     // resposta, o token segue valendo o que já dizia.
