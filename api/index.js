@@ -5110,13 +5110,16 @@ export default async function handler(req, res) {
                   }), 15000, 'CAKTO senha');
                   senhaEntregue = !!envio && envio.ok !== false;
                 }
-                if (!senhaEntregue && process.env.RESEND_API_KEY) {
+                // E-mail SEMPRE (não só quando o WhatsApp falha): desde 21/11/2026 a
+                // compra vai direto para a Cakto, e este é o único jeito de o cliente
+                // receber o acesso. O WhatsApp do sistema pode estar fora do ar.
+                if (process.env.RESEND_API_KEY) {
                   const porEmail = await enviarEmail({
                     para: customerEmail,
                     assunto: 'Bem-vindo ao FireCheck - seus dados de acesso',
                     html: `<p>Olá, ${escHtml(String(customerName).split(' ')[0])}! Sua conta do FireCheck já está ativa.</p><p>E-mail: <strong>${escHtml(customerEmail)}</strong><br>Senha temporária: <strong>${senhaInicial}</strong></p><p>Entre em <a href="https://www.firecheckapp.com.br">firecheckapp.com.br</a> e troque a senha no primeiro acesso.</p>`,
                   });
-                  senhaEntregue = porEmail.ok === true;
+                  senhaEntregue = senhaEntregue || porEmail.ok === true;
                 }
                 if (!senhaEntregue) {
                   console.warn(`[CAKTO] Conta ${customerEmail} criada, mas a senha não foi entregue (sem WhatsApp do sistema e sem e-mail configurado). O cliente precisará usar "Esqueci minha senha".`);

@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CreditCard, ShieldCheck, Flame, Zap } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
-import { afiliadoAtual, comAfiliado } from '../afiliado';
+import { afiliadoAtual, comAfiliado, comOrigem } from '../afiliado';
 import { CAKTO_DEZ } from '../planos';
 
 // Sem teste grátis desde 21/11/2026: quem chega sem plano (ou com o antigo ?plan=trial)
@@ -16,11 +16,32 @@ const PLANOS = {
 };
 const linkDoDez = (plano) => CAKTO_DEZ[String(plano).endsWith('anual') ? 'anual' : 'mensal'];
 
+// Desde 21/11/2026 (Douglas): os planos de venda vão DIRETO para a Cakto, sem o
+// formulário de conta antes. O webhook da Cakto cria a conta com o e-mail e o
+// telefone da compra e manda a senha por WhatsApp e e-mail.
+const LINK_DIRETO = {
+  checklists10_mensal: CAKTO_DEZ.mensal,
+  checklists10_anual: CAKTO_DEZ.anual,
+  checklists_mensal: 'https://pay.cakto.com.br/3eph5ko_856837',
+  checklists_anual: 'https://pay.cakto.com.br/e7c88df',
+};
+
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const plan = searchParams.get('plan') || 'trial';
   const escolherPlano = plan === 'trial' || !plan;
+  const linkDireto = LINK_DIRETO[plan] ? comOrigem(comAfiliado(LINK_DIRETO[plan])) : null;
+
+  useEffect(() => {
+    if (!linkDireto) return;
+    if (Capacitor.isNativePlatform()) {
+      window.open(linkDireto, '_blank');
+      navigate('/login');
+    } else {
+      window.location.replace(linkDireto);
+    }
+  }, [linkDireto, navigate]);
   const nomeDoPlano = PLANOS[plan]?.nome || plan.charAt(0).toUpperCase() + plan.slice(1);
   const isMobile = window.innerWidth < 600;
 
@@ -132,6 +153,17 @@ export default function Checkout() {
       setLoading(false);
     }
   };
+
+  if (linkDireto) {
+    return (
+      <div className="page-container" style={{ maxWidth: '480px', margin: '0 auto', padding: '80px 20px', textAlign: 'center' }}>
+        <p style={{ fontWeight: 700, marginBottom: '8px' }}>Abrindo o pagamento seguro…</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          {PLANOS[plan].nome} · {PLANOS[plan].preco}. Se não abrir, <a href={linkDireto}>toque aqui</a>.
+        </p>
+      </div>
+    );
+  }
 
   if (escolherPlano) {
     const opcoes = [

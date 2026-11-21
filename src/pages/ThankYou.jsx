@@ -92,18 +92,15 @@ export default function ThankYou() {
               }}>
                 <Lock size={18} />
               </div>
-              {/* A senha fixa "123456" era mostrada a todo mundo, inclusive a quem
-                  veio do Checkout e escolheu a própria senha — que então tentava
-                  entrar com a errada. Contas criadas pela compra recebem uma senha
-                  aleatória por WhatsApp; ninguém mais tem senha previsível. */}
+              {/* Desde 21/11/2026 a compra vai direto para a Cakto, sem cadastro antes:
+                  a conta nasce no webhook com senha aleatória, enviada por WhatsApp e e-mail. */}
               <div>
-                <h4 style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 4px 0' }}>Como acessar</h4>
+                <h4 style={{ fontSize: '0.9rem', color: '#94a3b8', margin: '0 0 4px 0' }}>Sua senha</h4>
                 <p style={{ fontSize: '0.95rem', color: '#e2e8f0', margin: 0, lineHeight: 1.5 }}>
-                  Use a <strong>senha que você escolheu no cadastro</strong>.
+                  Enviamos para o <strong>WhatsApp e o e-mail que você usou na compra</strong>. Chega em poucos minutos.
                 </p>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '8px 0 0 0', lineHeight: 1.5 }}>
-                  Se a conta foi criada pela compra, enviamos sua senha por WhatsApp.
-                  Não recebeu? Use <strong>&ldquo;Esqueci minha senha&rdquo;</strong> na tela de login.
+                  Não chegou? Olhe o spam ou use <strong>&ldquo;Esqueci minha senha&rdquo;</strong> na tela de login. Você troca a senha depois, no Perfil.
                 </p>
               </div>
             </div>

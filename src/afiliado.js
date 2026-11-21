@@ -14,11 +14,29 @@ export function guardarAfiliado(codigo) {
   try { localStorage.setItem(CHAVE, codigo); } catch { /* sem armazenamento: segue sem afiliado */ }
 }
 
+// Origem do anúncio (fbclid e utm_*): o cliente entra pela página inicial e só
+// depois vai para a Cakto. Sem repassar, a venda chega sem saber de qual anúncio veio.
+const CHAVE_ORIGEM = 'fc_origem';
+const PARAMS_DE_ORIGEM = ['fbclid', 'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+
 export function guardarAfiliadoDaUrl() {
   try {
     const p = new URLSearchParams(window.location.search);
     guardarAfiliado(p.get('afiliado') || p.get('affiliate'));
+    const origem = PARAMS_DE_ORIGEM.filter((k) => p.get(k)).map((k) => [k, p.get(k)]);
+    if (origem.length) sessionStorage.setItem(CHAVE_ORIGEM, JSON.stringify(origem));
   } catch { /* URL estranha: ignora */ }
+}
+
+export function comOrigem(link) {
+  try {
+    const origem = JSON.parse(sessionStorage.getItem(CHAVE_ORIGEM) || '[]');
+    const u = new URL(link);
+    for (const [k, v] of origem) if (!u.searchParams.has(k)) u.searchParams.set(k, v);
+    return u.toString();
+  } catch {
+    return link;
+  }
 }
 
 // O da conta vale mais que o do aparelho: é o de quem trouxe o cliente no cadastro.
