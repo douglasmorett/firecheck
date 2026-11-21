@@ -280,6 +280,8 @@ const getUserStatus = (user) => {
 
 const isBlocked = (user) => {
   if (user.status === 'blocked' || user.status === 'pending') return true;
+  // Plano vencido não é pagante: o servidor já recusa o acesso (contaEmDia).
+  if (user.status === 'active' && user.expiration_date && new Date(user.expiration_date) < new Date()) return true;
   if (user.status === 'trial') {
     const dias = diasRestantesDeTeste(user);
     return dias !== null && dias < 0;
@@ -4762,7 +4764,7 @@ export default function AdminDashboard() {
                 <button type="button" onClick={() => setFiltroContas(filtroContas === 'pagantes' ? null : 'pagantes')} aria-pressed={filtroContas === 'pagantes'} title={filtroContas === 'pagantes' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
                   style={{ backgroundColor: 'rgba(0,200,83,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,200,83,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'pagantes' ? '0 0 0 2px #00C853' : 'none', opacity: filtroContas && filtroContas !== 'pagantes' ? 0.55 : 1, transition: 'all .15s' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>
-                    {team.filter(m => m.role === 'admin' && m.status === 'active').length}
+                    {team.filter(m => m.role === 'admin' && m.status === 'active' && !isBlocked(m)).length}
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Clientes Pagantes</span>
                 </button>
@@ -4775,7 +4777,7 @@ export default function AdminDashboard() {
             )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(team || []).filter(m => !isMaster || !filtroContas || (m.role === 'admin' && (filtroContas === 'trial' ? (m.status === 'trial' && !isBlocked(m)) : filtroContas === 'bloqueadas' ? isBlocked(m) : m.status === 'active'))).map(member => {
+            {(team || []).filter(m => !isMaster || !filtroContas || (m.role === 'admin' && (filtroContas === 'trial' ? (m.status === 'trial' && !isBlocked(m)) : filtroContas === 'bloqueadas' ? isBlocked(m) : (m.status === 'active' && !isBlocked(m))))).map(member => {
               const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
               
               return (
@@ -4786,6 +4788,12 @@ export default function AdminDashboard() {
                     {statusInfo && (
                       <span style={{ backgroundColor: `${statusInfo.color}15`, border: `1px solid ${statusInfo.color}40`, color: statusInfo.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         {statusInfo.text}
+                      </span>
+                    )}
+                    {isMaster && member.role === 'admin' && member.cobranca_firehub === true && (
+                      <span title={member.firehub_motivo ? `Bloqueada pelo FireHub: ${member.firehub_motivo}` : 'A mensalidade desta loja é cobrada no boleto do FireHub'}
+                        style={{ backgroundColor: 'var(--ink)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <Flame size={11} /> Pago pelo FireHub{member.firehub_motivo ? ` · ${member.firehub_motivo}` : ''}
                       </span>
                     )}
                     {!isMaster && member.role === 'gestor' && (
