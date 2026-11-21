@@ -1799,7 +1799,7 @@ export default function AdminDashboard() {
                   ` : ''}
                   ${feedback ? `
                     <div class="ai-feedback ${feedback.status === 'success' ? 'success' : ''}">
-                      <strong>${feedback.status === 'success' ? '✅ Aprovado pela IA' : '⚠️ Alerta da IA'}:</strong>
+                      <strong>${feedback.status === 'success' ? 'Aprovado pela IA' : 'Reprovado pela IA'}:</strong>
                       <p style="margin: 4px 0 0 0;">${feedback.message}</p>
                     </div>
                   ` : ''}
@@ -5638,7 +5638,7 @@ export default function AdminDashboard() {
                             alignSelf: 'start'
                           }}>
                             <p style={{ fontSize: '0.8rem', color: feedback.status === 'success' ? 'var(--success)' : 'var(--warning)', fontWeight: 'bold', marginBottom: '4px' }}>
-                              {feedback.status === 'success' ? '✅ Aprovado pela IA' : '⚠️ Alerta da IA'}
+                              {feedback.status === 'success' ? 'Aprovado pela IA' : 'Reprovado pela IA'}
                             </p>
                             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{feedback.message}</p>
                           </div>
