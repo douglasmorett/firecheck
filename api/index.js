@@ -4632,6 +4632,11 @@ export default async function handler(req, res) {
         const deleteMatch = pathname.match(/\/api\/shopping\/(\d+)/);
         if (deleteMatch) {
           if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+          // Desativar lista é ato de gestão (como excluir checklist): antes bastava
+          // um token de funcionário para sumir com todas as listas da loja.
+          if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
+            return res.status(403).json({ error: 'Somente o administrador ou gestor pode excluir listas de compras.' });
+          }
           // Apagava por id, sem olhar de quem era a lista.
           //
           // E é DESATIVAÇÃO, não DELETE: lista que já teve conferência tem
@@ -4650,6 +4655,12 @@ export default async function handler(req, res) {
       // ── POST: criar/editar lista com itens ──
       if (method === 'POST') {
         if (!authUser) return res.status(401).json({ error: 'Token inválido.' });
+        // Criar e editar lista (itens, mínimos) é ato de gestão. A contagem do
+        // funcionário é /api/shopping/submit e a movimentação de estoque tem
+        // rota e permissão próprias (perm_estoque), acima.
+        if (!['admin', 'master', 'gestor'].includes(authUser.role)) {
+          return res.status(403).json({ error: 'Somente o administrador ou gestor pode criar ou editar listas de compras.' });
+        }
         const { id, title, recurrence, weekdays, scheduledDate, assignedTo, items, category } = req.body;
         const store = authUser.role === 'master' ? req.body.store : authUser.store;
         if (!store) return res.status(400).json({ error: 'Loja obrigatória.' });
@@ -4667,54 +4678,73 @@ export default async function handler(req, res) {
         const assignedStr = assignedTo ? (typeof assignedTo === 'string' ? assignedTo : JSON.stringify(assignedTo)) : null;
         const weekdaysStr = weekdays ? (typeof weekdays === 'string' ? weekdays : JSON.stringify(weekdays)) : null;
 
-        let listId;
-        // Estoque já conferido pelos funcionários, guardado antes de recriar os itens.
-        // Editar a lista apaga e reinsere tudo, e a tela de edição não reenvia esses
-        // valores — sem isto, um simples ajuste no nome de um item jogava fora a
-        // contagem que a equipe tinha acabado de fazer.
-        const estoqueAnterior = new Map();
-        if (id) {
-          const { rows: antigos } = await pool.query(
-            'SELECT name, current_stock FROM shopping_items WHERE shopping_list_id = $1',
-            [id]
-          );
-          for (const a of antigos) {
-            if (a.current_stock !== null && a.current_stock !== undefined) {
-              estoqueAnterior.set(String(a.name || '').trim().toLowerCase(), a.current_stock);
-            }
-          }
-          await pool.query(
-            'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
-            [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
-          );
-          listId = id;
-          // Remover itens antigos e inserir novos
-          await pool.query('DELETE FROM shopping_items WHERE shopping_list_id = $1', [listId]);
-        } else {
-          const { rows: newList } = await pool.query(
-            'INSERT INTO shopping_lists (store, title, recurrence, weekdays, scheduled_date, assigned_to, category) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-            [store, title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras']
-          );
-          listId = newList[0].id;
+        // Mínimo que não é número derrubava a edição NO MEIO (erro 22P02 depois de
+        // apagar os itens): a lista ficava vazia. Confere antes de tocar em qualquer coisa.
+        if (Array.isArray(items) && items.some(it => it && it.minStock !== undefined && it.minStock !== null && it.minStock !== '' && !Number.isFinite(Number(it.minStock)))) {
+          return res.status(400).json({ error: 'O estoque mínimo de cada item precisa ser um número.' });
         }
 
-        // Inserir itens
-        if (items && items.length > 0) {
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            // Mantém o estoque conferido quando o item já existia e a tela não o enviou.
-            const enviado = item.currentStock;
-            const temEnviado = enviado !== undefined && enviado !== null && enviado !== '';
-            const estoqueFinal = temEnviado
-              ? enviado
-              : (estoqueAnterior.has(String(item.name || '').trim().toLowerCase())
-                  ? estoqueAnterior.get(String(item.name || '').trim().toLowerCase())
-                  : null);
-            await pool.query(
-              'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-              [listId, item.name, item.unit || 'un', item.minStock || 0, estoqueFinal, item.category || 'geral', i]
+        let listId;
+        // Editar é "apagar os itens e reinseri-los": vai numa transação, para uma
+        // falha no meio (ou um item ruim) não deixar a lista vazia ou pela metade.
+        const cliente = await pool.connect();
+        try {
+          await cliente.query('BEGIN');
+          // Estoque já conferido pelos funcionários, guardado antes de recriar os itens.
+          // Editar a lista apaga e reinsere tudo, e a tela de edição não reenvia esses
+          // valores — sem isto, um simples ajuste no nome de um item jogava fora a
+          // contagem que a equipe tinha acabado de fazer.
+          const estoqueAnterior = new Map();
+          if (id) {
+            const { rows: antigos } = await cliente.query(
+              'SELECT name, current_stock FROM shopping_items WHERE shopping_list_id = $1',
+              [id]
             );
+            for (const a of antigos) {
+              if (a.current_stock !== null && a.current_stock !== undefined) {
+                estoqueAnterior.set(String(a.name || '').trim().toLowerCase(), a.current_stock);
+              }
+            }
+            await cliente.query(
+              'UPDATE shopping_lists SET title=$1, recurrence=$2, weekdays=$3, scheduled_date=$4, assigned_to=$5, category=$6 WHERE id=$7',
+              [title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras', id]
+            );
+            listId = id;
+            // Remover itens antigos e inserir novos
+            await cliente.query('DELETE FROM shopping_items WHERE shopping_list_id = $1', [listId]);
+          } else {
+            const { rows: newList } = await cliente.query(
+              'INSERT INTO shopping_lists (store, title, recurrence, weekdays, scheduled_date, assigned_to, category) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
+              [store, title, recurrence || 'weekly', weekdaysStr, scheduledDate || null, assignedStr, category || 'compras']
+            );
+            listId = newList[0].id;
           }
+
+          // Inserir itens
+          if (items && items.length > 0) {
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              // Mantém o estoque conferido quando o item já existia e a tela não o enviou.
+              const enviado = item.currentStock;
+              const temEnviado = enviado !== undefined && enviado !== null && enviado !== '';
+              const estoqueFinal = temEnviado
+                ? enviado
+                : (estoqueAnterior.has(String(item.name || '').trim().toLowerCase())
+                    ? estoqueAnterior.get(String(item.name || '').trim().toLowerCase())
+                    : null);
+              await cliente.query(
+                'INSERT INTO shopping_items (shopping_list_id, name, unit, min_stock, current_stock, category, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+                [listId, item.name, item.unit || 'un', item.minStock || 0, estoqueFinal, item.category || 'geral', i]
+              );
+            }
+          }
+
+          await cliente.query('COMMIT');
+        } catch (erroDaEdicao) {
+          await cliente.query('ROLLBACK').catch(() => {});
+          throw erroDaEdicao;
+        } finally {
+          cliente.release();
         }
 
         const { rows: result } = await pool.query('SELECT * FROM shopping_lists WHERE id = $1', [listId]);
