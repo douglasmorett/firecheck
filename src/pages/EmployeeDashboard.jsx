@@ -587,8 +587,14 @@ export default function EmployeeDashboard() {
     );
   }
 
+  // Com tarefa pendente, o que o funcionário veio fazer vem primeiro: checklists,
+  // depois ponto e compras; ocorrência/descarte e o convite do WebApp ficam no fim.
+  // (order do flexbox: sem pendência a ordem original continua.)
+  const priorizarTarefas = pendingChecklists.length > 0;
+  const ord = (n) => (priorizarTarefas ? { order: n } : {});
+
   return (
-    <div className="page-container" style={{ maxWidth: '600px' }}>
+    <div className="page-container" style={{ maxWidth: '600px', ...(priorizarTarefas ? { display: 'flex', flexDirection: 'column' } : {}) }}>
       {isImpersonating && (
         <div style={{
           backgroundColor: '#fef3c7',
@@ -718,6 +724,7 @@ export default function EmployeeDashboard() {
       {/* BANNER WEBAPP + WHATSAPP — esconde se já está no app nativo ou se o usuário dispensou */}
       {!Capacitor.isNativePlatform() && !bannerWebAppDismissed && (
       <div style={{
+        ...ord(6),
         backgroundColor: 'var(--bg-card)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
@@ -789,7 +796,7 @@ export default function EmployeeDashboard() {
           conhecer "a tela do funcionário" via exatamente o contrário do que
           existe de verdade. */}
       {(tela.tela_ocorrencia || tela.tela_descarte) && (
-      <section style={{ marginBottom: '32px' }}>
+      <section style={{ marginBottom: '32px', ...ord(4) }}>
         {isImpersonating && (
           <p style={{ margin: '0 0 8px 0', fontSize: '0.78rem', color: '#b45309', fontWeight: 'bold' }}>
             🧪 Em simulação: abra para ver o formulário. Nada aqui é gravado.
@@ -819,7 +826,7 @@ export default function EmployeeDashboard() {
       )}
 
       {hasPonto && tela.tela_ponto && (
-        <section style={{ marginBottom: '32px' }}>
+        <section style={{ marginBottom: '32px', ...ord(2) }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Clock size={16} /> Meu Ponto (Hoje)
           </h4>
@@ -1018,7 +1025,7 @@ export default function EmployeeDashboard() {
         if (!tela.tela_compras || pendingShopping.length === 0) return null;
 
         return (
-          <section style={{ marginBottom: '32px' }}>
+          <section style={{ marginBottom: '32px', ...ord(3) }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
               <ShoppingCart size={18} color="var(--primary)" /> Listas de Compras ({pendingShopping.length})
             </h4>
@@ -1131,7 +1138,7 @@ export default function EmployeeDashboard() {
       )}
 
       {tela.tela_checklists && (
-      <section style={{ marginBottom: '32px' }}>
+      <section style={{ marginBottom: '32px', ...ord(1) }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ClipboardList size={16} /> Checklists Pendentes ({pendingChecklists.length})
@@ -1262,7 +1269,7 @@ export default function EmployeeDashboard() {
       )}
 
       {tela.tela_checklists && completedChecklists.length > 0 && (
-        <section>
+        <section style={ord(5)}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '8px' }}>
             <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0, textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <CheckCircle size={16} /> Concluídos Hoje ({completedChecklists.length})
@@ -1493,7 +1500,7 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      <footer style={{ marginTop: '48px', textAlign: 'center', padding: '24px', borderTop: '1px solid var(--border-color)' }}>
+      <footer style={{ marginTop: '48px', textAlign: 'center', padding: '24px', borderTop: '1px solid var(--border-color)', ...ord(9) }}>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>FireCheck v1.0 • Sistema de Auditoria em Tempo Real</p>
       </footer>
     </div>

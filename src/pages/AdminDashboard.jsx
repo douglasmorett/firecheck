@@ -2627,8 +2627,8 @@ export default function AdminDashboard() {
         transition: 'width 0.3s ease'
       }}>
         {/* LOGO E BOTAO RECOLHER */}
-        <div style={{ padding: isSidebarCollapsed ? '24px 0 16px 0' : '24px 20px 16px 20px', borderBottom: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '16px' }}>
+        <div style={{ padding: isSidebarCollapsed ? '16px 0 12px 0' : '16px 20px 12px 20px', borderBottom: '1px solid var(--border-color)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '10px' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
               <Flame size={20} color="white" />
             </div>
@@ -2649,7 +2649,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* MENU ITENS */}
-        <div style={{ padding: '16px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        <div style={{ padding: '10px 10px', flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {(isMaster ? [
             { key: 'equipe',      label: 'Gestão de Clientes', icon: <Users size={18}/> },
             { key: 'quiz',        label: 'Site Principal', icon: <Activity size={18}/> },
@@ -2679,7 +2679,7 @@ export default function AdminDashboard() {
             return (
               <button key={t.key} onClick={() => { setTab(t.key); setIsSidebarOpen(false); }} title={isSidebarCollapsed ? t.label : ''}
                 style={{ 
-                  display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
+                  display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '9px 0' : '9px 16px', 
                   justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
                   borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
                   transition: 'all 0.2s', textAlign: 'left',
@@ -2868,7 +2868,7 @@ export default function AdminDashboard() {
         )}
         
         {/* BANNER WEBAPP + WHATSAPP */}
-        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && (
+        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && tab === 'auditoria' && !whatsForaDoAr?.lojaSemWhatsapp && (
           <div style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
@@ -2982,7 +2982,8 @@ export default function AdminDashboard() {
                </div>
             )}
             
-            {/* Filtro de Data */}
+            {/* Filtro de Data: só nas abas que usam o período (nas outras era ruído). */}
+            {!['notificacoes', 'equipe', 'perfil', 'bill', 'compras', 'vehicles'].includes(tab) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--bg-color)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
               <CalendarClock size={16} color="var(--primary)" />
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
@@ -2991,12 +2992,13 @@ export default function AdminDashboard() {
                 <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
               </div>
             </div>
+            )}
 
             {isMaster ? (
               <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'starter' }); setShowUserModal(true); }}>
                 <UserPlus size={18} /> Nova Conta
               </button>
-            ) : (isAdmin || isGestor) ? (
+            ) : (isAdmin || isGestor) && tab === 'auditoria' ? (
               <button className="btn" onClick={() => navigate('/admin/creator')}>
                 <Plus size={18} /> Criar Checklist
               </button>
@@ -3054,6 +3056,7 @@ export default function AdminDashboard() {
             <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Colaboradores</p>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store_name || userProfile?.store || 'Filial Centro'}</span>
                 </div>
@@ -3065,8 +3068,8 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Instalação do App */}
-      <PWAInstall />
+      {/* Instalação do App: só no dashboard (nas outras abas empurrava o conteúdo). */}
+      {tab === 'auditoria' && <PWAInstall />}
 
       {/* ── Card de Cota de Checklists (Admin Only) ─────────────────── */}
       {!isMaster && quotaInfo && !quotaInfo.isUnlimited && tab === 'auditoria' && (

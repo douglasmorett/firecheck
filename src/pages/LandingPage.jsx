@@ -22,9 +22,9 @@ const EMPRESAS = [
 
 const SETORES = [
   ['/dirty-grill.png', 'Cozinha Comercial', 'Crostas de gordura carbonizada na lateral direita da chapa. Refaça a limpeza.', 'Notificar funcionário'],
-  ['/gym-treadmill.png', 'Academia Fitness', 'Suor não higienizado no painel da esteira 3. Limpeza incompleta.', 'Notificar recepcionista'],
-  ['/fleet-tire.png', 'Logística e Frota', 'Desgaste excessivo detectado no pneu traseiro direito. Abaixo do indicador TWI.', 'Bloquear veículo'],
-  ['/hotel-bed.png', 'Hotelaria', 'Lençol amassado e travesseiros fora de esquadro. Arrumação fora do padrão da rede.', 'Notificar camareira'],
+  ['/gym-treadmill.webp', 'Academia Fitness', 'Suor não higienizado no painel da esteira 3. Limpeza incompleta.', 'Notificar recepcionista'],
+  ['/fleet-tire.webp', 'Logística e Frota', 'Desgaste excessivo detectado no pneu traseiro direito. Abaixo do indicador TWI.', 'Bloquear veículo'],
+  ['/hotel-bed.webp', 'Hotelaria', 'Lençol amassado e travesseiros fora de esquadro. Arrumação fora do padrão da rede.', 'Notificar camareira'],
 ];
 
 // Cada módulo, com o que ele faz hoje (conferido nas telas gravadas dos tutoriais do app).

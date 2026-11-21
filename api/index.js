@@ -3310,6 +3310,11 @@ export default async function handler(req, res) {
       );
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ocorrencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_descarte BOOLEAN DEFAULT TRUE");
+      // A Auditoria em Tempo Real (GET /api/submissions) lê estas duas colunas.
+      // Antes só nasciam dentro de POST /api/resolve-submission: banco novo dava
+      // 500 no dashboard até alguém dar a primeira baixa.
+      await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_by VARCHAR(255)");
+      await pool.query("ALTER TABLE checklist_submissions ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ");
       // ── Cota de Checklists ──
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklist_limit INTEGER DEFAULT 300");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS checklists_used INTEGER DEFAULT 0");
