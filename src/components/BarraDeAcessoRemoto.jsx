@@ -74,7 +74,7 @@ export default function BarraDeAcessoRemoto() {
           backgroundColor: '#1f2937', color: '#fff', fontWeight: 'bold', fontSize: '0.8rem',
         }}
       >
-        🛡️ Voltar para a minha conta
+        Voltar para a minha conta
       </button>
     </div>
   );

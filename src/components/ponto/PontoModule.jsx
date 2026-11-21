@@ -104,16 +104,8 @@ export default function PontoModule({ userProfile }) {
 
   return (
     <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Header do Módulo */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-         <div>
-           <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
-             <Clock color="var(--primary)" size={32} />
-             Controle de Ponto IA
-           </h2>
-           <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gestão profissional de presença, escalas e folgas.</p>
-         </div>
-      </div>
+      {/* O título "Controle de Ponto" já está no cabeçalho do painel (visual de 21/11/2026). */}
+      <p style={{ color: 'var(--text-muted)', margin: '-18px 0 0 2px', fontSize: '0.92rem' }}>Presença, escalas e folgas da equipe.</p>
 
       {/* Navegação de Abas Internas */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', gap: '24px', overflowX: 'auto' }}>

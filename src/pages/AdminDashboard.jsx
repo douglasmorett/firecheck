@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import PrimeirosPassos from '../components/PrimeirosPassos';
 import AlterarSenha from '../components/AlterarSenha';
-import { Plus, MessageCircle, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { BarraLuz, Velocimetro, Selo, iniciais } from '../components/painel/Painel';
+import { Plus, ArrowUpRight, MessageCircle, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
@@ -146,14 +147,14 @@ const linkComDados = (link, perfil) =>
   `${link}?email=${encodeURIComponent(perfil?.email || '')}&name=${encodeURIComponent(perfil?.name || '')}`;
 
 const PERMISSION_LABELS = {
-  perm_checklists: '📋 Criar e editar checklists',
-  perm_equipe: '👥 Gerenciar equipe',
-  perm_ponto: '⏰ Controle de ponto',
-  perm_alertas: '🤖 Alertas da IA',
-  perm_ranking: '🏆 Ranking',
-  perm_compras: '🛒 Compras e estoque',
-  perm_frota: '🚗 Frota e veículos',
-  perm_notificacoes: '🔔 Notificações',
+  perm_checklists: 'Criar e editar checklists',
+  perm_equipe: 'Gerenciar equipe',
+  perm_ponto: 'Controle de ponto',
+  perm_alertas: 'Alertas da IA',
+  perm_ranking: 'Ranking',
+  perm_compras: 'Compras e estoque',
+  perm_frota: 'Frota e veículos',
+  perm_notificacoes: 'Notificações',
 };
 
 // O que aparece na tela simples do funcionário (Douglas, 22/10/2026: "no
@@ -162,12 +163,12 @@ const PERMISSION_LABELS = {
 // a entrada e saída de estoque, que o gestor libera. O servidor guarda as mesmas
 // chaves (permissoesDoFuncionario) e confere o estoque em podeMovimentarEstoque.
 const TELA_DO_FUNCIONARIO = [
-  { chave: 'tela_ponto', rotulo: '⏰ Bater ponto', ajuda: 'O card "Meu ponto" (só aparece se a loja tem o ponto).' },
-  { chave: 'tela_checklists', rotulo: '📋 Checklists', ajuda: 'Os checklists atribuídos a ele.' },
-  { chave: 'tela_compras', rotulo: '🛒 Conferência de estoque', ajuda: 'As listas de compras para contar o que tem na loja.' },
-  { chave: 'perm_estoque', rotulo: '📦 Entrada e saída de estoque', ajuda: 'Lança a mercadoria que chegou e o que saiu, numa tela simples, sem o painel do gestor.', padrao: false },
-  { chave: 'tela_ocorrencia', rotulo: '⚠️ Registrar ocorrência', ajuda: 'O botão para avisar o que fugiu da rotina.' },
-  { chave: 'tela_descarte', rotulo: '🗑️ Registrar descarte', ajuda: 'O botão para lançar perda e descarte.' },
+  { chave: 'tela_ponto', rotulo: 'Bater ponto', ajuda: 'O card "Meu ponto" (só aparece se a loja tem o ponto).' },
+  { chave: 'tela_checklists', rotulo: 'Checklists', ajuda: 'Os checklists atribuídos a ele.' },
+  { chave: 'tela_compras', rotulo: 'Conferência de estoque', ajuda: 'As listas de compras para contar o que tem na loja.' },
+  { chave: 'perm_estoque', rotulo: 'Entrada e saída de estoque', ajuda: 'Lança a mercadoria que chegou e o que saiu, numa tela simples, sem o painel do gestor.', padrao: false },
+  { chave: 'tela_ocorrencia', rotulo: 'Registrar ocorrência', ajuda: 'O botão para avisar o que fugiu da rotina.' },
+  { chave: 'tela_descarte', rotulo: 'Registrar descarte', ajuda: 'O botão para lançar perda e descarte.' },
 ];
 
 const telaDoFuncionario = (perms) => Object.fromEntries(
@@ -187,7 +188,7 @@ function TelaDoFuncionario({ perms, onChange }) {
   return (
     <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(8, 145, 178, 0.05)', border: '1px solid rgba(8, 145, 178, 0.2)', borderRadius: '12px' }}>
       <label className="input-label" style={{ display: 'block', color: 'var(--info)', marginBottom: '4px', fontWeight: 'bold' }}>
-        👀 O que aparece na tela deste funcionário
+        O que aparece na tela deste funcionário
       </label>
       <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
         Desmarque o que ele não usa: a tela fica mais simples e direta.
@@ -219,20 +220,22 @@ const TAB_PERMISSION_MAP = {
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+// Selo de status sem emoji (visual de 21/11/2026): ponto colorido + texto.
 const StatusBadge = ({ status }) => {
   const map = {
-    aprovado:  { label: 'Aprovado pela IA',   bg: 'rgba(0,200,83,0.15)',   color: 'var(--success)' },
-    reprovado: { label: '❌ Reprovado pela IA',  bg: 'rgba(255,23,68,0.15)',  color: 'var(--error)'   },
-    pendente:  { label: 'Aguardando',         bg: 'rgba(255,160,0,0.15)', color: '#FFA000'         },
+    aprovado:  { label: 'Aprovado pela IA', color: 'var(--ok)' },
+    reprovado: { label: 'Reprovado pela IA', color: 'var(--bad)' },
+    pendente:  { label: 'Aguardando a IA', color: '#D97706' },
     // Checklist sem nenhuma foto: a IA não tem o que analisar. É operação normal,
     // não falha — por isso um rótulo neutro, e não um alerta.
-    ignorado:  { label: '📋 Sem fotos para auditar', bg: 'rgba(120,130,145,0.15)', color: 'var(--text-muted)' },
-    falha:     { label: '🤖 Falha na IA',        bg: 'rgba(255,23,68,0.25)',  color: 'var(--error)'   },
+    ignorado:  { label: 'Sem foto para a IA', color: 'var(--text-muted)' },
+    falha:     { label: 'Falha na IA', color: 'var(--bad)' },
   };
   const s = map[status] || map.pendente;
   return (
-    <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 'bold',
-      backgroundColor: s.bg, color: s.color }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '4px 11px 4px 9px', borderRadius: '999px', fontSize: '0.76rem', fontWeight: 600,
+      color: s.color, backgroundColor: 'var(--bg-card)', boxShadow: '0 0 0 1px var(--border-color)' }}>
+      <i style={{ width: 6, height: 6, borderRadius: '50%', background: s.color }} />
       {s.label}
     </span>
   );
@@ -248,11 +251,50 @@ const textoDaBaixa = (s) => {
   return `Verificado por ${s?.resolved_by_nome || s?.resolved_by || 'gestor'}${hora}`;
 };
 
-const BarPct = ({ pct, color }) => (
-  <div style={{ height: '6px', backgroundColor: '#1A1C23', borderRadius: '100px', overflow: 'hidden', width: '100%' }}>
-    <div style={{ width: `${pct}%`, height: '100%', backgroundColor: color || 'var(--primary)', transition: 'width 0.5s ease' }} />
-  </div>
-);
+const BarPct = ({ pct, color }) => <BarraLuz pct={pct} cor={color || 'var(--primary)'} />;
+
+// Status de um checklist enviado, pela régua da IA (usado na lista e nos números
+// do Dashboard). _meta e global_error são metadados do processamento, não pareceres
+// sobre tarefas: contá-los fazia uma submissão nunca analisada virar "aprovada".
+const statusDaSubmissao = (s) => {
+  const feedbacks = Object.entries(s?.feedback_info || {})
+    .filter(([k]) => !k.startsWith('_') && k !== 'global_error')
+    .map(([, v]) => v);
+  const hasWarnings = feedbacks.some(f => f?.status === 'warning' || f?.status === 'error');
+  const tarefasComFoto = (s?.tasks || []).filter(t => t.photo && !t.forceOverride);
+  if (s?.feedback_info?.global_error || s?.feedback_info?._meta?.status === 'revisao_manual') return 'falha';
+  if (!tarefasComFoto.length) return 'ignorado';
+  if (hasWarnings) return 'reprovado';
+  // Só é aprovado quando TODAS as fotos foram analisadas. Antes, uma análise
+  // parcial (1 de 8 fotos) já virava aprovação.
+  return feedbacks.length >= tarefasComFoto.length ? 'aprovado' : 'pendente';
+};
+const tarefaReprovada = (s, t) => ['warning', 'error'].includes(s?.feedback_info?.[t.id]?.status);
+// A lista de envios chega sem as imagens ("[imagem]", para ficar leve).
+const temImagem = (src) => typeof src === 'string' && src.length > 0 && src !== '[imagem]';
+
+// Foto de uma tarefa, buscada no detalhe do envio (o cartão "O que a IA viu").
+function FotoDaTarefa({ submissaoId, tarefaId, alt }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    setUrl(null);
+    fetch(`${API_URL}/api/submissions?id=${submissaoId}`, { headers: getAuthHeaders() })
+      .then(r => (r.ok ? r.json() : null))
+      .then(s => { const t = s?.tasks?.find(x => x.id === tarefaId); if (vivo && temImagem(t?.photo)) setUrl(t.photo); })
+      .catch(() => {});
+    return () => { vivo = false; };
+  }, [submissaoId, tarefaId]);
+  return url ? <img src={url} alt={alt} /> : null;
+}
+const ehHojeEmSP = (data) => {
+  const dia = (d) => new Date(d).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+  return data && dia(data) === dia(Date.now());
+};
+const saudacao = () => {
+  const h = Number(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo', hour: 'numeric', hour12: false }));
+  return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+};
 
 const getUserStatus = (user) => {
   if (user.status === 'blocked') return { text: '🔴 Conta Bloqueada', color: 'var(--error)' };
@@ -367,6 +409,9 @@ export default function AdminDashboard() {
   const [userProfile, setUserProfile] = useState(null);
   const [stats, setStats] = useState(STATS);
   const [submissions, setSubmissions] = useState([]);
+  // Filtro da lista vindo dos atalhos do Dashboard ("1 reprovado", "20 aprovados"...)
+  const [filtroStatus, setFiltroStatus] = useState(null);
+  const listaDaAuditoriaRef = useRef(null);
   const submissionsRef = useRef(submissions);
   submissionsRef.current = submissions;
   const [cameras, setCameras] = useState([]);
@@ -1699,7 +1744,7 @@ export default function AdminDashboard() {
       </head>
       <body>
         <div class="header">
-          <div class="logo">🔥 FireCheck Pro</div>
+          <div class="logo">FireCheck</div>
           <div style="font-size: 14px; color: #6b7280;">Relatório de Auditoria Digital</div>
         </div>
 
@@ -2618,8 +2663,10 @@ export default function AdminDashboard() {
   ];
   const mostrarPassos = userProfile?.role === 'admin' && !isMaster && !passosOcultos && whatsChecado && dadosCarregados && passosDoDono.some((p) => !p.feito);
 
+  // overflowX 'clip' e não 'hidden': hidden vira contêiner de rolagem e o menu lateral
+  // deixava de ficar fixo (sticky). Fundo transparente para o brilho do body aparecer.
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)', width: '100vw', overflowX: 'hidden' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', width: '100vw', overflowX: 'clip' }}>
 
       {/* Aviso de que este painel é de OUTRA conta.
           O painel do funcionário já tinha o dele; aqui não havia nada, porque
@@ -2804,41 +2851,20 @@ export default function AdminDashboard() {
         {/* Loja sem o WhatsApp dela: o convite para conectar (na própria aba
             Notificações o cartão do WhatsApp da loja já diz isso). */}
         {whatsForaDoAr?.lojaSemWhatsapp && tab !== 'notificacoes' && !(tab === 'auditoria' && mostrarPassos) && (
-          <div style={{
-            backgroundColor: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--shadow-card)',
-            borderRadius: '12px',
-            padding: '16px 20px',
-            marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '14px',
-          }}>
-            <div style={{ backgroundColor: '#25D366', padding: '8px', borderRadius: '50%', display: 'flex', flexShrink: 0 }}>
-              <Bell size={20} color="#fff" />
+          // Faixa compacta (visual de 21/11/2026): uma linha, botão em pílula à direita.
+          <div className="card" style={{ padding: '14px 16px 14px 18px', marginBottom: '26px', display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <span style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'rgb(37 211 102 / 0.12)', color: '#16A34A', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+              <Bell size={18} />
+            </span>
+            <div style={{ flex: 1, minWidth: '220px' }}>
+              <strong style={{ display: 'block', fontSize: '0.95rem', fontWeight: 600 }}>Conecte o WhatsApp da sua empresa para receber os avisos</strong>
+              <span style={{ fontSize: '0.84rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>{whatsForaDoAr.motivo}</span>
             </div>
-            <div>
-              <strong style={{ display: 'block', fontSize: '1rem', marginBottom: '3px' }}>
-                Conecte o WhatsApp da sua empresa para receber as notificações
-              </strong>
-              <span style={{ fontSize: '0.88rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                {whatsForaDoAr.motivo}
-              </span>
-              {whatsForaDoAr.podeConectar && (
-                <button
-                  type="button"
-                  onClick={() => setTab('notificacoes')}
-                  style={{
-                    marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
-                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
-                    cursor: 'pointer', display: 'block',
-                  }}
-                >
-                  Conectar o WhatsApp agora
-                </button>
-              )}
-            </div>
+            {whatsForaDoAr.podeConectar && (
+              <button type="button" className="fc-pilula" onClick={() => setTab('notificacoes')}>
+                Conectar agora <i><ArrowUpRight size={15} /></i>
+              </button>
+            )}
           </div>
         )}
 
@@ -2887,94 +2913,71 @@ export default function AdminDashboard() {
         )}
         
 
-        {/* HEADER SUPERIOR */}
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tab === 'auditoria' ? '32px' : '20px', flexWrap: 'wrap', gap: tab === 'auditoria' ? '20px' : '10px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%', flexWrap: 'wrap' }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
-                {tab !== 'auditoria' && TITULO_DA_ABA[tab] ? TITULO_DA_ABA[tab] : isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário'}
-              </h1>
-              {(tab === 'auditoria' || !TITULO_DA_ABA[tab]) && <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-              {/* "Tutorial <aba>": o vídeo da aba aberta (src/tutoriais/telas.js). */}
-              {!isMaster && <BotaoTutorial key={tab} tela={`admin:${tab}`} usuario={userProfile} encolhe />}
-              <button
-                onClick={() => navigate('/funcionario')}
-                className="btn animate-scale"
-                style={{
-                  backgroundColor: 'var(--ink)',
-                  color: '#ffffff',
-                  padding: '10px 18px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '0.88rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 14px rgb(var(--info-rgb) / 0.35)',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
-              >
-                <Play size={16} fill="white" /> Tela de Execução
-              </button>
-
-              <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
-                <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Menu size={20} color="white" />
-                </div>
-                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'var(--text-main)' }}>Menu</span>
-              </button>
-            </div>
+        {/* CABEÇALHO (visual de 21/11/2026): sem caixa, título grande; no Dashboard,
+            a saudação já diz quantos checklists esperam o dono. */}
+        <header className="fc-cab">
+          <div>
+            {tab === 'auditoria' && !isMaster && (
+              <span className="fc-olho" style={{ marginBottom: '10px' }}>
+                <i className={`fc-vivo${aiHealth === false ? ' off' : ''}`} />
+                {aiHealth === false ? 'IA fora do ar' : 'IA ao vivo'} · {new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', timeZone: 'America/Sao_Paulo' }).replace(/\./g, '')}
+              </span>
+            )}
+            <h1>
+              {tab === 'auditoria' && !isMaster ? (
+                <>
+                  {saudacao()}, {String(userProfile?.name || '').split(' ')[0] || 'tudo bem'}.{' '}
+                  <span>{stats.alertasIA > 0 ? `${stats.alertasIA} checklist${stats.alertasIA > 1 ? 's precisam' : ' precisa'} de você.` : 'Tudo em dia na loja.'}</span>
+                </>
+              ) : (tab !== 'auditoria' && TITULO_DA_ABA[tab] ? TITULO_DA_ABA[tab] : isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário')}
+            </h1>
+            {tab !== 'auditoria' && !TITULO_DA_ABA[tab] && <p className="fc-sub">Seja bem-vindo(a), {userProfile?.name}</p>}
           </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-            {/* Indicador de Saúde da IA */}
-            {aiHealth !== null && (tab === 'auditoria' || !aiHealth) && (
-              <div style={{ padding: '6px 12px', backgroundColor: aiHealth ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 23, 68, 0.15)', color: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '8px', height: '8px', backgroundColor: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '50%', boxShadow: aiHealth ? '0 0 8px var(--success)' : '0 0 8px var(--error)', animation: 'pulse 2s infinite' }}></div>
-                IA {aiHealth ? 'Online' : 'Offline'}
-              </div>
+
+          <div className="fc-cab-dir">
+            {aiHealth === false && tab !== 'auditoria' && (
+              <span className="fc-olho" style={{ color: 'var(--bad)' }}><i className="fc-vivo off" />IA fora do ar</span>
             )}
             {isMaster && (
-               <div style={{ display: 'flex', gap: '8px' }}>
-                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(0, 200, 83, 0.1)', color: 'var(--success)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                   <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
-                   {liveVisitors} pessoas online
-                 </div>
-                 <div style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                   <Users size={12} /> {todayVisitors} acessos
-                   <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '4px' }}>({todayMobile} 📱 / {todayDesktop} 💻)</span>
-                 </div>
-                 <div style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                   <Video size={12} /> {videoPlays} plays no vídeo
-                 </div>
-               </div>
-            )}
-            
-            {/* Filtro de Data: só nas abas que usam o período (nas outras era ruído). */}
-            {!['notificacoes', 'equipe', 'perfil', 'bill', 'compras', 'vehicles'].includes(tab) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--bg-inset)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
-              <CalendarClock size={16} color="var(--primary)" />
-              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>até</span>
-                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
-              </div>
-            </div>
+              <>
+                <span className="fc-olho"><i className="fc-vivo" />{liveVisitors} pessoas online</span>
+                <span className="fc-olho"><Users size={12} /> {todayVisitors} acessos <span className="mono" style={{ letterSpacing: 0 }}>({todayMobile} cel / {todayDesktop} pc)</span></span>
+                <span className="fc-olho"><Video size={12} /> {videoPlays} plays no vídeo</span>
+              </>
             )}
 
+            {/* Filtro de Data: só nas abas que usam o período (nas outras era ruído). */}
+            {!['notificacoes', 'equipe', 'perfil', 'bill', 'compras', 'vehicles'].includes(tab) && (
+              <div className="fc-periodo">
+                <CalendarClock size={15} color="var(--primary)" />
+                <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} aria-label="Início do período" />
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>até</span>
+                <input type="date" value={dateFilter.end} onChange={(e) => setDateFilter({...dateFilter, end: e.target.value})} aria-label="Fim do período" />
+              </div>
+            )}
+
+            {/* "Tutorial <aba>": o vídeo da aba aberta (src/tutoriais/telas.js). */}
+            {!isMaster && <BotaoTutorial key={tab} tela={`admin:${tab}`} usuario={userProfile} encolhe />}
+            <button onClick={() => navigate('/funcionario')} className="btn btn-secondary animate-scale" style={{ padding: '9px 16px', fontSize: '0.86rem' }}>
+              <Play size={14} /> Tela de Execução
+            </button>
+
             {isMaster ? (
-              <button className="btn" style={{ backgroundColor: '#10b981' }} onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'starter' }); setShowUserModal(true); }}>
-                <UserPlus size={18} /> Nova Conta
+              <button className="fc-pilula" onClick={() => { setNewUser({ name: '', email: '', password: '', store: '', role: 'admin', plan: 'starter' }); setShowUserModal(true); }}>
+                Nova Conta <i><UserPlus size={15} /></i>
               </button>
             ) : (isAdmin || isGestor) && tab === 'auditoria' ? (
-              <button className="btn" onClick={() => navigate('/admin/creator')}>
-                <Plus size={18} /> Criar Checklist
+              <button className="fc-pilula" onClick={() => navigate('/admin/creator')}>
+                Criar checklist <i><ArrowUpRight size={15} /></i>
               </button>
             ) : null}
+
+            <button className="mobile-menu-btn" style={{ display: 'none', background: 'transparent', border: 'none', padding: '0', cursor: 'pointer', flexDirection: 'column', alignItems: 'center', gap: '2px' }} onClick={() => setIsSidebarOpen(true)}>
+              <div style={{ backgroundColor: 'transparent', padding: '0', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Menu size={20} color="white" />
+              </div>
+              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', textTransform: 'uppercase', color: 'white' }}>Menu</span>
+            </button>
           </div>
         </header>
 
@@ -2989,64 +2992,95 @@ export default function AdminDashboard() {
         />
       )}
 
-      {/* Cards de KPIs (Visível apenas nos Dashboards Iniciais) */}
-      {tab === 'auditoria' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
-          
-          {isMaster ? (
-          <>
-            {/* Master não tem KPIs de dashboard, acessa Gestão de Clientes */}
-          </>
-         ) : (
-          <>
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>{stats.concluidos} concluídos</span>
-                </div>
-                <ClipboardList color="var(--text-muted)" size={26} />
-              </div>
-            </div>
+      {/* Topo do Dashboard (visual aprovado em 21/11/2026): velocímetro, números do dia
+          com atalho para onde o assunto está, e a última foto que a IA reprovou. */}
+      {tab === 'auditoria' && !isMaster && (() => {
+        const deHoje = submissions.filter(s => ehHojeEmSP(s.created_at));
+        const conta = { aprovado: 0, reprovado: 0, outros: 0 };
+        deHoje.forEach(s => { const st = statusDaSubmissao(s); if (st === 'aprovado') conta.aprovado++; else if (st === 'reprovado') conta.reprovado++; else conta.outros++; });
+        const ativosHoje = [...new Set(deHoje.map(s => s.employee_name).filter(Boolean))];
+        const ultimaReprovada = submissions.find(s => !s.resolved && statusDaSubmissao(s) === 'reprovado');
+        const tarefaRuim = ultimaReprovada?.tasks?.find(t => tarefaReprovada(ultimaReprovada, t));
+        const motivo = tarefaRuim && (ultimaReprovada.feedback_info?.[tarefaRuim.id]?.message || ultimaReprovada.feedback_info?.[tarefaRuim.id]?.mensagem);
+        const posicao = tarefaRuim ? (ultimaReprovada.tasks.indexOf(tarefaRuim) + 1) : 0;
+        const filtrar = (st) => { setFiltroStatus(st); setTimeout(() => listaDaAuditoriaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); };
+        return (
+          <div className="fc-bento">
+            <section className="card fc-c-velo">
+              <Velocimetro valor={stats.conformidade} dias={stats.ultimos7 || []} legenda="no período" />
+            </section>
 
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
-                  <BarPct pct={stats.conformidade} color="var(--ink)" />
-                </div>
-                <TrendingUp color="var(--text-muted)" size={26} />
-              </div>
-            </div>
+            <section className="card fc-kpi fc-c-hoje">
+              <span className="fc-olho-rot">Checklists hoje</span>
+              <strong className="fc-grande">{stats.checklistsHoje}<small>{stats.concluidos} no período</small></strong>
+              {deHoje.length > 0 ? (
+                <>
+                  <div className="fc-pilha">
+                    {conta.aprovado > 0 && <i style={{ flex: conta.aprovado, background: 'var(--ok)' }} />}
+                    {conta.reprovado > 0 && <i style={{ flex: conta.reprovado, background: 'var(--bad)' }} />}
+                    {conta.outros > 0 && <i style={{ flex: conta.outros, background: '#B8B4AC' }} />}
+                  </div>
+                  <div className="fc-leg">
+                    <button style={{ '--c': 'var(--ok)' }} className={filtroStatus === 'aprovado' ? 'on' : ''} onClick={() => filtrar('aprovado')}><b>{conta.aprovado}</b> aprovado{conta.aprovado === 1 ? '' : 's'}</button>
+                    <button style={{ '--c': 'var(--bad)' }} className={filtroStatus === 'reprovado' ? 'on' : ''} onClick={() => filtrar('reprovado')}><b>{conta.reprovado}</b> reprovado{conta.reprovado === 1 ? '' : 's'}</button>
+                    <button style={{ '--c': '#B8B4AC' }} className={filtroStatus === 'outros' ? 'on' : ''} onClick={() => filtrar('outros')}><b>{conta.outros}</b> sem foto ou aguardando</button>
+                  </div>
+                </>
+              ) : (
+                <span className="fc-pouco">Nenhum checklist enviado hoje ainda.</span>
+              )}
+              <button className="fc-ir" onClick={() => filtrar(null)}>Ver checklists de hoje <ArrowUpRight size={14} /></button>
+            </section>
 
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>{stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
-                </div>
-                <ShieldAlert color="var(--error)" size={26} />
-              </div>
-            </div>
+            <section className="card fc-kpi fc-c-mini">
+              <span className="fc-olho-rot">Reprovados</span>
+              <strong className="fc-grande" style={{ color: stats.alertasIA > 0 ? 'var(--bad)' : 'var(--text-main)' }}>{String(stats.alertasIA).padStart(2, '0')}</strong>
+              <span className="fc-pouco">pela IA, sem baixa no período</span>
+              <button className={`fc-ir${stats.alertasIA > 0 ? ' red' : ''}`} onClick={() => setTab('alertas')}>Ver agora <ArrowUpRight size={14} /></button>
+            </section>
 
-            <div className="card" style={{ padding: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <div>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Colaboradores</p>
-                  <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{userProfile?.store_name || userProfile?.store || 'Filial Centro'}</span>
+            <section className="card fc-kpi fc-c-mini">
+              <span className="fc-olho-rot">Equipe</span>
+              <strong className="fc-grande">{ativosHoje.length}<small style={{ marginLeft: '2px' }}>/{stats.colaboradores}</small></strong>
+              {ativosHoje.length > 0 ? (
+                <div className="fc-gente" title={ativosHoje.join(', ')}>
+                  {ativosHoje.slice(0, 3).map(n => <span key={n} className="on">{iniciais(n)}</span>)}
+                  {ativosHoje.length > 3 && <span>+{ativosHoje.length - 3}</span>}
                 </div>
-                <Users color="var(--text-muted)" size={26} />
-              </div>
-            </div>
-          </>
-        )}
-        </div>
-      )}
+              ) : (
+                <span className="fc-pouco">ninguém enviou hoje</span>
+              )}
+              <button className="fc-ir" onClick={() => setTab('equipe')}>Ver equipe <ArrowUpRight size={14} /></button>
+            </section>
 
+            <section className="card fc-c-ia" style={{ padding: 0 }}>
+              {ultimaReprovada ? (
+                <div className="fc-ia">
+                  <div className="fc-ia-foto">
+                    {tarefaRuim && <FotoDaTarefa submissaoId={ultimaReprovada.id} tarefaId={tarefaRuim.id} alt={tarefaRuim.text || 'Foto reprovada'} />}
+                    <div className="fc-varre" />
+                    <span className="fc-tag">foto ao vivo · {new Date(ultimaReprovada.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                  <div className="fc-ia-txt">
+                    <span className="fc-olho-rot"><Eye size={14} /> O que a IA viu · precisa de você</span>
+                    <h3>{tarefaRuim?.text || 'Foto fora do padrão'}</h3>
+                    <p><b>Reprovada.</b> {motivo || 'A IA apontou problema nesta foto.'}</p>
+                    <p>{checklists?.find(c => c.id === ultimaReprovada.checklist_id)?.title || ultimaReprovada.checklist_title || 'Checklist'} · {ultimaReprovada.employee_name}{posicao ? ` · tarefa ${posicao} de ${ultimaReprovada.tasks.length}` : ''}</p>
+                    <button className="fc-pilula" style={{ marginTop: 'auto' }} onClick={() => abrirDetalheSubmissao(ultimaReprovada)}>Conferir agora <i><ArrowUpRight size={15} /></i></button>
+                  </div>
+                </div>
+              ) : (
+                <div className="fc-ia fc-ia-ok" style={{ display: 'flex' }}>
+                  <span className="fc-ok-ico"><CheckCircle size={22} /></span>
+                  <span className="fc-olho-rot"><Eye size={14} /> O que a IA viu</span>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600 }}>Nenhuma foto reprovada esperando você.</h3>
+                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: 1.5 }}>Quando a IA reprovar uma foto, ela aparece aqui com o motivo, para você conferir na hora.</p>
+                </div>
+              )}
+            </section>
+          </div>
+        );
+      })()}
 
       {/* ── Card de Cota de Checklists (Admin Only) ─────────────────── */}
       {!isMaster && quotaInfo && !quotaInfo.isUnlimited && tab === 'auditoria' && (
@@ -3094,16 +3128,16 @@ export default function AdminDashboard() {
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <button className="btn btn-pulse" style={{ padding: '14px', width: '100%', fontWeight: 'bold', backgroundColor: 'var(--primary)' }} onClick={() => window.open(`https://pay.cakto.com.br/pavdwiz_869704?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
-                🔥 Combo Completo (Checklist + Ponto IA) — R$197/mês
+                Combo Completo (Checklist + Ponto IA) — R$197/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', fontWeight: 'bold' }} onClick={() => window.open(`https://pay.cakto.com.br/e7c88df?email=${encodeURIComponent(userProfile?.email || '')}&name=${encodeURIComponent(userProfile?.name || '')}`, '_blank')}>
                 {/* Dizia só "Plano Anual com Desconto" logo abaixo do Combo, e o
                     link é o de Só Checklists anual: dava para entender que era o
                     Combo anual, que custa 12x R$167, não 12x R$97. */}
-                ⚡ Só Checklists anual — 12x R$ 97/mês
+                Só Checklists anual — 12x R$ 97/mês
               </button>
               <button className="btn-secondary" style={{ padding: '14px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }} onClick={() => window.open('https://wa.me/5522981118514?text=Olá,%20preciso%20de%20um%20plano%20Custom%20com%20mais%20funcionários%20no%20FireCheck.', '_blank')}>
-                💬 Plano Custom (&gt;50 funcionários no WhatsApp)
+                Plano Custom (&gt;50 funcionários no WhatsApp)
               </button>
             </div>
             <button onClick={() => setShowQuotaUpgradeModal(false)} style={{ marginTop: '20px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem' }}>Fechar</button>
@@ -3130,13 +3164,8 @@ export default function AdminDashboard() {
       {tab === 'notificacoes' && (
         <div className="animate-fade" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          <div style={{ padding: '0 8px' }}>
-             <h2 style={{ fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '12px', margin: 0 }}>
-               <Bell color="var(--primary)" size={32} />
-               Notificações do Sistema
-             </h2>
-             <p style={{ color: 'var(--text-muted)', margin: '4px 0 0 0' }}>Gerencie de forma personalizada todos os alertas enviados no WhatsApp e Push.</p>
-          </div>
+          {/* O título já está no cabeçalho do painel (visual de 21/11/2026). */}
+          <p style={{ color: 'var(--text-muted)', margin: '-18px 0 0 2px', fontSize: '0.92rem' }}>Os avisos que chegam no WhatsApp e no celular.</p>
 
           {/* O WhatsApp da loja (quem envia) e os números extras (quem recebe). */}
           <WhatsappDaLoja />
@@ -3145,7 +3174,7 @@ export default function AdminDashboard() {
               {/* Configurações Gerais do WhatsApp */}
               <div className="card" style={{ padding: '24px', flex: 1, minWidth: '320px' }}>
                  <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#25D366' }}>
-                    📲 Seu número para receber os avisos
+                    Seu número para receber os avisos
                  </h3>
                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
                     Defina o número de telefone em que <strong>você</strong> recebe os alertas.
@@ -3211,7 +3240,7 @@ export default function AdminDashboard() {
                                {testeWhats.numero ? ` ${testeWhats.numero}` : ''}. Se não aparecer em até um minuto,
                                o número está certo mas o aparelho pode estar sem internet.
                                {Array.isArray(testeWhats.avisos) && testeWhats.avisos.map((aviso, i) => (
-                                 <div key={i} style={{ marginTop: '8px', color: '#b45309', fontWeight: 'bold' }}>⚠️ {aviso}</div>
+                                 <div key={i} style={{ marginTop: '8px', color: '#b45309', fontWeight: 'bold' }}>{aviso}</div>
                                ))}
                              </>
                            ) : (
@@ -3226,7 +3255,7 @@ export default function AdminDashboard() {
               {/* Interruptores de Notificações */}
               <div className="card" style={{ padding: '24px', flex: 1.5, minWidth: '350px' }}>
                  <h3 style={{ marginBottom: '16px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⚙️ Alertas de Notificação Personalizados
+                    Alertas de Notificação Personalizados
                  </h3>
                  <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
                     Marque as opções abaixo para receber alertas em tempo real das operações selecionadas.
@@ -3242,7 +3271,7 @@ export default function AdminDashboard() {
                           id="opt-ponto-atraso"
                        />
                        <label htmlFor="opt-ponto-atraso" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>⏰ Atrasos de Colaborador (Ponto)</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Atrasos de Colaborador (Ponto)</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber notificações quando um funcionário registrar entrada ou saída após o horário de tolerância configurado.</span>
                        </label>
                     </div>
@@ -3256,7 +3285,7 @@ export default function AdminDashboard() {
                           id="opt-checklist-reprovado"
                        />
                        <label htmlFor="opt-checklist-reprovado" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>⚠️ Checklist com Irregularidades (Reprovado)</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Checklist com Irregularidades (Reprovado)</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Notificar imediatamente quando um colaborador finalizar um checklist que contenha alertas de falha ou irregularidades.</span>
                        </label>
                     </div>
@@ -3270,7 +3299,7 @@ export default function AdminDashboard() {
                           id="opt-checklist-aprovado"
                        />
                        <label htmlFor="opt-checklist-aprovado" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>✅ Checklist Concluído com Sucesso</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Checklist Concluído com Sucesso</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber notificação quando um colaborador finalizar um checklist sem nenhuma irregularidade detectada.</span>
                        </label>
                     </div>
@@ -3284,7 +3313,7 @@ export default function AdminDashboard() {
                           id="opt-ocorrencia"
                        />
                        <label htmlFor="opt-ocorrencia" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>🚨 Ocorrência registrada pelo colaborador</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Ocorrência registrada pelo colaborador</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber na hora quando alguém registrar algo fora da rotina — freezer desligado, equipamento quebrado, problema com fornecedor.</span>
                        </label>
                     </div>
@@ -3298,7 +3327,7 @@ export default function AdminDashboard() {
                           id="opt-descarte"
                        />
                        <label htmlFor="opt-descarte" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📉 Descarte registrado pelo colaborador</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Descarte registrado pelo colaborador</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Receber na hora o que foi jogado fora, com quantidade, motivo e valor estimado.</span>
                        </label>
                     </div>
@@ -3306,7 +3335,7 @@ export default function AdminDashboard() {
                     {/* Integração com o FireHub. Só mostra o estado: a ligação é
                         feita de dentro do FireHub, com o e-mail e a senha daqui. */}
                     <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-                       <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '4px' }}>🔗 Integração com o FireHub</strong>
+                       <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '4px' }}>Integração com o FireHub</strong>
                        {firehubLigacao?.conectado ? (
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                              Conectado à loja <strong>{firehubLigacao.firehubLojaNome || '—'}</strong> do FireHub
@@ -3329,7 +3358,7 @@ export default function AdminDashboard() {
                           id="opt-checklist-atrasado"
                        />
                        <label htmlFor="opt-checklist-atrasado" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📅 Checklist Pendente/Atrasado</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Checklist Pendente/Atrasado</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Avisar quando passar a Hora Limite de uma tarefa e ninguém tiver enviado o checklist no dia.</span>
                        </label>
                     </div>
@@ -3343,7 +3372,7 @@ export default function AdminDashboard() {
                           id="opt-ponto-diario"
                        />
                        <label htmlFor="opt-ponto-diario" style={{ cursor: 'pointer' }}>
-                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>📊 Fechamento Diário de Ponto</strong>
+                          <strong style={{ display: 'block', fontSize: '0.95rem' }}>Fechamento Diário de Ponto</strong>
                           <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Todo dia às 8h, o resumo do ponto do dia anterior: as batidas de cada um, horas trabalhadas, faltas e batidas faltando.</span>
                        </label>
                     </div>
@@ -3438,7 +3467,7 @@ export default function AdminDashboard() {
             {/* SÓ PONTO */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ color: 'var(--info)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>⏰ MÓDULO PONTO IA</div>
+                <div style={{ color: 'var(--info)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>MÓDULO PONTO IA</div>
                 <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Ponto IA</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Ponto com biometria facial e trava de GPS.</p>
                 <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
@@ -3461,9 +3490,9 @@ export default function AdminDashboard() {
 
             {/* COMBO COMPLETO (DESTACADO) */}
             <div className="card" style={{ width: '290px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 12px 30px rgb(var(--primary-rgb) / 0.15)' }}>
-              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>🔥 MAIS VENDIDO • MELHOR CUSTO</div>
+              <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>MAIS VENDIDO • MELHOR CUSTO</div>
               <div>
-                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px', marginTop: '6px' }}>⚡ PACOTE COMPLETO</div>
+                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px', marginTop: '6px' }}>PACOTE COMPLETO</div>
                 <h3 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--primary)' }}>Combo Tudo em 1</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Checklists Ilimitados + Ponto IA juntos.</p>
                 <div style={{ fontSize: '2.6rem', fontWeight: 'bold', marginBottom: '4px', color: '#0f172a' }}>
@@ -3473,7 +3502,7 @@ export default function AdminDashboard() {
                   {dashBillingCycle === 'anual' ? '12x R$ 167 (Economiza R$ 360)' : 'Economize R$ 101/mês vs 2 separados'}
                 </div>
                 <div style={{ fontSize: '0.85rem', marginBottom: '24px', color: 'var(--text-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ color: '#047857', fontWeight: 'bold' }}>🎁 BÔNUS: Até 50 colaboradores</div>
+                  <div style={{ color: '#047857', fontWeight: 'bold' }}>BÔNUS: Até 50 colaboradores</div>
                   <div>• <strong>Checklists ILIMITADOS</strong></div>
                   <div>• Ponto com Reconhecimento Facial</div>
                   <div>• Trava de GPS + WhatsApp</div>
@@ -3487,7 +3516,7 @@ export default function AdminDashboard() {
             {/* SÓ CHECKLISTS */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>📋 MÓDULO CHECKLIST</div>
+                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>MÓDULO CHECKLIST</div>
                 <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Checklists</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Auditorias e vistorias ilimitadas com IA.</p>
                 <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
@@ -3541,164 +3570,96 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ── Tab: Auditoria em Tempo Real ─────────────────────────────────── */}
+      {/* ── Tab: Auditoria em Tempo Real (visual de 21/11/2026) ─────────────── */}
       {tab === 'auditoria' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-              <Activity size={20} color="var(--primary)" /> Auditoria em Tempo Real
-            </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Filtrar Categoria:</label>
-              <select 
-                value={categoryFilter} 
-                onChange={e => setCategoryFilter(e.target.value)}
-                style={{
-                  backgroundColor: 'var(--bg-inset)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-              >
-                <option value="todos">Todos os Segmentos</option>
+        <div className="card fc-aud" ref={listaDaAuditoriaRef} style={{ scrollMarginTop: '20px' }}>
+          <div className="fc-aud-cab">
+            <h3>Auditoria em tempo real</h3>
+            <span className="fc-olho"><i className="fc-vivo" />atualiza sozinho</span>
+            <div className="fc-filtros">
+              {filtroStatus && (
+                <span className="fc-chip">
+                  hoje, só: <b>{filtroStatus === 'aprovado' ? 'aprovados' : filtroStatus === 'reprovado' ? 'reprovados' : 'sem foto ou aguardando'}</b>
+                  <button onClick={() => setFiltroStatus(null)} aria-label="Ver todos">×</button>
+                </span>
+              )}
+              <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} aria-label="Filtrar por segmento">
+                <option value="todos">Todos os segmentos</option>
                 <option value="geral">Geral / Padrão</option>
                 <option value="loja">Loja / Varejo</option>
                 <option value="restaurante">Restaurante / Alimentação</option>
                 <option value="consultorio">Consultório / Clínicas</option>
                 <option value="veiculo">Frota / Veicular</option>
               </select>
-              <select
-                value={filtroBaixa}
-                onChange={e => setFiltroBaixa(e.target.value)}
-                aria-label="Filtrar por baixa"
-                style={{
-                  backgroundColor: 'var(--bg-inset)',
-                  color: 'var(--text-main)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '6px',
-                  padding: '6px 12px',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-              >
+              <select value={filtroBaixa} onChange={e => setFiltroBaixa(e.target.value)} aria-label="Filtrar por baixa">
                 <option value="todos">Todos</option>
                 <option value="pendentes">Aguardando baixa</option>
                 <option value="verificados">Verificados</option>
               </select>
             </div>
           </div>
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div>
             {(() => {
               const filteredSubmissions = submissions.filter(s => {
                 if (filtroBaixa === 'pendentes' && s.resolved) return false;
                 if (filtroBaixa === 'verificados' && !s.resolved) return false;
+                if (filtroStatus) {
+                  const st = statusDaSubmissao(s);
+                  if (filtroStatus === 'outros' ? ['aprovado', 'reprovado'].includes(st) : st !== filtroStatus) return false;
+                  if (!ehHojeEmSP(s.created_at)) return false;
+                }
                 if (categoryFilter === 'todos') return true;
                 const cl = checklists?.find(c => c.id === s.checklist_id);
                 return cl && cl.category === categoryFilter;
               });
 
               return filteredSubmissions.length > 0 ? filteredSubmissions.map(s => {
-                const completedTasks = s.tasks?.filter(t => t.done)?.length || 0;
-                const totalTasks = s.tasks?.length || 1;
+                const tarefas = s.tasks || [];
+                const completedTasks = tarefas.filter(t => t.done).length;
+                const totalTasks = tarefas.length || 1;
                 const pct = Math.round((completedTasks / totalTasks) * 100);
-                
-                // _meta e global_error são metadados do processamento, não pareceres da
-                // IA sobre tarefas. Contá-los fazia uma submissão que a IA nunca analisou
-                // ser exibida como "Aprovado pela IA".
-                const feedbacks = Object.entries(s.feedback_info || {})
-                  .filter(([k]) => !k.startsWith('_') && k !== 'global_error')
-                  .map(([, v]) => v);
-                const hasWarnings = feedbacks.some(f => f?.status === 'warning' || f?.status === 'error');
-                const tarefasComFoto = (s.tasks || []).filter(t => t.photo && !t.forceOverride);
-                const hasPhotos = tarefasComFoto.length > 0;
-                const globalError = s.feedback_info?.global_error;
-                const revisaoManual = s.feedback_info?._meta?.status === 'revisao_manual';
-
-                let status = 'pendente';
-                if (globalError || revisaoManual) status = 'falha';
-                else if (hasPhotos) {
-                  if (hasWarnings) status = 'reprovado';
-                  // Só é aprovado quando TODAS as fotos foram analisadas. Antes,
-                  // uma análise parcial (1 de 8 fotos) já virava aprovação.
-                  else if (feedbacks.length >= tarefasComFoto.length) status = 'aprovado';
-                  else status = 'pendente';
-                } else {
-                  status = 'ignorado';
-                }
+                const status = statusDaSubmissao(s);
+                const cl = checklists?.find(c => c.id === s.checklist_id);
+                const marcas = tarefas.map((t, i) => (tarefaReprovada(s, t) ? ((i + 0.5) / tarefas.length) * 100 : null)).filter(m => m != null);
+                // Reprovado = barra inteira vermelha (pedido do Douglas, 21/11: sem o risco no meio).
+                const cor = ['reprovado', 'falha'].includes(status) ? 'var(--bad)' : status === 'ignorado' ? '#A8A4AB' : pct === 100 ? 'var(--ok)' : 'var(--primary)';
+                const quando = new Date(s.created_at);
 
                 return (
-                  <div key={s.id} 
-                    onClick={() => abrirDetalheSubmissao(s)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
-                    onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
-                    onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                  >
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: '250px' }}>
-                      {s.selfie && <img src={s.selfie} alt="Selfie" style={{ width: '48px', height: '48px', borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--primary)' }} />}
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ fontSize: '1rem', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          {checklists?.find(c => c.id === s.checklist_id)?.title || s.checklist_title || 'Checklist Concluído'}
-                          {checklists?.find(c => c.id === s.checklist_id)?.category === 'veiculo' && (
-                            <span style={{ fontSize: '0.7rem', padding: '2px 6px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }}>
-                              🚗 Veicular
-                            </span>
-                          )}
-                        </h4>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>👤 {s.employee_name} · 🏬 {s.store}</p>
-                        {/* Enviado depois de a conferência ter apontado o erro na
-                            tela do funcionário. Não é o mesmo que "reprovado": aqui
-                            ele leu o motivo, pôde refazer e escolheu enviar assim. */}
-                        {s.enviado_ciente && (
-                          <div style={{ marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '999px', backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', fontSize: '0.75rem', color: '#b91c1c', fontWeight: 'bold' }}>
-                            🚨 Enviou ciente da reprovação
-                          </div>
-                        )}
-                        <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <BarPct pct={pct} color={pct === 100 ? 'var(--success)' : pct > 60 ? '#FFA000' : 'var(--error)'} />
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{pct}%</span>
-                        </div>
+                  <div key={s.id} className="fc-lin" onClick={() => abrirDetalheSubmissao(s)}>
+                    <span className="fc-av">{temImagem(s.selfie) ? <img src={s.selfie} alt="" /> : iniciais(s.employee_name)}</span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="fc-t">
+                        {cl?.title || s.checklist_title || 'Checklist'}
+                        {cl?.category === 'veiculo' && <span className="fc-tag-p">Veicular</span>}
                       </div>
+                      <div className="fc-m">{s.employee_name} · {completedTasks} de {tarefas.length} tarefas{marcas.length ? `, ${marcas.length} reprovada${marcas.length > 1 ? 's' : ''}` : ''}</div>
+                      {/* Enviado depois de a conferência ter apontado o erro na tela do
+                          funcionário: ele leu o motivo, pôde refazer e enviou assim. */}
+                      {s.enviado_ciente && <span className="fc-ciente">Enviou ciente da reprovação</span>}
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                        <StatusBadge status={status} />
-                        {/* A baixa do gestor: sem ela a lista não dizia quais
-                            checklists já tinham sido conferidos. */}
-                        {s.resolved ? (
-                          <span style={{ padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: 'var(--success)', maxWidth: '260px', textAlign: 'right' }}>
-                            ✔ {textoDaBaixa(s)}
-                          </span>
-                        ) : (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleResolveSubmission(s.id); }}
-                            style={{ fontSize: '0.75rem', padding: '4px 10px', backgroundColor: 'transparent', color: 'var(--success)', border: '1px solid var(--success)', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold' }}
-                          >
-                            Dar baixa
-                          </button>
-                        )}
-                        {(status === 'pendente' || status === 'falha') && (
-                          <button 
-                            onClick={(e) => handleReprocessAudit(e, s.id)}
-                            disabled={reprocessando.has(s.id)}
-                            style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', border: '1px solid var(--info)', borderRadius: '4px', cursor: 'pointer' }}
-                          >
-                            {reprocessando.has(s.id) ? 'Reprocessando…' : 'Tentar Novamente'}
-                          </button>
-                        )}
-                      </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '6px' }}>
-                        <Clock size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
-                        {new Date(s.created_at).toLocaleDateString('pt-BR')} {new Date(s.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                    <div className="fc-lin-barra"><BarraLuz pct={pct} cor={cor} corre={pct < 100} /></div>
+                    <span className="fc-pct"><b>{pct}</b>%</span>
+                    <span className="fc-selo-cel">
+                      {/* A baixa do gestor: sem ela a lista não dizia quais checklists já tinham sido conferidos. */}
+                      <Selo status={status} sub={s.resolved ? textoDaBaixa(s) : status === 'reprovado' ? 'aguardando você conferir' : null} />
+                    </span>
+                    <div className="fc-acoes">
+                      <span className="fc-hora">{ehHojeEmSP(s.created_at) ? 'hoje' : quando.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} {quando.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      {!s.resolved && (
+                        <button className="fc-mini-btn" onClick={(e) => { e.stopPropagation(); handleResolveSubmission(s.id); }}>Dar baixa</button>
+                      )}
+                      {(status === 'pendente' || status === 'falha') && (
+                        <button className="fc-mini-btn info" onClick={(e) => handleReprocessAudit(e, s.id)} disabled={reprocessando.has(s.id)}>
+                          {reprocessando.has(s.id) ? 'Reprocessando…' : 'Tentar de novo'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               }) : (
-                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                  <p>Nenhuma auditoria realizada no período para esta categoria.</p>
+                <div className="fc-vazio">
+                  {filtroStatus ? 'Nenhum checklist de hoje neste filtro.' : 'Nenhuma auditoria realizada no período para esta categoria.'}
                 </div>
               );
             })()}
@@ -3855,7 +3816,7 @@ export default function AdminDashboard() {
                   <div style={{ backgroundColor: 'var(--bg-main)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Líder do Ranking</span>
                     <h4 style={{ margin: '8px 0 4px 0', fontSize: '1.2rem', color: 'var(--primary)', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '160px', textAlign: 'center' }}>
-                      👑 {sortedRanking[0].nome}
+                      {sortedRanking[0].nome}
                     </h4>
                     <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: 'bold' }}>{sortedRanking[0].pct}% de acertos</span>
                   </div>
@@ -4130,12 +4091,10 @@ export default function AdminDashboard() {
 
       {/* ── Tab: Alertas da IA ────────────────────────────────────────────── */}
       {tab === 'alertas' && (
-        <div className="card" style={{ padding: '0' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldAlert size={20} color="var(--error)" /> Alertas da Inteligência Artificial
-            </h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4px' }}>Tarefas reprovadas ou ignoradas pelos funcionários, e o que a equipe registrou fora da rotina</p>
+        <div className="card fc-aud">
+          <div className="fc-aud-cab" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '4px' }}>
+            <h3>Reprovações e registros da equipe</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>Fotos que a IA reprovou e o que a equipe registrou fora da rotina.</p>
           </div>
 
           {/* ── O que a equipe registrou por conta própria ────────────────────
@@ -4143,102 +4102,89 @@ export default function AdminDashboard() {
               alguém parou o serviço para avisar de um problema, e isso costuma
               ser mais urgente do que uma foto que saiu torta. */}
           {ocorrencias.length > 0 && (
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', borderBottom: '1px solid var(--border-color)' }}>
+            <div style={{ padding: '4px 8px 12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <span className="fc-olho-rot" style={{ padding: '6px 6px 0' }}>Registrado pela equipe</span>
               {ocorrencias.map(o => (
-                <div key={`oc-${o.id}`} style={{
-                  padding: '16px', borderRadius: '12px',
-                  backgroundColor: o.tipo === 'descarte' ? 'rgba(15, 118, 110, 0.06)' : 'rgba(245, 158, 11, 0.07)',
-                  border: `1px solid ${o.tipo === 'descarte' ? 'rgba(15, 118, 110, 0.3)' : 'rgba(245, 158, 11, 0.35)'}`,
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                      <strong style={{ display: 'block', fontSize: '0.95rem', marginBottom: '2px' }}>
-                        {o.tipo === 'descarte' ? '📉 Descarte' : '🚨 Ocorrência'} · {o.employee_name}
-                      </strong>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        {new Date(o.created_at).toLocaleString('pt-BR')}
-                      </span>
-
-                      {o.tipo === 'descarte' && (
-                        <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem' }}>
-                          <strong>{o.item}</strong>
-                          {(o.quantidade || o.unidade) && <> — {[o.quantidade, o.unidade].filter(Boolean).join(' ')}</>}
-                          {o.motivo && <> · {o.motivo}</>}
-                          {o.valor_estimado != null && <> · <strong>R$ {Number(o.valor_estimado).toFixed(2)}</strong></>}
-                        </p>
-                      )}
-                      {o.tipo === 'descarte' && o.firehub_status && (
-                        <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.75rem', color: o.firehub_status === 'enviado' ? '#0f766e' : '#b45309' }}>
-                          {o.firehub_status === 'enviado'
-                            ? '✓ Lançado como perda no FireHub'
-                            : '⚠️ Ainda não chegou ao FireHub — vai de novo junto com o próximo descarte'}
-                        </span>
-                      )}
-                      {o.descricao && (
-                        <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem', color: 'var(--text-main)' }}>{o.descricao}</p>
-                      )}
+                <div key={`oc-${o.id}`} className="fc-alerta" style={{ '--c': o.tipo === 'descarte' ? '#0F766E' : '#D97706' }}>
+                  <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div className="fc-alerta-t">
+                      <span className="fc-tag-p" style={{ color: 'var(--c)', borderColor: 'currentColor' }}>{o.tipo === 'descarte' ? 'Descarte' : 'Ocorrência'}</span>
+                      {o.employee_name}
                     </div>
-                    {o.photo && (
-                      <img
-                        src={o.photo}
-                        alt="Foto do registro"
-                        onClick={() => window.open(o.photo, '_blank')}
-                        style={{ width: '84px', height: '84px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', flexShrink: 0 }}
-                      />
+                    <span className="fc-hora">{new Date(o.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+
+                    {o.tipo === 'descarte' && (
+                      <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem' }}>
+                        <strong>{o.item}</strong>
+                        {(o.quantidade || o.unidade) && <> — {[o.quantidade, o.unidade].filter(Boolean).join(' ')}</>}
+                        {o.motivo && <> · {o.motivo}</>}
+                        {o.valor_estimado != null && <> · <strong>R$ {Number(o.valor_estimado).toFixed(2).replace('.', ',')}</strong></>}
+                      </p>
+                    )}
+                    {o.tipo === 'descarte' && o.firehub_status && (
+                      <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '0.75rem', color: o.firehub_status === 'enviado' ? '#0f766e' : '#b45309' }}>
+                        {o.firehub_status === 'enviado'
+                          ? 'Lançado como perda no FireHub'
+                          : 'Ainda não chegou ao FireHub — vai de novo junto com o próximo descarte'}
+                      </span>
+                    )}
+                    {o.descricao && (
+                      <p style={{ margin: '8px 0 0 0', fontSize: '0.88rem', color: 'var(--text-main)' }}>{o.descricao}</p>
                     )}
                   </div>
+                  {o.photo && (
+                    <img
+                      src={o.photo}
+                      alt="Foto do registro"
+                      onClick={() => window.open(o.photo, '_blank')}
+                      style={{ width: '84px', height: '84px', objectFit: 'cover', borderRadius: '12px', cursor: 'pointer', flexShrink: 0 }}
+                    />
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f.status === 'warning' || f.status === 'error')) ? (
-              submissions.map(s => {
-                const alerts = Object.entries(s.feedback_info || {}).filter(([id, f]) => f.status === 'warning' || f.status === 'error');
-                if (alerts.length === 0) return null;
-                
-                return alerts.map(([taskId, feedback]) => {
-                  // As chaves de feedback_info chegam como string (chave de JSON),
-                  // mas os ids das tarefas são números — sem coerção o find nunca
-                  // casava e todo alerta virava "Tarefa Desconhecida".
-                  const task = s.tasks.find(t => String(t.id) === String(taskId));
-                  return (
-                    <div key={`${s.id}-${taskId}`} style={{ 
-                      padding: '16px', 
-                      backgroundColor: s.resolved ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255,23,68,0.05)', 
-                      borderRadius: '10px', 
-                      border: s.resolved ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid rgba(255,23,68,0.2)',
-                      opacity: s.resolved ? 0.8 : 1
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          {s.resolved ? <CheckCircle size={18} color="var(--success)" /> : <AlertCircle size={18} color="var(--error)" />}
-                          <span style={{ fontWeight: 'bold', fontSize: '0.95rem', color: s.resolved ? 'var(--success)' : 'white' }}>
-                            {task?.text || 'Tarefa Desconhecida'} {s.resolved && '(Concluída)'}
+          <div style={{ padding: '4px 8px 8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {submissions.some(s => Object.values(s.feedback_info || {}).some(f => f?.status === 'warning' || f?.status === 'error')) ? (
+              <>
+                <span className="fc-olho-rot" style={{ padding: '6px 6px 0' }}>Reprovado pela IA</span>
+                {submissions.map(s => {
+                  const alerts = Object.entries(s.feedback_info || {}).filter(([, f]) => f?.status === 'warning' || f?.status === 'error');
+                  if (alerts.length === 0) return null;
+
+                  return alerts.map(([taskId, feedback]) => {
+                    // As chaves de feedback_info chegam como string (chave de JSON),
+                    // mas os ids das tarefas são números — sem coerção o find nunca
+                    // casava e todo alerta virava "Tarefa Desconhecida".
+                    const task = (s.tasks || []).find(t => String(t.id) === String(taskId));
+                    return (
+                      <div key={`${s.id}-${taskId}`} className="fc-alerta" style={{ '--c': s.resolved ? 'var(--ok)' : 'var(--bad)', opacity: s.resolved ? 0.75 : 1 }}>
+                        <div style={{ flex: 1, minWidth: '220px' }}>
+                          <div className="fc-alerta-t">
+                            {s.resolved ? <CheckCircle size={16} color="var(--ok)" /> : <AlertCircle size={16} color="var(--bad)" />}
+                            {task?.text || 'Tarefa'}
+                          </div>
+                          <span className="fc-hora">
+                            {new Date(s.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · {s.employee_name}
+                            {s.resolved ? ` · ${textoDaBaixa(s)}` : ''}
                           </span>
+                          <p className="fc-alerta-ia">
+                            <b>A IA viu:</b> {feedback?.message || feedback?.mensagem || 'Foto fora do padrão.'}
+                          </p>
                         </div>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{new Date(s.created_at).toLocaleTimeString('pt-BR')}</span>
-                      </div>
-                      <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '8px' }}>
-                        👤 Funcionário: <strong style={{ color: 'var(--text-main)' }}>{s.employee_name}</strong> · Loja: {s.store}
-                      </p>
-                      <p style={{ color: s.resolved ? 'var(--text-muted)' : '#FFA000', fontSize: '0.85rem', backgroundColor: 'rgba(255,160,0,0.08)', padding: '8px 12px', borderRadius: '6px' }}>
-                        🤖 IA: "{feedback.message}"
-                      </p>
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-                        <button className="btn-secondary" style={{ flex: 1, padding: '12px', fontSize: '0.85rem' }} onClick={() => abrirDetalheSubmissao(s)}>
-                          {s.resolved ? 'Ver Evidência Salva' : 'Analisar Evidência e Resolver'}
+                        <button className={s.resolved ? 'fc-mini-btn' : 'fc-pilula'} style={{ alignSelf: 'center' }} onClick={() => abrirDetalheSubmissao(s)}>
+                          {s.resolved ? 'Ver evidência' : <>Conferir e resolver <i><ArrowUpRight size={15} /></i></>}
                         </button>
                       </div>
-                    </div>
-                  );
-                });
-              })
+                    );
+                  });
+                })}
+              </>
             ) : (
-              <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                <Activity size={48} style={{ marginBottom: '16px', opacity: 0.2 }} />
-                <p>Nenhum alerta crítico da IA no momento.</p>
+              <div className="fc-vazio">
+                <CheckCircle size={36} color="var(--ok)" style={{ marginBottom: '10px' }} />
+                <p>Nenhuma foto reprovada pela IA no período.</p>
               </div>
             )}
           </div>
@@ -4300,7 +4246,7 @@ export default function AdminDashboard() {
               <>
                 <div>
                   <h4 style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Clock size={16} /> ⏳ Pendentes de Execução
+                    <Clock size={16} /> Pendentes de Execução
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {sortedAdminChecklists.filter(cl => !cl.completedToday).map(cl => (
@@ -4333,14 +4279,14 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                     {sortedAdminChecklists.filter(cl => !cl.completedToday).length === 0 && (
-                      <p style={{ color: 'var(--success)', fontSize: '0.85rem', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px' }}>🎉 Todos os checklists pendentes já foram executados hoje!</p>
+                      <p style={{ color: 'var(--success)', fontSize: '0.85rem', padding: '12px', backgroundColor: 'rgba(0,200,83,0.1)', borderRadius: '8px' }}>Todos os checklists pendentes já foram executados hoje!</p>
                     )}
                   </div>
                 </div>
 
                 <div>
                   <h4 style={{ color: 'var(--success)', marginBottom: '12px', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <CheckCircle size={16} /> ✅ Concluídos
+                    <CheckCircle size={16} /> Concluídos
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {sortedAdminChecklists.filter(cl => cl.completedToday).map(cl => (
@@ -4444,7 +4390,7 @@ export default function AdminDashboard() {
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {v.status === 'ativo' && v.employee_id && (
                           <button className="btn" style={{ padding: '6px 12px', fontSize: '0.8rem', backgroundColor: 'var(--primary)', color: 'white', border: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} onClick={() => handleSolicitVehicleChecklist(v.id)}>
-                            🚀 Solicitar
+                            Solicitar
                           </button>
                         )}
                         {!isFuncionario && (<>
@@ -4545,11 +4491,11 @@ export default function AdminDashboard() {
                 </div>
 
                 <div>
-                  <label className="input-label">👤 Motorista Vinculado (Equipe)</label>
+                  <label className="input-label">Motorista Vinculado (Equipe)</label>
                   <select className="input-field" value={newVehicle.employeeId} onChange={e => setNewVehicle({ ...newVehicle, employeeId: e.target.value })}>
                     <option value="">Nenhum — Apenas livre demanda</option>
                     {team.filter(m => m.role === 'funcionario' || m.role === 'gestor' || m.role === 'admin' || m.role === 'master').map(m => (
-                      <option key={m.id} value={m.id}>👤 {m.name} ({m.email})</option>
+                      <option key={m.id} value={m.id}>{m.name} ({m.email})</option>
                     ))}
                   </select>
                 </div>
@@ -4558,8 +4504,8 @@ export default function AdminDashboard() {
                   <div>
                     <label className="input-label">Status do Veículo</label>
                     <select className="input-field" value={newVehicle.status} onChange={e => setNewVehicle({ ...newVehicle, status: e.target.value })}>
-                      <option value="ativo">🟢 Ativo na Frota</option>
-                      <option value="manutencao">🟡 Em Manutenção / Inativo</option>
+                      <option value="ativo">Ativo na Frota</option>
+                      <option value="manutencao">Em Manutenção / Inativo</option>
                     </select>
                   </div>
                   <div>
@@ -4575,7 +4521,7 @@ export default function AdminDashboard() {
                 )}
 
                 {/* Agendamento de Vistorias */}
-                <h4 style={{ margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--primary)' }}>📅 Programação do Checklist</h4>
+                <h4 style={{ margin: '16px 0 8px 0', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px', color: 'var(--primary)' }}>Programação do Checklist</h4>
                 <div>
                   <label className="input-label">Recorrência / Agendamento</label>
                   <select className="input-field" value={newVehicle.scheduleType} onChange={e => {
@@ -4585,10 +4531,10 @@ export default function AdminDashboard() {
                     if (type === 'specific_dates') initialData = [];
                     setNewVehicle({ ...newVehicle, scheduleType: type, scheduleData: initialData });
                   }}>
-                    <option value="manual">🚀 Sob Demanda (Manual/Livre)</option>
-                    <option value="daily">📅 Diário (Todos os dias)</option>
-                    <option value="weekdays">🗓️ Dias da Semana Específicos</option>
-                    <option value="specific_dates">📆 Datas Recorrentes / Agendadas</option>
+                    <option value="manual">Sob Demanda (Manual/Livre)</option>
+                    <option value="daily">Diário (Todos os dias)</option>
+                    <option value="weekdays">Dias da Semana Específicos</option>
+                    <option value="specific_dates">Datas Recorrentes / Agendadas</option>
                   </select>
                 </div>
 
@@ -4643,7 +4589,7 @@ export default function AdminDashboard() {
               {/* COLUNA DIREITA: Critérios de Checklist */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderLeft: '1px solid var(--border-color)', paddingLeft: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
-                  <h4 style={{ margin: 0, color: 'var(--primary)' }}>📋 Critérios de Checklist</h4>
+                  <h4 style={{ margin: 0, color: 'var(--primary)' }}>Critérios de Checklist</h4>
                   
                   {vehicles.filter(v => v.id !== newVehicle.id && v.tasks && v.tasks.length > 0).length > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -4731,7 +4677,7 @@ export default function AdminDashboard() {
                     };
                     setNewVehicle({ ...newVehicle, tasks: [...(newVehicle.tasks || []), newTask] });
                   }}>
-                    ➕ Adicionar Item ao Checklist
+                    Adicionar Item ao Checklist
                   </button>
                 </div>
               </div>
@@ -4840,19 +4786,19 @@ export default function AdminDashboard() {
                       const sch = schedules.find(s => String(s.id) === String(member.schedule_id));
                       if (!sch) return null;
                       return (
-                        <span style={{ backgroundColor: `${sch.color}15`, border: `1px solid ${sch.color}40`, color: sch.color, padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                          📅 Escala: {sch.name}
+                        <span className="fc-dado" style={{ '--c': sch.color }}>
+                          Escala: {sch.name}
                         </span>
                       );
                     })()}
                     {!isMaster && !member.schedule_id && member.ponto_hora_entrada && member.ponto_hora_entrada !== '08:00' && (
-                      <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
-                        ⏰ {member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}
+                      <span className="fc-dado mono" style={{ '--c': 'var(--ok)' }}>
+                        {member.ponto_hora_entrada} - {member.ponto_hora_saida || '18:00'}
                       </span>
                     )}
                   </div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '4px' }}>
-                    {member.email} · {member.phone ? `📱 ${member.phone}` : 'Sem telefone cadastrado'} · {member.store}
+                    {member.email} · {member.phone ? member.phone : 'Sem telefone cadastrado'} · {member.store}
                   </p>
                   {/* ── O que o plano de fato limita ─────────────────────────
                       Esta barra media checklists, e mostrava "0/300" para todo
@@ -4995,7 +4941,7 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                   <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    ⚠️ Lembre-se de cancelar o plano anterior na Cakto após o upgrade para evitar cobranças duplicadas.
+                    Lembre-se de cancelar o plano anterior na Cakto após o upgrade para evitar cobranças duplicadas.
                   </p>
                 </div>
                 )}
@@ -5105,21 +5051,21 @@ export default function AdminDashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                           <strong style={{ fontSize: '1rem' }}>{sub.list_title || 'Lista de Compras'}</strong>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            👤 Conferido por: <strong>{sub.employee_name}</strong>
+                            Conferido por: <strong>{sub.employee_name}</strong>
                           </span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                             📅 {new Date(sub.created_at).toLocaleString('pt-BR')}
                           </span>
                         </div>
                         <div style={{ display: 'flex', gap: '12px', marginTop: '6px', fontSize: '0.85rem' }}>
-                          <span>📦 Total de itens: <strong>{itemsList.length}</strong></span>
+                          <span>Total de itens: <strong>{itemsList.length}</strong></span>
                           {hasBelowMin ? (
                             <span style={{ color: '#ef4444', fontWeight: 'bold' }}>
-                              ⚠️ {belowMin.length} item(ns) abaixo do estoque mínimo
+                              {belowMin.length} item(ns) abaixo do estoque mínimo
                             </span>
                           ) : (
                             <span style={{ color: '#10b981', fontWeight: 'bold' }}>
-                              ✓ Estoque Completo
+                              Estoque Completo
                             </span>
                           )}
                         </div>
@@ -5157,11 +5103,11 @@ export default function AdminDashboard() {
                 </div>
 
                 <div style={{ backgroundColor: 'var(--bg-main)', padding: '14px', borderRadius: '10px', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  <p style={{ margin: '0 0 4px 0' }}>📋 <strong>Lista:</strong> {selectedShoppingSubModal.list_title || 'Lista de Compras'}</p>
-                  <p style={{ margin: '0 0 4px 0' }}>👤 <strong>Funcionário:</strong> {selectedShoppingSubModal.employee_name}</p>
-                  <p style={{ margin: 0 }}>📅 <strong>Data:</strong> {new Date(selectedShoppingSubModal.created_at).toLocaleString('pt-BR')}</p>
+                  <p style={{ margin: '0 0 4px 0' }}><strong>Lista:</strong> {selectedShoppingSubModal.list_title || 'Lista de Compras'}</p>
+                  <p style={{ margin: '0 0 4px 0' }}><strong>Funcionário:</strong> {selectedShoppingSubModal.employee_name}</p>
+                  <p style={{ margin: 0 }}><strong>Data:</strong> {new Date(selectedShoppingSubModal.created_at).toLocaleString('pt-BR')}</p>
                   {selectedShoppingSubModal.notes && (
-                    <p style={{ margin: '8px 0 0 0', color: 'var(--primary)' }}>📝 <strong>Obs:</strong> {selectedShoppingSubModal.notes}</p>
+                    <p style={{ margin: '8px 0 0 0', color: 'var(--primary)' }}><strong>Obs:</strong> {selectedShoppingSubModal.notes}</p>
                   )}
                 </div>
 
@@ -5373,7 +5319,7 @@ export default function AdminDashboard() {
                   <Bot size={32} color="white" />
                 </div>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'rgba(255,255,255,0.2)', padding: '8px 20px', borderRadius: '20px', fontSize: '0.95rem', fontWeight: '600', color: 'white', backdropFilter: 'blur(8px)' }}>
-                  ✅ Conectado ao Bill
+                  Conectado ao Bill
                 </div>
               </div>
               <div style={{ padding: '32px 24px', textAlign: 'center' }}>
@@ -5406,7 +5352,7 @@ export default function AdminDashboard() {
             /* ── MODO NÃO CONECTADO ── */
             <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
               {/* Hero */}
-              <div style={{ background: 'linear-gradient(135deg, var(--info) 0%, #0e7490 50%, #164e63 100%)', padding: '48px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ background: 'radial-gradient(420px 220px at 85% 0%, rgb(var(--primary-rgb) / 0.35), transparent 70%), #101014', padding: '48px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}></div>
                 <div style={{ position: 'absolute', bottom: '-40px', left: '-20px', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }}></div>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
@@ -5477,13 +5423,13 @@ export default function AdminDashboard() {
                   type="submit" disabled={billLoading}
                   style={{
                     width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-                    background: billLoading ? '#6b7280' : 'linear-gradient(135deg, var(--info) 0%, var(--info) 100%)',
+                    background: billLoading ? '#6b7280' : 'var(--ink)', borderRadius: '999px',
                     color: 'white', fontSize: '1rem', fontWeight: '700', cursor: billLoading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.3s', boxShadow: billLoading ? 'none' : '0 4px 16px rgb(var(--info-rgb) / 0.35)',
+                    transition: 'all 0.3s', boxShadow: billLoading ? 'none' : '0 10px 24px -12px rgba(22,22,26,.55)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
                   }}
-                  onMouseOver={(e) => { if (!billLoading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgb(var(--info-rgb) / 0.45)'; } }}
-                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgb(var(--info-rgb) / 0.35)'; }}
+                  onMouseOver={(e) => { if (!billLoading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 14px 28px -12px rgba(22,22,26,.6)'; } }}
+                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 10px 24px -12px rgba(22,22,26,.55)'; }}
                 >
                   {billLoading ? (
                     <><span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }}></span> Conectando...</>
@@ -5598,7 +5544,7 @@ export default function AdminDashboard() {
                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {(cam.ai_commands || []).map((cmd, idx) => (
                             <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.08)', border: '1px solid rgb(var(--info-rgb) / 0.2)', color: 'var(--info)', borderRadius: '6px', fontSize: '0.75rem' }}>
-                              👁️ {cmd}
+                              {cmd}
                             </span>
                           ))}
                        </div>
@@ -5721,7 +5667,7 @@ export default function AdminDashboard() {
                    )}
                    {(newCamera.ai_commands || []).map((cmd, idx) => (
                      <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', border: '1px solid rgb(var(--info-rgb) / 0.3)', color: 'var(--info)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                       👁️ {cmd}
+                       {cmd}
                        <button type="button" style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} 
                          onClick={() => setNewCamera({...newCamera, ai_commands: newCamera.ai_commands.filter((_, i) => i !== idx)})}>
                          <X size={12} />
@@ -5845,7 +5791,7 @@ export default function AdminDashboard() {
               {newUser.role === 'gestor' && (
                 <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
                   <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', marginBottom: '12px', fontWeight: 'bold' }}>
-                    🔐 Permissões do Gestor
+                    Permissões do Gestor
                   </label>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Marque as funções que este gestor poderá acessar:</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -5961,7 +5907,7 @@ export default function AdminDashboard() {
                       {feedback?.enviado_ciente && (
                         <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '10px', backgroundColor: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                           <strong style={{ display: 'block', fontSize: '0.82rem', color: '#b91c1c', marginBottom: '4px' }}>
-                            🚨 Enviado ciente da reprovação
+                            Enviado ciente da reprovação
                           </strong>
                           <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'block' }}>
                             A IA apontou: {feedback.message || feedback.mensagem || '—'}
@@ -5977,12 +5923,12 @@ export default function AdminDashboard() {
                       <div style={{ display: 'grid', gridTemplateColumns: task.photo ? '1fr 1fr' : '1fr', gap: '20px' }}>
                         {task.photo && (
                           <div>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>📸 Evidência Fotográfica:</p>
+                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Evidência Fotográfica:</p>
                             {/* window.open com uma data URI é bloqueado pelo navegador e
                                 abria aba em branco. Com URL do Firebase, abre normal;
                                 com base64, mostra a imagem numa janela própria. */}
                             <img src={task.photo} alt="Evidência" onClick={() => ampliarFoto(task.photo)} title="Clique para ampliar" style={{ width: '100%', height: '140px', objectFit: 'cover', cursor: 'zoom-in', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
-                            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>👆 Clique para ampliar foto</p>
+                            <p style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>Clique para ampliar foto</p>
                           </div>
                         )}
                         
@@ -6008,7 +5954,7 @@ export default function AdminDashboard() {
               
               {selectedSubmission.signature && (
                 <div style={{ marginTop: '24px', padding: '20px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 'bold' }}>🖋️ Assinatura do Funcionário:</p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 'bold' }}>Assinatura do Funcionário:</p>
                   <img src={selectedSubmission.signature} alt="Assinatura" style={{ maxHeight: '100px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
                 </div>
               )}
@@ -6019,12 +5965,12 @@ export default function AdminDashboard() {
                </button>
                {!selectedSubmission.resolved && (
                  <button className="btn" style={{ flex: 2, padding: '16px', fontSize: '1rem' }} onClick={() => handleResolveSubmission(selectedSubmission.id)}>
-                    ✓ Dar baixa
+                    Dar baixa
                  </button>
                )}
                {selectedSubmission.resolved && (
                  <div style={{ flex: 2, padding: '16px', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '12px', textAlign: 'center', color: 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    ✓ {textoDaBaixa(selectedSubmission)}
+                    {textoDaBaixa(selectedSubmission)}
                  </div>
                )}
             </div>
@@ -6266,7 +6212,7 @@ export default function AdminDashboard() {
               {editingUser.role === 'gestor' && (
                 <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px' }}>
                   <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f59e0b', marginBottom: '12px', fontWeight: 'bold' }}>
-                    🔐 Permissões do Gestor
+                    Permissões do Gestor
                   </label>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '12px' }}>Marque as funções que este gestor poderá acessar:</p>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
@@ -6283,7 +6229,7 @@ export default function AdminDashboard() {
               {/* Escala de Trabalho Individual */}
               <div style={{ marginBottom: '24px', backgroundColor: 'rgb(var(--info-rgb) / 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgb(var(--info-rgb) / 0.15)' }}>
                 <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', color: 'var(--info)', fontWeight: 'bold' }}>
-                  ⏰ Escala de Trabalho
+                  Escala de Trabalho
                 </label>
                 <div style={{ marginBottom: '12px' }}>
                   <label className="input-label" style={{ fontSize: '0.75rem' }}>Selecione uma Escala</label>
@@ -6366,7 +6312,7 @@ export default function AdminDashboard() {
                 <h3 style={{ marginBottom: '16px', fontSize: '1.1rem', color: 'var(--primary)' }}>Nova Nota Fiscal / Despesa</h3>
                 
                 <div style={{ marginBottom: '16px' }}>
-                  <label className="input-label">📝 O que você comprou?</label>
+                  <label className="input-label">O que você comprou?</label>
                   <textarea 
                     className="input-field" 
                     placeholder="Ex: Abastecimento do carro da entrega, Papelão, Manutenção..." 
@@ -6540,7 +6486,7 @@ export default function AdminDashboard() {
                 }}
                 style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgb(var(--primary-rgb) / 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                🎓 Escolher um Tutorial!
+                Escolher um Tutorial!
               </button>
             </div>
           </div>
@@ -6561,7 +6507,7 @@ export default function AdminDashboard() {
 
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
               <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '4px 12px', borderRadius: '20px' }}>
-                🎓 Central de Ajuda Interativa
+                Central de Ajuda Interativa
               </span>
               <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '8px' }}>
                 O que você deseja aprender agora?
@@ -6649,7 +6595,7 @@ export default function AdminDashboard() {
                 }}
                 style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}
               >
-                🎓 Voltar ao Menu
+                Voltar ao Menu
               </button>
             </div>
 
@@ -6683,7 +6629,7 @@ export default function AdminDashboard() {
                   cursor: tourStep === 0 ? 'not-allowed' : 'pointer' 
                 }}
               >
-                ⬅️ Anterior
+                Anterior
               </button>
 
               <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>

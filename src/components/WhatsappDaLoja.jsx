@@ -141,7 +141,7 @@ export default function WhatsappDaLoja() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 320px', minWidth: 0 }}>
           <h3 style={{ margin: '0 0 6px', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', color: VERDE }}>
-            📲 WhatsApp da loja (quem envia os avisos)
+            WhatsApp da loja (quem envia os avisos)
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: 0, lineHeight: 1.5 }}>
             Os avisos saem do WhatsApp da <strong>sua</strong> loja, não de um número do FireCheck. Conecte lendo o QR Code com o
@@ -170,7 +170,7 @@ export default function WhatsappDaLoja() {
 
       {estado.conectado && estado.ultimaFalhaEm && (
         <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '10px', fontSize: '0.86rem', backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid #ef4444', color: '#b91c1c', lineHeight: 1.5 }}>
-          <strong>⚠️ O último aviso não saiu</strong>
+          <strong>O último aviso não saiu</strong>
           {' '}({new Date(estado.ultimaFalhaEm).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
           {estado.ultimaFalhaPara ? `, para ${formatarNumero(estado.ultimaFalhaPara)}` : ''}): {estado.ultimaFalha || 'o servidor de WhatsApp recusou o envio.'}
           {' '}Se os avisos pararam para todo mundo, clique em <strong>Conectar de novo</strong> e leia o QR Code com o celular da loja.
@@ -223,7 +223,7 @@ export default function WhatsappDaLoja() {
       )}
 
       <div style={{ marginTop: '22px', borderTop: '1px solid var(--border-color)', paddingTop: '18px' }}>
-        <strong style={{ display: 'block', fontSize: '0.98rem' }}>📞 Quem recebe os avisos</strong>
+        <strong style={{ display: 'block', fontSize: '0.98rem' }}>Quem recebe os avisos</strong>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.86rem', margin: '4px 0 12px', lineHeight: 1.5 }}>
           O dono e cada gestor recebem no número que cadastraram (o seu fica logo abaixo). Para mandar também para outros números
           (sócio, gerente da noite), adicione aqui. Eles recebem os mesmos avisos que estão marcados nesta tela.

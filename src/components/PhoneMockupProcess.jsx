@@ -202,7 +202,7 @@ export default function PhoneMockupProcess() {
                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#0f172a' }}>FireCheck IA</div>
                        <div style={{ fontSize: '0.7rem', color: '#64748b' }}>agora</div>
                      </div>
-                     <div style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#0f172a', marginBottom: '2px' }}>⚠️ Reprovação Crítica</div>
+                     <div style={{ fontWeight: 'bold', fontSize: '0.8rem', color: '#0f172a', marginBottom: '2px' }}>Reprovação Crítica</div>
                      <div style={{ fontSize: '0.75rem', color: '#475569', lineHeight: '1.3' }}>A IA reprovou o "Fechamento da Cozinha" de Eduardo. Clique para ver.</div>
                    </div>
                  </div>

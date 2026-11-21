@@ -97,7 +97,7 @@ export default function SettingsTab({ userProfile }) {
              </div>
              <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.06)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgb(var(--info-rgb) / 0.15)' }}>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                   📲 Se o funcionário bater ponto após <strong>{pontoHoraEntrada}</strong> + <strong>{pontoTolerancia}min</strong>, você receberá uma notificação push.
+                   Se o funcionário bater ponto após <strong>{pontoHoraEntrada}</strong> + <strong>{pontoTolerancia}min</strong>, você receberá uma notificação push.
                 </p>
              </div>
              <button className="btn-primary hover-lift" onClick={handleSave} disabled={saving} style={{ marginTop: '16px', width: '100%', padding: '14px', fontSize: '1.05rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(255, 136, 0, 0.25)', fontWeight: 'bold' }}>

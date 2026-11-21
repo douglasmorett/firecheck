@@ -4045,12 +4045,40 @@ export default async function handler(req, res) {
         colabParams.push(store);
       }
       const colabCount = await pool.query(colabQuery, colabParams);
+      // Conformidade de cada um dos últimos 7 dias de SP (colunas do velocímetro do
+      // painel). Mesma régua do período: apontado pela IA e sem baixa = não conforme.
+      const temLoja = store && store !== 'undefined' && store !== 'null';
+      const seteDiasAtras = new Date(diaDeSaoPaulo() + 'T00:00:00-03:00');
+      seteDiasAtras.setUTCDate(seteDiasAtras.getUTCDate() - 6);
+      const semana = await pool.query(
+        'SELECT feedback_info, resolved, created_at FROM checklist_submissions WHERE created_at BETWEEN $1 AND $2' + (temLoja ? ' AND LOWER(TRIM(store)) = LOWER(TRIM($3))' : ''),
+        [inicioDoDiaEmUTC(seteDiasAtras.toISOString().slice(0, 10)), fimDoDiaSPemUTC(), ...(temLoja ? [store] : [])]
+      );
+      const porDia = {};
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(seteDiasAtras); d.setUTCDate(d.getUTCDate() + i);
+        porDia[d.toISOString().slice(0, 10)] = { total: 0, alertas: 0 };
+      }
+      semana.rows.forEach(row => {
+        const dia = new Date(row.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        if (!porDia[dia]) return;
+        porDia[dia].total++;
+        if (row.resolved) return;
+        try {
+          const feedback = typeof row.feedback_info === 'string' ? JSON.parse(row.feedback_info) : (row.feedback_info || {});
+          if (Object.values(feedback).some(f => f?.status === 'warning' || f?.status === 'error')) porDia[dia].alertas++;
+        } catch (e) { }
+      });
+      const ultimos7 = Object.entries(porDia).map(([dia, d]) => ({
+        dia, total: d.total, conformidade: d.total > 0 ? Math.round(((d.total - d.alertas) / d.total) * 100) : null,
+      }));
       return res.status(200).json({
         checklistsHoje: parseInt(todayCount.rows[0].count),
         concluidos: subQuery.rows.length,
         alertasIA: alertasCount,
         colaboradores: parseInt(colabCount.rows[0].count),
-        conformidade: subQuery.rows.length > 0 ? Math.round(((subQuery.rows.length - alertasCount) / subQuery.rows.length) * 100) : 100
+        conformidade: subQuery.rows.length > 0 ? Math.round(((subQuery.rows.length - alertasCount) / subQuery.rows.length) * 100) : 100,
+        ultimos7,
       });
     }
 

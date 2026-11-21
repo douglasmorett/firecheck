@@ -1,16 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
 
 :root {
   color-scheme: light;
   /* Superfícies: fundo quente um tom mais escuro que o cartão, para o cartão branco aparecer */
-  --bg-color: #ECEAE6;
+  --bg-color: #E8E5E0;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #F6F4F1;
-  --bg-inset: #F5F3F0; /* blocos dentro de um cartão (linhas, campos, faixas) */
+  --bg-card-hover: #F8F6F3;
+  --bg-inset: #F6F4F1; /* blocos dentro de um cartão (linhas, campos, faixas) */
   /* Nomes usados em várias telas e nunca definidos (blocos ficavam sem fundo): apontam para o tema */
   --bg-main: var(--bg-inset);
   --text-color: var(--text-main);
-  --border-color: #DAD6CF;
+  --border-color: #E2DED7;
   --text-main: #16161A;
   --text-muted: #5F5F68;
   /* Uma cor de destaque só: laranja grafite (paleta escolhida em 21/11/2026) */
@@ -32,16 +32,23 @@
   --success: #10b981;
   --error: #ef4444;
   --warning: #D97706; /* usado nos selos de status e nunca definido */
-  --shadow-card: 0 1px 2px rgba(22, 22, 26, 0.05), 0 4px 14px rgba(22, 22, 26, 0.05);
-  --radius: 12px;
-  --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  /* Caixa com moldura dupla (visual aprovado em 21/11/2026): fio fino, bandeja clara
+     de 6px em volta e sombra larga e suave. Sem mudar o HTML das telas. */
+  --shadow-card: 0 0 0 1px rgba(22, 22, 26, 0.06), 0 0 0 6px rgba(255, 255, 255, 0.55), 0 0 0 7px rgba(22, 22, 26, 0.05), 0 26px 50px -32px rgba(22, 22, 26, 0.32);
+  --radius: 18px;
+  --mola: cubic-bezier(0.32, 0.72, 0, 1);
+  --ok: #0E9F6E;
+  --bad: #E11D48;
+  --track: #E6E3DD;
+  --mono: 'Geist Mono', ui-monospace, monospace;
+  --transition: all 0.45s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   pointer-events: auto; /* Garante que cliques passem por padrÃ£o */
 }
 
@@ -55,6 +62,9 @@ body {
   width: 100%;
   position: relative;
   background-color: var(--bg-color);
+  background-image: radial-gradient(900px 480px at 85% -8%, rgb(var(--primary-rgb) / 0.09), transparent 62%);
+  background-attachment: fixed;
+  letter-spacing: -0.005em;
   color: var(--text-main);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -72,56 +82,59 @@ body {
 
 /* Premium Utilities */
 .btn {
-  background-color: var(--primary);
+  background-color: var(--ink);
   color: white;
   border: none;
-  border-radius: var(--radius);
-  padding: 12px 24px;
-  font-size: 1rem;
+  border-radius: 999px;
+  padding: 11px 22px;
+  font-size: 0.95rem;
   font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition: var(--transition);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 15px rgb(var(--primary-rgb) / 0.2);
+  box-shadow: 0 10px 24px -12px rgba(22, 22, 26, 0.55);
 }
 
 .btn:hover {
-  background-color: var(--primary-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgb(var(--primary-rgb) / 0.3);
+  background-color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px -12px rgba(22, 22, 26, 0.6);
 }
 
 .btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .btn-secondary {
-  background-color: transparent;
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  box-shadow: none;
+  border-radius: 999px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  transition: var(--transition);
 }
 
 .btn-secondary:hover {
   background-color: var(--bg-card-hover);
+  border-color: #CFCAC2;
   box-shadow: none;
 }
 
 .card {
   background-color: var(--bg-card);
-  border-radius: var(--radius);
+  border-radius: 22px;
   padding: 24px;
-  border: 1px solid var(--border-color);
+  border: none;
   box-shadow: var(--shadow-card);
   transition: var(--transition);
 }
 
 .card:hover {
-  border-color: rgb(var(--primary-rgb) / 0.35);
-  box-shadow: 0 6px 22px rgba(22, 22, 26, 0.09);
+  box-shadow: 0 0 0 1px rgba(22, 22, 26, 0.09), 0 0 0 6px rgba(255, 255, 255, 0.6), 0 0 0 7px rgba(22, 22, 26, 0.06), 0 30px 56px -30px rgba(22, 22, 26, 0.36);
 }
 
 .input-field {
@@ -129,24 +142,26 @@ body {
   background-color: #FFFFFF;
   border: 1px solid var(--border-color);
   color: var(--text-main);
-  padding: 14px 16px;
-  border-radius: 8px;
-  font-size: 1rem;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 0.98rem;
   transition: var(--transition);
   outline: none;
+  box-shadow: 0 1px 2px rgba(22, 22, 26, 0.04);
 }
 
 .input-field:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px rgb(var(--primary-rgb) / 0.2);
+  box-shadow: 0 0 0 4px rgb(var(--primary-rgb) / 0.14);
 }
 
 .input-label {
   display: block;
   margin-bottom: 8px;
   color: var(--text-muted);
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 /* Animations */
@@ -235,11 +250,11 @@ body {
 /* Badges */
 .badge {
   padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.08em;
 }
 
 .badge-success {
@@ -931,3 +946,38 @@ body {
   float: right;
   z-index: 3;
 }
+
+
+/* ── Visual "profissional" aprovado em 21/11/2026 ──────────────────────────
+   Vale para todas as telas sem mexer no HTML de cada uma. */
+h1, h2, h3, h4 { letter-spacing: -0.02em; }
+h1 { font-weight: 600; }
+.mono, .fc-num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+select:not([class]) { font-family: inherit; }
+select { border-radius: 10px; }
+table { border-collapse: separate; border-spacing: 0; }
+th { font-size: 0.7rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); }
+::selection { background: rgb(var(--primary-rgb) / 0.2); }
+.modal-content { border-radius: 24px !important; box-shadow: 0 0 0 1px rgba(22,22,26,.08), 0 40px 90px -30px rgba(0,0,0,.45) !important; }
+.modal-overlay { backdrop-filter: blur(6px); }
+
+/* Barra de progresso quadrada com a luz correndo (BarPct e telas novas) */
+.fc-barra { position: relative; height: 8px; border-radius: 2px; background: var(--track); width: 100%; }
+.fc-barra > i { display: block; position: relative; height: 100%; width: var(--p); border-radius: inherit; background: var(--c, var(--ok)); overflow: hidden; animation: fcCarrega 1.4s var(--mola) .2s both; }
+/* Luz correndo (aprovada em 21/11/2026): o brilho passa em TODAS as barras, na cor da barra. */
+.fc-barra > i { box-shadow: 0 0 12px color-mix(in srgb, var(--c, var(--ok)) 45%, transparent); }
+.fc-barra > i::before { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 28%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.75), transparent); animation: fcCorre 2.2s linear infinite; }
+.fc-barra.corre > i::before { animation-duration: 1.5s; }
+.fc-barra > u { position: absolute; top: -3px; bottom: -3px; width: 3px; border-radius: 1px; background: var(--bad); box-shadow: 0 0 0 2px var(--bg-card); }
+@keyframes fcCarrega { from { width: 0; } }
+@keyframes fcCorre { from { transform: translateX(-100%); } to { transform: translateX(380%); } }
+@media (prefers-reduced-motion: reduce) { .fc-barra > i, .fc-barra > i::before { animation: none; } }
+
+/* Botões no mesmo desenho em todas as telas, mesmo os que trazem estilo próprio
+   escrito na tela (cantos de 8px, degradê laranja). */
+.btn, .btn-secondary { border-radius: 999px !important; }
+.btn[style*="linear-gradient"] { background: var(--ink) !important; box-shadow: 0 10px 24px -12px rgba(22, 22, 26, 0.55) !important; }
+/* "btn-primary" era usado em várias telas (Ponto, funcionário) e nunca foi definido. */
+.btn-primary { background: var(--ink); color: #fff; border: none; border-radius: 999px !important; font-weight: 600; cursor: pointer; box-shadow: 0 10px 24px -12px rgba(22, 22, 26, 0.55); transition: var(--transition); }
+.btn-primary:hover { background: #000; transform: translateY(-1px); }
+.btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }

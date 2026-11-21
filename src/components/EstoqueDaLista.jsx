@@ -194,7 +194,7 @@ export default function EstoqueDaLista({ lista, onFechar, onMudou }) {
                     <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                       {new Date(m.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })} · {m.usuario || '—'}
                     </span>
-                    {m.observacao && <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '2px' }}>📝 {m.observacao}</span>}
+                    {m.observacao && <span style={{ display: 'block', fontSize: '0.8rem', marginTop: '2px' }}>{m.observacao}</span>}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontWeight: 'bold', color: t.cor }}>
