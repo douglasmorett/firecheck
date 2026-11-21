@@ -9331,6 +9331,24 @@ A mensagem é lida pelo próprio funcionário, no celular:
         // Validar GPS
         if (!latitude || !longitude) return res.status(400).json({ error: 'Geolocalização obrigatória. Ative o GPS.' });
         if (accuracy && accuracy > 200) return res.status(400).json({ error: `Precisão do GPS muito baixa (${Math.round(accuracy)}m). Vá para um local aberto.` });
+        // Duplo toque no botão ou reenvio da mesma batida: o ponto da loja já tinha
+        // esta guarda de 60 s, o app não. Duas "entradas" seguidas deixavam o dia
+        // "incompleto" no banco de horas e a folha seguia para o contador com horas
+        // faltando. Entrada sobre entrada ainda em aberto também é recusada, mas só
+        // dentro de 16 h (a mesma régua do banco de horas): depois disso é saída
+        // esquecida, e travar o funcionário na entrada de hoje seria pior.
+        const { rows: recentes } = await pool.query(
+          `SELECT type, (timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '60 seconds') AS ha_segundos,
+                  (timestamp > (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '16 hours') AS ha_horas
+             FROM ponto_records WHERE user_id = $1 ORDER BY timestamp DESC LIMIT 1`,
+          [userId]
+        );
+        if (recentes[0]?.ha_segundos) {
+          return res.status(409).json({ error: 'Seu ponto acabou de ser registrado. Aguarde um minuto antes de registrar de novo.' });
+        }
+        if (type === 'entrada' && recentes[0]?.type === 'entrada' && recentes[0].ha_horas) {
+          return res.status(409).json({ error: 'Você já registrou a entrada e ela ainda está aberta. Registre a saída.' });
+        }
         return registrarBatidaDePonto(res, { userId, userName, store, type, latitude, longitude, accuracy, selfie, address, deviceInfo });
       }
       // GET — listar registros
