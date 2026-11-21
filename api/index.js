@@ -2907,6 +2907,37 @@ async function garantirResumosDoPonto() {
   resumosDoPontoProntos = true;
 }
 
+// ── "Já avisei": uma vez por loja, dia e tipo de aviso ──────────────────────
+//
+// Os crons de ausência de ponto e de checklist atrasado não gravavam nada: cada
+// chamada repetia o WhatsApp para todos os donos (a rota fica aberta enquanto
+// CRON_SECRET não existe, e a Vercel pode chamar duas vezes). Aviso repetido é o
+// que derruba número de WhatsApp. `tipo` carrega o que torna o aviso o MESMO
+// (ex.: o checklist, ou o conjunto de ausentes); a chave primária faz o resto.
+let avisosEnviadosProntos = false;
+async function garantirAvisosEnviados() {
+  if (avisosEnviadosProntos) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS avisos_enviados (
+      store_chave TEXT NOT NULL,
+      dia DATE NOT NULL,
+      tipo TEXT NOT NULL,
+      enviado_em TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (store_chave, dia, tipo)
+    )
+  `);
+  avisosEnviadosProntos = true;
+}
+/** true se este aviso AINDA NÃO tinha saído (e agora fica registrado); false se já saiu. */
+async function reservarAviso(store, dia, tipo) {
+  await garantirAvisosEnviados();
+  const { rowCount } = await pool.query(
+    'INSERT INTO avisos_enviados (store_chave, dia, tipo) VALUES (LOWER(TRIM($1)), $2, $3) ON CONFLICT DO NOTHING',
+    [store, dia, tipo]
+  );
+  return rowCount > 0;
+}
+
 /** Texto do resumo de um dia da loja, ou null quando ninguém tinha nada no dia. */
 function textoDoResumoDoPonto(store, dia, funcionarios) {
   const linhas = [];
@@ -6767,6 +6798,10 @@ export default async function handler(req, res) {
 
           if (ausentes.length === 0) continue;
 
+          // O mesmo conjunto de ausentes no mesmo dia avisa UMA vez; quem faltar
+          // depois (a segunda rodada do dia) gera outro aviso.
+          if (!(await reservarAviso(storeName, today, 'ponto_ausencia:' + ausentes.map(a => a.id).sort((x, y) => x - y).join(',')))) continue;
+
           // Buscar gestores/admins da loja para notificar
           const { rows: soRecipients } = await pool.query(
             "SELECT fcm_token, name, role, whatsapp_active, whatsapp_phone, phone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master' OR role = 'gestor')",
@@ -7034,6 +7069,10 @@ export default async function handler(req, res) {
               // vencido ou plano expirado: ninguém da loja recebe. Ver contaEmDia.
               const contaDaLoja = adminRows.find(r => r.role === 'admin' || r.role === 'master') || adminRows[0];
               if (!contaEmDia(contaDaLoja)) continue;
+
+              // Já avisei hoje sobre este checklist? Chamada repetida do cron
+              // (ou a rodada seguinte, agora que a janela é maior) não reenvia.
+              if (!(await reservarAviso(cl.store, dataHoje, 'checklist_atrasado:' + cl.id))) continue;
 
               for (const adminData of await comNumerosExtras(cl.store, adminRows)) {
                 const isWaChecklistAtrasadoActive = adminData.wa_checklist_atrasado !== false;
