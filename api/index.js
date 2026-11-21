@@ -5714,6 +5714,11 @@ export default async function handler(req, res) {
         // próprio cliente prorrogava a validade e subia os limites editando
         // o cadastro pelo painel.
         if (authUser.role !== 'master') {
+          // Recusa ANTES de gravar qualquer campo: a checagem mais abaixo ficava
+          // depois do UPDATE e devolvia 403 com o resto do corpo já salvo.
+          if (req.body.trialDays !== undefined || req.body.trialEndsAt !== undefined) {
+            return res.status(403).json({ error: 'O período de teste só pode ser alterado pelo suporte FireCheck.' });
+          }
           const contratuais = { plan, status, checklist_limit, ponto_limit };
           for (const [campo, valor] of Object.entries(contratuais)) {
             if (valor !== undefined && String(valor) !== String(user[campo] ?? '')) {
@@ -5783,8 +5788,11 @@ export default async function handler(req, res) {
         // (trialDays) ou uma data final explícita (trialEndsAt); null limpa o
         // campo e devolve a conta à regra padrão de 7 dias desde a criação.
         if (req.body.trialDays !== undefined || req.body.trialEndsAt !== undefined) {
-          if (!['admin', 'master'].includes(authUser.role)) {
-            return res.status(403).json({ error: 'Somente o administrador pode alterar o período de teste.' });
+          // Só o suporte (master) estende teste. Com 'admin' na lista, o próprio
+          // dono em teste mandava trialDays/trialEndsAt para a sua conta e nunca
+          // pagava: o bloqueio dos campos contratuais acima não cobre trial_ends_at.
+          if (authUser.role !== 'master') {
+            return res.status(403).json({ error: 'O período de teste só pode ser alterado pelo suporte FireCheck.' });
           }
           if (req.body.trialDays !== undefined) {
             const dias = parseInt(req.body.trialDays, 10);
