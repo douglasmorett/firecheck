@@ -2310,7 +2310,9 @@ async function processAuditForSubmission(pool, submissionId) {
 Como julgar:
 - Reconheça o item pelo ASPECTO: forma, cor, tamanho, embalagem, quantidade e o jeito como aparece. O NOME do produto NÃO precisa estar escrito na embalagem nem na foto. Se a tarefa fala de "calabresa" e a foto mostra pacotes de linguiça, é calabresa: aprove. Se fala de "frango" e há frango embalado, aprove.
 - Verifique somente se a tarefa foi cumprida. Ignore bagunça de fundo, itens irrelevantes, enquadramento e iluminação.
-- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que o item pedido não está lá ou que é claramente outra coisa. Falta de texto, rótulo ou marca legível NÃO é motivo.
+- Tarefa que cita o NOME de um lugar ou equipamento ("Freezer Horizontal 3", "Bancada 2"): você não tem como saber qual é pelo aspecto. Aprove se a foto mostra o TIPO de lugar pedido (um freezer, uma bancada); nunca exija placa, etiqueta ou número visível.
+- Tarefa de organização ou limpeza ("organizado", "limpo"): julgue com generosidade, como o dono julgaria de relance. Só reprove com desordem ou sujeira EVIDENTE; "poderia estar melhor" é aprovado.
+- Reprovar tem custo alto: acusa uma pessoa de não ter feito o trabalho. Só reprove quando a foto mostrar CLARAMENTE que o item pedido não está lá ou que é claramente outra coisa. Falta de texto, rótulo, placa ou marca legível NÃO é motivo.
 - Foto escura, tremida, cortada, distante ou ambígua NÃO é reprovação: é "incerto".
 - Na dúvida entre aprovar e reprovar, aprove ou responda "incerto". Se você não conseguiria defender a reprovação olhando a pessoa nos olhos, o resultado é "incerto".
 
