@@ -331,6 +331,15 @@ function horaLimiteDoChecklist(cl) {
   return melhor;
 }
 
+// O fuso da loja vem de um campo de texto livre (PUT /api/users). Um valor que o
+// Intl não conhece ("Brasil", "GMT-3") faz toLocaleTimeString lançar RangeError:
+// a batida do ponto da loja dava 500 e o cron de ausência caía no catch geral,
+// sem avisar as lojas seguintes. Valor inválido vira o fuso de São Paulo.
+function fusoDaLoja(tz) {
+  if (!tz) return 'America/Sao_Paulo';
+  try { new Intl.DateTimeFormat('en-CA', { timeZone: tz }); return tz; } catch { return 'America/Sao_Paulo'; }
+}
+
 function contaEmDia(conta) {
   if (!conta) return false;
   if (conta.status === 'blocked' || conta.status === 'pending') return false;
@@ -1972,7 +1981,7 @@ async function registrarBatidaDePonto(res, { userId, userName, store, type, lati
   let tz = 'America/Sao_Paulo';
   if (store) {
     const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-    if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+    if (admins.length > 0 && admins[0].timezone) tz = fusoDaLoja(admins[0].timezone);
   }
   // Calcular data de hoje no timezone da loja
   const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
@@ -3235,7 +3244,7 @@ async function enviarFechamentoDoPonto({ store, inicio, fim, parcial = false, en
   }
 
   try {
-    const tz = dono.timezone || 'America/Sao_Paulo';
+    const tz = fusoDaLoja(dono.timezone);
     const dados = await calcularBancoDeHoras(pool, loja, { inicio, fim, tz });
     if (!dados.funcionarios.some(f => f.dias.some(d => d.batidas.length > 0))) {
       const motivo = 'Nenhuma batida de ponto no período: não há o que mandar ao contador.';
@@ -5754,6 +5763,11 @@ export default async function handler(req, res) {
         if (current.length === 0) return res.status(404).json({ error: 'Usuário não encontrado' });
         const user = current[0];
 
+        // Fuso inválido é recusado ANTES de gravar qualquer coisa (ver fusoDaLoja).
+        if (timezone !== undefined && timezone !== null && timezone !== '' && fusoDaLoja(timezone) !== timezone) {
+          return res.status(400).json({ error: 'Fuso horário inválido. Use um nome como America/Sao_Paulo.' });
+        }
+
         // Admin/Gestor só pode editar usuários da própria loja (ou a si mesmo)
         if (authUser.role !== 'master' && String(user.id) !== String(authUser.id) && user.store?.toLowerCase() !== authUser.store?.toLowerCase()) {
           return res.status(403).json({ error: 'Sem permissão para editar usuários de outra loja.' });
@@ -6758,6 +6772,9 @@ export default async function handler(req, res) {
         // firebase-admin e o push de ausência lá embaixo chamava
         // admin.messaging() numa linha de banco — nenhum push saía.
         for (const lojaPonto of adminsWithPonto) {
+          // Uma loja com dado ruim (fuso, escala, telefone) não pode derrubar o
+          // aviso das lojas seguintes: o erro fica no log e o laço segue.
+          try {
           const storeName = lojaPonto.store;
           if (!storeName) continue;
 
@@ -6768,7 +6785,7 @@ export default async function handler(req, res) {
           // nem WhatsApp. Ver contaEmDia.
           if (!contaEmDia(lojaPonto)) continue;
 
-          const tz = lojaPonto.timezone || 'America/Sao_Paulo';
+          const tz = fusoDaLoja(lojaPonto.timezone);
           const agora = new Date();
           const horaAtual = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
           const [hAtual, mAtual] = horaAtual.split(':').map(Number);
@@ -6892,6 +6909,9 @@ export default async function handler(req, res) {
             }
             alertasEnviados++;
           }
+          } catch (erroDaLoja) {
+            console.error(`[Ausência] falha na loja "${lojaPonto.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
 
         if (enviosAusencia.length) await comTeto(Promise.allSettled(enviosAusencia), 25000, 'WhatsApp Ausencia');
@@ -6917,8 +6937,10 @@ export default async function handler(req, res) {
         const envios = [];
         let resumos = 0;
         for (const loja of lojas) {
+          // Falha numa loja não derruba o resumo das outras.
+          try {
           if (!contaEmDia(loja)) continue;
-          const tz = loja.timezone || 'America/Sao_Paulo';
+          const tz = fusoDaLoja(loja.timezone);
           const ontem = somarDias(new Date().toLocaleDateString('en-CA', { timeZone: tz }), -1);
 
           // Quem recebe: dono e gestores com a chave ligada, mais os números extras.
@@ -6951,6 +6973,9 @@ export default async function handler(req, res) {
               loja: loja.store,
             }));
           }
+          } catch (erroDaLoja) {
+            console.error(`[Resumo do ponto] falha na loja "${loja.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
         // Esperar os envios: na Vercel a instância congela quando a resposta sai.
         if (envios.length) await comTeto(Promise.allSettled(envios), 25000, 'WhatsApp Ponto Diário');
@@ -6981,13 +7006,18 @@ export default async function handler(req, res) {
         );
         const resultados = [];
         for (const loja of lojas) {
+          // Falha numa loja não derruba o fechamento das outras.
+          try {
           // Teste vencido, plano expirado, pendente ou bloqueada: nada sai em nome da loja.
           if (!contaEmDia(loja)) continue;
-          const hoje = new Date().toLocaleDateString('en-CA', { timeZone: loja.timezone || 'America/Sao_Paulo' });
+          const hoje = new Date().toLocaleDateString('en-CA', { timeZone: fusoDaLoja(loja.timezone) });
           const periodo = ultimoPeriodoFechado(loja.fechamento_dia, hoje);
           if (somarDias(periodo.fim, DIAS_PARA_O_FECHAMENTO_SAIR) < hoje) continue;
           const r = await enviarFechamentoDoPonto({ store: loja.store, ...periodo, enviadoPor: 'automático', automatico: true });
           if (r.status !== 'ja_enviado') resultados.push({ store: loja.store, ...periodo, status: r.status, motivo: r.motivo || null });
+          } catch (erroDaLoja) {
+            console.error(`[Fechamento do ponto] falha na loja "${loja.store}", seguindo para a próxima:`, erroDaLoja.message);
+          }
         }
         return res.status(200).json({ success: true, lojas: lojas.length, resultados });
       } catch (cronErr) {
@@ -7078,6 +7108,8 @@ export default async function handler(req, res) {
         const enviosPendentes = [];
 
         for (const cl of checklists) {
+          // Um checklist com dado ruim não derruba o aviso dos demais.
+          try {
           if (!checklistCaiHoje(cl, dataHoje, diaSemanaAtual)) continue;
 
           const prazo = horaLimiteDoChecklist(cl);
@@ -7147,6 +7179,9 @@ export default async function handler(req, res) {
                 }
               }
             }
+          }
+          } catch (erroDoChecklist) {
+            console.error(`[Checklist atrasado] falha no checklist ${cl.id}, seguindo para o próximo:`, erroDoChecklist.message);
           }
         }
 
@@ -8780,7 +8815,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       if (!dono || !contaEmDia(dono) || !(dono.ponto_active || dono.status === 'trial')) {
         return res.status(403).json({ error: 'O ponto desta loja não está ativo. Fale com o dono da loja.' });
       }
-      const tz = dono.timezone || 'America/Sao_Paulo';
+      const tz = fusoDaLoja(dono.timezone);
 
       // O funcionário que o aparelho diz ter reconhecido: tem que ser desta
       // loja, ter rosto cadastrado e bater no ponto da loja.
@@ -8912,7 +8947,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       let tz = 'America/Sao_Paulo';
       if (store) {
         const { rows: admins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-        if (admins.length > 0 && admins[0].timezone) tz = admins[0].timezone;
+        if (admins.length > 0 && admins[0].timezone) tz = fusoDaLoja(admins[0].timezone);
       }
       const today = new Date().toLocaleDateString('en-CA', { timeZone: tz });
       // hora_local vem formatada pelo próprio Postgres. A coluna timestamp é
@@ -8960,7 +8995,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       // Buscar timezone da loja
       let tz = 'America/Sao_Paulo';
       const { rows: tzAdmins } = await pool.query("SELECT timezone FROM users WHERE store = $1 AND (role = 'admin' OR role = 'master') LIMIT 1", [store]);
-      if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = tzAdmins[0].timezone;
+      if (tzAdmins.length > 0 && tzAdmins[0].timezone) tz = fusoDaLoja(tzAdmins[0].timezone);
       const startDate = `${month}-01`;
       const endDate = new Date(parseInt(month.split('-')[0]), parseInt(month.split('-')[1]), 0).toISOString().split('T')[0];
       // Data e hora formatadas no banco: o valor guardado já é a hora de parede da
@@ -9043,7 +9078,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
         "SELECT timezone, fechamento_dia FROM users WHERE LOWER(TRIM(store)) = LOWER(TRIM($1)) AND (role = 'admin' OR role = 'master') ORDER BY (role = 'admin') DESC LIMIT 1",
         [store]
       );
-      const tz = donos[0]?.timezone || 'America/Sao_Paulo';
+      const tz = fusoDaLoja(donos[0]?.timezone);
       const hoje = new Date().toLocaleDateString('en-CA', { timeZone: tz });
       const ehData = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
       const inicio = ehData(searchParams.get('inicio')) ? searchParams.get('inicio') : inicioDoPeriodoDeFechamento(donos[0]?.fechamento_dia, hoje);
@@ -9073,7 +9108,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
       );
       if (donos.length === 0) return res.status(404).json({ error: 'Loja não encontrada.' });
       const dono = donos[0];
-      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: dono.timezone || 'America/Sao_Paulo' });
+      const hoje = new Date().toLocaleDateString('en-CA', { timeZone: fusoDaLoja(dono.timezone) });
       const atual = { inicio: inicioDoPeriodoDeFechamento(dono.fechamento_dia, hoje), fim: fimDoPeriodoDeFechamento(dono.fechamento_dia, hoje) };
       const fechado = ultimoPeriodoFechado(dono.fechamento_dia, hoje);
       const ontem = somarDias(hoje, -1);
