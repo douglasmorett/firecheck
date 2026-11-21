@@ -5845,6 +5845,16 @@ export default async function handler(req, res) {
           }
         }
 
+        // A escala tem que ser da loja do funcionário: com um schedule_id de outra
+        // empresa, a jornada, a tolerância e o banco de horas dele passavam a vir
+        // de uma escala alheia (carregarEscalaDoFuncionario não filtra loja).
+        if (schedule_id !== undefined && schedule_id !== null && schedule_id !== '' && authUser.role !== 'master') {
+          const { rows: escalaAlvo } = await pool.query('SELECT store FROM work_schedules WHERE id = $1', [schedule_id]);
+          if (escalaAlvo.length === 0 || !mesmaLoja(escalaAlvo[0].store, user.store)) {
+            return res.status(403).json({ error: 'Essa escala não pertence à loja do funcionário.' });
+          }
+        }
+
         // Gestor não pode alterar campos sensíveis de um admin
         if (authUser.role === 'gestor' && user.role === 'admin') {
           // Gestor pode editar dados básicos do admin mas não campos de controle
