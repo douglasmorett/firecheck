@@ -4,7 +4,9 @@ import API_URL from '../../api';
 import Janela from './Janela';
 
 const LETRAS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
-const CORES = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'];
+// Cores das escalas na paleta do painel (Douglas, 21/11/2026): laranja, grafite, verde,
+// âmbar, azul-acinzentado, vinho e areia. Escalas antigas mantêm a cor já salva.
+const CORES = ['#EA580C', '#16161A', '#0E9F6E', '#D97706', '#475569', '#9F1239', '#A8A29E'];
 
 // Dias da escala como vêm do banco (texto JSON ou lista).
 const diasDaEscala = (sch) => {
@@ -19,7 +21,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
   const [editingSchedule, setEditingSchedule] = useState(null);
   
   const [scheduleForm, setScheduleForm] = useState({
-    name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+    name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#EA580C',
     weekdays: [
       { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
       { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
@@ -51,7 +53,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
       intervalo_inicio: sch.intervalo_inicio || '',
       intervalo_fim: sch.intervalo_fim || '',
       tolerancia: sch.tolerancia ?? 15,
-      color: sch.color || '#3B82F6',
+      color: sch.color || '#475569',
       weekdays: parsedWd
     });
     setEditingSchedule(sch);
@@ -113,7 +115,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
   const novaEscala = () => {
     setEditingSchedule(null);
     setScheduleForm({
-      name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+      name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#EA580C',
       weekdays: [
         { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
         { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
@@ -152,7 +154,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
               <div key={sch.id} className="card pt-card pt-escala">
                 <div className="pt-escala-t">
                   <div style={{ minWidth: 0 }}>
-                    <span className="fc-dado" style={{ '--c': sch.color || '#3B82F6' }}>
+                    <span className="fc-dado" style={{ '--c': sch.color || '#475569' }}>
                       {sch.type === '12x36' ? 'Escala 12x36' : (sch.type === 'fixed' ? 'Horário Fixo Semanal' : 'Revezamento')}
                     </span>
                     <h4>{sch.name}</h4>

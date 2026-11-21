@@ -23,7 +23,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
 
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleForm, setScheduleForm] = useState({
-    name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#3B82F6',
+    name: '', type: 'fixed', hora_entrada: '08:00', hora_saida: '18:00', intervalo_inicio: '12:00', intervalo_fim: '13:00', tolerancia: 15, color: '#EA580C',
     weekdays: [
       { weekday: 0, is_workday: false, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
       { weekday: 1, is_workday: true, hora_entrada: '', hora_saida: '', intervalo_inicio: '', intervalo_fim: '' },
@@ -702,7 +702,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
               <div>
                 <label className="input-label">Cor de Identificação</label>
                 <div className="pt-cores">
-                  {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#14B8A6'].map(color => (
+                  {['#EA580C', '#16161A', '#0E9F6E', '#D97706', '#475569', '#9F1239', '#A8A29E'].map(color => (
                     <button key={color} type="button" aria-label={`Cor ${color}`} className={scheduleForm.color === color ? 'on' : ''} onClick={() => setScheduleForm({...scheduleForm, color})} style={{ backgroundColor: color }} />
                   ))}
                 </div>
