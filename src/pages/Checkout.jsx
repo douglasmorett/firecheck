@@ -4,11 +4,24 @@ import { ArrowLeft, CreditCard, ShieldCheck, Flame, Zap } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import API_URL from '../api';
 import { afiliadoAtual, comAfiliado } from '../afiliado';
+import { CAKTO_DEZ } from '../planos';
+
+// Sem teste grátis desde 21/11/2026: quem chega sem plano (ou com o antigo ?plan=trial)
+// escolhe um plano aqui antes de preencher os dados.
+const PLANOS = {
+  checklists10_mensal: { nome: 'Até 10 pessoas', preco: 'R$ 67/mês' },
+  checklists10_anual: { nome: 'Até 10 pessoas (anual)', preco: 'R$ 564/ano' },
+  checklists_mensal: { nome: 'Até 30 pessoas', preco: 'R$ 149/mês' },
+  checklists_anual: { nome: 'Até 30 pessoas (anual)', preco: 'R$ 1.164/ano' },
+};
+const linkDoDez = (plano) => CAKTO_DEZ[String(plano).endsWith('anual') ? 'anual' : 'mensal'];
 
 export default function Checkout() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const plan = searchParams.get('plan') || 'trial';
+  const escolherPlano = plan === 'trial' || !plan;
+  const nomeDoPlano = PLANOS[plan]?.nome || plan.charAt(0).toUpperCase() + plan.slice(1);
   const isMobile = window.innerWidth < 600;
 
   const [loading, setLoading] = useState(false);
@@ -29,6 +42,10 @@ export default function Checkout() {
     e.preventDefault();
     if (loading) return;
 
+    if (String(plan).startsWith('checklists10') && !linkDoDez(plan)) {
+      alert('Este plano ainda não está disponível para pagamento. Escolha o plano de até 30 pessoas ou fale com a gente pelo WhatsApp.');
+      return;
+    }
     if (formData.password.length < 6) {
       alert('A senha deve ter pelo menos 6 caracteres.');
       return;
@@ -61,11 +78,7 @@ export default function Checkout() {
             external_id: String(data.user.id)
           });
 
-          if (plan === 'trial' || !plan) {
-            window.fbq('trackSingle', '1475446081169882', 'StartTrial', { content_name: 'Teste Grátis 7 Dias', currency: 'BRL', value: 0 }, { eventID: eventId });
-          } else {
-            window.fbq('trackSingle', '1475446081169882', 'InitiateCheckout', { content_name: plan, currency: 'BRL' }, { eventID: eventId });
-          }
+          window.fbq('trackSingle', '1475446081169882', 'InitiateCheckout', { content_name: plan, currency: 'BRL', value: ({ checklists10_mensal: 67, checklists10_anual: 564, checklists_mensal: 149, checklists_anual: 1164 })[plan] || 0 }, { eventID: eventId });
         }
 
 
@@ -74,7 +87,9 @@ export default function Checkout() {
         
         let checkoutLink = '';
         
-        if (plan === 'checklists_mensal' || plan === 'mensal' || plan === 'starter') {
+        if (String(plan).startsWith('checklists10') && linkDoDez(plan)) {
+          checkoutLink = `${linkDoDez(plan)}?email=${userEmail}&name=${userName}`;
+        } else if (plan === 'checklists_mensal' || plan === 'mensal' || plan === 'starter') {
           checkoutLink = `https://pay.cakto.com.br/3eph5ko_856837?email=${userEmail}&name=${userName}`;
         } else if (plan === 'checklists_anual' || plan === 'anual' || plan === 'business') {
           checkoutLink = `https://pay.cakto.com.br/e7c88df?email=${userEmail}&name=${userName}`;
@@ -118,6 +133,30 @@ export default function Checkout() {
     }
   };
 
+  if (escolherPlano) {
+    const opcoes = [
+      ...(CAKTO_DEZ.mensal ? [['checklists10_mensal', 'Até 10 pessoas', 'R$ 67/mês']] : []),
+      ...(CAKTO_DEZ.anual ? [['checklists10_anual', 'Até 10 pessoas, anual', 'R$ 564/ano']] : []),
+      ['checklists_mensal', 'Até 30 pessoas', 'R$ 149/mês'],
+      ['checklists_anual', 'Até 30 pessoas, anual', 'R$ 1.164/ano'],
+    ];
+    return (
+      <div className="page-container animate-fade" style={{ maxWidth: '640px', margin: '0 auto', padding: isMobile ? '20px 16px' : '40px 20px' }}>
+        <h1 className="page-title" style={{ marginBottom: '6px' }}>Escolha seu plano</h1>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '24px' }}>Todos têm tudo do FireCheck. Garantia de 7 dias: não gostou, devolvemos.</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {opcoes.map(([id, nome, preco]) => (
+            <button key={id} type="button" className="card" onClick={() => navigate(`/checkout?plan=${id}`)}
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', textAlign: 'left', font: 'inherit', padding: '18px 20px' }}>
+              <strong style={{ fontSize: '1.05rem' }}>{nome}</strong>
+              <span style={{ fontWeight: 800, color: 'var(--primary)' }}>{preco}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-container animate-fade" style={{ maxWidth: '900px', margin: '0 auto', padding: isMobile ? '20px 16px' : '40px 20px' }}>
       
@@ -127,12 +166,10 @@ export default function Checkout() {
         </button>
         <div>
           <h1 className="page-title" style={{ marginBottom: '4px' }}>
-            {plan === 'trial' ? 'Criar Conta Gratuita' : `Assinar Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}
+            {`Assinar: ${nomeDoPlano}`}
           </h1>
           <p style={{ color: 'var(--text-muted)' }}>
-            {plan === 'trial' 
-              ? 'Comece agora seus 7 dias de teste grátis. Sem cartão de crédito.' 
-              : 'Preencha os dados abaixo para criar sua conta e prosseguir para o pagamento seguro.'}
+            {`${PLANOS[plan]?.preco ? PLANOS[plan].preco + ' · ' : ''}Preencha os dados para criar sua conta e seguir para o pagamento seguro. Garantia de 7 dias.`}
           </p>
         </div>
       </header>
@@ -200,9 +237,7 @@ export default function Checkout() {
                 disabled={loading}
               >
                 {loading ? 'Processando...' : (
-                  plan === 'mensal' || plan === 'anual' || plan === 'starter' || plan === 'pro' || plan === 'business'
-                  ? 'Criar Conta e Pagar' 
-                  : 'Criar Conta e Acessar o Sistema'
+                  'Criar conta e ir para o pagamento'
                 )}
               </button>
             </div>
@@ -213,23 +248,18 @@ export default function Checkout() {
         <div style={{ alignSelf: 'start' }}>
           <div className="card" style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '20px' }}>
-              {plan === 'trial' ? 'O que está incluso no Teste?' : 'Resumo da Assinatura'}
+              Resumo da assinatura
             </h3>
             <ul style={{ padding: 0, margin: 0, listStyle: 'none', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Flame size={20} color="var(--primary)" /> <strong>Acesso total</strong> ao painel administrativo.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Zap size={20} color="var(--success)" /> Criação de <strong>Checklists com IA</strong>.</li>
               <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><ShieldCheck size={20} color="var(--primary)" /> Painel para seus funcionários.</li>
-              {plan === 'trial' ? (
-                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>✅ Checklists ilimitados durante o teste</li>
-              ) : (
-                <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>🚀 Ativação imediata pós-pagamento</li>
-              )}
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><Zap size={20} color="var(--primary)" /> Ativação na hora, depois do pagamento.</li>
+              <li style={{ display: 'flex', gap: '8px', alignItems: 'center' }}><ShieldCheck size={20} color="var(--success)" /> A gente monta seus checklists com você pelo WhatsApp.</li>
             </ul>
             
             <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
-              {plan === 'trial' 
-                ? '🕒 Sem pegadinhas. Sem cobrança surpresa.' 
-                : `💳 Assinatura do Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}
+              {`${nomeDoPlano}${PLANOS[plan]?.preco ? ' · ' + PLANOS[plan].preco : ''} · garantia de 7 dias`}
             </div>
           </div>
         </div>

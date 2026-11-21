@@ -110,6 +110,19 @@ export default function ThankYou() {
           </div>
         </div>
 
+        {/* Passo principal: chamar no WhatsApp para montarmos os checklists junto
+            (igual ao cardápio do FireHub: o cliente não fica sozinho configurando). */}
+        <a
+          href={`https://wa.me/5522998851680?text=${encodeURIComponent(`Olá! Acabei de assinar o FireCheck${email ? ` (${email})` : ''}. Quero ajuda para montar meus checklists.`)}`}
+          target="_blank" rel="noopener noreferrer"
+          style={{ width: '100%', padding: '16px', borderRadius: '14px', backgroundColor: '#25D366', color: '#fff', fontSize: '1.1rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none', marginBottom: '10px', boxShadow: '0 4px 20px rgba(37,211,102,.3)' }}
+        >
+          <MessageSquare size={20} /> Montar meus checklists pelo WhatsApp
+        </a>
+        <p style={{ fontSize: '0.88rem', color: '#94a3b8', margin: '0 0 22px 0', lineHeight: 1.5 }}>
+          Mande a sua rotina do jeito que tiver (foto do papel, áudio ou lista) e a gente monta os checklists com você.
+        </p>
+
         {/* Action Button */}
         <button 
           onClick={() => navigate('/login')}
@@ -117,10 +130,10 @@ export default function ThankYou() {
             width: '100%', 
             padding: '16px', 
             borderRadius: '14px', 
-            backgroundColor: 'var(--primary)', 
+            backgroundColor: 'transparent', 
             color: 'white', 
-            border: 'none', 
-            fontSize: '1.1rem', 
+            border: '1px solid rgba(255,255,255,.25)', 
+            fontSize: '1.05rem', 
             fontWeight: 'bold', 
             cursor: 'pointer',
             display: 'flex',

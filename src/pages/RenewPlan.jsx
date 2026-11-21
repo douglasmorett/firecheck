@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Flame, Zap, Building2, ArrowLeft, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { comAfiliado } from '../afiliado';
+import { CAKTO_DEZ } from '../planos';
 
 export default function RenewPlan() {
   const [searchParams] = useSearchParams();
@@ -17,9 +18,21 @@ export default function RenewPlan() {
   const [billingCycle, setBillingCycle] = useState('anual'); // 'mensal' ou 'anual'
 
   const PLANS = [
+    ...(CAKTO_DEZ[billingCycle] ? [{
+      id: 'checklists10',
+      name: 'Até 10 pessoas',
+      icon: <Flame size={28} color="var(--primary)" />,
+      price: billingCycle === 'anual' ? 'R$ 47' : 'R$ 67',
+      cycle: '/mês',
+      note: billingCycle === 'anual' ? 'R$ 564 por ano (economiza R$ 240)' : 'Cobrado mensalmente',
+      color: 'var(--primary)',
+      highlight: false,
+      features: ['Checklists ILIMITADOS', 'Até 10 colaboradores cadastrados', 'Auditoria visual por IA', 'Avisos no WhatsApp da sua empresa', 'Frota, compras, estoque e descarte'],
+      caktoLink: CAKTO_DEZ[billingCycle],
+    }] : []),
     {
       id: 'checklists',
-      name: 'Só Checklists',
+      name: 'Até 30 pessoas',
       icon: <Flame size={28} color="var(--primary)" />,
       price: billingCycle === 'anual' ? 'R$ 97' : 'R$ 149',
       cycle: '/mês',

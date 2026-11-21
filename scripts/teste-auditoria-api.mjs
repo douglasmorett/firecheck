@@ -245,7 +245,8 @@ if (rodar(5)) {
   confere('plano de checkout continua aceito (pendente até pagar)', r.status === 200 && c?.plan === 'combo_mensal' && c?.status === 'pending', `HTTP ${r.status} ${JSON.stringify(c)}`);
   r = await api('/api/signup', { metodo: 'POST', corpo: novo('trial') });
   c = await col('SELECT plan, status FROM users WHERE email = $1', [email('signup-trial')]);
-  confere('teste grátis continua igual (trial)', r.status === 200 && c?.plan === 'trial' && c?.status === 'trial' && !!r.dados?.token, `HTTP ${r.status}`);
+  // Sem teste grátis desde 21/11/2026: o cadastro com trial é recusado e não cria conta.
+  confere('sem teste grátis: cadastro com trial é recusado (400) e não cria conta', r.status === 400 && !c, `HTTP ${r.status}`);
 
   // Conta antiga/enganada com plano enterprise e pagamento pendente, comprando Só Ponto.
   const velha = await conta({ papel: 'admin', loja: `Plano ${RODADA}`, status: 'pending', plano: 'enterprise', extra: { ponto_active: false, ponto_limit: 5, checklist_limit: 300 } });

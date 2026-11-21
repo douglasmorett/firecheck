@@ -64,6 +64,9 @@ export default function PrimeirosPassos({ passos, onDispensar }) {
                   {p.acao} <ArrowRight size={14} />
                 </button>
               )}
+              {!p.feito && p.extra && (
+                <a href={p.extra.href} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textAlign: 'center', textDecoration: 'underline' }}>{p.extra.texto}</a>
+              )}
             </div>
           );
         })}

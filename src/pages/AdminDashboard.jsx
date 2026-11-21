@@ -2613,7 +2613,7 @@ export default function AdminDashboard() {
   // "Primeiros passos" (só o dono, até a loja terminar de configurar ou ele esconder).
   const passosDoDono = [
     { feito: whatsChecado && !whatsForaDoAr, titulo: 'Conectar o WhatsApp da empresa', texto: 'Para o aviso de checklist reprovado ou atrasado chegar no seu celular.', acao: 'Conectar', onClick: () => setTab('notificacoes') },
-    { feito: checklists.length > 0, titulo: 'Criar o primeiro checklist', texto: 'Fale a rotina e a IA monta as tarefas, com foto obrigatória e horário.', acao: 'Criar checklist', onClick: () => navigate('/admin/creator') },
+    { feito: checklists.length > 0, titulo: 'Criar o primeiro checklist', texto: 'Fale a rotina e a IA monta as tarefas, com foto obrigatória e horário.', acao: 'Criar checklist', onClick: () => navigate('/admin/creator'), extra: { texto: 'ou mande sua rotina no WhatsApp que a gente monta', href: `https://wa.me/5522998851680?text=${encodeURIComponent('Olá! Uso o FireCheck (' + (userProfile?.email || '') + ') e quero ajuda para montar meus checklists.')}` } },
     { feito: team.length > 1, titulo: 'Cadastrar a equipe', texto: 'Quem vai fazer os checklists pelo celular.', acao: 'Cadastrar equipe', onClick: () => setTab('equipe') },
   ];
   const mostrarPassos = userProfile?.role === 'admin' && !isMaster && !passosOcultos && whatsChecado && dadosCarregados && passosDoDono.some((p) => !p.feito);

@@ -5,7 +5,7 @@ import './LandingPage.css';
 
 // Página inicial do site (firecheckapp.com.br), feita para o celular primeiro:
 // quem chega pelo anúncio vê a promessa, o vídeo e o botão sem rolar, e a barra
-// fixa no pé mantém o "7 dias grátis" à mão até o fim da página.
+// fixa no pé mantém o "Ver planos" à mão até o fim da página.
 
 const EMPRESAS = [
   ['logo_grupo_tavares', 'Grupo Tavares', 'Alimentação & Restaurantes'],
@@ -149,7 +149,7 @@ function Modulos({ onTestar }) {
             <h3>{m.titulo}</h3>
             <p>{m.texto}</p>
             <ul>{m.itens.map((i) => <li key={i}>{i}</li>)}</ul>
-            <button className="lp-cta" onClick={() => onTestar(`Módulo ${m.nome}: testar grátis`)}>Testar 7 dias grátis</button>
+            <button className="lp-cta" onClick={() => onTestar(`Módulo ${m.nome}: ver planos`)}>Ver planos</button>
           </div>
           <div className={`lp-mod-fotos n${m.fotos.length}`}>
             {m.fotos.map(([src, legenda]) => (
@@ -163,7 +163,8 @@ function Modulos({ onTestar }) {
 }
 
 const FAQ = [
-  ['Precisa de cartão para testar?', 'Não. São 7 dias com tudo liberado. Se não quiser continuar, a conta simplesmente para.'],
+  ['Preciso montar tudo sozinho?', 'Não. Depois de assinar, chame a gente no WhatsApp e mande sua rotina do jeito que tiver (foto do papel, áudio ou lista): montamos os checklists com você.'],
+  ['E se eu não gostar?', 'Você tem 7 dias de garantia: pede o cancelamento pelo WhatsApp e devolvemos o valor. Depois disso, cancela quando quiser, sem multa.'],
   ['Funciona no celular da minha equipe?', 'Sim: Android, iPhone e pelo navegador. Você acompanha pelo celular ou pelo computador.'],
   ['Como chega o aviso no WhatsApp?', 'Você conecta o WhatsApp da sua empresa lendo um QR Code. Os avisos saem desse número para você e para quem você cadastrar.'],
   ['A IA confere mesmo a foto?', 'Sim. Ela compara a foto com o que a tarefa pede e escreve o motivo quando reprova. O funcionário refaz e manda de novo.'],
@@ -188,7 +189,7 @@ function QrIlustrativo() {
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [billingCycle, setBillingCycle] = useState('anual'); // 'mensal' ou 'anual'
+  const [billingCycle, setBillingCycle] = useState('mensal'); // 'mensal' ou 'anual' — abre no mensal: o anúncio fala em R$ 67
   const [videoTocando, setVideoTocando] = useState(false);
   const [barraVisivel, setBarraVisivel] = useState(false);
   const videoRef = useRef(null);
@@ -206,7 +207,9 @@ export default function LandingPage() {
       else navigate(path);
     }
   };
-  const testar = (onde) => handleTrackAndNavigate(onde, '/checkout?plan=trial');
+  // Sem teste grátis desde 21/11/2026 (Douglas): os botões levam aos planos, e os planos ao pagamento.
+  const testar = (onde) => { try { handleTrackAndNavigate(onde, '#pricing'); } catch { /* só rastreio */ } document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); };
+  const assinar = (onde, plano) => handleTrackAndNavigate(onde, `/checkout?plan=${plano}_${billingCycle}`);
   const irPara = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
   // Visitante ao vivo e tempo na página (painel Master), como antes.
@@ -266,8 +269,8 @@ export default function LandingPage() {
             <h1>Sua equipe faz. <em>A IA confere.</em> Você recebe no WhatsApp.</h1>
             <p className="lp-sub">Checklist, vistoria de frota, compras, estoque e perdas num app só. Foto pela câmera, inteligência artificial conferindo e o aviso no WhatsApp da sua empresa.</p>
             <div ref={heroCtaRef}>
-              <button className="lp-cta" onClick={() => testar('Começar 7 Dias Grátis')}>Testar 7 dias grátis</button>
-              <p className="lp-fine">Sem cartão · cancela quando quiser · Android, iPhone e computador</p>
+              <button className="lp-cta" onClick={() => testar('Hero: ver planos')}>Ver planos · a partir de R$ 67/mês</button>
+              <p className="lp-fine">Garantia de 7 dias · cancela quando quiser · Android, iPhone e computador</p>
             </div>
           </div>
           <div className="lp-video">
@@ -365,7 +368,7 @@ export default function LandingPage() {
       {/* Preço */}
       <section className="lp-sec" id="pricing">
         <div className="lp-in lp-precos">
-          <h2>Preço simples. <em>7 dias grátis.</em></h2>
+          <h2>Preço simples. <em>Garantia de 7 dias.</em></h2>
           <p className="lp-sub-centro">Todos os planos têm tudo: IA, frota, compras, estoque, descarte e aviso no WhatsApp. O que muda é o tamanho da equipe.</p>
           <div className="lp-troca" role="tablist">
             <button className={!anual ? 'on' : ''} onClick={() => setBillingCycle('mensal')}>Mensal</button>
@@ -375,7 +378,7 @@ export default function LandingPage() {
             <div className="lp-plano sec">
               <h3>Até 10 pessoas</h3>
               <div className="pr"><b>R$ {anual ? '47' : '67'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
-              <div className="ex">{anual ? 'Faturado R$ 564/ano (economiza R$ 240/ano)' : 'Sem fidelidade'}</div>
+              <div className="ex">{anual ? 'R$ 564 por ano (economiza R$ 240)' : 'Sem fidelidade'}</div>
               <ul>
                 <li>Checklists ilimitados</li>
                 <li>Até 10 pessoas na equipe</li>
@@ -383,15 +386,16 @@ export default function LandingPage() {
                 <li>Frota, compras, estoque, descarte e ranking</li>
                 <li>Avisos no WhatsApp da sua empresa</li>
                 <li>Relatório em PDF de cada checklist</li>
+                <li><b>A gente monta seus checklists com você pelo WhatsApp</b></li>
               </ul>
-              <button className="lp-cta" onClick={() => testar('Plano até 10 pessoas: testar grátis')}>Começar meus 7 dias grátis</button>
-              <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
+              <button className="lp-cta" onClick={() => assinar('Plano até 10 pessoas: assinar', 'checklists10')}>Assinar</button>
+              <p className="lp-fine">Garantia de 7 dias. Cancela quando quiser.</p>
             </div>
             <div className="lp-plano">
               <span className="tag">MAIS ESCOLHIDO</span>
               <h3>Até 30 pessoas</h3>
               <div className="pr"><b>R$ {anual ? '97' : '149'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
-              <div className="ex">{anual ? 'Faturado R$ 1.164/ano (economiza R$ 624/ano)' : 'Sem fidelidade'}</div>
+              <div className="ex">{anual ? 'R$ 1.164 por ano (economiza R$ 624)' : 'Sem fidelidade'}</div>
               <ul>
                 <li>Checklists ilimitados</li>
                 <li>Até 30 pessoas na equipe</li>
@@ -399,9 +403,10 @@ export default function LandingPage() {
                 <li>Frota, compras, estoque, descarte e ranking</li>
                 <li>Avisos no WhatsApp da sua empresa</li>
                 <li>Relatório em PDF de cada checklist</li>
+                <li><b>A gente monta seus checklists com você pelo WhatsApp</b></li>
               </ul>
-              <button className="lp-cta" onClick={() => testar('Plano até 30 pessoas: testar grátis')}>Começar meus 7 dias grátis</button>
-              <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
+              <button className="lp-cta" onClick={() => assinar('Plano até 30 pessoas: assinar', 'checklists')}>Assinar</button>
+              <p className="lp-fine">Garantia de 7 dias. Cancela quando quiser.</p>
             </div>
             <div className="lp-plano sec">
               <h3>Mais de 30 pessoas</h3>
@@ -433,8 +438,8 @@ export default function LandingPage() {
         <div className="lp-in" style={{ textAlign: 'center' }}>
           <h2>Pare de descobrir <em>no dia seguinte.</em></h2>
           <p className="lp-lead" style={{ margin: '8px auto 0' }}>Monte o primeiro checklist em 2 minutos. A equipe recebe hoje.</p>
-          <button className="lp-cta" onClick={() => testar('Testar Grátis 7 Dias (Footer)')}>Testar 7 dias grátis</button>
-          <p className="lp-fine" style={{ color: '#9CA3AF' }}>Sem cartão · firecheckapp.com.br</p>
+          <button className="lp-cta" onClick={() => testar('Rodapé: ver planos')}>Ver planos</button>
+          <p className="lp-fine" style={{ color: '#9CA3AF' }}>Garantia de 7 dias · firecheckapp.com.br</p>
         </div>
       </section>
 
@@ -444,9 +449,9 @@ export default function LandingPage() {
       </footer>
 
       <div className={`lp-fixa${barraVisivel ? ' on' : ''}`}>
-        <small><b>7 dias grátis</b>sem cartão de crédito</small>
+        <small><b>A partir de R$ 67/mês</b>garantia de 7 dias</small>
         <a className="lp-zap-mini" href={ZAP} target="_blank" rel="noopener noreferrer" aria-label="Tirar dúvida no WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.888-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.347-.272.297-1.04 1.016-1.04 2.479 0 1.463 1.065 2.876 1.213 3.074.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z" /></svg></a>
-        <button onClick={() => testar('Barra fixa: começar agora')}>Começar agora</button>
+        <button onClick={() => testar('Barra fixa: ver planos')}>Ver planos</button>
       </div>
 
       <a className="lp-zap" href={ZAP} target="_blank" rel="noopener noreferrer" title="Falar com o suporte pelo WhatsApp" aria-label="WhatsApp">

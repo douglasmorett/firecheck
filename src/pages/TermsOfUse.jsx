@@ -23,7 +23,16 @@ export default function TermsOfUse() {
     {
       icon: <CreditCard size={20} color="var(--primary)" />,
       title: '4. Pagamentos e Assinaturas',
-      content: `O FireCheck oferece os seguintes planos:\n\n• Período de Teste: 7 dias gratuitos com checklists ilimitados, sem necessidade de cartão de crédito\n• Plano Starter: R$ 67,00/mês — até 300 checklists por mês\n• Plano Pro: R$ 97,00/mês — até 600 checklists por mês\n• Plano Business: R$ 197,00/mês — até 1.000 checklists por mês\n• Plano Custom: valores sob consulta para operações acima de 1.000 checklists mensais\n\nAs cobranças são processadas por plataformas de pagamento terceirizadas. O cancelamento pode ser feito a qualquer momento, sem multa ou fidelidade. Ao cancelar, o acesso permanece ativo até o fim do período pago. Não realizamos reembolsos por períodos parcialmente utilizados. A cota de checklists é renovada mensalmente na data de aniversário da assinatura.`
+      content: `O FireCheck oferece os seguintes planos, todos com checklists ilimitados:
+
+• Até 10 pessoas: R$ 67,00/mês ou R$ 564,00/ano
+• Até 30 pessoas: R$ 149,00/mês ou R$ 1.164,00/ano
+• Acima de 30 pessoas: valor sob consulta
+• Módulos adicionais (como o Ponto) são contratados à parte, dentro do aplicativo
+
+Não há período de teste grátis. Garantia de 7 dias: se você desistir em até 7 dias da primeira contratação, devolvemos o valor pago (direito de arrependimento, art. 49 do Código de Defesa do Consumidor). Peça pelo WhatsApp do suporte ou pelo e-mail abaixo.
+
+As cobranças são processadas por plataformas de pagamento terceirizadas. O cancelamento pode ser feito a qualquer momento, sem multa ou fidelidade. Ao cancelar, o acesso permanece ativo até o fim do período pago. Fora do prazo de 7 dias, não realizamos reembolsos por períodos parcialmente utilizados.`
     },
     {
       icon: <Lock size={20} color="var(--primary)" />,
@@ -124,7 +133,7 @@ export default function TermsOfUse() {
           </a>
           <div style={{ marginTop: '24px' }}>
             <button className="btn" style={{ padding: '12px 32px' }} onClick={() => navigate('/checkout')}>
-              Criar Conta Grátis
+              Ver planos
             </button>
           </div>
         </div>

@@ -138,7 +138,13 @@ async function main() {
 
   // ── 5. Teste grátis: os dias de teste que faltam não se perdem ──
   console.log('\nTeste grátis');
-  const cad = await api('/api/signup', { metodo: 'POST', corpo: { name: 'Bia', email: email('teste'), password: 'senha123', store: `Loja teste ${RODADA}`, phone: '21988887777', plan: 'trial' } });
+  // O site não cria mais teste grátis (21/11/2026), mas as contas em teste que já existem
+  // continuam valendo: a conta entra direto no banco, como uma antiga.
+  await banco.query(
+    `INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan) VALUES ('Bia', $1, $2, 'admin', $3, $3, 'trial', '21988887777', 'trial')`,
+    [email('teste'), await bcrypt.hash('senha123', 4), `Loja teste ${RODADA}`]
+  );
+  const cad = { status: 200 };
   const bia = await conta(email('teste'));
   const fimDoTeste = new Date(bia.created_at).getTime() + 7 * DIA;
   const tst = await ativarExistente(pnt[2], email('teste'), true);
@@ -225,7 +231,8 @@ async function main() {
     await pagina.getByRole('button', { name: 'Entrar no painel' }).click();
     await pagina.waitForURL('**/admin', { timeout: 30000 });
     confere('"Entrar no painel" leva ao painel já logado', true);
-    const semPreco = !/R\$/.test(await pagina.goto(`${BASE}/ativar`).then(() => pagina.content()));
+    // Só o texto visível: a descrição do site (meta, invisível) cita o preço da landing.
+    const semPreco = !/R\$/.test(await pagina.goto(`${BASE}/ativar`).then(() => pagina.evaluate(() => document.body.innerText)));
     confere('a página não mostra preço', semPreco);
   } finally {
     await navegador.close();

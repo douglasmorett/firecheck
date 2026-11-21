@@ -5008,6 +5008,11 @@ export default async function handler(req, res) {
 
           if (newStatus === 'active') {
             const productName = payload?.data?.product?.name || payload?.product?.name || '';
+            // O plano está no nome da OFERTA (data.offer.name): todas as ofertas do FireCheck
+            // ficam no produto "FireCheck Assinatura" — "FireCheck - Anual", "FireCheck Até 10
+            // pessoas - Mensal"... Só com o nome do produto, o anual valia 30 dias e o plano
+            // caía no padrão 'pro' (15 colaboradores em vez de 30).
+            const nomeDaOferta = payload?.data?.offer?.name || payload?.offer?.name || '';
             const isCameraModule = String(productName).toLowerCase().includes('camera') || String(productName).toLowerCase().includes('câmera');
 
             // Verifica se o usuário já existe
@@ -5019,7 +5024,7 @@ export default async function handler(req, res) {
                 const customerPhone = payload?.data?.customer?.phone || payload?.customer?.phone || payload?.phone || '';
                 
                 let detectedPlan = 'pro';
-                const lowerProduct = productName.toLowerCase();
+                const lowerProduct = `${productName} ${nomeDaOferta}`.toLowerCase();
                 // Reconhece PRIMEIRO os produtos vendidos hoje na landing page.
                 // Sem isto, "Combo Tudo em 1" e "Só Ponto Eletrônico" nao casavam com
                 // nenhuma regra e caiam no padrao 'pro': quem comprava o Combo ficava
@@ -5028,9 +5033,11 @@ export default async function handler(req, res) {
                 const ehAnual = lowerProduct.includes('anual');
                 const ehCombo = lowerProduct.includes('combo') || lowerProduct.includes('tudo em 1') || lowerProduct.includes('completo');
                 const ehSoPonto = !ehCombo && (lowerProduct.includes('ponto eletr') || lowerProduct.includes('so ponto') || lowerProduct.includes('só ponto') || lowerProduct.includes('ponto ia'));
-                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist'));
+                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist') || lowerProduct.includes('firecheck assinatura'));
 
-                if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
+                // Plano de entrada (R$ 67): o produto da Cakto tem "10 pessoas" no nome.
+                if (/10 pessoas|at[eé] 10/.test(lowerProduct)) detectedPlan = ehAnual ? 'checklists10_anual' : 'checklists10_mensal';
+                else if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
                 else if (ehSoPonto) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
                 else if (ehSoChecklist) detectedPlan = ehAnual ? 'checklists_anual' : 'checklists_mensal';
                 // ── Chaves legadas, para produtos antigos ainda ativos na Cakto ──
@@ -5127,7 +5134,7 @@ export default async function handler(req, res) {
                 console.log(`[CAKTO] Usuário ${customerEmail} teve o MÓDULO DE CÂMERAS renovado por 30 dias!`);
               } else {
                 let detectedPlan = 'pro';
-                const lowerProduct = productName.toLowerCase();
+                const lowerProduct = `${productName} ${nomeDaOferta}`.toLowerCase();
                 // Reconhece PRIMEIRO os produtos vendidos hoje na landing page.
                 // Sem isto, "Combo Tudo em 1" e "Só Ponto Eletrônico" nao casavam com
                 // nenhuma regra e caiam no padrao 'pro': quem comprava o Combo ficava
@@ -5136,9 +5143,11 @@ export default async function handler(req, res) {
                 const ehAnual = lowerProduct.includes('anual');
                 const ehCombo = lowerProduct.includes('combo') || lowerProduct.includes('tudo em 1') || lowerProduct.includes('completo');
                 const ehSoPonto = !ehCombo && (lowerProduct.includes('ponto eletr') || lowerProduct.includes('so ponto') || lowerProduct.includes('só ponto') || lowerProduct.includes('ponto ia'));
-                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist'));
+                const ehSoChecklist = !ehCombo && !ehSoPonto && (lowerProduct.includes('checklist') || lowerProduct.includes('firecheck assinatura'));
 
-                if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
+                // Plano de entrada (R$ 67): o produto da Cakto tem "10 pessoas" no nome.
+                if (/10 pessoas|at[eé] 10/.test(lowerProduct)) detectedPlan = ehAnual ? 'checklists10_anual' : 'checklists10_mensal';
+                else if (ehCombo) detectedPlan = ehAnual ? 'combo_anual' : 'combo_mensal';
                 else if (ehSoPonto) detectedPlan = ehAnual ? 'ponto_anual' : 'ponto_mensal';
                 else if (ehSoChecklist) detectedPlan = ehAnual ? 'checklists_anual' : 'checklists_mensal';
                 // ── Chaves legadas, para produtos antigos ainda ativos na Cakto ──
@@ -5165,6 +5174,7 @@ export default async function handler(req, res) {
                 // Teto de colaboradores: 50 no Combo, 30 nos planos individuais.
                 let newPontoLimit = 5;
                 if (detectedPlan.startsWith('combo')) newPontoLimit = 50;
+                else if (detectedPlan.startsWith('checklists10')) newPontoLimit = 10;
                 else if (detectedPlan === 'ponto_mensal' || detectedPlan === 'ponto_anual' || detectedPlan === 'checklists_mensal' || detectedPlan === 'checklists_anual') newPontoLimit = 30;
                 else if (detectedPlan === 'ponto_starter') newPontoLimit = 5;
                 else if (detectedPlan === 'ponto_pro' || detectedPlan === 'pro') newPontoLimit = 15;
@@ -5598,6 +5608,11 @@ export default async function handler(req, res) {
           return res.status(400).json({ status: 'error', error: 'Plano inválido. Escolha um plano na página de preços.' });
         }
         const querTesteGratis = planoEscolhido === 'trial' || planoEscolhido === '';
+        // Sem teste grátis desde 21/11/2026 (Douglas): o cadastro só nasce com plano pago
+        // e fica "pendente" até a Cakto confirmar o pagamento.
+        if (querTesteGratis) {
+          return res.status(400).json({ status: 'error', error: 'O FireCheck não tem teste grátis. Escolha um plano na página de preços.' });
+        }
         const initialStatus = querTesteGratis ? 'trial' : 'pending';
 
         // Hash da senha com bcrypt
