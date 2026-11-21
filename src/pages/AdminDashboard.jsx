@@ -335,6 +335,8 @@ export default function AdminDashboard() {
   }, [checklists, checklistSortAlphabetical]);
 
   const [team, setTeam] = useState([]);
+  // Gestão de Clientes (master): clicar num contador filtra a lista; clicar de novo limpa.
+  const [filtroContas, setFiltroContas] = useState(null); // null | 'trial' | 'bloqueadas' | 'pagantes'
   // Alternador mensal/anual da vitrine de planos do Ponto (aba Ponto do admin).
   const [dashBillingCycle, setDashBillingCycle] = useState('mensal');
   const [showUserModal, setShowUserModal] = useState(false);
@@ -2603,7 +2605,7 @@ export default function AdminDashboard() {
     );
   }
 
-  const TITULO_DA_ABA = { ponto: 'Controle de Ponto', notificacoes: 'Notificações', ranking: 'Ranking da equipe', alertas: 'Alertas da IA', checklists: 'Checklists', vehicles: 'Frota e Veículos', compras: 'Compras e Estoque', bill: 'Assistente Bill', equipe: 'Equipe', perfil: 'Perfil da Empresa' };
+  const TITULO_DA_ABA = { ponto: 'Controle de Ponto', notificacoes: 'Notificações', ranking: 'Ranking da equipe', alertas: 'Alertas da IA', checklists: 'Checklists', vehicles: 'Frota e Veículos', compras: 'Compras e Estoque', bill: 'Assistente Bill', equipe: isMaster ? 'Gestão de Clientes' : 'Equipe', perfil: 'Perfil da Empresa', quiz: 'Site Principal', codigos: 'Códigos de ativação' };
 
   // "Primeiros passos" (só o dono, até a loja terminar de configurar ou ele esconder).
   const passosDoDono = [
@@ -4791,29 +4793,37 @@ export default function AdminDashboard() {
 
             {isMaster && (
               <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap' }}>
-                <div style={{ backgroundColor: 'rgba(255,160,0,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,160,0,0.3)' }}>
+                <button type="button" onClick={() => setFiltroContas(filtroContas === 'trial' ? null : 'trial')} aria-pressed={filtroContas === 'trial'} title={filtroContas === 'trial' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
+                  style={{ backgroundColor: 'rgba(255,160,0,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,160,0,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'trial' ? '0 0 0 2px #FFA000' : 'none', opacity: filtroContas && filtroContas !== 'trial' ? 0.55 : 1, transition: 'all .15s' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#FFA000' }}>
                     {team.filter(m => m.role === 'admin' && m.status === 'trial' && !isBlocked(m)).length}
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Testes Ativos (7 Dias)</span>
-                </div>
-                <div style={{ backgroundColor: 'rgba(255,23,68,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,23,68,0.3)' }}>
+                </button>
+                <button type="button" onClick={() => setFiltroContas(filtroContas === 'bloqueadas' ? null : 'bloqueadas')} aria-pressed={filtroContas === 'bloqueadas'} title={filtroContas === 'bloqueadas' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
+                  style={{ backgroundColor: 'rgba(255,23,68,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,23,68,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'bloqueadas' ? '0 0 0 2px #FF1744' : 'none', opacity: filtroContas && filtroContas !== 'bloqueadas' ? 0.55 : 1, transition: 'all .15s' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--error)' }}>
                     {team.filter(m => m.role === 'admin' && isBlocked(m)).length}
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Contas Bloqueadas</span>
-                </div>
-                <div style={{ backgroundColor: 'rgba(0,200,83,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,200,83,0.3)' }}>
+                </button>
+                <button type="button" onClick={() => setFiltroContas(filtroContas === 'pagantes' ? null : 'pagantes')} aria-pressed={filtroContas === 'pagantes'} title={filtroContas === 'pagantes' ? 'Mostrar todas as contas' : 'Filtrar a lista por esta situação'}
+                  style={{ backgroundColor: 'rgba(0,200,83,0.1)', padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(0,200,83,0.3)', cursor: 'pointer', textAlign: 'left', font: 'inherit', boxShadow: filtroContas === 'pagantes' ? '0 0 0 2px #00C853' : 'none', opacity: filtroContas && filtroContas !== 'pagantes' ? 0.55 : 1, transition: 'all .15s' }}>
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--success)' }}>
                     {team.filter(m => m.role === 'admin' && m.status === 'active').length}
                   </span>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: '8px' }}>Clientes Pagantes</span>
-                </div>
+                </button>
+                {filtroContas && (
+                  <button type="button" onClick={() => setFiltroContas(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer', fontSize: '0.85rem', alignSelf: 'center' }}>
+                    Mostrar todas
+                  </button>
+                )}
               </div>
             )}
           </div>
           <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {(team || []).map(member => {
+            {(team || []).filter(m => !isMaster || !filtroContas || (m.role === 'admin' && (filtroContas === 'trial' ? (m.status === 'trial' && !isBlocked(m)) : filtroContas === 'bloqueadas' ? isBlocked(m) : m.status === 'active'))).map(member => {
               const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
               
               return (
