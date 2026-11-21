@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Play, PlayCircle } from 'lucide-react';
 import {
-  arquivosDoTutorial, CHAVE_FAIXA_OCULTA, foiVisto, gravarChave, lerChave, lerUsuario, nomeDaTela, relogio,
+  arquivosDoTutorial, CHAVE_FAIXA_OCULTA, CHAVE_FAIXA_VISTA, foiVisto, gravarChave, lerChave, lerUsuario, nomeDaTela, relogio,
   titulosCurtos, tutoriaisDaTela,
 } from '../../tutoriais/telas';
 import JanelaDoTutorial from './JanelaDoTutorial';
@@ -28,7 +28,11 @@ export default function BotaoTutorial({ tela, usuario, variante = 'botao', encol
   const [aberto, setAberto] = useState(false);
   // A bolinha some quando a pessoa abre; volta só se ainda falta assistir algum.
   const [jaAbriu, setJaAbriu] = useState(false);
-  const [faixaOculta, setFaixaOculta] = useState(() => lerChave(CHAVE_FAIXA_OCULTA + tela) === '1');
+  const [faixaOculta, setFaixaOculta] = useState(() => lerChave(CHAVE_FAIXA_OCULTA + tela) === '1' || (variante === 'faixa' && lerChave(CHAVE_FAIXA_VISTA + tela) === '1'));
+  // Marca a faixa como vista: na próxima visita a esta tela ela não aparece de novo.
+  useEffect(() => {
+    if (variante === 'faixa' && tutoriais.length) gravarChave(CHAVE_FAIXA_VISTA + tela, '1');
+  }, [variante, tela, tutoriais.length]);
 
   if (!tutoriais.length) return null;
   if (variante === 'faixa' && faixaOculta) return null;

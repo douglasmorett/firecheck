@@ -682,7 +682,7 @@ export default function EmployeeDashboard() {
                onClick={() => navigate('/admin')} 
                className="btn animate-scale"
                style={{ 
-                 backgroundColor: '#2563eb', 
+                 backgroundColor: 'var(--ink)', 
                  padding: '8px 16px', 
                  borderRadius: '20px', 
                  border: 'none', 
@@ -693,13 +693,13 @@ export default function EmployeeDashboard() {
                  gap: '6px', 
                  fontSize: '0.85rem', 
                  fontWeight: 'bold',
-                 boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                 boxShadow: '0 4px 12px rgb(var(--info-rgb) / 0.3)'
                }}
              >
                <Settings size={16} /> Painel de Gestão
              </button>
            )}
-           <button onClick={() => fetchChecklists(userProfile, true)} style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid #3b82f6', color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+           <button onClick={() => fetchChecklists(userProfile, true)} style={{ background: 'rgb(var(--info-rgb) / 0.1)', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--info)', color: 'var(--info)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', fontWeight: 'bold' }}>
               {isRefreshing ? <RefreshCw size={16} className="animate-spin" /> : <RefreshCw size={16} />}
               Atualizar
            </button>
@@ -709,8 +709,8 @@ export default function EmployeeDashboard() {
         </div>
       </header>
 
-      <div style={{ backgroundColor: 'var(--bg-color)', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-         <div style={{ backgroundColor: 'rgba(255, 69, 0, 0.1)', padding: '12px', borderRadius: '12px' }}>
+      <div style={{ backgroundColor: 'var(--bg-inset)', padding: '24px', borderRadius: '16px', marginBottom: '32px', display: 'flex', alignItems: 'center', gap: '16px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+         <div style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '12px', borderRadius: '12px' }}>
             <User size={24} color="var(--primary)" />
          </div>
          <div style={{ flex: '1 1 160px', minWidth: 0 }}>
@@ -807,18 +807,18 @@ export default function EmployeeDashboard() {
           <button
             className="btn"
             onClick={() => { setTipoRegistro('ocorrencia'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); }}
-            style={{ padding: '16px', backgroundColor: '#f59e0b', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+            style={{ padding: '16px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)', color: 'var(--text-main)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
           >
-            <AlertCircle size={20} /> Registrar Ocorrência
+            <AlertCircle size={20} color="#d97706" /> Registrar Ocorrência
           </button>
           )}
           {tela.tela_descarte && (
           <button
             className="btn"
             onClick={() => { setTipoRegistro('descarte'); setRegistroDescricao(''); setRegistroFoto(null); setRegistroItem(''); setRegistroQtd(''); setRegistroUnidade('un'); setRegistroValor(''); setRegistroMotivo(''); carregarItensFirehub(); }}
-            style={{ padding: '16px', backgroundColor: '#0f766e', border: 'none', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
+            style={{ padding: '16px', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', boxShadow: 'var(--shadow-card)', color: 'var(--text-main)', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.9rem' }}
           >
-            <Package size={20} /> Registrar Descarte
+            <Package size={20} color="#0f766e" /> Registrar Descarte
           </button>
           )}
         </div>
@@ -830,7 +830,7 @@ export default function EmployeeDashboard() {
           <h4 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Clock size={16} /> Meu Ponto (Hoje)
           </h4>
-          <div className="card" style={{ padding: '24px', textAlign: 'center', border: '1px solid #3b82f6' }}>
+          <div className="card" style={{ padding: '24px', textAlign: 'center', border: '1px solid var(--info)' }}>
             {mySchedule && (() => {
               let wd = null;
               try {
@@ -892,7 +892,7 @@ export default function EmployeeDashboard() {
               onClick={() => { if(!isImpersonating) navigate('/ponto'); }} 
               disabled={isImpersonating}
               className="btn" 
-              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: '#3b82f6', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}
+              style={{ width: '100%', padding: '16px', fontSize: '1.1rem', backgroundColor: 'var(--ink)', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', opacity: isImpersonating ? 0.5 : 1, cursor: isImpersonating ? 'not-allowed' : 'pointer' }}
             >
               <Smartphone size={20} /> Registrar Ponto com IA
             </button>
@@ -900,7 +900,7 @@ export default function EmployeeDashboard() {
               <p style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔒 Somente visualização</p>
             )}
             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-              <ShieldCheck size={12} color="#3b82f6" /> GPS e Câmera obrigatórios
+              <ShieldCheck size={12} color="var(--info)" /> GPS e Câmera obrigatórios
             </p>
           </div>
         </section>
@@ -948,10 +948,10 @@ export default function EmployeeDashboard() {
               const { percent, isStarted } = getDraftProgress('vehicle', vehicle.id);
               
               return (
-                <div key={vehicle.id} className="card animate-scale" style={{ padding: '16px 20px', borderLeft: completed ? '4px solid var(--success)' : (isStarted ? '4px solid #3b82f6' : (pending ? '4px solid var(--primary)' : '4px solid var(--border-color)')) }}>
+                <div key={vehicle.id} className="card animate-scale" style={{ padding: '16px 20px', borderLeft: completed ? '4px solid var(--success)' : (isStarted ? '4px solid var(--info)' : (pending ? '4px solid var(--primary)' : '4px solid var(--border-color)')) }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgba(255, 77, 0, 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgb(var(--primary-rgb) / 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {vehicle.photo_url ? (
                           <img src={vehicle.photo_url} alt={vehicle.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -961,7 +961,7 @@ export default function EmployeeDashboard() {
                       <div>
                         <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>{vehicle.brand} {vehicle.model}</h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span className="badge" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
+                          <span className="badge" style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '1px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
                             {vehicle.plate}
                           </span>
                           {completed ? (
@@ -969,7 +969,7 @@ export default function EmployeeDashboard() {
                               ✓ Concluído hoje por {vehicle.completed_by || 'você'}
                             </span>
                           ) : isStarted ? (
-                            <span style={{ fontSize: '0.78rem', color: '#3b82f6', fontWeight: 'bold' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--info)', fontWeight: 'bold' }}>
                               🕒 Vistoria em andamento ({percent}%)
                             </span>
                           ) : pending ? (
@@ -987,7 +987,7 @@ export default function EmployeeDashboard() {
                     
                     {!completed && (
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
-                        <button className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : 'var(--primary)'), cursor: 'pointer' }} onClick={() => navigate(`/execucao/veiculo/${vehicle.id}`)}>
+                        <button className="btn" style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? 'var(--ink)' : (isImpersonating ? '#f59e0b' : 'var(--primary)'), cursor: 'pointer' }} onClick={() => navigate(`/execucao/veiculo/${vehicle.id}`)}>
                           {isStarted ? 'Continuar Vistoria' : (isImpersonating ? '🧪 Testar Vistoria' : 'Iniciar Vistoria')} <ArrowRight size={14} />
                         </button>
                       </div>
@@ -1039,10 +1039,10 @@ export default function EmployeeDashboard() {
                     style={{
                       padding: '18px 20px',
                       cursor: 'pointer',
-                      borderLeft: isStarted ? '4px solid #3b82f6' : '4px solid #06b6d4',
+                      borderLeft: isStarted ? '4px solid var(--info)' : '4px solid var(--info)',
                       backgroundColor: '#ffffff',
                       borderRadius: '16px',
-                      boxShadow: '0 4px 12px rgba(6, 182, 212, 0.08)',
+                      boxShadow: '0 4px 12px rgb(var(--info-rgb) / 0.08)',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '16px',
@@ -1052,7 +1052,7 @@ export default function EmployeeDashboard() {
                     onClick={() => navigate(`/execucao/compras/${list.id}`)}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : '#0891b2' }}>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? 'var(--info)' : 'var(--info)' }}>
                         {isStarted ? `${percent}%` : 'COMPRA'}
                       </span>
                       <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold' }}>
@@ -1066,7 +1066,7 @@ export default function EmployeeDashboard() {
                           {list.title}
                         </h3>
                         {isStarted && (
-                          <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                          <span style={{ fontSize: '0.7rem', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', border: '1px solid rgb(var(--info-rgb) / 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
                             🕒 Em andamento
                           </span>
                         )}
@@ -1079,7 +1079,7 @@ export default function EmployeeDashboard() {
                       
                       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                          <Package size={14} color="#0891b2" />
+                          <Package size={14} color="var(--info)" />
                           {isStarted ? `${doneCount} de ${totalCount} conferidos` : `${list.item_count || 0} itens para conferir estoque`}
                         </span>
                         {parseInt(list.below_min_count) > 0 && (
@@ -1092,7 +1092,7 @@ export default function EmployeeDashboard() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#0891b2'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
+                      <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? 'var(--ink)' : (isImpersonating ? '#f59e0b' : 'var(--info)'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
                         <Play size={12} fill="white" /> {isStarted ? 'Continuar' : (isImpersonating ? 'Testar' : 'Preencher')}
                       </button>
                     </div>
@@ -1107,8 +1107,8 @@ export default function EmployeeDashboard() {
       {/* 📦 CONTROLE DE ESTOQUE — só com a permissão ligada pelo gestor */}
       {podeEstoque && shoppingLists.length > 0 && (
         <section style={{ marginBottom: '32px' }}>
-          <h4 style={{ fontSize: '0.9rem', color: '#0891b2', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-            <Package size={18} color="#0891b2" /> Controle de Estoque
+          <h4 style={{ fontSize: '0.9rem', color: 'var(--info)', marginBottom: '16px', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+            <Package size={18} color="var(--info)" /> Controle de Estoque
           </h4>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {shoppingLists.map(list => (
@@ -1124,7 +1124,7 @@ export default function EmployeeDashboard() {
                     {Number(list.below_min_count) > 0 ? `${list.below_min_count} abaixo do mínimo · ` : ''}{list.item_count || 0} itens
                   </span>
                 </span>
-                <span style={{ padding: '8px 14px', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: '#0891b2', color: 'white', borderRadius: '20px', whiteSpace: 'nowrap' }}>
+                <span style={{ padding: '8px 14px', fontSize: '0.8rem', fontWeight: 'bold', backgroundColor: 'var(--ink)', color: 'white', borderRadius: '20px', whiteSpace: 'nowrap' }}>
                   Entradas e saídas
                 </span>
               </button>
@@ -1162,7 +1162,7 @@ export default function EmployeeDashboard() {
                 fontWeight: '600',
                 borderRadius: '8px',
                 border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                backgroundColor: sortAlphabetical ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--bg-card)',
                 color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
@@ -1184,7 +1184,7 @@ export default function EmployeeDashboard() {
                 style={{ 
                   padding: '16px 20px', 
                   cursor: 'pointer', 
-                  borderLeft: isStarted ? '4px solid #3b82f6' : (isImpersonating ? '4px solid #f59e0b' : '4px solid #f97316'), 
+                  borderLeft: isStarted ? '4px solid var(--info)' : (isImpersonating ? '4px solid #f59e0b' : '4px solid var(--primary)'), 
                   backgroundColor: '#ffffff',
                   borderRadius: '16px',
                   boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
@@ -1201,7 +1201,7 @@ export default function EmployeeDashboard() {
               >
                 {/* Left Indicator - Recurrence/Time */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minWidth: '60px', paddingRight: '12px', borderRight: '1px solid var(--border-color)' }}>
-                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : (isImpersonating ? '#d97706' : '#0f172a') }}>
+                  <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: isStarted ? 'var(--info)' : (isImpersonating ? '#d97706' : '#0f172a') }}>
                     {isStarted ? `${percent}%` : 'HOJE'}
                   </span>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '0.5px' }}>
@@ -1216,7 +1216,7 @@ export default function EmployeeDashboard() {
                       {checklist.title}
                     </h3>
                     {isStarted && (
-                      <span style={{ fontSize: '0.7rem', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
+                      <span style={{ fontSize: '0.7rem', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', border: '1px solid rgb(var(--info-rgb) / 0.3)', padding: '2px 8px', borderRadius: '10px', fontWeight: 'bold' }}>
                         🕒 Em andamento
                       </span>
                     )}
@@ -1230,9 +1230,9 @@ export default function EmployeeDashboard() {
                   {/* Progress Bar (Dynamic %) */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <div style={{ flex: 1, height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                      <div style={{ width: `${percent}%`, height: '100%', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#f97316'), transition: 'width 0.3s ease' }}></div>
+                      <div style={{ width: `${percent}%`, height: '100%', backgroundColor: isStarted ? 'var(--ink)' : (isImpersonating ? '#f59e0b' : 'var(--primary)'), transition: 'width 0.3s ease' }}></div>
                     </div>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isStarted ? '#3b82f6' : 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: isStarted ? 'var(--info)' : 'var(--text-muted)' }}>
                       {isStarted ? `${percent}% (${doneCount}/${totalCount})` : '0%'}
                     </span>
                   </div>
@@ -1252,7 +1252,7 @@ export default function EmployeeDashboard() {
 
                 {/* Right Action */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                  <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? '#3b82f6' : (isImpersonating ? '#f59e0b' : '#0f172a'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
+                  <button className="btn" style={{ padding: '8px 16px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: isStarted ? 'var(--ink)' : (isImpersonating ? '#f59e0b' : '#0f172a'), border: 'none', color: 'white', borderRadius: '20px', cursor: 'pointer' }}>
                     <Play size={12} fill="white" /> {isStarted ? 'Continuar' : (isImpersonating ? 'Testar' : 'Iniciar')}
                   </button>
                 </div>
@@ -1293,7 +1293,7 @@ export default function EmployeeDashboard() {
                   fontWeight: '600',
                   borderRadius: '8px',
                   border: sortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                  backgroundColor: sortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                  backgroundColor: sortAlphabetical ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--bg-card)',
                   color: sortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',

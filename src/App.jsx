@@ -2,27 +2,32 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavig
 import React, { Component, useEffect, lazy, Suspense } from 'react';
 import { Capacitor } from '@capacitor/core';
 import Login from './pages/Login';
-import AdminDashboard from './pages/AdminDashboard';
-import ChecklistCreator from './pages/ChecklistCreator';
 import ChecklistExecution from './pages/ChecklistExecution';
 import ShoppingExecution from './pages/ShoppingExecution';
 import EmployeeDashboard from './pages/EmployeeDashboard';
-import LandingPage from './pages/LandingPage';
-import Checkout from './pages/Checkout';
-import PrivacyPolicy from './pages/PrivacyPolicy';
-import QuizFunnel from './pages/QuizFunnel';
-import TermsOfUse from './pages/TermsOfUse';
 import PontoPage from './pages/PontoPage';
-import RenewPlan from './pages/RenewPlan';
-import AtivarCodigo from './pages/AtivarCodigo';
-import ThankYou from './pages/ThankYou';
-import ResellerPage from './pages/ResellerPage';
 import CentralDeTutoriais from './components/tutoriais/CentralDeTutoriais';
 import { lerQuiosque } from './utils/quiosque';
 
 // O ponto da loja carrega o reconhecimento facial: fica num pedaço à parte
 // do app, que só baixa quem abre essa tela.
 const PontoDaLojaPage = lazy(() => import('./pages/PontoDaLojaPage'));
+
+// Telas que o funcionário não usa (painel do dono, criador, site de vendas, checkout...)
+// ficam em pedaços à parte: quem só faz checklist não baixa o código do painel.
+// Login, dashboard do funcionário, execução, compras e ponto continuam no pedaço
+// principal porque precisam funcionar sem internet.
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ChecklistCreator = lazy(() => import('./pages/ChecklistCreator'));
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const Checkout = lazy(() => import('./pages/Checkout'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const QuizFunnel = lazy(() => import('./pages/QuizFunnel'));
+const TermsOfUse = lazy(() => import('./pages/TermsOfUse'));
+const RenewPlan = lazy(() => import('./pages/RenewPlan'));
+const AtivarCodigo = lazy(() => import('./pages/AtivarCodigo'));
+const ThankYou = lazy(() => import('./pages/ThankYou'));
+const ResellerPage = lazy(() => import('./pages/ResellerPage'));
 
 class ErrorBoundary extends Component {
   constructor(props) {
@@ -101,7 +106,7 @@ class ErrorBoundary extends Component {
             <div style={{
               width: '56px',
               height: '56px',
-              backgroundColor: 'rgba(255, 77, 0, 0.15)',
+              backgroundColor: 'rgb(var(--primary-rgb) / 0.15)',
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -121,7 +126,7 @@ class ErrorBoundary extends Component {
               <button
                 onClick={this.handleReset}
                 style={{
-                  backgroundColor: '#ff4d00',
+                  backgroundColor: 'var(--primary)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '10px',
@@ -194,6 +199,7 @@ function App() {
         <TravaDoPontoDaLoja />
         {/* Tutoriais em vídeo: abre sozinha uma vez depois do login e pelo botão "Tutoriais em vídeo" */}
         <CentralDeTutoriais />
+        <Suspense fallback={<div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Carregando...</div>}>
         <Routes>
           {/* Site Institucional de Vendas */}
           <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -233,6 +239,7 @@ function App() {
           {/* Rota 404 — redireciona para a página inicial */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </Suspense>
       </Router>
     </ErrorBoundary>
   );

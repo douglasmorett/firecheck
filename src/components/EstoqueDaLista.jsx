@@ -21,10 +21,10 @@ const reais = (n) => Number(n).toLocaleString('pt-BR', { style: 'currency', curr
 const TIPOS = {
   entrada: { rotulo: 'Entrada', sinal: '+', cor: '#10b981' },
   saida: { rotulo: 'Saída', sinal: '−', cor: '#ef4444' },
-  contagem: { rotulo: 'Contagem', sinal: '=', cor: '#3b82f6' },
+  contagem: { rotulo: 'Contagem', sinal: '=', cor: 'var(--info)' },
 };
 
-const campo = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem' };
+const campo = { width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)', color: 'var(--text-main)', fontSize: '0.95rem' };
 
 export default function EstoqueDaLista({ lista, onFechar, onMudou }) {
   const [aba, setAba] = useState('saldo');
@@ -188,7 +188,7 @@ export default function EstoqueDaLista({ lista, onFechar, onMudou }) {
             {movimentos.map((m) => {
               const t = TIPOS[m.tipo] || TIPOS.contagem;
               return (
-                <div key={m.id} style={{ padding: '12px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-color)', borderLeft: `4px solid ${t.cor}`, display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div key={m.id} style={{ padding: '12px 14px', borderRadius: '8px', backgroundColor: 'var(--bg-inset)', borderLeft: `4px solid ${t.cor}`, display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: '180px' }}>
                     <strong>{m.item_nome}</strong>
                     <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>

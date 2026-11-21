@@ -211,7 +211,7 @@ export default function Checkout() {
 
         {/* Resumo Benefícios */}
         <div style={{ alignSelf: 'start' }}>
-          <div className="card" style={{ backgroundColor: 'var(--bg-color)', border: '1px solid var(--primary)' }}>
+          <div className="card" style={{ backgroundColor: 'var(--bg-inset)', border: '1px solid var(--primary)' }}>
             <h3 style={{ marginBottom: '20px' }}>
               {plan === 'trial' ? 'O que está incluso no Teste?' : 'Resumo da Assinatura'}
             </h3>
@@ -226,7 +226,7 @@ export default function Checkout() {
               )}
             </ul>
             
-            <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
+            <div style={{ marginTop: '24px', padding: '12px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', borderRadius: '8px', color: 'var(--primary)', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold' }}>
               {plan === 'trial' 
                 ? '🕒 Sem pegadinhas. Sem cobrança surpresa.' 
                 : `💳 Assinatura do Plano ${plan.charAt(0).toUpperCase() + plan.slice(1)}`}

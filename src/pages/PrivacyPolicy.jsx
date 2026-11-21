@@ -30,7 +30,7 @@ const PrivacyPolicy = () => {
         </p>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
+          <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             1. Informações que Coletamos
           </h2>
           <p style={{ color: '#a0a0a0' }}>Para fornecer nossos serviços de auditoria e checklist, coletamos as seguintes categorias de dados:</p>
@@ -43,7 +43,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
+          <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             2. Finalidade do Processamento
           </h2>
           <p style={{ color: '#a0a0a0' }}>Os dados coletados são utilizados para:</p>
@@ -56,7 +56,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
+          <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             3. Compartilhamento de Dados
           </h2>
           <p style={{ color: '#a0a0a0' }}>O FireCheck <strong>não vende</strong> seus dados. O compartilhamento ocorre apenas com:</p>
@@ -68,7 +68,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
+          <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             4. Retenção e Exclusão de Dados (Obrigatório Google Play)
           </h2>
           <p style={{ color: '#a0a0a0' }}>
@@ -84,7 +84,7 @@ const PrivacyPolicy = () => {
         </section>
 
         <section style={{ marginBottom: '32px' }}>
-          <h2 style={{ color: '#ff4d00', fontSize: '1.5rem', borderBottom: '1px solid rgba(255, 77, 0, 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
+          <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', borderBottom: '1px solid rgb(var(--primary-rgb) / 0.2)', paddingBottom: '10px', marginBottom: '16px' }}>
             5. Contato
           </h2>
           <p style={{ color: '#a0a0a0' }}>Para quaisquer dúvidas sobre esta política, entre em contato conosco:</p>

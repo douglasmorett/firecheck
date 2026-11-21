@@ -146,7 +146,7 @@ export default function QuizFunnel() {
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ fontSize: '1.3rem', marginBottom: '16px', fontWeight: 'bold' }}>A Solução Definitiva:</h3>
-            <img src="/icon-192.png" alt="FireCheck Logo" style={{ width: '80px', height: '80px', borderRadius: '20px', boxShadow: '0 8px 16px rgba(255,77,0,0.3)', marginBottom: '8px' }} />
+            <img src="/icon-192.png" alt="FireCheck Logo" style={{ width: '80px', height: '80px', borderRadius: '20px', boxShadow: '0 8px 16px rgb(var(--primary-rgb) / 0.3)', marginBottom: '8px' }} />
             <span style={{ fontSize: '1.2rem', fontWeight: 'bold', letterSpacing: '-0.5px' }}>FireCheck</span>
           </div>
           <p style={{ marginBottom: '32px', color: '#334155', lineHeight: '1.6', textAlign: 'left' }}>
@@ -183,7 +183,7 @@ export default function QuizFunnel() {
             Assista ao vídeo abaixo e descubra como auditar sua operação no piloto automático.
           </p>
 
-          <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'var(--bg-color)' }}>
+          <div style={{ width: '100%', borderRadius: '16px', overflow: 'hidden', marginBottom: '24px', border: '1px solid var(--border-color)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', position: 'relative', backgroundColor: 'var(--bg-inset)' }}>
             {!isPlaying && (
               <div 
                 style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent', zIndex: 10, cursor: 'pointer' }}

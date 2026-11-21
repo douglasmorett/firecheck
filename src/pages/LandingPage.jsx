@@ -107,7 +107,6 @@ const DETALHES = [
       'Checklist reprovado pela IA, concluído ou atrasado',
       'Estoque abaixo do mínimo, com a lista de reposição',
       'Ocorrência e descarte registrados pela equipe',
-      'Atraso e ausência no ponto (com o módulo de ponto)',
       'Você escolhe quais avisos recebe',
     ],
     fotos: [['/telas/whatsapp-qr.jpg', 'Conectar o WhatsApp da empresa pelo QR'], ['/telas/whatsapp-avisos.jpg', 'Escolha dos avisos']],
@@ -125,24 +124,10 @@ const DETALHES = [
     ],
     fotos: [['/telas/painel.jpg', 'Painel do dono'], ['/telas/ranking.jpg', 'Ranking da equipe']],
   },
-  {
-    id: 'ponto', icone: '🕐', nome: 'Ponto', opcional: true,
-    titulo: <>Ponto eletrônico <em>com selfie e GPS.</em></>,
-    texto: 'Módulo à parte, se você quiser: o funcionário bate o ponto pelo celular, com selfie e localização.',
-    itens: [
-      'Selfie com reconhecimento facial na hora de bater',
-      'Localização e endereço gravados em cada batida',
-      'Aviso de atraso e ausência no WhatsApp',
-      'Escala, banco de horas, atestados e feriados',
-      'Tablet da loja como relógio de ponto',
-      'Fechamento por e-mail para o contador, em PDF e planilha',
-    ],
-    fotos: [['/telas/ponto-selfie.jpg', 'Ponto com selfie e GPS'], ['/telas/ponto-gestor.jpg', 'Ponto no painel do gestor']],
-  },
 ];
 
 // Telas do celular ficam em pé; as do painel (computador) aparecem inteiras, sem corte.
-const CELULAR = /checklist-|estoque-contagem|descarte-foto|ponto-selfie/;
+const CELULAR = /checklist-|estoque-contagem|descarte-foto/;
 
 function Modulos({ onTestar }) {
   const [ativo, setAtivo] = useState(DETALHES[0].id);
@@ -186,7 +171,7 @@ const FAQ = [
 ];
 
 const ZAP = 'https://wa.me/5522998851680?text=Olá,%20estou%20no%20site%20do%20FireCheck%20e%20gostaria%20de%20tirar%20uma%20dúvida.';
-const ZAP_50 = 'https://wa.me/5522998851680?text=Olá,%20tenho%20mais%20de%2050%20funcionários%20e%20gostaria%20de%20um%20plano%20personalizado%20do%20FireCheck.';
+const ZAP_30 = 'https://wa.me/5522998851680?text=Olá,%20tenho%20mais%20de%2030%20funcionários%20e%20gostaria%20de%20um%20plano%20personalizado%20do%20FireCheck.';
 
 // QR ilustrativo (desenho fixo, não é um código de verdade).
 function QrIlustrativo() {
@@ -402,33 +387,9 @@ export default function LandingPage() {
               <button className="lp-cta" onClick={() => testar('Plano Só Checklists: testar grátis')}>Começar meus 7 dias grátis</button>
               <p className="lp-fine">Sem cartão. Você só paga se continuar.</p>
             </div>
-            <div className="lp-plano sec">
-              <h3>Combo Checklist + Ponto</h3>
-              <div className="pr"><b>R$ {anual ? '167' : '197'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
-              <div className="ex">{anual ? '12x R$ 167 (economiza R$ 360/ano)' : 'Economize R$ 101/mês vs os 2 separados'}</div>
-              <ul>
-                <li>Tudo do Só Checklists</li>
-                <li>Ponto com reconhecimento facial e GPS</li>
-                <li>Até 50 pessoas na equipe</li>
-                <li>Suporte VIP com gerente de conta</li>
-              </ul>
-              <button className="lp-cta" onClick={() => handleTrackAndNavigate(`Assinar Combo ${billingCycle}`, `/checkout?plan=combo_${billingCycle}`)}>Assinar o Combo</button>
-            </div>
-            <div className="lp-plano sec">
-              <h3>Só Ponto</h3>
-              <div className="pr"><b>R$ {anual ? '97' : '149'}</b><span>/mês{anual ? ' no anual' : ''}</span></div>
-              <div className="ex">{anual ? 'Faturado R$ 1.164/ano (economiza R$ 624/ano)' : 'Sem fidelidade'}</div>
-              <ul>
-                <li>Até 30 pessoas na equipe</li>
-                <li>Reconhecimento facial com IA e GPS</li>
-                <li>Alerta de atraso e ausência no WhatsApp</li>
-                <li>Folha de ponto pronta pro contador</li>
-              </ul>
-              <button className="lp-cta" onClick={() => handleTrackAndNavigate(`Assinar Só Ponto ${billingCycle}`, `/checkout?plan=ponto_${billingCycle}`)}>Assinar Só Ponto</button>
-            </div>
           </div>
           <p className="lp-nota" style={{ color: 'var(--lp-mu)' }}>
-            Mais de 50 funcionários? <a style={{ color: 'var(--lp-p)', fontWeight: 700 }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom >50)', ZAP_50)}>Fale com a gente pelo WhatsApp</a>.
+            Mais de 30 funcionários? <a style={{ color: 'var(--lp-p)', fontWeight: 700 }} onClick={() => handleTrackAndNavigate('Falar com consultor (Custom >30)', ZAP_30)}>Fale com a gente pelo WhatsApp</a>.
           </p>
         </div>
       </section>

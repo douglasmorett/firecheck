@@ -1146,7 +1146,7 @@ export default function ChecklistExecution() {
               : `Parabéns, ${EMPLOYEE.name}! O seu checklist foi registrado com sucesso.`
             }
           </p>
-          {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgba(255, 69, 0, 0.2)' }} />}
+          {selfie && <img src={selfie} alt="Selfie de Conclusão" style={{ border: '4px solid var(--primary)', borderRadius: '12px', maxWidth: '300px', marginBottom: '24px', boxShadow: '0 8px 32px rgb(var(--primary-rgb) / 0.2)' }} />}
           
           <div style={{ marginBottom: '24px' }}>
             <button 
@@ -1158,7 +1158,7 @@ export default function ChecklistExecution() {
             </button>
 
             {showSummary && (
-              <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: 'var(--bg-color)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
+              <div className="animate-fade" style={{ textAlign: 'left', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)', maxHeight: '400px', overflowY: 'auto' }}>
                 {tasks.map((task, idx) => (
                   <div key={idx} style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)' }}>
                     <p style={{ fontSize: '0.9rem', marginBottom: '8px', fontWeight: 'bold' }}>{idx + 1}. {task.text}</p>
@@ -1179,7 +1179,7 @@ export default function ChecklistExecution() {
             )}
           </div>
 
-          <div style={{ padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px' }}>
+          <div style={{ padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px' }}>
             <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✅ Tarefas encerradas para este turno.</p>
             {!completedTodayInfo && <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>Retornando em 5 segundos...</p>}
           </div>
@@ -1195,7 +1195,7 @@ export default function ChecklistExecution() {
     <div className="page-container" style={{ maxWidth: '600px' }}>
       {isPreview && (
         <div style={{
-          backgroundColor: '#2563eb',
+          backgroundColor: 'var(--ink)',
           color: 'white',
           padding: '12px 18px',
           borderRadius: '12px',
@@ -1205,7 +1205,7 @@ export default function ChecklistExecution() {
           justify: 'space-between',
           fontWeight: 'bold',
           fontSize: '0.88rem',
-          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.25)',
+          boxShadow: '0 4px 14px rgb(var(--info-rgb) / 0.25)',
           flexWrap: 'wrap',
           gap: '10px'
         }}>
@@ -1217,7 +1217,7 @@ export default function ChecklistExecution() {
             onClick={() => navigate('/admin')}
             style={{
               backgroundColor: '#ffffff',
-              color: '#2563eb',
+              color: 'var(--ink)',
               border: 'none',
               padding: '8px 16px',
               borderRadius: '8px',
@@ -1230,7 +1230,7 @@ export default function ChecklistExecution() {
               boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
             }}
           >
-            <ArrowLeft size={16} color="#2563eb" /> Voltar ao Painel
+            <ArrowLeft size={16} color="var(--ink)" /> Voltar ao Painel
           </button>
         </div>
       )}
@@ -1288,7 +1288,7 @@ export default function ChecklistExecution() {
            <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
               <Flame size={18} color="white" />
            </div>
-           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck Pro</h2>
+           <h2 style={{ fontSize: '1.2rem', margin: 0 }}>FireCheck</h2>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {/* "Tutorial": como preencher um checklist (src/tutoriais/telas.js). */}
@@ -1354,7 +1354,7 @@ export default function ChecklistExecution() {
           return (
             <div key={task.id} id={`tarefa-${task.id}`}>
               {showSectionHeader && (
-                <div style={{ margin: '24px 0 12px 0', padding: '10px 14px', backgroundColor: 'rgba(59, 130, 246, 0.08)', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ margin: '24px 0 12px 0', padding: '10px 14px', backgroundColor: 'rgb(var(--info-rgb) / 0.08)', borderLeft: '3px solid var(--primary)', borderRadius: '0 8px 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '1rem' }}>📁</span>
                   <h4 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 'bold' }}>
                     Seção: {task.section}
@@ -1518,7 +1518,7 @@ export default function ChecklistExecution() {
                           padding: '12px 16px',
                           borderRadius: '8px',
                           border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                          backgroundColor: isSelected ? 'rgba(255, 69, 0, 0.1)' : 'transparent',
+                          backgroundColor: isSelected ? 'rgb(var(--primary-rgb) / 0.1)' : 'transparent',
                           color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                           fontWeight: isSelected ? 'bold' : 'normal',
                           boxShadow: 'none'
@@ -1656,7 +1656,7 @@ export default function ChecklistExecution() {
                       objetivo é que ele refaça a foto agora — com o problema à
                       vista e a câmera a um toque. */}
                   {conferindo[task.id] && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', marginBottom: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', marginBottom: '12px', borderRadius: '8px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                       <span className="animate-pulse">🤖</span> Conferindo a foto...
                     </div>
                   )}
@@ -1733,23 +1733,23 @@ export default function ChecklistExecution() {
                           disabled={isReadOnly}
                         />
                         
-                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
                           <button 
                             className="btn btn-pulse animate-fade" 
-                            style={{ flex: 2, backgroundColor: 'rgba(255, 69, 0, 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '14px', fontSize: '0.95rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease', fontWeight: '600' }} 
+                            style={{ flex: 'none', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', border: '1px solid var(--primary)', color: 'var(--primary)', padding: '14px', fontSize: '0.95rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', borderRadius: '12px', transition: 'all 0.2s ease', fontWeight: '600' }} 
                             onClick={() => startCamera(task.id)}
                             disabled={isReadOnly}
                           >
-                            <Camera size={20} /> Câmera ao Vivo
+                            <Camera size={20} /> Tirar foto
                           </button>
 
                           <button 
                             className="btn-secondary" 
-                            style={{ flex: 1, padding: '14px', fontSize: '0.85rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', borderRadius: '12px' }} 
+                            style={{ flex: 'none', padding: '8px', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', borderRadius: '10px', border: 'none', color: 'var(--text-muted)', textDecoration: 'underline' }} 
                             onClick={() => document.getElementById(`file-input-${task.id}`)?.click()}
                             disabled={isReadOnly}
                           >
-                            <Camera size={16} /> Câmera Nativa
+                            <Camera size={16} /> Se não abrir, use a câmera do celular
                           </button>
                         </div>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>

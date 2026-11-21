@@ -240,8 +240,8 @@ export default function ShoppingExecution() {
 
       <form onSubmit={handleSubmit}>
         {/* Banner Informativo */}
-        <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.08)', border: '1px solid #3b82f6', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px', fontSize: '0.85rem', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Package size={20} color="#3b82f6" style={{ flexShrink: 0 }} />
+        <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.08)', border: '1px solid var(--info)', borderRadius: '12px', padding: '14px 16px', marginBottom: '24px', fontSize: '0.85rem', color: '#1e3a8a', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Package size={20} color="var(--info)" style={{ flexShrink: 0 }} />
           <div>
             <strong>Conferência de Estoque Mínimo</strong>
             <p style={{ margin: '2px 0 0 0', opacity: 0.9 }}>
@@ -278,7 +278,7 @@ export default function ShoppingExecution() {
                     <h3 style={{ margin: '0 0 4px 0', fontSize: '1rem', fontWeight: 'bold' }}>
                       {item.name}
                     </h3>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-color)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-inset)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
                       Categoria: {item.category || 'Geral'}
                     </span>
                   </div>
@@ -378,7 +378,7 @@ export default function ShoppingExecution() {
             justifyContent: 'center',
             gap: '8px',
             cursor: submitting ? 'not-allowed' : 'pointer',
-            boxShadow: '0 4px 12px rgba(255, 69, 0, 0.3)'
+            boxShadow: '0 4px 12px rgb(var(--primary-rgb) / 0.3)'
           }}
         >
           {submitting ? (

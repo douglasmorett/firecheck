@@ -183,7 +183,7 @@ export default function EstoqueSimples({ lista, onFechar, onMudou, simulacao = f
                     value={v}
                     onChange={(e) => { setValores({ ...valores, [it.id]: e.target.value }); setErros(({ [it.id]: _, ...resto }) => resto); }}
                     placeholder={`Quantidade em ${un}`}
-                    style={{ width: '100%', padding: '12px 14px', fontSize: '1.05rem', fontWeight: 'bold', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)' }}
+                    style={{ width: '100%', padding: '12px 14px', fontSize: '1.05rem', fontWeight: 'bold', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)' }}
                   />
                   {depois !== null && !erros[it.id] && (
                     <span style={{ display: 'block', marginTop: '6px', fontSize: '0.8rem', color: depois < 0 ? '#ef4444' : 'var(--text-muted)' }}>
@@ -197,7 +197,7 @@ export default function EstoqueSimples({ lista, onFechar, onMudou, simulacao = f
           </div>
         )}
 
-        <button type="button" onClick={verHistorico} style={{ marginTop: '18px', background: 'none', border: 'none', color: '#0891b2', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}>
+        <button type="button" onClick={verHistorico} style={{ marginTop: '18px', background: 'none', border: 'none', color: 'var(--info)', fontWeight: 'bold', cursor: 'pointer', padding: 0, fontSize: '0.9rem' }}>
           {historico ? 'Esconder o histórico' : 'Ver o que já foi lançado'}
         </button>
         {historico && (
@@ -206,7 +206,7 @@ export default function EstoqueSimples({ lista, onFechar, onMudou, simulacao = f
             {historico.map((m) => {
               const x = TIPOS[m.tipo];
               return (
-                <div key={m.id} style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: 'white', borderLeft: `4px solid ${x ? x.cor : '#3b82f6'}`, fontSize: '0.85rem' }}>
+                <div key={m.id} style={{ padding: '10px 12px', borderRadius: '10px', backgroundColor: 'white', borderLeft: `4px solid ${x ? x.cor : 'var(--info)'}`, fontSize: '0.85rem' }}>
                   <strong>{m.item_nome}</strong> · {x ? `${x.rotulo} ${m.tipo === 'entrada' ? '+' : '−'}` : 'Contagem ='}{numero(m.quantidade)} {m.unidade || 'un'}
                   <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                     {new Date(m.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} · {m.usuario || '—'}{m.observacao ? ` · ${m.observacao}` : ''}

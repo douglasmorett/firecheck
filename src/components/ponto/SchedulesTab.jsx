@@ -298,7 +298,7 @@ export default function SchedulesTab({ schedules, userProfile, onSchedulesChange
               )}
 
               {scheduleForm.type === '12x36' && (
-                <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', padding: '16px', borderRadius: '8px', border: '1px solid rgb(var(--info-rgb) / 0.3)' }}>
                   <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-main)' }}>
                     <strong>ℹ️ Informação sobre 12x36:</strong> Na escala 12x36, os dias de folga são calculados automaticamente para cada funcionário com base no "último dia trabalhado". Você poderá definir isso na ficha individual de cada funcionário.
                   </p>

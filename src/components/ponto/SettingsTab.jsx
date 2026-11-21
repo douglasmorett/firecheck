@@ -66,7 +66,7 @@ export default function SettingsTab({ userProfile }) {
 
        {/* Horários e Tolerância do Ponto */}
        <div className="card" style={{ padding: '24px' }}>
-          <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#3b82f6' }}>
+          <h3 style={{ marginBottom: '16px', fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--info)' }}>
              <Clock size={20} /> Horários Padrão e Tolerância
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '20px' }}>
@@ -95,7 +95,7 @@ export default function SettingsTab({ userProfile }) {
                    <option value={60}>1 hora</option>
                 </select>
              </div>
-             <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+             <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.06)', borderRadius: '10px', padding: '12px 16px', border: '1px solid rgb(var(--info-rgb) / 0.15)' }}>
                 <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-muted)' }}>
                    📲 Se o funcionário bater ponto após <strong>{pontoHoraEntrada}</strong> + <strong>{pontoTolerancia}min</strong>, você receberá uma notificação push.
                 </p>

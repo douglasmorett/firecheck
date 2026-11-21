@@ -612,7 +612,7 @@ export default function PontoPage() {
         border: '1px solid var(--border-color)',
       }}>
         <div style={{
-          backgroundColor: 'rgba(255, 69, 0, 0.1)', padding: '12px',
+          backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '12px',
           borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Smartphone size={22} color="var(--primary)" />
@@ -645,10 +645,10 @@ export default function PontoPage() {
         
         if (isFolga) {
           return (
-            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ backgroundColor: '#3b82f6', borderRadius: '50%', padding: '10px' }}><Calendar size={20} color="#fff" /></div>
+            <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', border: '1px solid rgb(var(--info-rgb) / 0.3)', borderRadius: '14px', padding: '16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ backgroundColor: 'var(--info)', borderRadius: '50%', padding: '10px' }}><Calendar size={20} color="#fff" /></div>
               <div>
-                <h4 style={{ margin: 0, color: '#3b82f6', fontSize: '1rem' }}>📅 Hoje é seu dia de folga</h4>
+                <h4 style={{ margin: 0, color: 'var(--info)', fontSize: '1rem' }}>📅 Hoje é seu dia de folga</h4>
                 <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Escala: {mySchedule.name}</p>
               </div>
             </div>
@@ -739,7 +739,7 @@ export default function PontoPage() {
               marginBottom: '14px',
             }}>
               <div style={{
-                backgroundColor: 'var(--bg-color)', borderRadius: '10px', padding: '12px',
+                backgroundColor: 'var(--bg-inset)', borderRadius: '10px', padding: '12px',
               }}>
                 <p style={{ margin: '0 0 2px 0', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                   <MapPin size={10} style={{ verticalAlign: 'middle' }} /> Coordenadas
@@ -749,7 +749,7 @@ export default function PontoPage() {
                 </p>
               </div>
               <div style={{
-                backgroundColor: 'var(--bg-color)', borderRadius: '10px', padding: '12px',
+                backgroundColor: 'var(--bg-inset)', borderRadius: '10px', padding: '12px',
               }}>
                 <p style={{ margin: '0 0 2px 0', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                   Precisão
@@ -772,7 +772,7 @@ export default function PontoPage() {
 
             {/* Endereço */}
             <div style={{
-              backgroundColor: 'var(--bg-color)', borderRadius: '10px', padding: '12px',
+              backgroundColor: 'var(--bg-inset)', borderRadius: '10px', padding: '12px',
               display: 'flex', alignItems: 'flex-start', gap: '8px',
             }}>
               <MapPin size={14} color="var(--primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
@@ -905,7 +905,7 @@ export default function PontoPage() {
                   backgroundColor: 'var(--primary)', color: '#fff', border: 'none',
                   borderRadius: '50%', width: '60px', height: '60px', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 4px 15px rgba(255, 77, 0, 0.3)',
+                  boxShadow: '0 4px 15px rgb(var(--primary-rgb) / 0.3)',
                   transition: 'transform 0.2s',
                 }}
                 onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.9)'}
@@ -931,7 +931,7 @@ export default function PontoPage() {
           <div style={{ textAlign: 'center', padding: '20px 0' }}>
             <div style={{
               width: '80px', height: '80px', borderRadius: '50%',
-              backgroundColor: 'var(--bg-color)', margin: '0 auto 14px',
+              backgroundColor: 'var(--bg-inset)', margin: '0 auto 14px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '2px dashed var(--border-color)',
             }}>
@@ -943,7 +943,7 @@ export default function PontoPage() {
             <button
               onClick={startCamera}
               style={{
-                backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)',
+                backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)',
                 border: '1px solid var(--primary)', borderRadius: '10px',
                 padding: '10px 24px', cursor: 'pointer', fontSize: '0.9rem',
                 fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '8px',
@@ -1082,7 +1082,7 @@ export default function PontoPage() {
           </div>
         ) : todayRecords.length === 0 ? (
           <div style={{
-            textAlign: 'center', padding: '30px', backgroundColor: 'var(--bg-color)',
+            textAlign: 'center', padding: '30px', backgroundColor: 'var(--bg-inset)',
             borderRadius: '10px', border: '1px dashed var(--border-color)',
           }}>
             <Clock size={28} color="var(--text-muted)" style={{ marginBottom: '8px' }} />
@@ -1097,7 +1097,7 @@ export default function PontoPage() {
                 key={record.id || index}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '14px', backgroundColor: 'var(--bg-color)',
+                  padding: '14px', backgroundColor: 'var(--bg-inset)',
                   borderRadius: '10px',
                   borderLeft: `4px solid ${record.type === 'entrada' ? 'var(--success)' : 'var(--error)'}`,
                 }}

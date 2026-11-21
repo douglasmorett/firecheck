@@ -15,7 +15,7 @@ function produtoDoTexto(texto) {
   return limpo.startsWith('FC') ? PRODUTO_DO_PREFIXO[limpo.slice(2, 5)] || null : null;
 }
 
-const FUNDO = { 'var(--success)': 'rgba(16, 185, 129, 0.1)', 'var(--error)': 'rgba(239, 68, 68, 0.1)', 'var(--primary)': 'rgba(255, 77, 0, 0.08)' };
+const FUNDO = { 'var(--success)': 'rgba(16, 185, 129, 0.1)', 'var(--error)': 'rgba(239, 68, 68, 0.1)', 'var(--primary)': 'rgb(var(--primary-rgb) / 0.08)' };
 const caixa = (cor) => ({ backgroundColor: FUNDO[cor], color: cor === 'var(--primary)' ? 'var(--text-main)' : cor, border: `1px solid ${cor}`, padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.88rem', lineHeight: 1.5 });
 
 export default function AtivarCodigo() {

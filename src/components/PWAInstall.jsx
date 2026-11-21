@@ -57,8 +57,8 @@ export default function PWAInstall() {
   if (loja) {
     return (
       <a href={LOJAS[loja].url} target="_blank" rel="noopener noreferrer"
-        style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'rgba(255, 77, 0, 0.08)', color: 'var(--text-main)', border: '1px solid rgba(255, 77, 0, 0.25)', padding: '14px 18px', borderRadius: '12px', marginBottom: '24px', width: '100%', textDecoration: 'none' }}>
-        <Download size={20} color="#ff4d00" />
+        style={{ display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border-color)', padding: '14px 18px', borderRadius: '12px', marginBottom: '24px', width: '100%', textDecoration: 'none' }}>
+        <Download size={20} color="var(--primary)" />
         <span style={{ flex: 1 }}>
           <span style={{ display: 'block', fontWeight: '700', fontSize: '0.95rem' }}>Baixar o app FireCheck</span>
           <span style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)' }}>Grátis na {LOJAS[loja].nome}</span>
@@ -80,9 +80,9 @@ export default function PWAInstall() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '12px',
-          backgroundColor: 'rgba(255, 77, 0, 0.08)',
+          backgroundColor: 'var(--bg-card)',
           color: 'var(--text-main)',
-          border: '1px solid rgba(255, 77, 0, 0.25)',
+          border: '1px solid var(--border-color)',
           padding: '14px 18px',
           borderRadius: '12px',
           marginBottom: '24px',
@@ -94,7 +94,7 @@ export default function PWAInstall() {
           style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1 }}
           onClick={handleInstall}
         >
-          <Download size={20} color="#ff4d00" />
+          <Download size={20} color="var(--primary)" />
           <div>
             <div style={{ fontWeight: '700', fontSize: '0.95rem' }}>Instalar WebApp no celular</div>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Acesso rápido direto da tela inicial</div>

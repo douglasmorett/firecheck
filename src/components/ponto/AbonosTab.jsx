@@ -71,7 +71,7 @@ export default function AbonosTab({ employees, onAlterado }) {
               <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', border: '1px solid var(--border-color)', borderRadius: '12px', backgroundColor: 'var(--bg-main)' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 10px', borderRadius: '20px', backgroundColor: item.tipo === 'feriado' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(59, 130, 246, 0.12)', color: item.tipo === 'feriado' ? '#8B5CF6' : '#3B82F6' }}>{item.rotulo}</span>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 'bold', padding: '2px 10px', borderRadius: '20px', backgroundColor: item.tipo === 'feriado' ? 'rgba(139, 92, 246, 0.12)' : 'rgb(var(--info-rgb) / 0.12)', color: item.tipo === 'feriado' ? '#8B5CF6' : '#3B82F6' }}>{item.rotulo}</span>
                     <strong>{item.user_name || 'Toda a equipe'}</strong>
                   </div>
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>

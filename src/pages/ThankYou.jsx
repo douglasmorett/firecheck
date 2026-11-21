@@ -22,24 +22,24 @@ export default function ThankYou() {
       fontFamily: "'Inter', sans-serif"
     }}>
       {/* Background gradients */}
-      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(255, 77, 0, 0.15) 0%, transparent 75%)', pointerEvents: 'none' }}></div>
-      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 75%)', pointerEvents: 'none' }}></div>
+      <div style={{ position: 'absolute', top: '-10%', left: '-10%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgb(var(--primary-rgb) / 0.15) 0%, transparent 75%)', pointerEvents: 'none' }}></div>
+      <div style={{ position: 'absolute', bottom: '-10%', right: '-10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgb(var(--info-rgb) / 0.15) 0%, transparent 75%)', pointerEvents: 'none' }}></div>
 
       <div style={{ maxWidth: '540px', width: '100%', textAlign: 'center', position: 'relative', zIndex: 10 }}>
         {/* Logo/Icon */}
         <div style={{ 
           display: 'inline-flex', 
-          backgroundColor: '#ff4d00', 
+          backgroundColor: 'var(--primary)', 
           padding: '16px', 
           borderRadius: '50%', 
-          boxShadow: '0 0 30px rgba(255, 77, 0, 0.4)', 
+          boxShadow: '0 0 30px rgb(var(--primary-rgb) / 0.4)', 
           marginBottom: '28px',
           animation: 'pulseGlow 2s infinite alternate'
         }}>
           <Flame size={40} color="white" />
         </div>
 
-        <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-1px', background: 'linear-gradient(90deg, #ff4d00, #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        <h1 style={{ fontSize: isMobile ? '1.8rem' : '2.5rem', fontWeight: '900', marginBottom: '12px', letterSpacing: '-1px', background: 'linear-gradient(90deg, var(--primary), #ffb300)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
           Assinatura Confirmada! 🎉
         </h1>
         
@@ -65,8 +65,8 @@ export default function ThankYou() {
             {/* Login */}
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
               <div style={{ 
-                backgroundColor: 'rgba(255, 77, 0, 0.1)', 
-                color: '#ff4d00', 
+                backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', 
+                color: 'var(--primary)', 
                 padding: '10px', 
                 borderRadius: '12px',
                 marginTop: '2px'
@@ -84,8 +84,8 @@ export default function ThankYou() {
             {/* Password */}
             <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
               <div style={{ 
-                backgroundColor: 'rgba(6, 182, 212, 0.1)', 
-                color: '#06b6d4', 
+                backgroundColor: 'rgb(var(--info-rgb) / 0.1)', 
+                color: 'var(--info)', 
                 padding: '10px', 
                 borderRadius: '12px',
                 marginTop: '2px'
@@ -117,7 +117,7 @@ export default function ThankYou() {
             width: '100%', 
             padding: '16px', 
             borderRadius: '14px', 
-            backgroundColor: '#ff4d00', 
+            backgroundColor: 'var(--primary)', 
             color: 'white', 
             border: 'none', 
             fontSize: '1.1rem', 
@@ -127,7 +127,7 @@ export default function ThankYou() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            boxShadow: '0 4px 20px rgba(255, 77, 0, 0.3)',
+            boxShadow: '0 4px 20px rgb(var(--primary-rgb) / 0.3)',
             transition: 'all 0.3s ease',
             marginBottom: '20px'
           }}
@@ -160,8 +160,8 @@ export default function ThankYou() {
 
       <style>{`
         @keyframes pulseGlow {
-          0% { box-shadow: 0 0 20px rgba(255, 77, 0, 0.3); }
-          100% { box-shadow: 0 0 35px rgba(255, 77, 0, 0.6); }
+          0% { box-shadow: 0 0 20px rgb(var(--primary-rgb) / 0.3); }
+          100% { box-shadow: 0 0 35px rgb(var(--primary-rgb) / 0.6); }
         }
       `}</style>
     </div>

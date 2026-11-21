@@ -20,11 +20,11 @@ export default function RenewPlan() {
     {
       id: 'checklists',
       name: 'Só Checklists',
-      icon: <Flame size={28} color="#ff4500" />,
+      icon: <Flame size={28} color="var(--primary)" />,
       price: billingCycle === 'anual' ? 'R$ 97' : 'R$ 149',
       cycle: '/mês',
       note: billingCycle === 'anual' ? 'Faturado R$ 1.164/ano (Economiza R$ 624)' : 'Cobrado mensalmente',
-      color: '#ff4500',
+      color: 'var(--primary)',
       highlight: false,
       features: ['Checklists ILIMITADOS', 'Até 30 colaboradores cadastrados', 'Auditoria visual por IA', 'Alertas de irregularidade no WhatsApp', 'Bloqueio de fotos falsas', 'Relatórios PDF e Excel'],
       caktoLink: billingCycle === 'anual' ? 'https://pay.cakto.com.br/e7c88df' : 'https://pay.cakto.com.br/3eph5ko_856837',
@@ -32,7 +32,7 @@ export default function RenewPlan() {
     {
       id: 'combo',
       name: 'Combo Tudo em 1',
-      icon: <Zap size={28} color="#ff4500" />,
+      icon: <Zap size={28} color="var(--primary)" />,
       price: billingCycle === 'anual' ? 'R$ 167' : 'R$ 197',
       cycle: '/mês',
       note: billingCycle === 'anual' ? '12x R$ 167 (Economiza R$ 360/ano)' : 'Economize R$ 101/mês vs 2 separados',
@@ -45,11 +45,11 @@ export default function RenewPlan() {
     {
       id: 'ponto',
       name: 'Só Ponto IA',
-      icon: <Building2 size={28} color="#3b82f6" />,
+      icon: <Building2 size={28} color="var(--info)" />,
       price: billingCycle === 'anual' ? 'R$ 97' : 'R$ 149',
       cycle: '/mês',
       note: billingCycle === 'anual' ? 'Faturado R$ 1.164/ano (Economiza R$ 624)' : 'Cobrado mensalmente',
-      color: '#3b82f6',
+      color: 'var(--info)',
       highlight: false,
       features: ['Reconhecimento Facial com IA', 'Até 30 colaboradores cadastrados', 'Trava de Geolocalização (GPS)', 'Alerta de atraso no WhatsApp', 'Relatório diário de espelho de ponto', 'Folha de ponto pronta pro contador'],
       caktoLink: billingCycle === 'anual' ? 'https://pay.cakto.com.br/o2xichf' : 'https://pay.cakto.com.br/kfx3fri_869702',
@@ -85,7 +85,7 @@ export default function RenewPlan() {
     <div
       style={{
         minHeight: '100vh',
-        backgroundColor: 'var(--bg-color)',
+        backgroundColor: 'var(--bg-inset)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -105,7 +105,7 @@ export default function RenewPlan() {
         <div style={{ textAlign: 'center' }}>
           <div
             style={{
-              backgroundColor: 'rgba(255, 77, 0, 0.1)',
+              backgroundColor: 'rgb(var(--primary-rgb) / 0.1)',
               border: '1px solid var(--primary)',
               borderRadius: '12px',
               padding: '12px 20px',
@@ -205,7 +205,7 @@ export default function RenewPlan() {
               display: 'flex',
               flexDirection: 'column',
               backgroundColor: 'var(--bg-card)',
-              boxShadow: plan.highlight ? '0 12px 30px rgba(255, 69, 0, 0.15)' : 'none',
+              boxShadow: plan.highlight ? '0 12px 30px rgb(var(--primary-rgb) / 0.15)' : 'none',
             }}
           >
             {plan.badge && (

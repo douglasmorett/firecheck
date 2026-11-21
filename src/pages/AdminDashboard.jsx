@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import PrimeirosPassos from '../components/PrimeirosPassos';
 import { Plus, ClipboardList, ShieldAlert, Users, Activity, Trophy, TrendingUp, Clock, CheckCircle, AlertCircle, Bell, Flame, Edit2, Trash2, CalendarClock, UserPlus, Mail, Lock, LogOut, Smartphone, X, Camera, Video, Monitor, Info, Save, ArrowRight, ShieldCheck, Calendar, Target, FileDown, LifeBuoy, Menu, UserCheck, Bot, Car, ShoppingCart, Package, Mic, Send, Sparkles, Settings, Eye, ArrowDownAZ, Play, PlayCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
@@ -185,7 +186,7 @@ function TelaDoFuncionario({ perms, onChange }) {
   const atual = telaDoFuncionario(perms);
   return (
     <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(8, 145, 178, 0.05)', border: '1px solid rgba(8, 145, 178, 0.2)', borderRadius: '12px' }}>
-      <label className="input-label" style={{ display: 'block', color: '#0891b2', marginBottom: '4px', fontWeight: 'bold' }}>
+      <label className="input-label" style={{ display: 'block', color: 'var(--info)', marginBottom: '4px', fontWeight: 'bold' }}>
         👀 O que aparece na tela deste funcionário
       </label>
       <p style={{ margin: '0 0 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -220,9 +221,9 @@ const TAB_PERMISSION_MAP = {
 // ── Helpers ─────────────────────────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const map = {
-    aprovado:  { label: '✅ Aprovado pela IA',   bg: 'rgba(0,200,83,0.15)',   color: 'var(--success)' },
+    aprovado:  { label: 'Aprovado pela IA',   bg: 'rgba(0,200,83,0.15)',   color: 'var(--success)' },
     reprovado: { label: '❌ Reprovado pela IA',  bg: 'rgba(255,23,68,0.15)',  color: 'var(--error)'   },
-    pendente:  { label: '⏳ Aguardando',         bg: 'rgba(255,160,0,0.15)', color: '#FFA000'         },
+    pendente:  { label: 'Aguardando',         bg: 'rgba(255,160,0,0.15)', color: '#FFA000'         },
     // Checklist sem nenhuma foto: a IA não tem o que analisar. É operação normal,
     // não falha — por isso um rótulo neutro, e não um alerta.
     ignorado:  { label: '📋 Sem fotos para auditar', bg: 'rgba(120,130,145,0.15)', color: 'var(--text-muted)' },
@@ -729,6 +730,10 @@ export default function AdminDashboard() {
   const [testeWhats, setTesteWhats] = useState(null);
   // { conectado, motivo } — nulo enquanto não se sabe.
   const [whatsForaDoAr, setWhatsForaDoAr] = useState(null);
+  // Primeiros passos: só desenha depois que WhatsApp, checklists e equipe chegaram (senão pisca).
+  const [whatsChecado, setWhatsChecado] = useState(false);
+  const [dadosCarregados, setDadosCarregados] = useState(false);
+  const [passosOcultos, setPassosOcultos] = useState(() => { try { return localStorage.getItem('firecheck_primeiros_passos_oculto') === '1'; } catch { return false; } });
   const [testandoWhats, setTestandoWhats] = useState(false);
   const [ocorrencias, setOcorrencias] = useState([]);
   const [rankingPeriod, setRankingPeriod] = useState('mes');
@@ -1814,6 +1819,7 @@ export default function AdminDashboard() {
         const userData = await userRes.json();
         const teamArray = Array.isArray(userData) ? userData : [];
         setTeam(teamArray);
+        setDadosCarregados(true);
         
         setKnownUserIds(prev => {
           if (prev === null) {
@@ -2294,7 +2300,7 @@ export default function AdminDashboard() {
         const res = await fetch(`${API_URL}/api/whatsapp/estado`, { headers: getAuthHeaders() });
         if (!res.ok) return;
         const data = await res.json();
-        if (vivo) setWhatsForaDoAr(data && data.conectado === false && data.lojaSemWhatsapp ? data : null);
+        if (vivo) { setWhatsForaDoAr(data && data.conectado === false && data.lojaSemWhatsapp ? data : null); setWhatsChecado(true); }
       } catch { /* sem resposta, sem faixa */ }
     })();
     return () => { vivo = false; };
@@ -2597,6 +2603,16 @@ export default function AdminDashboard() {
     );
   }
 
+  const TITULO_DA_ABA = { ponto: 'Controle de Ponto', notificacoes: 'Notificações', ranking: 'Ranking da equipe', alertas: 'Alertas da IA', checklists: 'Checklists', vehicles: 'Frota e Veículos', compras: 'Compras e Estoque', bill: 'Assistente Bill', equipe: 'Equipe', perfil: 'Perfil da Empresa' };
+
+  // "Primeiros passos" (só o dono, até a loja terminar de configurar ou ele esconder).
+  const passosDoDono = [
+    { feito: whatsChecado && !whatsForaDoAr, titulo: 'Conectar o WhatsApp da empresa', texto: 'Para o aviso de checklist reprovado ou atrasado chegar no seu celular.', acao: 'Conectar', onClick: () => setTab('notificacoes') },
+    { feito: checklists.length > 0, titulo: 'Criar o primeiro checklist', texto: 'Fale a rotina e a IA monta as tarefas, com foto obrigatória e horário.', acao: 'Criar checklist', onClick: () => navigate('/admin/creator') },
+    { feito: team.length > 1, titulo: 'Cadastrar a equipe', texto: 'Quem vai fazer os checklists pelo celular.', acao: 'Cadastrar equipe', onClick: () => setTab('equipe') },
+  ];
+  const mostrarPassos = userProfile?.role === 'admin' && !isMaster && !passosOcultos && whatsChecado && dadosCarregados && passosDoDono.some((p) => !p.feito);
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)', width: '100vw', overflowX: 'hidden' }}>
 
@@ -2614,20 +2630,20 @@ export default function AdminDashboard() {
       {/* SIDEBAR LATERAL */}
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`} style={{ 
         width: isSidebarCollapsed ? '80px' : '260px', 
-        backgroundColor: 'var(--bg-color)', 
-        borderRight: '1px solid rgba(255,255,255,0.1)', 
+        backgroundColor: 'var(--sidebar-bg)', 
+        borderRight: 'none', 
         display: 'flex', 
         flexDirection: 'column', 
         position: 'sticky', 
         top: 0, 
         height: '100vh', 
         overflowY: 'auto',
-        color: 'var(--text-main)',
+        color: 'var(--sidebar-strong)',
         zIndex: 50,
         transition: 'width 0.3s ease'
       }}>
         {/* LOGO E BOTAO RECOLHER */}
-        <div style={{ padding: isSidebarCollapsed ? '16px 0 12px 0' : '16px 20px 12px 20px', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ padding: isSidebarCollapsed ? '16px 0 12px 0' : '16px 20px 12px 20px', borderBottom: '1px solid var(--sidebar-line)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: isSidebarCollapsed ? 'center' : 'flex-start', gap: '10px', marginBottom: '10px' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '6px', borderRadius: '6px' }}>
               <Flame size={20} color="white" />
@@ -2637,12 +2653,12 @@ export default function AdminDashboard() {
           
           {/* Botão Explícito para Ocultar Menu */}
           <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} style={{ 
-            width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', 
-            borderRadius: '6px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem', 
+            width: '100%', padding: '8px', background: 'var(--sidebar-hover)', border: '1px solid var(--sidebar-line)', 
+            borderRadius: '6px', color: 'var(--sidebar-text)', cursor: 'pointer', fontSize: '0.8rem', 
             display: 'flex', justifyContent: 'center', alignItems: 'center', transition: 'all 0.2s', gap: '6px'
           }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-card)'}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.13)'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'}
           >
             {isSidebarCollapsed ? <ArrowRight size={16} /> : "Ocultar Menu"}
           </button>
@@ -2665,7 +2681,7 @@ export default function AdminDashboard() {
             { key: 'checklists',  label: 'Checklists', icon: <ClipboardList size={18}/> },
             { key: 'vehicles',    label: 'Frota e Veículos', icon: <Car size={18}/> },
             { key: 'compras',     label: 'Compras e Estoque', icon: <ShoppingCart size={18}/> },
-            { key: 'bill',        label: 'Conectar com Bill', icon: <Bot size={18}/> },
+            { key: 'bill',        label: 'Assistente Bill', icon: <Bot size={18}/> },
             { key: 'equipe',      label: 'Equipe', icon: <Users size={18}/> },
             { key: 'perfil',      label: 'Perfil da Empresa', icon: <Settings size={18}/> },
           ].filter(Boolean)).map(t => {
@@ -2684,40 +2700,17 @@ export default function AdminDashboard() {
                   borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '0.95rem', 
                   transition: 'all 0.2s', textAlign: 'left',
                   backgroundColor: isActive ? 'var(--primary)' : 'transparent',
-                  color: isActive ? 'white' : 'var(--text-muted)',
+                  color: isActive ? 'white' : 'var(--sidebar-text)',
                   borderLeft: isActive ? '4px solid var(--primary)' : '4px solid transparent'
                 }}
-                onMouseOver={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'var(--bg-card-hover)')}
+                onMouseOver={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)')}
                 onMouseOut={(e) => !isActive && (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                <span style={{ color: isActive ? 'white' : 'var(--text-muted)' }}>{t.icon}</span>
+                <span style={{ color: isActive ? 'white' : 'var(--sidebar-text)' }}>{t.icon}</span>
                 {!isSidebarCollapsed && t.label}
               </button>
             );
           })}
-
-          {/* Botão para Acessar a Tela de Execução (Modo Operacional / Fazer Checklists) */}
-          <button 
-            onClick={() => {
-              navigate('/funcionario');
-              setIsSidebarOpen(false);
-            }} 
-            title="Ir para a Tela de Execução (Fazer Checklists com a Equipe)"
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
-              justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
-              borderRadius: '8px', border: '1px solid rgba(37, 99, 235, 0.4)', cursor: 'pointer', fontWeight: '700', fontSize: '0.9rem', 
-              transition: 'all 0.2s', textAlign: 'left',
-              backgroundColor: 'rgba(37, 99, 235, 0.12)',
-              color: '#3b82f6',
-              marginTop: '10px'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.22)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(37, 99, 235, 0.12)'}
-          >
-            <span><Play size={18} fill="#3b82f6" color="#3b82f6" /></span>
-            {!isSidebarCollapsed && '📋 Tela de Execução'}
-          </button>
 
           {/* Tutoriais em vídeo (igual ao FireHub): abre a central com todos os vídeos.
               Só aparece quando há vídeo publicado para quem está logado. */}
@@ -2735,32 +2728,32 @@ export default function AdminDashboard() {
             style={{ 
               display: 'flex', alignItems: 'center', gap: '12px', padding: isSidebarCollapsed ? '12px 0' : '12px 16px', 
               justifyContent: isSidebarCollapsed ? 'center' : 'flex-start',
-              borderRadius: '8px', border: '1px solid rgba(255, 77, 0, 0.4)', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', 
+              borderRadius: '8px', border: '1px solid var(--sidebar-line)', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', 
               transition: 'all 0.2s', textAlign: 'left',
-              backgroundColor: 'rgba(255, 77, 0, 0.1)',
-              color: 'var(--primary)',
+              backgroundColor: 'transparent',
+              color: 'var(--sidebar-text)',
               marginTop: '8px'
             }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.2)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'rgba(255, 77, 0, 0.1)'}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'var(--sidebar-hover)'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <span><Sparkles size={18} color="var(--primary)" /></span>
-            {!isSidebarCollapsed && '🎓 Tour do Sistema'}
+            <span><Sparkles size={18} color="currentColor" /></span>
+            {!isSidebarCollapsed && 'Tour do Sistema'}
           </button>
         </div>
 
         {/* FOOTER DA SIDEBAR */}
-        <div style={{ padding: isSidebarCollapsed ? '20px 0' : '20px', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card-hover)' }}>
+        <div style={{ padding: isSidebarCollapsed ? '20px 0' : '20px', borderTop: '1px solid var(--sidebar-line)', backgroundColor: 'rgba(0,0,0,0.22)' }}>
            {!isSidebarCollapsed && (
-             <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginBottom: '12px' }}>
-                👤 {userProfile?.name}<br/>
-                🏬 {userProfile?.store_name || userProfile?.store || 'Sistema Central'}
+             <p style={{ color: 'var(--sidebar-text)', fontSize: '0.8rem', marginBottom: '12px' }}>
+                <strong style={{ color: 'var(--sidebar-strong)' }}>{userProfile?.name}</strong><br/>
+                {userProfile?.store_name || userProfile?.store || 'Sistema Central'}
              </p>
            )}
            <button onClick={handleLogout} title="Sair do Sistema" style={{ 
                background: 'transparent', 
                border: 'none', 
-               color: '#ef4444', 
+               color: '#f87171', 
                cursor: 'pointer', 
                fontSize: '0.9rem', 
                fontWeight: '600',
@@ -2785,10 +2778,11 @@ export default function AdminDashboard() {
 
         {/* Loja sem o WhatsApp dela: o convite para conectar (na própria aba
             Notificações o cartão do WhatsApp da loja já diz isso). */}
-        {whatsForaDoAr?.lojaSemWhatsapp && tab !== 'notificacoes' && (
+        {whatsForaDoAr?.lojaSemWhatsapp && tab !== 'notificacoes' && !(tab === 'auditoria' && mostrarPassos) && (
           <div style={{
-            backgroundColor: 'rgba(37, 211, 102, 0.08)',
-            border: '1px solid #25D366',
+            backgroundColor: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-card)',
             borderRadius: '12px',
             padding: '16px 20px',
             marginBottom: '24px',
@@ -2812,7 +2806,7 @@ export default function AdminDashboard() {
                   onClick={() => setTab('notificacoes')}
                   style={{
                     marginTop: '10px', padding: '8px 16px', borderRadius: '8px', border: 'none',
-                    backgroundColor: '#25D366', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
+                    backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 'bold', fontSize: '0.85rem',
                     cursor: 'pointer', display: 'block',
                   }}
                 >
@@ -2868,7 +2862,7 @@ export default function AdminDashboard() {
         )}
         
         {/* BANNER WEBAPP + WHATSAPP */}
-        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && tab === 'auditoria' && !whatsForaDoAr?.lojaSemWhatsapp && (
+        {userProfile?.role === 'admin' && !Capacitor.isNativePlatform() && !bannerWebAppDismissed && tab === 'auditoria' && !whatsForaDoAr?.lojaSemWhatsapp && !mostrarPassos && (
           <div style={{
             backgroundColor: 'var(--bg-card)',
             border: '1px solid var(--border-color)',
@@ -2894,7 +2888,7 @@ export default function AdminDashboard() {
                 <Smartphone size={24} color="#fff" />
               </div>
               <div>
-                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: '#25D366' }}>Instale o WebApp &amp; Configure o Robô do WhatsApp</h3>
+                <h3 style={{ margin: '0 0 4px 0', fontSize: '1.05rem', color: 'var(--text-main)' }}>Instale o WebApp &amp; Configure o Robô do WhatsApp</h3>
                 <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>Conecte o WhatsApp da empresa, cadastre os números e ative as notificações automáticas na aba "Notificações". Para instalar na tela inicial, clique no menu do navegador (⋮ ou compartilhar) e selecione <strong>"Adicionar à Tela Inicial"</strong>.</p>
               </div>
             </div>
@@ -2905,7 +2899,7 @@ export default function AdminDashboard() {
                 onClick={() => setTab('notificacoes')}
                 style={{
                   padding: '10px 18px', borderRadius: '8px', border: 'none', marginRight: '24px',
-                  backgroundColor: '#25D366', color: '#fff', fontWeight: 'bold', fontSize: '0.9rem',
+                  backgroundColor: 'var(--primary)', color: '#fff', fontWeight: 'bold', fontSize: '0.9rem',
                   cursor: 'pointer', whiteSpace: 'nowrap',
                 }}
               >
@@ -2916,13 +2910,13 @@ export default function AdminDashboard() {
         )}
 
         {/* HEADER SUPERIOR */}
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px', flexWrap: 'wrap', gap: '20px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: tab === 'auditoria' ? '32px' : '20px', flexWrap: 'wrap', gap: tab === 'auditoria' ? '20px' : '10px', backgroundColor: 'var(--bg-card)', padding: '20px 24px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'space-between', flex: 1, minWidth: '100%', flexWrap: 'wrap' }}>
             <div>
               <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
-                {isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário'}
+                {tab !== 'auditoria' && TITULO_DA_ABA[tab] ? TITULO_DA_ABA[tab] : isMaster ? 'Painel de Gestão Master' : isAdmin ? 'Painel do Dono' : isGestor ? 'Painel do Gestor' : 'Painel do Funcionário'}
               </h1>
-              <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>
+              {(tab === 'auditoria' || !TITULO_DA_ABA[tab]) && <p style={{ margin: '4px 0 0 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Seja bem-vindo(a), {userProfile?.name}</p>}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -2932,7 +2926,7 @@ export default function AdminDashboard() {
                 onClick={() => navigate('/funcionario')}
                 className="btn animate-scale"
                 style={{
-                  backgroundColor: '#2563eb',
+                  backgroundColor: 'var(--ink)',
                   color: '#ffffff',
                   padding: '10px 18px',
                   borderRadius: '12px',
@@ -2941,7 +2935,7 @@ export default function AdminDashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px',
-                  boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                  boxShadow: '0 4px 14px rgb(var(--info-rgb) / 0.35)',
                   border: 'none',
                   cursor: 'pointer'
                 }}
@@ -2960,10 +2954,10 @@ export default function AdminDashboard() {
           
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
             {/* Indicador de Saúde da IA */}
-            {aiHealth !== null && (
+            {aiHealth !== null && (tab === 'auditoria' || !aiHealth) && (
               <div style={{ padding: '6px 12px', backgroundColor: aiHealth ? 'rgba(0, 200, 83, 0.1)' : 'rgba(255, 23, 68, 0.15)', color: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <div style={{ width: '8px', height: '8px', backgroundColor: aiHealth ? 'var(--success)' : 'var(--error)', borderRadius: '50%', boxShadow: aiHealth ? '0 0 8px var(--success)' : '0 0 8px var(--error)', animation: 'pulse 2s infinite' }}></div>
-                🤖 IA {aiHealth ? 'Online' : 'Offline'}
+                IA {aiHealth ? 'Online' : 'Offline'}
               </div>
             )}
             {isMaster && (
@@ -2972,11 +2966,11 @@ export default function AdminDashboard() {
                    <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--success)', borderRadius: '50%', boxShadow: '0 0 8px var(--success)', animation: 'pulse 2s infinite' }}></div>
                    {liveVisitors} pessoas online
                  </div>
-                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <div style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                    <Users size={12} /> {todayVisitors} acessos
                    <span style={{ fontSize: '0.75rem', opacity: 0.7, marginLeft: '4px' }}>({todayMobile} 📱 / {todayDesktop} 💻)</span>
                  </div>
-                 <div style={{ padding: '6px 12px', backgroundColor: 'rgba(255, 77, 0, 0.1)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                 <div style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
                    <Video size={12} /> {videoPlays} plays no vídeo
                  </div>
                </div>
@@ -2984,7 +2978,7 @@ export default function AdminDashboard() {
             
             {/* Filtro de Data: só nas abas que usam o período (nas outras era ruído). */}
             {!['notificacoes', 'equipe', 'perfil', 'bill', 'compras', 'vehicles'].includes(tab) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--bg-color)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '6px', backgroundColor: 'var(--bg-inset)', padding: '6px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', width: '100%', maxWidth: '300px' }}>
               <CalendarClock size={16} color="var(--primary)" />
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
                 <input type="date" value={dateFilter.start} onChange={(e) => setDateFilter({...dateFilter, start: e.target.value})} style={{ background: 'none', border: 'none', color: 'var(--text-main)', fontSize: '0.75rem', outline: 'none', width: '95px' }} />
@@ -3010,6 +3004,13 @@ export default function AdminDashboard() {
           "Não mostrar mais nesta tela" (por aba, neste aparelho). */}
       {!isMaster && <BotaoTutorial key={`faixa-${tab}`} tela={`admin:${tab}`} usuario={userProfile} variante="faixa" />}
 
+      {tab === 'auditoria' && mostrarPassos && (
+        <PrimeirosPassos
+          passos={passosDoDono}
+          onDispensar={() => { setPassosOcultos(true); try { localStorage.setItem('firecheck_primeiros_passos_oculto', '1'); } catch { /* sem armazenamento: some só nesta visita */ } }}
+        />
+      )}
+
       {/* Cards de KPIs (Visível apenas nos Dashboards Iniciais) */}
       {tab === 'auditoria' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '32px' }}>
@@ -3020,47 +3021,47 @@ export default function AdminDashboard() {
           </>
          ) : (
           <>
-            <div className="card" style={{ borderTop: '3px solid var(--primary)', padding: '20px' }}>
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Checklists Hoje</p>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.checklistsHoje}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>✅ {stats.concluidos} concluídos</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>{stats.concluidos} concluídos</span>
                 </div>
-                <ClipboardList color="var(--primary)" size={28} />
+                <ClipboardList color="var(--text-muted)" size={26} />
               </div>
             </div>
 
-            <div className="card" style={{ borderTop: '3px solid #3b82f6', padding: '20px' }}>
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Conformidade Geral</p>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.conformidade}%</h2>
-                  <BarPct pct={stats.conformidade} color="#3b82f6" />
+                  <BarPct pct={stats.conformidade} color="var(--ink)" />
                 </div>
-                <TrendingUp color="#3b82f6" size={28} />
+                <TrendingUp color="var(--text-muted)" size={26} />
               </div>
             </div>
 
-            <div className="card" style={{ borderTop: '3px solid var(--error)', padding: '20px' }}>
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Alertas IA (Falhas)</p>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.alertasIA}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>⚠️ {stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--error)' }}>{stats.alertasIA > 0 ? 'Ação necessária' : 'Nenhum alerta'}</span>
                 </div>
-                <ShieldAlert color="var(--error)" size={28} />
+                <ShieldAlert color="var(--error)" size={26} />
               </div>
             </div>
 
-            <div className="card" style={{ borderTop: '3px solid var(--success)', padding: '20px' }}>
+            <div className="card" style={{ padding: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Colaboradores</p>
                   <h2 style={{ fontSize: '1.8rem', fontWeight: '800', margin: '8px 0', lineHeight: 1 }}>{stats.colaboradores}</h2>
-                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>🏬 {userProfile?.store_name || userProfile?.store || 'Filial Centro'}</span>
+                  <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{userProfile?.store_name || userProfile?.store || 'Filial Centro'}</span>
                 </div>
-                <Users color="var(--success)" size={28} />
+                <Users color="var(--text-muted)" size={26} />
               </div>
             </div>
           </>
@@ -3078,7 +3079,7 @@ export default function AdminDashboard() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Target size={18} color="var(--primary)" />
               <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>Uso do Plano</span>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-color)', padding: '2px 8px', borderRadius: '12px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', backgroundColor: 'var(--bg-inset)', padding: '2px 8px', borderRadius: '12px' }}>
                 {quotaInfo.plan === 'starter' || quotaInfo.plan === 'start' ? 'Starter' : quotaInfo.plan === 'pro' || quotaInfo.plan === 'mensal' ? 'Pro' : quotaInfo.plan === 'business' || quotaInfo.plan === 'anual' ? 'Business' : quotaInfo.plan}
               </span>
             </div>
@@ -3086,7 +3087,7 @@ export default function AdminDashboard() {
               {quotaInfo.used} / {quotaInfo.limit}
             </span>
           </div>
-          <div style={{ height: '8px', backgroundColor: 'var(--bg-color)', borderRadius: '100px', overflow: 'hidden', marginBottom: '8px' }}>
+          <div style={{ height: '8px', backgroundColor: 'var(--bg-inset)', borderRadius: '100px', overflow: 'hidden', marginBottom: '8px' }}>
             <div style={{ width: `${Math.min(quotaInfo.percentUsed, 100)}%`, height: '100%', backgroundColor: quotaInfo.percentUsed >= 95 ? 'var(--error)' : quotaInfo.percentUsed >= 80 ? '#f59e0b' : 'var(--primary)', borderRadius: '100px', transition: 'width 0.5s ease' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3107,7 +3108,7 @@ export default function AdminDashboard() {
       {vendeNoApp && showQuotaUpgradeModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={() => setShowQuotaUpgradeModal(false)}>
           <div className="card" style={{ maxWidth: '500px', width: '100%', padding: '40px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
+            <div style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
               <Flame size={32} color="var(--primary)" />
             </div>
             <h2 style={{ marginBottom: '12px' }}>Hora de crescer! 🚀</h2>
@@ -3139,7 +3140,7 @@ export default function AdminDashboard() {
       {/* ── Tabs Em Construção (Novas Funcionalidades) ──────────────────── */}
       {['agendamentos', 'planos_acao', 'exportacoes', 'suporte'].includes(tab) && (
         <div className="card animate-fade" style={{ padding: '80px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <div style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
+          <div style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
             <Activity size={48} color="var(--primary)" />
           </div>
           <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>Em Construção</h2>
@@ -3383,8 +3384,8 @@ export default function AdminDashboard() {
       {/* ── Tab: Paywall Módulo Ponto ──────────────────── */}
       {(vendeNoApp && tab === 'ponto' &&!userProfile?.ponto_active && !userProfile?.cobranca_firehub && userProfile?.status !== 'trial' && userProfile?.email !== 'dugaburguer@gmail.com') && (
         <div className="card animate-fade" style={{ padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-          <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
-            <UserCheck size={48} color="#3b82f6" />
+          <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', padding: '24px', borderRadius: '50%', marginBottom: '24px' }}>
+            <UserCheck size={48} color="var(--info)" />
           </div>
           <h2 style={{ fontSize: '2rem', marginBottom: '16px' }}>
             Módulo: Controle de Ponto com IA
@@ -3461,7 +3462,7 @@ export default function AdminDashboard() {
             {/* SÓ PONTO */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ color: '#3b82f6', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>⏰ MÓDULO PONTO IA</div>
+                <div style={{ color: 'var(--info)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>⏰ MÓDULO PONTO IA</div>
                 <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Ponto IA</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Ponto com biometria facial e trava de GPS.</p>
                 <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
@@ -3483,7 +3484,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* COMBO COMPLETO (DESTACADO) */}
-            <div className="card" style={{ width: '290px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 12px 30px rgba(255, 69, 0, 0.15)' }}>
+            <div className="card" style={{ width: '290px', padding: '24px', border: '2px solid var(--primary)', transform: 'scale(1.04)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', boxShadow: '0 12px 30px rgb(var(--primary-rgb) / 0.15)' }}>
               <div style={{ position: 'absolute', top: '-14px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--primary)', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 'bold', color: 'white', whiteSpace: 'nowrap' }}>🔥 MAIS VENDIDO • MELHOR CUSTO</div>
               <div>
                 <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px', marginTop: '6px' }}>⚡ PACOTE COMPLETO</div>
@@ -3510,7 +3511,7 @@ export default function AdminDashboard() {
             {/* SÓ CHECKLISTS */}
             <div className="card" style={{ width: '280px', padding: '24px', border: '1px solid var(--border-color)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ color: '#ff4500', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>📋 MÓDULO CHECKLIST</div>
+                <div style={{ color: 'var(--primary)', fontWeight: 'bold', fontSize: '0.8rem', marginBottom: '4px' }}>📋 MÓDULO CHECKLIST</div>
                 <h3 style={{ fontSize: '1.4rem', marginBottom: '8px' }}>Só Checklists</h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>Auditorias e vistorias ilimitadas com IA.</p>
                 <div style={{ fontSize: '2.4rem', fontWeight: 'bold', marginBottom: '4px' }}>
@@ -3577,7 +3578,7 @@ export default function AdminDashboard() {
                 value={categoryFilter} 
                 onChange={e => setCategoryFilter(e.target.value)}
                 style={{
-                  backgroundColor: 'var(--bg-color)',
+                  backgroundColor: 'var(--bg-inset)',
                   color: 'var(--text-main)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '6px',
@@ -3598,7 +3599,7 @@ export default function AdminDashboard() {
                 onChange={e => setFiltroBaixa(e.target.value)}
                 aria-label="Filtrar por baixa"
                 style={{
-                  backgroundColor: 'var(--bg-color)',
+                  backgroundColor: 'var(--bg-inset)',
                   color: 'var(--text-main)',
                   border: '1px solid var(--border-color)',
                   borderRadius: '6px',
@@ -3655,7 +3656,7 @@ export default function AdminDashboard() {
                 return (
                   <div key={s.id} 
                     onClick={() => abrirDetalheSubmissao(s)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
+                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', cursor: 'pointer', border: '1px solid transparent', transition: 'all 0.2s' }}
                     onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
                     onMouseOut={(e) => e.currentTarget.style.borderColor = 'transparent'}
                   >
@@ -3665,7 +3666,7 @@ export default function AdminDashboard() {
                         <h4 style={{ fontSize: '1rem', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                           {checklists?.find(c => c.id === s.checklist_id)?.title || s.checklist_title || 'Checklist Concluído'}
                           {checklists?.find(c => c.id === s.checklist_id)?.category === 'veiculo' && (
-                            <span style={{ fontSize: '0.7rem', padding: '2px 6px', backgroundColor: 'rgba(255, 69, 0, 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }}>
+                            <span style={{ fontSize: '0.7rem', padding: '2px 6px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)', borderRadius: '4px', fontWeight: 'bold' }}>
                               🚗 Veicular
                             </span>
                           )}
@@ -3706,7 +3707,7 @@ export default function AdminDashboard() {
                           <button 
                             onClick={(e) => handleReprocessAudit(e, s.id)}
                             disabled={reprocessando.has(s.id)}
-                            style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid #3b82f6', borderRadius: '4px', cursor: 'pointer' }}
+                            style={{ fontSize: '0.7rem', padding: '4px 8px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', border: '1px solid var(--info)', borderRadius: '4px', cursor: 'pointer' }}
                           >
                             {reprocessando.has(s.id) ? 'Reprocessando…' : 'Tentar Novamente'}
                           </button>
@@ -4049,12 +4050,12 @@ export default function AdminDashboard() {
 
               return (
                 <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#3b82f6', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
-                      <div style={{ width: '8px', height: '8px', backgroundColor: '#3b82f6', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
+                  <div style={{ textAlign: 'center', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', padding: '10px 20px', borderRadius: '8px', border: '1px solid rgb(var(--info-rgb) / 0.3)' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--info)', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'center' }}>
+                      <div style={{ width: '8px', height: '8px', backgroundColor: 'var(--info)', borderRadius: '50%', animation: 'pulse 2s infinite' }}></div>
                       {onlineNow}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>Online Agora</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--info)' }}>Online Agora</div>
                   </div>
                   <div style={{ textAlign: 'center', backgroundColor: 'var(--bg-card)', padding: '10px 20px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{hoje}</div>
@@ -4302,7 +4303,7 @@ export default function AdminDashboard() {
                     fontWeight: '600',
                     borderRadius: '8px',
                     border: checklistSortAlphabetical ? '1px solid var(--primary)' : '1px solid var(--border-color)',
-                    backgroundColor: checklistSortAlphabetical ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-color)',
+                    backgroundColor: checklistSortAlphabetical ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--bg-color)',
                     color: checklistSortAlphabetical ? 'var(--primary)' : 'var(--text-muted)',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
@@ -4327,7 +4328,7 @@ export default function AdminDashboard() {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {sortedAdminChecklists.filter(cl => !cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--error)' }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                             <h4 style={{ fontSize: '1rem', margin: 0 }}>{cl.title}</h4>
@@ -4367,7 +4368,7 @@ export default function AdminDashboard() {
                   </h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {sortedAdminChecklists.filter(cl => cl.completedToday).map(cl => (
-                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
+                      <div key={cl.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px', gap: '12px', flexWrap: 'wrap', borderLeft: '4px solid var(--success)', opacity: 0.8 }}>
                         <div style={{ flex: 1, minWidth: '200px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
                             <h4 style={{ fontSize: '1rem', margin: 0, textDecoration: 'line-through' }}>{cl.title}</h4>
@@ -4435,9 +4436,9 @@ export default function AdminDashboard() {
             {vehicles.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px' }}>
                 {vehicles.map(v => (
-                  <div key={v.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+                  <div key={v.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgba(255, 69, 0, 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <div style={{ width: '80px', height: '80px', borderRadius: '8px', overflow: 'hidden', backgroundColor: 'rgb(var(--primary-rgb) / 0.05)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         {v.photo_url ? (
                           <img src={v.photo_url} alt={v.model} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         ) : (
@@ -4623,7 +4624,7 @@ export default function AdminDashboard() {
                         const currentDays = Array.isArray(newVehicle.scheduleData) ? newVehicle.scheduleData : [];
                         const isChecked = currentDays.includes(index);
                         return (
-                          <label key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', backgroundColor: isChecked ? 'rgba(255,77,0,0.1)' : 'transparent', fontSize: '0.85rem' }}>
+                          <label key={index} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 10px', border: isChecked ? '1px solid var(--primary)' : '1px solid var(--border-color)', borderRadius: '6px', cursor: 'pointer', backgroundColor: isChecked ? 'rgb(var(--primary-rgb) / 0.1)' : 'transparent', fontSize: '0.85rem' }}>
                             <input type="checkbox" checked={isChecked} style={{ display: 'none' }} onChange={() => {
                               const nextDays = isChecked ? currentDays.filter(d => d !== index) : [...currentDays, index];
                               setNewVehicle({ ...newVehicle, scheduleData: nextDays });
@@ -4651,7 +4652,7 @@ export default function AdminDashboard() {
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', maxHeight: '100px', overflowY: 'auto' }}>
                       {(Array.isArray(newVehicle.scheduleData) ? newVehicle.scheduleData : []).map(dt => (
-                        <span key={dt} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
+                        <span key={dt} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 8px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)', borderRadius: '4px', fontSize: '0.8rem' }}>
                           {new Date(dt + 'T00:00:00').toLocaleDateString('pt-BR')}
                           <button style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }} onClick={() => {
                             setNewVehicle({ ...newVehicle, scheduleData: newVehicle.scheduleData.filter(d => d !== dt) });
@@ -4670,7 +4671,7 @@ export default function AdminDashboard() {
                   
                   {vehicles.filter(v => v.id !== newVehicle.id && v.tasks && v.tasks.length > 0).length > 0 && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <select style={{ fontSize: '0.78rem', padding: '4px', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }} onChange={e => {
+                      <select style={{ fontSize: '0.78rem', padding: '4px', backgroundColor: 'var(--bg-inset)', color: 'var(--text-main)', border: '1px solid var(--border-color)', borderRadius: '4px' }} onChange={e => {
                         const val = e.target.value;
                         if (!val) return;
                         const source = vehicles.find(v => v.id === parseInt(val));
@@ -4692,7 +4693,7 @@ export default function AdminDashboard() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '420px', overflowY: 'auto', paddingRight: '8px' }}>
                   {(newVehicle.tasks || []).map((t, index) => (
-                    <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    <div key={t.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 'bold' }}>#{index + 1}</span>
                         <input type="text" className="input-field" style={{ flex: 1, padding: '6px 10px', fontSize: '0.85rem' }} placeholder="Descreva o que verificar (ex: Nível do óleo)..." value={t.text} onChange={e => {
@@ -4816,7 +4817,7 @@ export default function AdminDashboard() {
               const statusInfo = isMaster && member.role === 'admin' ? getUserStatus(member) : null;
               
               return (
-              <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '10px' }}>
+              <div key={member.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '10px' }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: '1rem', margin: 0 }}>{member.name}</h4>
@@ -4826,7 +4827,7 @@ export default function AdminDashboard() {
                       </span>
                     )}
                     {!isMaster && member.role === 'gestor' && (
-                      <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                      <span style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', border: '1px solid rgb(var(--info-rgb) / 0.3)', color: 'var(--info)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         Gestor / Gerente
                       </span>
                     )}
@@ -4836,7 +4837,7 @@ export default function AdminDashboard() {
                       </span>
                     )}
                     {!isMaster && member.role === 'admin' && member.id === userProfile?.id && (
-                      <span style={{ backgroundColor: 'rgba(255, 77, 0, 0.1)', border: '1px solid rgba(255, 77, 0, 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
+                      <span style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', border: '1px solid rgb(var(--primary-rgb) / 0.3)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>
                         Dono / Administrador
                       </span>
                     )}
@@ -4893,7 +4894,7 @@ export default function AdminDashboard() {
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {member.id !== userProfile?.id && (
-                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgba(59, 130, 246, 0.08)', color: '#3b82f6', borderColor: 'rgba(59, 130, 246, 0.3)', fontWeight: 'bold' }}
+                    <button className="btn-secondary" style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: 'rgb(var(--info-rgb) / 0.08)', color: 'var(--info)', borderColor: 'rgb(var(--info-rgb) / 0.3)', fontWeight: 'bold' }}
                       onClick={() => handleImpersonateUser(member)}>
                       <Eye size={14} /> Acessar Conta
                     </button>
@@ -5234,7 +5235,7 @@ export default function AdminDashboard() {
                     </button>
                     <button onClick={() => { setShoppingAIMode(true); if (shoppingAIConv.length === 0) setShoppingAIConv([{ role: 'bill', content: 'Olá! 🛒 Sou o Bill e vou te ajudar a criar sua lista de compras.\n\nMe diga o que você precisa! Por exemplo:\n• "Cria uma lista de compras semanal para hamburgueria"\n• "Preciso controlar estoque de limpeza"\n\nVocê pode digitar ou enviar um áudio! 🎤' }]); }}
                       style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s',
-                        background: shoppingAIMode ? 'linear-gradient(135deg, #06b6d4, #0891b2)' : 'transparent',
+                        background: shoppingAIMode ? 'linear-gradient(135deg, var(--info), var(--info))' : 'transparent',
                         color: shoppingAIMode ? 'white' : 'var(--text-muted)' }}>
                       <Sparkles size={16}/> Cadastrar com IA
                     </button>
@@ -5255,14 +5256,14 @@ export default function AdminDashboard() {
                             fontSize: '0.9rem', lineHeight: '1.5', whiteSpace: 'pre-wrap',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
                           }}>
-                            {msg.role === 'bill' && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: '#06b6d4' }}><Bot size={14}/> Bill IA</div>}
+                            {msg.role === 'bill' && <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--info)' }}><Bot size={14}/> Bill IA</div>}
                             {msg.content}
                           </div>
                         </div>
                       ))}
                       {shoppingAIGenerating && (
                         <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
-                          <div style={{ padding: '10px 14px', borderRadius: '2px 12px 12px 12px', backgroundColor: 'var(--bg-card)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#06b6d4' }}>
+                          <div style={{ padding: '10px 14px', borderRadius: '2px 12px 12px 12px', backgroundColor: 'var(--bg-card)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--info)' }}>
                             <Bot size={14}/> <span style={{ animation: 'pulse 1s infinite' }}>Pensando...</span>
                           </div>
                         </div>
@@ -5273,7 +5274,7 @@ export default function AdminDashboard() {
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <button onClick={handleShoppingAIRecord} disabled={shoppingAIGenerating}
                         style={{ width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: 'pointer', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
-                          backgroundColor: shoppingAIRecording ? '#ef4444' : '#06b6d4', color: 'white',
+                          backgroundColor: shoppingAIRecording ? '#ef4444' : 'var(--info)', color: 'white',
                           animation: shoppingAIRecording ? 'pulse 1s infinite' : 'none' }}>
                         <Mic size={20}/>
                       </button>
@@ -5376,7 +5377,7 @@ export default function AdminDashboard() {
           {billLinked ? (
             /* ── MODO CONECTADO ── */
             <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)', padding: '32px 24px', textAlign: 'center' }}>
+              <div style={{ background: 'linear-gradient(135deg, var(--info) 0%, var(--info) 100%)', padding: '32px 24px', textAlign: 'center' }}>
                 <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', backdropFilter: 'blur(8px)' }}>
                   <Bot size={32} color="white" />
                 </div>
@@ -5387,9 +5388,9 @@ export default function AdminDashboard() {
               <div style={{ padding: '32px 24px', textAlign: 'center' }}>
                 <h3 style={{ margin: '0 0 8px 0', fontSize: '1.3rem' }}>{billUser?.name}</h3>
                 <p style={{ margin: '0 0 24px 0', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  Plano: <strong style={{ color: '#06b6d4' }}>{billUser?.plan}</strong>
+                  Plano: <strong style={{ color: 'var(--info)' }}>{billUser?.plan}</strong>
                 </p>
-                <div style={{ backgroundColor: 'rgba(6, 182, 212, 0.08)', border: '1px solid rgba(6, 182, 212, 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+                <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.08)', border: '1px solid rgb(var(--info-rgb) / 0.2)', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
                   <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.6' }}>
                     Sua conta FireCheck está integrada com o Bill. Os dados de checklists e ranking são sincronizados automaticamente.
                   </p>
@@ -5414,7 +5415,7 @@ export default function AdminDashboard() {
             /* ── MODO NÃO CONECTADO ── */
             <div className="card" style={{ padding: '0', overflow: 'hidden' }}>
               {/* Hero */}
-              <div style={{ background: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 50%, #164e63 100%)', padding: '48px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ background: 'linear-gradient(135deg, var(--info) 0%, #0e7490 50%, #164e63 100%)', padding: '48px 24px', textAlign: 'center', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ position: 'absolute', top: '-30px', right: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }}></div>
                 <div style={{ position: 'absolute', bottom: '-40px', left: '-20px', width: '160px', height: '160px', borderRadius: '50%', background: 'rgba(255,255,255,0.03)' }}></div>
                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px auto', backdropFilter: 'blur(12px)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}>
@@ -5431,12 +5432,12 @@ export default function AdminDashboard() {
                 <p style={{ margin: '0 0 16px 0', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a integração faz:</p>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   {[
-                    { icon: <ClipboardList size={18} color="#06b6d4" />, text: 'Checklists sincronizados' },
-                    { icon: <Activity size={18} color="#06b6d4" />, text: 'Dashboard integrado' },
-                    { icon: <Trophy size={18} color="#06b6d4" />, text: 'Ranking unificado' },
-                    { icon: <UserCheck size={18} color="#06b6d4" />, text: 'Controle de ponto' },
+                    { icon: <ClipboardList size={18} color="var(--info)" />, text: 'Checklists sincronizados' },
+                    { icon: <Activity size={18} color="var(--info)" />, text: 'Dashboard integrado' },
+                    { icon: <Trophy size={18} color="var(--info)" />, text: 'Ranking unificado' },
+                    { icon: <UserCheck size={18} color="var(--info)" />, text: 'Controle de ponto' },
                   ].map((item, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'rgba(6, 182, 212, 0.06)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(6, 182, 212, 0.1)' }}>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'rgb(var(--info-rgb) / 0.06)', padding: '12px', borderRadius: '10px', border: '1px solid rgb(var(--info-rgb) / 0.1)' }}>
                       {item.icon}
                       <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: '500' }}>{item.text}</span>
                     </div>
@@ -5460,8 +5461,8 @@ export default function AdminDashboard() {
                     <input
                       type="email" required placeholder="seu@email.com" value={billEmail}
                       onChange={(e) => { setBillEmail(e.target.value); setBillError(''); }}
-                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
-                      onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
+                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--info)'}
                       onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                     />
                   </div>
@@ -5474,8 +5475,8 @@ export default function AdminDashboard() {
                     <input
                       type="password" required placeholder="Sua senha do Bill" value={billPassword}
                       onChange={(e) => { setBillPassword(e.target.value); setBillError(''); }}
-                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
-                      onFocus={(e) => e.target.style.borderColor = '#06b6d4'}
+                      style={{ width: '100%', padding: '12px 14px 12px 44px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)', color: 'var(--text-main)', fontSize: '0.95rem', outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--info)'}
                       onBlur={(e) => e.target.style.borderColor = 'var(--border-color)'}
                     />
                   </div>
@@ -5485,13 +5486,13 @@ export default function AdminDashboard() {
                   type="submit" disabled={billLoading}
                   style={{
                     width: '100%', padding: '14px', borderRadius: '12px', border: 'none',
-                    background: billLoading ? '#6b7280' : 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+                    background: billLoading ? '#6b7280' : 'linear-gradient(135deg, var(--info) 0%, var(--info) 100%)',
                     color: 'white', fontSize: '1rem', fontWeight: '700', cursor: billLoading ? 'not-allowed' : 'pointer',
-                    transition: 'all 0.3s', boxShadow: billLoading ? 'none' : '0 4px 16px rgba(6,182,212,0.35)',
+                    transition: 'all 0.3s', boxShadow: billLoading ? 'none' : '0 4px 16px rgb(var(--info-rgb) / 0.35)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
                   }}
-                  onMouseOver={(e) => { if (!billLoading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(6,182,212,0.45)'; } }}
-                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(6,182,212,0.35)'; }}
+                  onMouseOver={(e) => { if (!billLoading) { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgb(var(--info-rgb) / 0.45)'; } }}
+                  onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgb(var(--info-rgb) / 0.35)'; }}
                 >
                   {billLoading ? (
                     <><span style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }}></span> Conectando...</>
@@ -5502,11 +5503,11 @@ export default function AdminDashboard() {
               </form>
 
               {/* Rodapé — não tem Bill? */}
-              <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-color)', textAlign: 'center', backgroundColor: 'rgba(6, 182, 212, 0.03)' }}>
+              <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-color)', textAlign: 'center', backgroundColor: 'rgb(var(--info-rgb) / 0.03)' }}>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.6' }}>
                   Não tem o Bill?{' '}
                   <a href="https://instagram.com/douglasmorett" target="_blank" rel="noopener noreferrer"
-                    style={{ color: '#06b6d4', fontWeight: '600', textDecoration: 'none' }}
+                    style={{ color: 'var(--info)', fontWeight: '600', textDecoration: 'none' }}
                     onMouseOver={(e) => e.currentTarget.style.textDecoration = 'underline'}
                     onMouseOut={(e) => e.currentTarget.style.textDecoration = 'none'}
                   >
@@ -5533,8 +5534,8 @@ export default function AdminDashboard() {
           <div style={{ padding: '24px' }}>
             {/* Aviso de Gratuidade e Venda de Módulo */}
             {vendeNoApp && (
-            <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-               <Info size={32} color="#3b82f6" />
+            <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.05)', border: '1px solid rgb(var(--info-rgb) / 0.2)', padding: '16px', borderRadius: '12px', marginBottom: '24px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+               <Info size={32} color="var(--info)" />
                <div style={{ flex: 1 }}>
                  <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', margin: 0 }}>
                    <strong style={{ color: 'var(--text-main)' }}>Plano Flex Padrão:</strong> Você tem direito a 1 câmera inclusa para degustação.
@@ -5545,7 +5546,7 @@ export default function AdminDashboard() {
                </div>
                <button 
                  onClick={() => window.open('https://pay.cakto.com.br/njaxxuy_861537', '_blank')}
-                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'var(--text-main)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)' }}
+                 style={{ padding: '8px 16px', backgroundColor: 'var(--primary)', color: 'var(--text-main)', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.85rem', boxShadow: '0 4px 15px rgb(var(--info-rgb) / 0.4)' }}
                >
                  Liberar 4 Câmeras (R$ 49,90)
                </button>
@@ -5555,7 +5556,7 @@ export default function AdminDashboard() {
             {cameras.length > 0 ? (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                 {cameras.map(cam => (
-                  <div key={cam.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+                  <div key={cam.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)' }}>
                     
                     {/* Cabeçalho da Câmera */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
@@ -5572,12 +5573,12 @@ export default function AdminDashboard() {
                           return (
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', 
                               color: status === 'monitoring' ? 'var(--success)' : 
-                                     status === 'connected' ? '#3b82f6' : 'var(--error)' 
+                                     status === 'connected' ? 'var(--info)' : 'var(--error)' 
                             }}>
                               <span style={{ 
                                 width: '8px', height: '8px', borderRadius: '50%', 
                                 backgroundColor: status === 'monitoring' ? 'var(--success)' : 
-                                                 status === 'connected' ? '#3b82f6' : 'var(--error)', 
+                                                 status === 'connected' ? 'var(--info)' : 'var(--error)', 
                                 animation: status === 'monitoring' ? 'pulse 2s infinite' : 'none' 
                               }}></span>
                               {status === 'monitoring' ? 'Conectada e Monitorando (IA)' : 
@@ -5595,7 +5596,7 @@ export default function AdminDashboard() {
                     <div style={{ marginBottom: '20px' }}>
                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>O que a IA está vigiando:</p>
-                         <button style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.2)', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }} onClick={() => {
+                         <button style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.1)', color: 'var(--info)', border: '1px solid rgb(var(--info-rgb) / 0.2)', cursor: 'pointer', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 'bold' }} onClick={() => {
                             setEditingCamera(cam.id);
                             setNewCamera({ name: cam.name, url: cam.url, username: cam.username, password: cam.password, ai_commands: cam.ai_commands || [] });
                             setShowCameraModal(true);
@@ -5605,7 +5606,7 @@ export default function AdminDashboard() {
                        </div>
                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           {(cam.ai_commands || []).map((cmd, idx) => (
-                            <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', color: '#60a5fa', borderRadius: '6px', fontSize: '0.75rem' }}>
+                            <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.08)', border: '1px solid rgb(var(--info-rgb) / 0.2)', color: 'var(--info)', borderRadius: '6px', fontSize: '0.75rem' }}>
                               👁️ {cmd}
                             </span>
                           ))}
@@ -5678,8 +5679,8 @@ export default function AdminDashboard() {
               <Camera color="var(--primary)" /> {editingCamera ? 'Editar Configuração da IA' : 'Configurar Nova Câmera IP'}
             </h3>
             
-            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-               <h4 style={{ fontSize: '0.85rem', marginBottom: '8px', color: '#3b82f6' }}>Como conectar (Atenção):</h4>
+            <div style={{ marginBottom: '24px', padding: '16px', backgroundColor: 'rgb(var(--info-rgb) / 0.05)', borderRadius: '12px', border: '1px solid rgb(var(--info-rgb) / 0.2)' }}>
+               <h4 style={{ fontSize: '0.85rem', marginBottom: '8px', color: 'var(--info)' }}>Como conectar (Atenção):</h4>
                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
                  Para que a nossa Inteligência Artificial consiga ler a imagem da sua câmera, cole o <strong>Link de Compartilhamento Público</strong> dela abaixo.
                </p>
@@ -5728,7 +5729,7 @@ export default function AdminDashboard() {
                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>Nenhuma regra adicionada ainda.</span>
                    )}
                    {(newCamera.ai_commands || []).map((cmd, idx) => (
-                     <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#60a5fa', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                     <span key={idx} style={{ padding: '6px 12px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', border: '1px solid rgb(var(--info-rgb) / 0.3)', color: 'var(--info)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                        👁️ {cmd}
                        <button type="button" style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%', backgroundColor: 'rgba(239, 68, 68, 0.1)' }} 
                          onClick={() => setNewCamera({...newCamera, ai_commands: newCamera.ai_commands.filter((_, i) => i !== idx)})}>
@@ -5903,7 +5904,7 @@ export default function AdminDashboard() {
               <Plus size={20} style={{ transform: 'rotate(45deg)' }} />
             </button>
             
-            <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: 'var(--bg-color)' }}>
+            <div style={{ padding: '32px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '20px', alignItems: 'center', backgroundColor: 'var(--bg-inset)' }}>
               {selectedSubmission.selfie && <img src={selectedSubmission.selfie} alt="Selfie" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '3px solid var(--primary)' }} />}
               <div>
                 <h2 style={{ fontSize: '1.5rem', margin: 0 }}>
@@ -5931,7 +5932,7 @@ export default function AdminDashboard() {
                 {(Array.isArray(selectedSubmission.tasks) ? selectedSubmission.tasks : []).map((task, idx) => {
                   const feedback = selectedSubmission.feedback_info?.[task.id];
                   return (
-                    <div key={task.id} style={{ padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                    <div key={task.id} style={{ padding: '20px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                         <h4 style={{ fontSize: '1rem', margin: 0, flex: 1 }}>{idx + 1}. {task.text}</h4>
                         {(() => {
@@ -6015,7 +6016,7 @@ export default function AdminDashboard() {
               </div>
               
               {selectedSubmission.signature && (
-                <div style={{ marginTop: '24px', padding: '20px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ marginTop: '24px', padding: '20px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '10px', fontWeight: 'bold' }}>🖋️ Assinatura do Funcionário:</p>
                   <img src={selectedSubmission.signature} alt="Assinatura" style={{ maxHeight: '100px', backgroundColor: '#FFFFFF', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }} />
                 </div>
@@ -6079,7 +6080,7 @@ export default function AdminDashboard() {
             {/* Extensão do teste. Antes não havia como dar mais prazo a um cliente:
                 o teste era sempre 7 dias contados da criação da conta. */}
             {(editingPlan.status || 'trial') === 'trial' && (
-              <div style={{ marginBottom: '16px', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)' }}>
+              <div style={{ marginBottom: '16px', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)' }}>
                 <label className="input-label" style={{ display: 'block', marginBottom: '6px' }}>Período de teste</label>
                 <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.45 }}>
                   {trialInfo(editingPlan)}
@@ -6285,8 +6286,8 @@ export default function AdminDashboard() {
               )}
 
               {/* Escala de Trabalho Individual */}
-              <div style={{ marginBottom: '24px', backgroundColor: 'rgba(59, 130, 246, 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
-                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', color: '#3b82f6', fontWeight: 'bold' }}>
+              <div style={{ marginBottom: '24px', backgroundColor: 'rgb(var(--info-rgb) / 0.06)', borderRadius: '10px', padding: '16px', border: '1px solid rgb(var(--info-rgb) / 0.15)' }}>
+                <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px', color: 'var(--info)', fontWeight: 'bold' }}>
                   ⏰ Escala de Trabalho
                 </label>
                 <div style={{ marginBottom: '12px' }}>
@@ -6357,7 +6358,7 @@ export default function AdminDashboard() {
 
       {isPurchasesOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '20px', pointerEvents: 'auto', backdropFilter: 'blur(5px)' }}>
-          <div className="card animate-scale modal-janela" style={{ width: '100%', maxWidth: '800px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: '0', overflow: 'hidden', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+          <div className="card animate-scale modal-janela" style={{ width: '100%', maxWidth: '800px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column', position: 'relative', pointerEvents: 'auto', padding: '0', overflow: 'hidden', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-inset)' }}>
             <div style={{ backgroundColor: 'var(--primary)', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, color: 'white', display: 'flex', alignItems: 'center', gap: '8px' }}>
                  <Plus size={24} color="white" /> Registrar Compras
@@ -6492,7 +6493,7 @@ export default function AdminDashboard() {
 
       {viewingPhotoUrl && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999999, padding: '20px', pointerEvents: 'auto' }}>
-          <div className="card animate-scale modal-janela" style={{ maxWidth: '600px', width: '100%', padding: '20px', textAlign: 'center', position: 'relative', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-color)' }}>
+          <div className="card animate-scale modal-janela" style={{ maxWidth: '600px', width: '100%', padding: '20px', textAlign: 'center', position: 'relative', border: '1px solid var(--primary)', backgroundColor: 'var(--bg-inset)' }}>
             <button style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--text-main)', cursor: 'pointer' }} onClick={() => setViewingPhotoUrl(null)}><X size={24} /></button>
             <h3 style={{ marginBottom: '16px', color: 'var(--primary)' }}>Comprovante / Nota Fiscal</h3>
             <img src={viewingPhotoUrl} alt="Comprovante" style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: '8px' }} />
@@ -6514,7 +6515,7 @@ export default function AdminDashboard() {
               <X size={20} />
             </button>
 
-            <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgba(255, 77, 0, 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 0 20px rgba(255, 77, 0, 0.3)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '16px', backgroundColor: 'rgb(var(--primary-rgb) / 0.15)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 0 20px rgb(var(--primary-rgb) / 0.3)' }}>
               <Flame size={36} />
             </div>
 
@@ -6542,7 +6543,7 @@ export default function AdminDashboard() {
                   setShowWelcomeTourModal(false);
                   setShowTutorialHub(true);
                 }}
-                style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgba(255, 77, 0, 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
+                style={{ padding: '12px 28px', borderRadius: '10px', border: 'none', backgroundColor: 'var(--primary)', color: 'white', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 0 20px rgb(var(--primary-rgb) / 0.4)', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
                 🎓 Escolher um Tutorial!
               </button>
@@ -6564,7 +6565,7 @@ export default function AdminDashboard() {
             </button>
 
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: 'rgba(255,77,0,0.1)', padding: '4px 12px', borderRadius: '20px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '1px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '4px 12px', borderRadius: '20px' }}>
                 🎓 Central de Ajuda Interativa
               </span>
               <h2 style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '8px' }}>
@@ -6582,7 +6583,7 @@ export default function AdminDashboard() {
                   key={topic.id}
                   onClick={() => handleStartSpecificTutorial(topic.id)}
                   style={{
-                    backgroundColor: 'var(--bg-color)',
+                    backgroundColor: 'var(--bg-inset)',
                     border: '1px solid var(--border-color)',
                     borderRadius: '16px',
                     padding: '20px',
@@ -6638,10 +6639,10 @@ export default function AdminDashboard() {
             {/* Header do Passo */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgba(255, 77, 0, 0.12)' }}>
+                <div style={{ padding: '8px', borderRadius: '10px', backgroundColor: 'rgb(var(--primary-rgb) / 0.12)' }}>
                   {activeTopicObj.steps[tourStep].icon}
                 </div>
-                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '1px', backgroundColor: 'rgba(255, 77, 0, 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '1px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', padding: '4px 10px', borderRadius: '20px' }}>
                   Passo {tourStep + 1} de {activeTopicObj.steps.length}
                 </span>
               </div>
@@ -6705,7 +6706,7 @@ export default function AdminDashboard() {
                   fontWeight: 800, 
                   fontSize: '0.9rem', 
                   cursor: 'pointer',
-                  boxShadow: '0 0 15px rgba(255, 77, 0, 0.4)',
+                  boxShadow: '0 0 15px rgb(var(--primary-rgb) / 0.4)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'

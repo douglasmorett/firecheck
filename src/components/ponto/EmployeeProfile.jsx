@@ -407,15 +407,15 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
       const abonoDoDia = infoDoDia[currentDateStr]?.abono || null;
 
       if (abonoDoDia && !hasRecords) {
-        bgColor = 'rgba(59, 130, 246, 0.08)';
-        border = '1px solid rgba(59, 130, 246, 0.3)';
+        bgColor = 'rgb(var(--info-rgb) / 0.08)';
+        border = '1px solid rgb(var(--info-rgb) / 0.3)';
         color = '#3B82F6';
       } else if (hasRecords) {
         bgColor = 'rgba(16, 185, 129, 0.08)';
         border = '1px solid rgba(16, 185, 129, 0.2)';
         color = '#10B981';
       } else if (!isProjectedWorkday) {
-        bgColor = 'rgba(59, 130, 246, 0.03)';
+        bgColor = 'rgb(var(--info-rgb) / 0.03)';
         color = 'var(--text-muted)';
         border = '1px dashed var(--border-color)';
       } else if (currentDate < new Date() && !hasRecords && isProjectedWorkday && !abonoDoDia) {
@@ -454,7 +454,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
     <div className="animate-fade-up" style={{ paddingBottom: '40px' }}>
       {/* Premium Header */}
       <div style={{ 
-        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgba(59, 130, 246, 0.05) 100%)',
+        background: 'linear-gradient(135deg, var(--bg-card) 0%, rgb(var(--info-rgb) / 0.05) 100%)',
         border: '1px solid var(--border-color)',
         borderRadius: '20px',
         padding: '30px',
@@ -493,7 +493,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                 position: 'absolute', bottom: '0', right: '0',
                 background: 'var(--primary)', border: 'none', borderRadius: '50%',
                 width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: isUploadingPhoto ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)', color: 'white'
+                cursor: isUploadingPhoto ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgb(var(--info-rgb) / 0.4)', color: 'white'
               }}
             >
               {isUploadingPhoto ? <div className="animate-spin" style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%' }}></div> : <Camera size={18} />}
@@ -547,7 +547,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
               </div>
 
               {is12x36 && (
-                <div style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }} className="animate-fade">
+                <div style={{ backgroundColor: 'rgb(var(--info-rgb) / 0.05)', padding: '16px', borderRadius: '12px', border: '1px solid rgb(var(--info-rgb) / 0.2)' }} className="animate-fade">
                   <label className="input-label" style={{ color: '#3B82F6', fontSize: '0.9rem' }}>Último dia trabalhado</label>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0 0 12px 0' }}>
                     Base para cálculo automático das folgas intercaladas.
@@ -609,8 +609,8 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
             </div>
 
             {/* Banco de horas do mês: trabalhado (sem o almoço) menos o esperado da escala. */}
-            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgba(59, 130, 246, 0.05))' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="card hover-lift" style={{ padding: '24px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '20px', background: 'linear-gradient(to right, var(--bg-card), rgb(var(--info-rgb) / 0.05))' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '16px', backgroundColor: 'rgb(var(--info-rgb) / 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Scale size={28} color="#3B82F6" />
               </div>
               <div>
@@ -633,7 +633,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                     background: viewMode === 'list' ? 'var(--primary)' : 'transparent',
                     border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '8px', fontWeight: viewMode === 'list' ? '600' : '500',
-                    boxShadow: viewMode === 'list' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                    boxShadow: viewMode === 'list' ? '0 4px 12px rgb(var(--info-rgb) / 0.3)' : 'none',
                     color: viewMode === 'list' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s'
                   }}
                 ><List size={18}/> Extrato de Pontos</button>
@@ -643,7 +643,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                     background: viewMode === 'calendar' ? 'var(--primary)' : 'transparent',
                     border: 'none', padding: '10px 20px', borderRadius: '10px', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '8px', fontWeight: viewMode === 'calendar' ? '600' : '500',
-                    boxShadow: viewMode === 'calendar' ? '0 4px 12px rgba(59, 130, 246, 0.3)' : 'none',
+                    boxShadow: viewMode === 'calendar' ? '0 4px 12px rgb(var(--info-rgb) / 0.3)' : 'none',
                     color: viewMode === 'calendar' ? 'white' : 'var(--text-muted)', transition: 'all 0.2s'
                   }}
                 ><CalendarDays size={18}/> Visão Mensal</button>
@@ -900,7 +900,7 @@ export default function EmployeeProfile({ employee, onBack, schedules, userProfi
                     {['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map((dayName, idx) => {
                       const wd = scheduleForm.weekdays.find(w => w.weekday === idx) || { is_workday: false };
                       return (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', backgroundColor: wd.is_workday ? 'rgba(59, 130, 246, 0.05)' : 'var(--bg-main)', borderRadius: '12px', border: wd.is_workday ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border-color)', transition: 'all 0.2s' }}>
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', backgroundColor: wd.is_workday ? 'rgb(var(--info-rgb) / 0.05)' : 'var(--bg-main)', borderRadius: '12px', border: wd.is_workday ? '1px solid rgb(var(--info-rgb) / 0.2)' : '1px solid var(--border-color)', transition: 'all 0.2s' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <input type="checkbox" checked={wd.is_workday} onChange={e => {
                               const newWds = [...scheduleForm.weekdays];

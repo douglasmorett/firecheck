@@ -127,6 +127,8 @@ export const CHAVE_CENTRAL_FECHADA = 'firecheck_central_tutoriais_fechada:';
 export const CHAVE_CENTRAL_NAO_MOSTRAR = 'firecheck_central_tutoriais_nao_mostrar:';
 /** "Não mostrar mais nesta tela" da faixa do painel. */
 export const CHAVE_FAIXA_OCULTA = 'firecheck_faixa_tutorial_oculta:';
+// A faixa grande aparece só na primeira visita à tela; depois fica o botão "Tutorial" do cabeçalho.
+export const CHAVE_FAIXA_VISTA = 'firecheck_faixa_tutorial_vista:';
 
 /** Evento que abre a central (quem escuta: components/tutoriais/CentralDeTutoriais). */
 export const ABRIR_CENTRAL = 'firecheck:abrir-central-de-tutoriais';
@@ -231,6 +233,8 @@ export function temTutoriais(usuario) {
 export function centralAbreSozinha(usuario, pathname) {
   if (!['/admin', '/funcionario'].includes(String(pathname || '').replace(/\/+$/, ''))) return false;
   if (!temTutoriais(usuario)) return false;
+  // Funcionário abre o app para trabalhar: o vídeo fica no botão "Tutorial", sem tela cheia.
+  if (ehFuncionario(usuario)) return false;
   if (lerChave('firecheck_admin_backup')) return false;
   const id = idDoUsuario(usuario);
   if (!id) return false;

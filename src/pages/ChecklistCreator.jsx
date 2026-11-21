@@ -578,7 +578,7 @@ export default function ChecklistCreator() {
         {!isEditing && (
           <button 
             className="btn btn-pulse" 
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: '#06b6d4', color: 'var(--text-main)', boxShadow: '0 0 20px rgba(6, 182, 212, 0.4)' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 24px', backgroundColor: 'var(--info)', color: 'var(--text-main)', boxShadow: '0 0 20px rgb(var(--info-rgb) / 0.4)' }}
             onClick={() => {
               setShowAIModal(true);
               setTimeout(() => {
@@ -692,7 +692,7 @@ export default function ChecklistCreator() {
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                   {WEEKDAY_OPTIONS.map(d => (
                     <button key={d.value} type="button" onClick={() => setWeekdays(prev => prev.includes(d.value) ? prev.filter(x => x !== d.value) : [...prev, d.value])}
-                      style={{ padding: '8px 14px', borderRadius: '8px', border: weekdays.includes(d.value) ? '2px solid var(--primary)' : '1px solid var(--border-color)', backgroundColor: weekdays.includes(d.value) ? 'rgba(255, 69, 0, 0.15)' : 'var(--bg-card)', color: weekdays.includes(d.value) ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: weekdays.includes(d.value) ? 'bold' : 'normal', fontSize: '0.9rem', transition: 'all 0.2s' }}>
+                      style={{ padding: '8px 14px', borderRadius: '8px', border: weekdays.includes(d.value) ? '2px solid var(--primary)' : '1px solid var(--border-color)', backgroundColor: weekdays.includes(d.value) ? 'rgb(var(--primary-rgb) / 0.15)' : 'var(--bg-card)', color: weekdays.includes(d.value) ? 'var(--primary)' : 'var(--text-muted)', cursor: 'pointer', fontWeight: weekdays.includes(d.value) ? 'bold' : 'normal', fontSize: '0.9rem', transition: 'all 0.2s' }}>
                       {d.label}
                     </button>
                   ))}
@@ -711,7 +711,7 @@ export default function ChecklistCreator() {
             )}
           </div>
 
-          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <Camera size={16} color="var(--primary)" /> Exigir Selfie na Finalização
             </label>
@@ -740,7 +740,7 @@ export default function ChecklistCreator() {
           </div>
 
           {/* Funcionários Responsáveis pelo Checklist */}
-          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <Users size={16} color="var(--primary)" /> Funcionários Responsáveis
             </label>
@@ -755,7 +755,7 @@ export default function ChecklistCreator() {
               style={{ 
                 padding: '10px 14px', borderRadius: '8px', marginBottom: '8px', cursor: 'pointer',
                 border: assignedTo.length === 0 ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                backgroundColor: assignedTo.length === 0 ? 'rgba(255, 69, 0, 0.1)' : 'var(--bg-card)',
+                backgroundColor: assignedTo.length === 0 ? 'rgb(var(--primary-rgb) / 0.1)' : 'var(--bg-card)',
                 color: assignedTo.length === 0 ? 'var(--primary)' : 'var(--text-muted)',
                 fontWeight: assignedTo.length === 0 ? 'bold' : 'normal', fontSize: '0.9rem',
                 display: 'flex', alignItems: 'center', gap: '8px'
@@ -785,7 +785,7 @@ export default function ChecklistCreator() {
                     style={{
                       padding: '10px 14px', borderRadius: '8px', cursor: 'pointer',
                       border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border-color)',
-                      backgroundColor: isSelected ? 'rgba(255, 69, 0, 0.08)' : 'var(--bg-card)',
+                      backgroundColor: isSelected ? 'rgb(var(--primary-rgb) / 0.08)' : 'var(--bg-card)',
                       color: isSelected ? 'var(--text-color)' : 'var(--text-muted)',
                       fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px',
                       transition: 'all 0.15s'
@@ -838,7 +838,7 @@ export default function ChecklistCreator() {
             )}
           </div>
 
-          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-color)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: 'var(--bg-inset)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               🖋️ Exigir Assinatura Digital
             </label>
@@ -876,12 +876,12 @@ export default function ChecklistCreator() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {tasks.map((task, index) => (
-              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-color)', border: '1px solid var(--border-color)' }}>
+              <div key={task.id} className="card" style={{ padding: '20px', backgroundColor: 'var(--bg-inset)', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className="badge" style={{ backgroundColor: 'var(--bg-card)', padding: '4px 10px', fontSize: '0.85rem' }}>Tarefa {index + 1} de {tasks.length}</span>
                     {task.section && (
-                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'rgba(255, 69, 0, 0.1)', color: 'var(--primary)', fontWeight: 'bold' }}>
+                      <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'rgb(var(--primary-rgb) / 0.1)', color: 'var(--primary)', fontWeight: 'bold' }}>
                         📁 {task.section}
                       </span>
                     )}
@@ -915,7 +915,7 @@ export default function ChecklistCreator() {
                       type="button"
                       onClick={() => insertTaskAfter(index)}
                       className="btn-secondary"
-                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'rgba(255, 69, 0, 0.3)' }}
+                      style={{ padding: '4px 8px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px', color: 'var(--primary)', borderColor: 'rgb(var(--primary-rgb) / 0.3)' }}
                       title="Inserir nova tarefa logo abaixo desta"
                     >
                       <Plus size={14} /> Inserir Abaixo
@@ -1166,7 +1166,7 @@ export default function ChecklistCreator() {
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '8px' }}>
-              <div style={{ backgroundColor: 'rgba(255, 69, 0, 0.12)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <div style={{ backgroundColor: 'rgb(var(--primary-rgb) / 0.12)', width: '48px', height: '48px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <ClipboardList size={24} color="var(--primary)" />
               </div>
               <div>
@@ -1218,10 +1218,10 @@ export default function ChecklistCreator() {
                       onClick={() => handleCopyChecklist(cl)}
                       style={{
                         width: '100%', textAlign: 'left', padding: '14px 16px', borderRadius: '10px',
-                        border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-color)',
+                        border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-inset)',
                         cursor: 'pointer', transition: 'all 0.15s', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(255,69,0,0.05)'; }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgb(var(--primary-rgb) / 0.05)'; }}
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.backgroundColor = 'var(--bg-color)'; }}
                     >
                       <div>
@@ -1254,12 +1254,12 @@ export default function ChecklistCreator() {
             {/* Header */}
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(6,182,212,0.3)' }}>
+                <div style={{ background: 'linear-gradient(135deg, var(--info), var(--info))', width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgb(var(--info-rgb) / 0.3)' }}>
                   <Bot size={22} color="white" />
                 </div>
                 <div>
                   <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>Bill IA</div>
-                  <div style={{ fontSize: '0.75rem', color: isAIGenerating ? '#06b6d4' : 'var(--success)' }}>
+                  <div style={{ fontSize: '0.75rem', color: isAIGenerating ? 'var(--info)' : 'var(--success)' }}>
                       {isAIGenerating ? 'escutando e analisando...' : isTranscribing ? 'processando áudio...' : 'online'}
                   </div>
                 </div>
@@ -1278,7 +1278,7 @@ export default function ChecklistCreator() {
               {/* Welcome message (always shown) */}
               {aiConversation.length === 0 && (
                 <div className="ai-chat-bubble bill">
-                  <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>🤖 Bill</strong>
+                  <strong style={{ color: 'var(--info)', fontSize: '0.8rem', display: 'block', marginBottom: '6px' }}>🤖 Bill</strong>
                   <span>Olá! Eu sou o Bill, seu consultor para criar checklists sob medida.</span><br/>
                   <span style={{ marginTop: '4px', display: 'inline-block' }}>Me explique o processo que você quer transformar em checklist — pode <strong>gravar um áudio</strong> 🎤 ou <strong>digitar</strong>. Fale naturalmente, como se estivesse explicando para um colega!</span><br/>
                   <span style={{ marginTop: '6px', display: 'inline-block', color: 'var(--text-muted)', fontSize: '0.82rem' }}>Eu vou escutar com atenção, confirmar que entendi, e te fazer perguntas antes de montar o checklist perfeito. 💡</span>
@@ -1288,7 +1288,7 @@ export default function ChecklistCreator() {
               {/* Chat messages */}
               {aiConversation.map((msg, i) => (
                 <div key={i} className={`ai-chat-bubble ${msg.role === 'bill' ? 'bill' : 'user'}`}>
-                  {msg.role === 'bill' && <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>}
+                  {msg.role === 'bill' && <strong style={{ color: 'var(--info)', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>}
                   {msg.content.split('\n').map((line, j) => <span key={j}>{line}<br/></span>)}
 
                   {vendeNoApp && msg.type === 'upgrade_offer' && (
@@ -1302,9 +1302,9 @@ export default function ChecklistCreator() {
                           className="btn"
                           style={{
                             padding: '12px', fontSize: '0.85rem', width: '100%',
-                            background: 'linear-gradient(135deg, var(--primary), #FF6622)',
+                            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
                             color: 'white', border: 'none', borderRadius: '8px',
-                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(255, 77, 0, 0.2)'
+                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgb(var(--primary-rgb) / 0.2)'
                           }}
                           onClick={() => {
                             const profile = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1320,9 +1320,9 @@ export default function ChecklistCreator() {
                           className="btn"
                           style={{
                             padding: '12px', fontSize: '0.85rem', width: '100%',
-                            background: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+                            background: 'linear-gradient(135deg, var(--info), var(--info))',
                             color: 'white', border: 'none', borderRadius: '8px',
-                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgba(6, 182, 212, 0.2)'
+                            cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 12px rgb(var(--info-rgb) / 0.2)'
                           }}
                           onClick={() => {
                             const profile = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1351,11 +1351,11 @@ export default function ChecklistCreator() {
               {/* Typing indicator */}
               {isAIGenerating && (
                 <div className="ai-chat-bubble bill">
-                  <strong style={{ color: '#06b6d4', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>
+                  <strong style={{ color: 'var(--info)', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>🤖 Bill</strong>
                   <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite' }} />
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.2s' }} />
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#06b6d4', animation: 'mic-glow 1s infinite 0.4s' }} />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--info)', animation: 'mic-glow 1s infinite' }} />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--info)', animation: 'mic-glow 1s infinite 0.2s' }} />
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--info)', animation: 'mic-glow 1s infinite 0.4s' }} />
                     <span style={{ marginLeft: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Escutando e analisando o que você disse...</span>
                   </div>
                 </div>
@@ -1364,7 +1364,7 @@ export default function ChecklistCreator() {
               {/* Transcribing indicator */}
               {isTranscribing && (
                 <div className="ai-chat-bubble bill" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '20px', height: '20px', border: '3px solid rgba(6,182,212,0.2)', borderTopColor: '#06b6d4', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                  <div style={{ width: '20px', height: '20px', border: '3px solid rgb(var(--info-rgb) / 0.2)', borderTopColor: 'var(--info)', borderRadius: '50%', animation: 'spin 1s linear infinite', flexShrink: 0 }} />
                   <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Ouvindo seu áudio...</span>
                 </div>
               )}
@@ -1414,10 +1414,10 @@ export default function ChecklistCreator() {
                   title="Gravar áudio"
                   style={{
                     width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: isAIGenerating || isTranscribing ? 'not-allowed' : 'pointer',
-                    background: isTranscribing ? 'var(--border-color)' : 'linear-gradient(135deg, var(--primary), #FF6622)',
+                    background: isTranscribing ? 'var(--border-color)' : 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
                     color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                     opacity: isAIGenerating || isTranscribing ? 0.5 : 1, transition: 'all 0.2s',
-                    boxShadow: isAIGenerating || isTranscribing ? 'none' : '0 4px 12px rgba(255, 77, 0, 0.25)'
+                    boxShadow: isAIGenerating || isTranscribing ? 'none' : '0 4px 12px rgb(var(--primary-rgb) / 0.25)'
                   }}
                 >
                   <Mic size={20} />
@@ -1430,10 +1430,10 @@ export default function ChecklistCreator() {
                   title="Enviar"
                   style={{
                     width: '44px', height: '44px', borderRadius: '50%', border: 'none', cursor: !aiChatInput.trim() || isAIGenerating || isTranscribing ? 'not-allowed' : 'pointer',
-                    background: aiChatInput.trim() && !isAIGenerating && !isTranscribing ? 'linear-gradient(135deg, #06b6d4, #0891b2)' : 'var(--border-color)',
+                    background: aiChatInput.trim() && !isAIGenerating && !isTranscribing ? 'linear-gradient(135deg, var(--info), var(--info))' : 'var(--border-color)',
                     color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
                     transition: 'all 0.2s',
-                    boxShadow: aiChatInput.trim() && !isAIGenerating && !isTranscribing ? '0 4px 12px rgba(6, 182, 212, 0.3)' : 'none'
+                    boxShadow: aiChatInput.trim() && !isAIGenerating && !isTranscribing ? '0 4px 12px rgb(var(--info-rgb) / 0.3)' : 'none'
                   }}
                 >
                   <Send size={18} />
