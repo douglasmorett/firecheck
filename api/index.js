@@ -3508,6 +3508,9 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_diario BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_ponto_ausencia BOOLEAN DEFAULT TRUE");
       await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS wa_checklist_aprovado BOOLEAN DEFAULT TRUE");
+      // Quando o telefone (ou o WhatsApp) do cadastro mudou pela última vez: o
+      // "esqueci minha senha" não manda senha para um número trocado há pouco.
+      await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_changed_at TIMESTAMPTZ");
       // ── Tabela de Veículos e melhorias de checklists ──
       await pool.query(`
         CREATE TABLE IF NOT EXISTS vehicles (
@@ -5567,6 +5570,16 @@ export default async function handler(req, res) {
           if (status !== undefined && status !== user.status) {
             return res.status(403).json({ error: 'Gestores não podem alterar o status do proprietário.' });
           }
+          // Os campos de contato e de aviso do dono também ficam com ele. O
+          // telefone é para onde vai a senha temporária do "esqueci minha senha":
+          // um gestor que o trocasse pelo próprio celular e pedisse a recuperação
+          // entrava como dono da loja.
+          const camposDoDono = { phone, whatsapp_phone, contador_email, timezone, fechamento_dia };
+          for (const [campo, valor] of Object.entries(camposDoDono)) {
+            if (valor !== undefined && String(valor ?? '') !== String(user[campo] ?? '')) {
+              return res.status(403).json({ error: `Gestores não podem alterar o campo ${campo} do proprietário.` });
+            }
+          }
         }
 
         // ── Renomear a empresa não mexe em dado nenhum ──────────────────────
@@ -5775,6 +5788,9 @@ export default async function handler(req, res) {
         // nenhuma das consultas de UPDATE acima: o valor era descartado em
         // silêncio e o app confirmava que havia salvo. A escala 12x36 ficava sem
         // referência para calcular os dias de folga.
+        if (String(finalPhone ?? '') !== String(user.phone ?? '') || String(finalWhatsappPhone ?? '') !== String(user.whatsapp_phone ?? '')) {
+          await pool.query('UPDATE users SET phone_changed_at = NOW() WHERE id = $1', [id]);
+        }
         if (req.body.ponto_last_worked_day !== undefined) {
           await pool.query('UPDATE users SET ponto_last_worked_day = $1 WHERE id = $2', [
             req.body.ponto_last_worked_day || null,
