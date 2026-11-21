@@ -180,3 +180,7 @@
 }
 .pt .fc-pilula:disabled { opacity: .55; cursor: not-allowed; }
 .pt-ponto { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; }
+
+/* botões da escala lado a lado, mesmo em cartão estreito */
+.pt .pt-mini-acoes { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 6px; align-items: center; }
+.pt .pt-mini-acoes .fc-mini-btn { display: inline-flex; align-items: center; gap: 5px; }

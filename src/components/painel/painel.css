@@ -249,3 +249,4 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--ink); }
 .fc-plano .btn { background: #fff !important; color: #16161A !important; }
 .fc-plano .btn-secondary { background: transparent; color: #F4F4F5; border-color: rgba(255,255,255,.2); }
 .fc-plano p[style*="var(--error)"] { color: #FF8A95 !important; }
+.fc-dado { white-space: nowrap; }
