@@ -4839,20 +4839,34 @@ export default async function handler(req, res) {
                 const senhaInicial = crypto.randomBytes(4).toString('hex').toUpperCase();
                 const defaultPasswordHash = await bcrypt.hash(senhaInicial, 12);
                 
+                // A loja é a CHAVE que separa um cliente do outro. Com 'Minha Empresa'
+                // fixa, dois compradores sem cadastro prévio caíam na mesma loja e
+                // viam checklists, equipe, ponto e câmeras um do outro. Cada conta
+                // nasce com a sua, como no cadastro e no código de ativação; o
+                // cliente renomeia depois no Perfil. Ponto e limites saem do plano,
+                // como em /api/ativar: sem isso o Só Ponto/Combo nascia com o ponto
+                // desligado e os crons e o quiosque ignoravam a loja.
+                const nomeDaLojaNova = `Loja de ${String(customerName).trim() || 'Cliente'}`;
+                const chaveDaLojaNova = await gerarChaveDeLoja(nomeDaLojaNova);
+                const pontoDoPlano = detectedPlan.startsWith('combo') || detectedPlan.startsWith('ponto');
                 await pool.query(`
-                  INSERT INTO users (name, email, password, role, store, status, phone, plan, expiration_date, cakto_subscription_id)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW() + CASE WHEN $9 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END, $10)
+                  INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, expiration_date, cakto_subscription_id, ponto_active, ponto_limit, checklist_limit)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW() + CASE WHEN $10 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END, $11, $12, $13, $14)
                 `, [
                   customerName,
                   customerEmail,
                   defaultPasswordHash,
                   'admin',
-                  'Minha Empresa',
+                  chaveDaLojaNova,
+                  nomeDaLojaNova,
                   'active',
                   customerPhone,
                   detectedPlan,
                   isAnnual,
-                  subscriptionId
+                  subscriptionId,
+                  pontoDoPlano,
+                  COLABORADORES_POR_PLANO[detectedPlan] || 5,
+                  getPlanLimit(detectedPlan)
                 ]);
                 console.log(`[CAKTO] Usuário ${customerEmail} não existia e foi criado automaticamente.`);
 
