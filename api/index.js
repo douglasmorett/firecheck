@@ -4987,19 +4987,26 @@ export default async function handler(req, res) {
                       ? [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual, subscriptionId]
                       : [customerEmail, detectedPlan, newChecklistLimit, newPontoLimit, isAnnual];
                   } else if (isPontoPlan) {
+                    // O plano também é regravado, mas só quando a conta ainda não
+                    // tem um plano pago vigente (teste, pendente, bloqueada ou um
+                    // plano que não é de venda): quem já assina Checklists e soma o
+                    // Ponto continua com o plano que tinha. Sem isto, quem se
+                    // cadastrou com outro plano no corpo do signup (ex.: enterprise)
+                    // e pagou o mais barato ficava com o plano que escolheu.
                     updateQuery = `
                       UPDATE users
                       SET status = 'active',
                           ponto_limit = $2,
                           ponto_active = TRUE,
-                          expiration_date = NOW() + CASE WHEN $3 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END
+                          expiration_date = NOW() + CASE WHEN $3 = true THEN INTERVAL '365 days' ELSE INTERVAL '30 days' END,
+                          plan = CASE WHEN status IS DISTINCT FROM 'active' OR plan IS NULL OR plan NOT IN ('checklists_mensal', 'checklists_anual', 'combo_mensal', 'combo_anual', 'ponto_mensal', 'ponto_anual', 'enterprise', 'starter', 'starter_mensal', 'start', 'pro', 'pro_mensal', 'mensal', 'business', 'business_mensal', 'anual', 'ponto_starter', 'ponto_pro', 'ponto_business') THEN $4 ELSE plan END
                           ${checklistsResetQuery}
-                          ${subscriptionId ? `, ${subscriptionIdColumn} = $4` : ''}
+                          ${subscriptionId ? `, ${subscriptionIdColumn} = $5` : ''}
                       WHERE LOWER(email) = LOWER($1)
                     `;
                     updateParams = subscriptionId
-                      ? [customerEmail, newPontoLimit, isAnnual, subscriptionId]
-                      : [customerEmail, newPontoLimit, isAnnual];
+                      ? [customerEmail, newPontoLimit, isAnnual, detectedPlan, subscriptionId]
+                      : [customerEmail, newPontoLimit, isAnnual, detectedPlan];
                   } else {
                     updateQuery = `
                       UPDATE users
@@ -5354,6 +5361,14 @@ export default async function handler(req, res) {
         // ganhava 7 dias de graça e, se abandonasse o checkout, ficava com acesso
         // sem nunca ter pago.
         const planoEscolhido = String(plan || 'trial').toLowerCase();
+        // O plano do corpo é só a INTENÇÃO de compra (o checkout leva ao pagamento
+        // certo); quem define o plano da conta é o pagamento. Só entra um plano que
+        // o checkout vende: com 'enterprise' (ilimitado) ou um texto qualquer no
+        // corpo, a conta nascia com esse plano e, pagando o mais barato, ficava com
+        // ele. 'enterprise' e 'master' são negociados e concedidos só pelo suporte.
+        if (planoEscolhido !== 'trial' && (!Object.prototype.hasOwnProperty.call(PLAN_LIMITS, planoEscolhido) || ['enterprise', 'master'].includes(planoEscolhido))) {
+          return res.status(400).json({ status: 'error', error: 'Plano inválido. Escolha um plano na página de preços.' });
+        }
         const querTesteGratis = planoEscolhido === 'trial' || planoEscolhido === '';
         const initialStatus = querTesteGratis ? 'trial' : 'pending';
 
@@ -5365,7 +5380,7 @@ export default async function handler(req, res) {
         const chaveDaLoja = await gerarChaveDeLoja(store);
         const { rows } = await pool.query(
           'INSERT INTO users (name, email, password, role, store, store_name, status, phone, plan, cakto_afiliado) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id, name, email, role, store, store_name, status, phone, created_at, cakto_afiliado',
-          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, plan || 'trial', caktoAfiliado]
+          [name, email, hashedPassword, 'admin', chaveDaLoja, store, initialStatus, phone, planoEscolhido || 'trial', caktoAfiliado]
         );
 
         // ── WhatsApp de Boas-Vindas do Suporte no Trial (fire and forget) ──
