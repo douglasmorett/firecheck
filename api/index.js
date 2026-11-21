@@ -211,6 +211,13 @@ function origemDaRequisicao(req) {
   return (req.socket && req.socket.remoteAddress) || 'desconhecida';
 }
 
+// IP gravado nas rotas públicas de métrica (/api/ping, track-*). O cabeçalho é do
+// cliente: guarda só o primeiro endereço e no máximo 64 caracteres, para a tabela
+// não receber texto arbitrário.
+function ipDoVisitante(req) {
+  return String(req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || 'unknown').split(',')[0].trim().slice(0, 64) || 'unknown';
+}
+
 function clearLoginFailures(key) {
   loginAttempts.delete(key);
 }
@@ -8618,7 +8625,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     }
     // --- Tracking Endpoints ---
     if (url.includes('/api/ping')) {
-      const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+      const clientIp = ipDoVisitante(req);
       const userAgent = req.headers['user-agent'] || '';
       const isMobile = /mobile|android|iphone|ipad|phone/i.test(userAgent);
       const deviceType = isMobile ? 'mobile' : 'desktop';
@@ -8630,7 +8637,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/track-video')) {
       if (method === 'POST') {
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
         await pool.query("INSERT INTO video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
         return res.status(200).json({ success: true });
       }
@@ -8638,13 +8645,17 @@ A mensagem é lida pelo próprio funcionário, no celular:
 
     if (url.includes('/api/track-quiz-video')) {
       if (method === 'POST') {
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
         await pool.query("INSERT INTO quiz_video_plays (ip, play_date) VALUES ($1, (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date) ON CONFLICT (ip, play_date) DO NOTHING", [clientIp]);
         return res.status(200).json({ success: true });
       }
     }
 
     if (url.includes('/api/live-visitors')) {
+      // Painel do suporte: o número de visitantes do site não é de nenhum cliente.
+      const quemVe = await autenticarComLojaAtual(req);
+      if (!quemVe) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (quemVe.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       await pool.query(`DELETE FROM live_pings WHERE last_ping < NOW() - INTERVAL '30 seconds'`);
       const { rows: live } = await pool.query("SELECT COUNT(*) FROM live_pings");
       const { rows: today } = await pool.query("SELECT COUNT(*) FROM site_visits WHERE visit_date = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo')::date");
@@ -8663,7 +8674,7 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/track-quiz')) {
       if (method === 'POST') {
         const { sessionId, step, q1, q2, q3, q4, completed, clickedCta, clickedButton } = req.body;
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
 
         await pool.query(`
           INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button)
@@ -8685,6 +8696,10 @@ A mensagem é lida pelo próprio funcionário, no celular:
     }
 
     if (url.includes('/api/quiz-stats')) {
+      // Devolvia SELECT * de quiz_responses (com o IP de cada visitante) para qualquer um, sem login.
+      const quemVe = await autenticarComLojaAtual(req);
+      if (!quemVe) return res.status(401).json({ error: 'Token inválido ou ausente.' });
+      if (quemVe.role !== 'master') return res.status(403).json({ error: 'Sem permissão para esta ação.' });
       const { rows } = await pool.query(`
         SELECT *, 
                to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS') as created_at_local,
@@ -8701,11 +8716,14 @@ A mensagem é lida pelo próprio funcionário, no celular:
     if (url.includes('/api/track-event')) {
       if (method === 'POST') {
         const { sessionId, eventType, eventData, page, deviceType } = req.body;
-        const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+        const clientIp = ipDoVisitante(req);
+        // Rota pública: sem teto, qualquer um gravava megabytes por chamada.
+        const dadosDoEvento = JSON.stringify(eventData);
+        if (dadosDoEvento && dadosDoEvento.length > 8000) return res.status(413).json({ error: 'Evento grande demais.' });
         await pool.query(`
           INSERT INTO behavior_events (session_id, ip, event_type, event_data, page, device_type)
           VALUES ($1, $2, $3, $4, $5, $6)
-        `, [sessionId, clientIp, eventType, JSON.stringify(eventData), page, deviceType]);
+        `, [sessionId, clientIp, eventType, dadosDoEvento, page, deviceType]);
         return res.status(200).json({ success: true });
       }
     }

@@ -26,10 +26,13 @@ const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 
-// A Vercel entrega req.body já parseado. O limite é generoso porque checklists
-// enviam fotos em base64 (até 4 por tarefa) mais selfie e assinatura.
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// A Vercel entrega req.body já parseado (e recusa corpo acima de 4,5 MB). O limite
+// aqui acompanha o uso real, sem ficar em 50 MB: as fotos do app saem do canvas em
+// JPEG 800 px, qualidade 0,6 (~100 KB cada, uns 130 KB em base64), então um
+// checklist grande com selfie e assinatura fica na casa de poucos MB; 15 MB
+// também comporta o atestado enviado em /api/ponto/abonos (foto de celular em base64).
+app.use(express.json({ limit: '15mb' }));
+app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
 // Sonda de saúde para o Coolify — responde sem tocar no banco.
 app.get('/healthz', (_req, res) => res.status(200).json({ status: 'ok' }));
