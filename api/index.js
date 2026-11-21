@@ -4876,15 +4876,30 @@ export default async function handler(req, res) {
                 const evoKeyNovo = process.env.EVOLUTION_API_KEY;
                 const evoInstNovo = process.env.EVOLUTION_INSTANCE || 'firecheck';
                 const foneNovo = String(customerPhone || '').replace(/\D/g, '');
+                // A entrega é AGUARDADA (com teto): numa função serverless, o que
+                // fica pendente quando a resposta sai pode ser congelado, e a
+                // senha nunca chegava. E o WhatsApp do sistema vem desligado por
+                // padrão, então o e-mail da compra é a segunda via.
+                let senhaEntregue = false;
                 if (evoUrlNovo && evoKeyNovo && foneNovo) {
                   const foneCompleto = numeroWhatsapp(foneNovo).numero || foneNovo;
-                  enviarWhatsapp({
+                  const envio = await comTeto(enviarWhatsapp({
                     telefone: foneCompleto,
                     texto: `🔥 *Bem-vindo ao FireCheck!*\n\nSua conta já está ativa.\n\n📧 E-mail: *${customerEmail}*\n🔑 Senha: *${senhaInicial}*\n\nEntre em https://www.firecheckapp.com.br e altere sua senha no primeiro acesso.`,
                     contexto: 'CAKTO', instancia: evoInstNovo,
+                  }), 15000, 'CAKTO senha');
+                  senhaEntregue = !!envio && envio.ok !== false;
+                }
+                if (!senhaEntregue && process.env.RESEND_API_KEY) {
+                  const porEmail = await enviarEmail({
+                    para: customerEmail,
+                    assunto: 'Bem-vindo ao FireCheck - seus dados de acesso',
+                    html: `<p>Olá, ${escHtml(String(customerName).split(' ')[0])}! Sua conta do FireCheck já está ativa.</p><p>E-mail: <strong>${escHtml(customerEmail)}</strong><br>Senha temporária: <strong>${senhaInicial}</strong></p><p>Entre em <a href="https://www.firecheckapp.com.br">firecheckapp.com.br</a> e troque a senha no primeiro acesso.</p>`,
                   });
-                } else {
-                  console.warn(`[CAKTO] Conta ${customerEmail} criada, mas sem canal para entregar a senha (telefone ou Evolution ausentes). O cliente precisará usar "Esqueci minha senha".`);
+                  senhaEntregue = porEmail.ok === true;
+                }
+                if (!senhaEntregue) {
+                  console.warn(`[CAKTO] Conta ${customerEmail} criada, mas a senha não foi entregue (sem WhatsApp do sistema e sem e-mail configurado). O cliente precisará usar "Esqueci minha senha".`);
                 }
               } else {
                 console.log(`[CAKTO] Usuário ${customerEmail} comprou o módulo de câmera, mas a conta principal não existe.`);
@@ -5451,6 +5466,54 @@ export default async function handler(req, res) {
 
 
 
+    // ── Trocar a própria senha (conta logada) ────────────────────────────────
+    //
+    // POST /api/change-password  { currentPassword, newPassword }  (+ Bearer)
+    //   200 { success: true, token }   o token NOVO precisa substituir o guardado:
+    //                                  trocar a senha derruba os tokens antigos
+    //   400 { error }                  nova senha curta (< 8) ou igual à atual
+    //   401 { error }                  sem token / senha atual errada
+    //   429 { error, retryAfter }      muitas tentativas
+    // Antes não existia troca: só o "esqueci minha senha" gravava senha, e a senha
+    // temporária que ele manda não tinha como ser trocada por uma escolhida.
+    if (url.includes('/api/change-password')) {
+      if (method === 'POST') {
+        const quem = await autenticarComLojaAtual(req);
+        if (!quem) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+        const atual = String(req.body?.currentPassword ?? req.body?.senhaAtual ?? '');
+        const nova = String(req.body?.newPassword ?? req.body?.novaSenha ?? '');
+        if (!atual) return res.status(400).json({ error: 'Informe a senha atual.' });
+        if (nova.length < 8) return res.status(400).json({ error: 'A nova senha precisa ter pelo menos 8 caracteres.' });
+        if (nova.length > 128) return res.status(400).json({ error: 'A nova senha é longa demais (máximo 128 caracteres).' });
+        if (nova === atual) return res.status(400).json({ error: 'A nova senha precisa ser diferente da atual.' });
+
+        // Mesmo freio do login: quem tem um token roubado não pode descobrir a
+        // senha atual por tentativa e erro por aqui.
+        const chaveTroca = rateLimitKey(origemDaRequisicao(req), `troca-senha:${quem.id}`);
+        if (!checkRateLimit(chaveTroca)) {
+          const faltam = segundosDeEspera(chaveTroca);
+          return res.status(429).json({ error: `Muitas tentativas. Aguarde ${Math.max(1, Math.ceil(faltam / 60))} minuto(s) e tente novamente.`, retryAfter: faltam });
+        }
+        const { rows: [conta] } = await pool.query('SELECT id, email, role, store, password FROM users WHERE id = $1', [quem.id]);
+        if (!conta) return res.status(401).json({ error: 'Token inválido ou ausente. Faça login novamente.' });
+        const confere = conta.password && conta.password.startsWith('$2')
+          ? await bcrypt.compare(atual, conta.password)
+          : atual === conta.password;
+        if (!confere) {
+          registerLoginFailure(chaveTroca);
+          return res.status(401).json({ error: 'A senha atual está incorreta.' });
+        }
+        clearLoginFailures(chaveTroca);
+        limparFreioDaConta(chaveTroca);
+        const novoHash = await bcrypt.hash(nova, 12);
+        // O carimbo vem do relógio do servidor que emite o token novo: um relógio
+        // de banco adiantado derrubaria a sessão de quem acabou de trocar.
+        await pool.query('UPDATE users SET password = $1, password_changed_at = $2 WHERE id = $3', [novoHash, new Date(), conta.id]);
+        const token = jwt.sign({ id: conta.id, email: conta.email, role: conta.role, store: conta.store }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+        return res.status(200).json({ success: true, token });
+      }
+    }
+
     // ── Esqueci Minha Senha ──────────────────────────────────────────
     if (url.includes('/api/forgot-password')) {
       if (method === 'POST') {
@@ -5460,7 +5523,7 @@ export default async function handler(req, res) {
         // permitiria descobrir quem tem conta no sistema.
         const RESPOSTA_GENERICA = {
           status: 'success',
-          message: 'Se o e-mail estiver cadastrado e houver um WhatsApp no cadastro, enviaremos uma senha temporária para lá. Se não receber em alguns minutos, fale com o administrador da sua loja.',
+          message: 'Se o e-mail estiver cadastrado, enviaremos uma senha temporária para o WhatsApp ou para o e-mail do cadastro. Se não receber em alguns minutos, fale com o administrador da sua loja.',
         };
 
         if (!email) return res.status(400).json({ status: 'error', error: 'Informe o e-mail.' });
@@ -5481,17 +5544,29 @@ export default async function handler(req, res) {
         }
         registerLoginFailure(chaveRecup);
 
-        const { rows } = await pool.query('SELECT id, name, phone FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+        const { rows } = await pool.query('SELECT id, name, email, phone, phone_changed_at FROM users WHERE LOWER(email) = LOWER($1)', [email]);
         if (rows.length === 0) return res.status(200).json(RESPOSTA_GENERICA);
 
         const evoUrl = process.env.EVOLUTION_API_URL;
         const evoKey = process.env.EVOLUTION_API_KEY;
         const telefone = (rows[0].phone || '').replace(/\D/g, '');
 
+        // Telefone trocado há pouco NÃO recebe senha: foi assim que alguém com
+        // acesso à ficha (um gestor, um token roubado) trocava o telefone do dono
+        // pelo próprio e pedia a recuperação. Nas primeiras 48 h só o e-mail vale.
+        const trocouOTelefoneHaPouco = !!rows[0].phone_changed_at
+          && Date.now() - new Date(rows[0].phone_changed_at).getTime() < 48 * 3600 * 1000;
+        if (trocouOTelefoneHaPouco) console.warn(`[Recuperacao de senha] telefone de ${rows[0].email} trocado há menos de 48 h: WhatsApp não será usado.`);
+        const podePorWhatsapp = !!(evoUrl && evoKey && telefone) && !trocouOTelefoneHaPouco;
+        // Segundo canal: o e-mail do cadastro (Resend). Sem RESEND_API_KEY o
+        // comportamento é o de antes, só pelo WhatsApp.
+        const podePorEmail = !!process.env.RESEND_API_KEY;
+        if (!podePorEmail) console.warn('[Recuperacao de senha] RESEND_API_KEY ausente: sem e-mail como segunda via de entrega da senha temporária.');
+
         // Só redefine a senha se existir canal para entregá-la ao dono da conta.
         // Redefinir sem conseguir entregar apenas tranca o usuário para fora — e
         // devolver a senha na resposta HTTP entregaria a conta a quem pediu.
-        if (!evoUrl || !evoKey || !telefone) {
+        if (!podePorWhatsapp && !podePorEmail) {
           return res.status(200).json(RESPOSTA_GENERICA);
         }
 
@@ -5502,16 +5577,31 @@ export default async function handler(req, res) {
         // sessão podre (enviarWhatsapp devolve {ok:false}, nunca lança) matava
         // a senha atual sem entregar a nova: o cliente via "enviamos!" na
         // tela, ficava trancado para fora e cada nova tentativa piorava.
-        const fullPhone = numeroWhatsapp(telefone).numero || telefone;
-        const entrega = await enviarWhatsapp({
-          telefone: fullPhone,
-          texto: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.`,
-          contexto: 'Recuperacao de senha',
-        });
-        if (!entrega || entrega.ok === false) {
+        let entregue = false;
+        if (podePorWhatsapp) {
+          const fullPhone = numeroWhatsapp(telefone).numero || telefone;
+          const entrega = await enviarWhatsapp({
+            telefone: fullPhone,
+            texto: `🔒 *FireCheck - Recuperação de Senha*\n\nSua nova senha temporária é: *${tempPass}*\n\nUse ela para fazer login e altere sua senha depois.`,
+            contexto: 'Recuperacao de senha',
+          });
+          entregue = !!entrega && entrega.ok !== false;
+        }
+        // O WhatsApp do sistema vem desligado por padrão (WHATSAPP_DO_SISTEMA_ENVIA)
+        // e, sem ele, ninguém conseguia recuperar a senha: o e-mail cobre.
+        if (!entregue && podePorEmail) {
+          const nomeDele = String(rows[0].name || '').split(' ')[0] || 'tudo bem';
+          const porEmail = await enviarEmail({
+            para: rows[0].email,
+            assunto: 'FireCheck - sua senha temporária',
+            html: `<p>Olá, ${escHtml(nomeDele)}!</p><p>Sua senha temporária do FireCheck é: <strong>${tempPass}</strong></p><p>Use-a para entrar e troque a senha em seguida. Se não foi você quem pediu, ignore este e-mail: sua senha só muda quando esta mensagem chega.</p>`,
+          });
+          entregue = porEmail.ok === true;
+        }
+        if (!entregue) {
           // A senha atual continua valendo — erro honesto em vez de sucesso falso.
           return res.status(503).json({
-            error: 'Não conseguimos enviar a senha pelo WhatsApp agora. Sua senha atual continua valendo — tente de novo em alguns minutos ou fale com o suporte.',
+            error: 'Não conseguimos enviar a senha agora. Sua senha atual continua valendo — tente de novo em alguns minutos ou fale com o suporte.',
           });
         }
 
