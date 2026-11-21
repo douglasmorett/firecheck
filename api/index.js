@@ -4815,11 +4815,16 @@ export default async function handler(req, res) {
             }
           }
 
-          console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payload));
+          // O segredo do webhook viaja no corpo (payload.secret): não pode ir para
+          // o log da Vercel nem para o banco, de onde quem lesse o forjaria.
+          const payloadParaLog = payload && typeof payload === 'object'
+            ? { ...payload, secret: undefined, ...(payload.data && typeof payload.data === 'object' ? { data: { ...payload.data, secret: undefined } } : {}) }
+            : payload;
+          console.log('[CAKTO WEBHOOK] Recebido:', JSON.stringify(payloadParaLog));
           // Guarda o que a Cakto mandou. Sem isto não havia como saber o nome do
           // produto quando uma venda não liberava o plano certo (Pet Nature, 03/10).
           try {
-            await pool.query('INSERT INTO webhook_logs (payload, created_at) VALUES ($1, NOW())', [JSON.stringify(payload ?? null)]);
+            await pool.query('INSERT INTO webhook_logs (payload, created_at) VALUES ($1, NOW())', [JSON.stringify(payloadParaLog ?? null)]);
           } catch (erroDoLog) {
             console.warn('[CAKTO WEBHOOK] Não gravei o payload em webhook_logs:', erroDoLog?.message);
           }
