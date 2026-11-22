@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import API_URL from '../api';
 import { anuncioDaOrigem } from '../afiliado';
 import './LandingPage.css';
+import './LandingVisualNovo.css';
+import { DemoModulo, IlustraPasso } from './DemoModulos';
 
 // Página inicial do site (firecheckapp.com.br), feita para o celular primeiro:
 // quem chega pelo anúncio vê a promessa, o vídeo e o botão sem rolar, e a barra
@@ -44,7 +46,6 @@ const DETALHES = [
       'Selfie e assinatura na finalização, se você quiser',
       'Resultado com fotos, análise da IA e PDF para guardar',
     ],
-    fotos: [['/telas/checklist-ia-cria.jpg', 'A IA montando o checklist'], ['/telas/checklist-ia-reprova.jpg', 'A IA reprovando a foto da bancada']],
   },
   {
     id: 'estoque', icone: '📦', nome: 'Estoque',
@@ -58,7 +59,6 @@ const DETALHES = [
       'Relatório item por item, com a observação deixada pela equipe',
       'Entrada e saída de produtos registradas pelo celular',
     ],
-    fotos: [['/telas/estoque-contagem.jpg', 'Contagem de estoque no celular da equipe'], ['/telas/compras-relatorio.jpg', 'Relatório da conferência no painel']],
   },
   {
     id: 'compras', icone: '🛒', nome: 'Lista de compras',
@@ -71,7 +71,6 @@ const DETALHES = [
       'Aviso no WhatsApp quando algo fica abaixo do mínimo',
       'Histórico para saber o que mais falta e quando',
     ],
-    fotos: [['/telas/compras-relatorio.jpg', 'Itens abaixo do mínimo, com o que falta']],
   },
   {
     id: 'frota', icone: '🚚', nome: 'Frota',
@@ -85,7 +84,6 @@ const DETALHES = [
       'Foto de cada item analisada pela IA (ex.: pneus calibrados)',
       'Histórico das vistorias com a placa de cada veículo',
     ],
-    fotos: [['/telas/frota-ia.jpg', 'Vistoria da moto aprovada pela IA'], ['/telas/frota-veiculos.jpg', 'Os veículos da empresa']],
   },
   {
     id: 'perdas', icone: '🗑️', nome: 'Descarte e perdas',
@@ -98,7 +96,6 @@ const DETALHES = [
       'Ocorrências também: freezer parou, equipamento quebrou',
       'O gestor é avisado no WhatsApp a cada registro',
     ],
-    fotos: [['/telas/descarte-foto.jpg', 'Registro de descarte com foto e valor']],
   },
   {
     id: 'whatsapp', icone: '💬', nome: 'Avisos no WhatsApp',
@@ -110,7 +107,6 @@ const DETALHES = [
       'Ocorrência e descarte registrados pela equipe',
       'Você escolhe quais avisos recebe',
     ],
-    fotos: [['/telas/whatsapp-qr.jpg', 'Conectar o WhatsApp da empresa pelo QR'], ['/telas/whatsapp-avisos.jpg', 'Escolha dos avisos']],
   },
   {
     id: 'painel', icone: '📊', nome: 'Painel e ranking',
@@ -123,12 +119,8 @@ const DETALHES = [
       'Auditoria em tempo real: quem fez, a que horas, com que foto',
       'Ranking da equipe com pódio e nota de cada um',
     ],
-    fotos: [['/telas/painel.jpg', 'Painel do dono'], ['/telas/ranking.jpg', 'Ranking da equipe']],
   },
 ];
-
-// Telas do celular ficam em pé; as do painel (computador) aparecem inteiras, sem corte.
-const CELULAR = /checklist-|estoque-contagem|descarte-foto/;
 
 function Modulos({ onTestar }) {
   const [ativo, setAtivo] = useState(DETALHES[0].id);
@@ -152,11 +144,7 @@ function Modulos({ onTestar }) {
             <ul>{m.itens.map((i) => <li key={i}>{i}</li>)}</ul>
             <button className="lp-cta" onClick={() => onTestar(`Módulo ${m.nome}: ver planos`)}>Ver planos</button>
           </div>
-          <div className={`lp-mod-fotos n${m.fotos.length}`}>
-            {m.fotos.map(([src, legenda]) => (
-              <figure key={src}><img src={src} alt={legenda} loading="lazy" className={CELULAR.test(src) ? 'fone' : 'desk'} /><figcaption>{legenda}</figcaption></figure>
-            ))}
-          </div>
+          <DemoModulo id={m.id} />
         </div>
       </div>
     </section>
@@ -369,9 +357,9 @@ export default function LandingPage() {
         <div className="lp-in">
           <h2>Como funciona</h2>
           <div className="lp-passos">
-            <div className="lp-passo"><i>1</i><div><b>Fale o que tem que ser feito</b><small>Grave um áudio ou escreva. A IA monta o checklist com foto obrigatória e horário.</small></div></div>
-            <div className="lp-passo"><i>2</i><div><b>A equipe faz pelo celular</b><small>Cada tarefa com foto pela câmera. A IA confere e reprova o que saiu do padrão.</small></div></div>
-            <div className="lp-passo"><i>3</i><div><b>Você recebe no WhatsApp</b><small>Reprovou, atrasou, concluiu, faltou estoque, teve descarte. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
+            <div className="lp-passo"><IlustraPasso n={1} /><i>1</i><div><b>Fale o que tem que ser feito</b><small>Grave um áudio ou escreva. A IA monta o checklist com foto obrigatória e horário.</small></div></div>
+            <div className="lp-passo"><IlustraPasso n={2} /><i>2</i><div><b>A equipe faz pelo celular</b><small>Cada tarefa com foto pela câmera. A IA confere e reprova o que saiu do padrão.</small></div></div>
+            <div className="lp-passo"><IlustraPasso n={3} /><i>3</i><div><b>Você recebe no WhatsApp</b><small>Reprovou, atrasou, concluiu, faltou estoque, teve descarte. E o painel guarda tudo com foto, hora e quem fez.</small></div></div>
           </div>
           <div className="lp-chips"><span>Restaurante e delivery</span><span>Franquia e rede</span><span>Padaria</span><span>Academia</span><span>Hotel</span><span>Frota</span><span>Clínica</span><span>Supermercado</span></div>
         </div>

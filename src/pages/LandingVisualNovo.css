@@ -1,0 +1,143 @@
+/* Visual novo da landing (proposta de 22/11/2026): o mesmo sistema do painel por dentro
+   (index.css, aprovado em 21/11): fundo quente, cartão branco com moldura dupla, uma cor
+   de destaque só (laranja), tinta grafite, abas em bandeja e cantos retos (escolhidos pelo Douglas em 22/11: --lp-r botão 4px, --lp-rc cartão 8px).
+   Fica num arquivo à parte, por cima do LandingPage.css: tirar o import desfaz tudo. */
+
+.lp { --lp-ink: #16161A; --lp-tx: #16161A; --lp-mu: #5F5F68; --lp-bg: #ECE9E4; --lp-ok: #0E9F6E; --lp-fio: #E2DED7;
+  --lp-moldura: 0 0 0 1px rgba(22,22,26,.06), 0 0 0 6px rgba(255,255,255,.6), 0 0 0 7px rgba(22,22,26,.05), 0 26px 50px -32px rgba(22,22,26,.32);
+  --lp-mola: cubic-bezier(.32,.72,0,1); --lp-r: 4px; --lp-rc: 8px;
+  background: #F6F4F1; letter-spacing: -.005em; }
+
+/* topo: ilha de vidro solta do alto */
+.lp-top { background: transparent; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 10px 12px 0; }
+.lp-top .lp-in { background: rgba(255,255,255,.78); backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border-radius: var(--lp-rc); box-shadow: 0 0 0 1px rgba(22,22,26,.07), 0 14px 30px -20px rgba(22,22,26,.35); padding: 7px 7px 7px 16px; }
+.lp-logo { font-weight: 700; font-size: 18px; letter-spacing: -.02em; }
+.lp-logo img { border-radius: 6px; }
+.lp-nav button { font-weight: 500; color: var(--lp-mu); border-radius: var(--lp-r); transition: color .3s, background .3s; }
+.lp-nav button:hover { color: var(--lp-tx); background: rgba(22,22,26,.04); }
+.lp-nav .lp-entrar { background: var(--lp-ink); color: #fff; border: 0; border-radius: var(--lp-r); transition: background .3s; font-weight: 600; padding: 9px 18px; }
+.lp-nav .lp-entrar:hover { background: var(--lp-p); color: #fff; }
+
+/* tipografia: Geist como no painel, peso 600-700 e espaçamento fechado */
+.lp h1 { font-weight: 700; letter-spacing: -.045em; line-height: 1.02; }
+.lp h2 { font-weight: 700; letter-spacing: -.035em; }
+.lp-mod-txt h3, .lp-plano h3 { font-weight: 700; letter-spacing: -.03em; }
+.lp-sub, .lp-lead, .lp-mod-txt p { color: #4A4A52; }
+
+/* rótulo de seção: olho de vidro do painel (fc-olho-rot) */
+.lp-kicker { background: rgba(255,255,255,.7); color: var(--lp-mu); font-weight: 500; font-size: 10.5px; letter-spacing: .16em; padding: 7px 12px 7px 10px; border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--lp-fio); display: inline-flex; align-items: center; gap: 8px; }
+.lp-kicker::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--lp-p); box-shadow: 0 0 0 3px rgb(var(--primary-rgb) / .18); }
+
+/* fundo: brilho laranja no alto, como no painel */
+.lp-hero { background: radial-gradient(900px 480px at 85% -8%, rgb(var(--primary-rgb) / .10), transparent 62%); }
+.lp-cinza { background: var(--lp-bg); }
+.lp-escuro { background: #101014; }
+
+/* botão principal: canto reto; o laranja pulsa e, com o mouse em cima, troca de cor */
+.lp-cta { display: flex; align-items: center; justify-content: center; gap: 12px; border-radius: var(--lp-r); font-weight: 600; letter-spacing: -.01em; padding: 8px 26px;
+  min-height: 56px; box-shadow: 0 16px 30px -14px rgb(var(--primary-rgb) / .7), inset 0 1px 0 rgba(255,255,255,.18); transition: transform .5s var(--lp-mola), background .35s, color .35s, box-shadow .5s var(--lp-mola); }
+.lp-cta:hover { transform: translateY(-1px); }
+@media (hover: hover) {
+  .lp .lp-cta:hover { background: var(--lp-ink); color: #fff; box-shadow: 0 16px 30px -14px rgba(22,22,26,.6); }
+  .lp .lp-plano.sec .lp-cta:hover, .lp .lp-plano:not(.sec) .lp-cta:hover { background: var(--lp-p); box-shadow: 0 16px 30px -14px rgb(var(--primary-rgb) / .7); }
+  .lp .lp-plano:not(.sec) .lp-cta:hover { background: #fff; color: var(--lp-ink); }
+  .lp-fixa button:hover, .lp-setor .bt:hover { background: var(--lp-ink); }
+  .lp-abas button:not(.on):hover, .lp-troca button:not(.on):hover { background: rgba(255,255,255,.9); color: var(--lp-tx); }
+}
+.lp-cta:active { transform: scale(.98); }
+@media (min-width: 900px) {
+  .lp-hero .lp-cta, .lp-mod-txt .lp-cta, .lp-centro .lp-cta { display: inline-flex; padding: 8px 34px; }
+}
+.lp-fine { color: var(--lp-mu); }
+
+/* vídeo e cartões com moldura dupla */
+.lp-video { border-radius: 12px; box-shadow: 0 0 0 1px rgba(22,22,26,.08), 0 0 0 8px rgba(255,255,255,.65), 0 0 0 9px rgba(22,22,26,.06), 0 40px 80px -36px rgba(22,22,26,.45); }
+.lp-video .lp-play span, .lp-video-rever { font-weight: 600; border-radius: var(--lp-r); }
+.lp-lg { border: 0; border-radius: 6px; box-shadow: 0 0 0 1px rgba(22,22,26,.06); }
+.lp-logos h5 { font-weight: 500; letter-spacing: .16em; }
+.lp-setor { border: 0; border-radius: var(--lp-rc); box-shadow: var(--lp-moldura); }
+.lp-setor .hd { background: #fff; color: var(--lp-tx); font-weight: 600; border-bottom: 1px solid var(--lp-fio); }
+.lp-setor .img span { background: #E11D48; font-weight: 600; border-radius: 3px; }
+.lp-setor .ia { background: #FFF1F2; border-color: #FFE4E6; color: #881337; }
+.lp-setor .ia b { color: #E11D48; font-weight: 600; }
+.lp-setor .bt { background: var(--lp-ink); border-radius: var(--lp-r); font-weight: 600; transition: background .35s; }
+.lp-selos span, .lp-chips span { border: 0; font-weight: 500; box-shadow: 0 0 0 1px var(--lp-fio); background: rgba(255,255,255,.8); border-radius: 3px; }
+
+/* seção escura: grafite com cartões internos */
+.lp-qr { border-radius: var(--lp-rc); box-shadow: 0 0 0 1px #1C1C21, 0 0 0 6px #1C1C21, 0 0 0 7px rgba(255,255,255,.06); }
+.lp-avisos div { border-left: 0; border-radius: 6px; padding: 12px 14px 12px 40px; position: relative; box-shadow: 0 0 0 1px #1C1C21, 0 0 0 5px #1C1C21; }
+.lp-avisos div::before { content: ""; position: absolute; left: 16px; top: 17px; width: 10px; height: 10px; border-radius: 50%; background: #E11D48; box-shadow: 0 0 0 4px rgb(225 29 72 / .15); }
+.lp-avisos div.al::before { background: #D97706; box-shadow: 0 0 0 4px rgb(217 119 6 / .15); }
+.lp-avisos div.ok::before { background: var(--lp-ok); box-shadow: 0 0 0 4px rgb(14 159 110 / .15); }
+.lp-avisos b { font-weight: 600; }
+
+/* abas dos módulos: bandeja segmentada do painel (fc-seg), sem emoji */
+.lp-abas { gap: 2px; padding: 4px; margin-left: 0; margin-right: 0; border-radius: 6px; background: #ECE9E4; box-shadow: inset 0 0 0 1px var(--lp-fio); width: max-content; max-width: 100%; }
+.lp-abas button { border: 0; background: transparent; color: var(--lp-mu); font-weight: 500; font-size: 14px; padding: 9px 16px; border-radius: var(--lp-r); transition: all .4s var(--lp-mola); }
+.lp-abas button > span:first-child { display: none; }
+.lp-abas button:hover { color: var(--lp-tx); }
+.lp-abas button.on { background: #fff; color: var(--lp-tx); border: 0; box-shadow: 0 1px 2px rgba(22,22,26,.08), 0 0 0 1px var(--lp-fio); }
+@media (min-width: 900px) { .lp-abas { flex-wrap: nowrap; } }
+.lp-mod-txt li { border-top-color: var(--lp-fio); }
+.lp-mod-txt li::before, .lp-plano li::before { content: ""; width: 16px; height: 16px; top: 10px; left: 0; border-radius: 3px; background: rgb(14 159 110 / .12) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='%230E9F6E' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat; }
+
+/* como funciona: número em mono, como os números do painel */
+.lp-passo > i { background: var(--lp-ink); border-radius: var(--lp-r); font-family: 'Geist Mono', ui-monospace, monospace; font-weight: 500; font-size: 13px; }
+.lp-passo > div > b { font-weight: 600; }
+.lp .dm-il { border: 0; border-radius: var(--lp-rc); box-shadow: var(--lp-moldura); }
+
+/* preço: bandeja do mensal/anual e plano principal em grafite */
+.lp-troca { border-radius: 6px; background: #ECE9E4; box-shadow: inset 0 0 0 1px var(--lp-fio); }
+.lp-troca button { font-weight: 500; border-radius: var(--lp-r); transition: background .3s, color .3s; }
+.lp-troca button.on { box-shadow: 0 1px 2px rgba(22,22,26,.08), 0 0 0 1px var(--lp-fio); }
+.lp-plano { border: 0; border-radius: var(--lp-rc); box-shadow: var(--lp-moldura); padding: 24px 22px 22px; }
+.lp-plano .pr b { font-weight: 600; letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.lp-plano li { position: relative; padding-left: 24px; border-top-color: var(--lp-fio); }
+.lp-plano li::before { position: absolute; top: 9px; }
+.lp-plano .ex { font-weight: 500; }
+.lp-plano.sec .lp-cta { background: var(--lp-ink); color: #fff; border: 0; box-shadow: 0 14px 28px -14px rgba(22,22,26,.6); }
+.lp-plano:not(.sec) { background: #101014; color: #F4F4F5; box-shadow: 0 0 0 1px #1C1C21, 0 0 0 6px #fff, 0 0 0 7px rgba(22,22,26,.08), 0 40px 70px -34px rgba(234,88,12,.45); }
+.lp-plano:not(.sec) .pr span, .lp-plano:not(.sec) .lp-fine { color: #9A9AA5; }
+.lp-plano:not(.sec) li { border-top-color: rgba(255,255,255,.08); }
+.lp-plano:not(.sec) .ex { color: #34D399; }
+.lp-plano .tag { font-weight: 600; letter-spacing: .14em; font-size: 10px; padding: 5px 12px; border-radius: 3px; box-shadow: 0 6px 14px -6px rgb(var(--primary-rgb) / .8); }
+
+/* perguntas: cada uma num cartão */
+.lp-faq details { border: 0; background: #fff; border-radius: 6px; padding: 16px 20px; margin-bottom: 10px; box-shadow: 0 0 0 1px rgba(22,22,26,.06); }
+.lp summary { font-weight: 600; }
+.lp summary::after { content: "+"; width: 26px; height: 26px; flex: none; border-radius: 3px; display: grid; place-items: center; background: #F6F4F1; color: var(--lp-tx); font-weight: 400; transition: transform .4s var(--lp-mola); }
+.lp details[open] summary::after { content: "+"; transform: rotate(45deg); }
+
+/* barra fixa do celular */
+.lp-fixa { background: rgba(246,244,241,.9); border-top: 0; box-shadow: 0 -1px 0 var(--lp-fio); }
+.lp-fixa button { border-radius: var(--lp-r); transition: background .35s; font-weight: 600; padding: 13px 22px; box-shadow: 0 10px 20px -10px rgb(var(--primary-rgb) / .7); }
+.lp-fixa .lp-zap-mini { border-radius: var(--lp-r); }
+
+/* celular: botão numa linha só e a demonstração logo depois do texto do módulo */
+@media (max-width: 899px) {
+  .lp-cta { font-size: 15.5px; padding: 8px 18px; min-height: 54px; }
+  .lp-abas button { border-radius: 3px; }
+  .lp-mod-txt { display: contents; }
+  .lp-mod-det { gap: 14px; }
+  .lp-mod-det .dm { order: 3; margin: 6px 0 4px; }
+  .lp-mod-txt ul { order: 4; margin-top: 0; }
+  .lp-mod-txt .lp-cta { order: 5; }
+}
+
+/* celular: as abas quebram linha (na bandeja rolando, a aba escolhida ficava cortada na borda) */
+@media (max-width: 899px) {
+  .lp-abas { flex-wrap: wrap; overflow: visible; gap: 6px; padding: 0; width: auto; background: none; box-shadow: none; border-radius: 0; }
+  .lp-abas button { background: rgba(255,255,255,.7); box-shadow: 0 0 0 1px var(--lp-fio); padding: 8px 14px; font-size: 13.5px; }
+  .lp-abas button.on { background: var(--lp-ink); color: #fff; box-shadow: 0 6px 14px -8px rgba(22,22,26,.6); }
+}
+
+/* pulso nos botões laranja: um anel que abre e some a cada 2,4 s (os grafite ficam parados) */
+.lp-cta:not(.lp-plano.sec .lp-cta), .lp-fixa button { animation: lp-pulsa 2.4s var(--lp-mola) infinite; }
+.lp-cta:hover, .lp-fixa button:hover { animation: none; }
+@keyframes lp-pulsa {
+  0% { box-shadow: 0 16px 30px -14px rgb(var(--primary-rgb) / .7), 0 0 0 0 rgb(var(--primary-rgb) / .55); }
+  70%, 100% { box-shadow: 0 16px 30px -14px rgb(var(--primary-rgb) / .7), 0 0 0 14px rgb(var(--primary-rgb) / 0); }
+}
+@media (prefers-reduced-motion: reduce) { .lp-cta, .lp-fixa button { animation: none !important; } }
