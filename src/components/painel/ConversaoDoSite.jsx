@@ -58,7 +58,9 @@ export default function ConversaoDoSite() {
   const etapas = d ? [
     ['Acessos', d.acessos, 'abriram o site'],
     ['Ficaram 10 s ou mais', d.ficaram, 'tira robô e quem fechou na hora'],
-    ['Viram os planos', d.viramPlanos, 'clicaram em Ver planos ou Assinar'],
+    ['Deram play no vídeo', d.deramPlay ?? 0, `${d.videoAteOFim ?? 0} viram até o fim`],
+    // Ver os planos não depende do vídeo: a % compara com quem ficou 10 s ou mais.
+    ['Viram os planos', d.viramPlanos, 'clicaram em Ver planos ou Assinar', 1],
     ['Foram ao checkout', d.checkout, 'clicaram em Assinar'],
     ['Compraram', d.compras, d.comprasOk ? 'pagamento aprovado na Cakto' : 'compras indisponíveis'],
   ] : [];
@@ -88,13 +90,14 @@ export default function ConversaoDoSite() {
         <>
           <div className="fc-conv-topo">
             <div className="fc-funil">
-              {etapas.map(([nome, n, dica], i) => {
-                const anterior = i === 0 ? null : etapas[i - 1][1];
+              {etapas.map(([nome, n, dica, base], i) => {
+                const ref = i === 0 ? null : (base ?? i - 1);
+                const anterior = ref === null ? null : etapas[ref][1];
                 return (
                   <div key={nome} className={`card fc-etapa${i === etapas.length - 1 ? ' fim' : ''}`}>
                     <span className="fc-olho-rot">{nome}</span>
                     <strong className="mono">{n}</strong>
-                    <span className="fc-etapa-pct mono">{anterior === null ? '100%' : `${fmtPct(pct(n, anterior))} da etapa anterior`}</span>
+                    <span className="fc-etapa-pct mono">{anterior === null ? '100%' : `${fmtPct(pct(n, anterior))} ${ref === i - 1 ? 'da etapa anterior' : 'de quem ficou'}`}</span>
                     <BarraLuz pct={pct(n, etapas[0][1])} cor={i === etapas.length - 1 ? 'var(--ok)' : 'var(--primary)'} />
                     <small>{dica}</small>
                   </div>

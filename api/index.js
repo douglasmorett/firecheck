@@ -3751,6 +3751,8 @@ export default async function handler(req, res) {
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_planos BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS clicou_whatsapp BOOLEAN DEFAULT FALSE");
       await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS anuncio VARCHAR(150)");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS deu_play BOOLEAN DEFAULT FALSE");
+      await pool.query("ALTER TABLE quiz_responses ADD COLUMN IF NOT EXISTS video_ate_o_fim BOOLEAN DEFAULT FALSE");
       await pool.query(`
         CREATE TABLE IF NOT EXISTS behavior_events (
           id SERIAL PRIMARY KEY,
@@ -8944,13 +8946,18 @@ Responda APENAS com JSON válido.`;
         const botao = String(clickedButton || '');
         const viuPlanos = !!planoDoCheckout || /ver planos|assinar/i.test(botao);
         const chamouNoZap = /whatsapp|consultor/i.test(botao);
+        // Vídeo da página: o clicked_button guarda só o último clique, então play e fim têm coluna própria.
+        const deuPlay = /^video_(play|fim)$/.test(botao);
+        const viuAteOFim = botao === 'video_fim';
 
         await pool.query(`
-          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          INSERT INTO quiz_responses (session_id, ip, last_step, q1_answer, q2_answer, q3_answer, q4_answer, completed, clicked_cta, clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio, deu_play, video_ate_o_fim)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
           ON CONFLICT (session_id) DO UPDATE SET
             checkout_plan = COALESCE($11, quiz_responses.checkout_plan),
             anuncio = COALESCE(quiz_responses.anuncio, $14),
+            deu_play = COALESCE(quiz_responses.deu_play, FALSE) OR $15,
+            video_ate_o_fim = COALESCE(quiz_responses.video_ate_o_fim, FALSE) OR $16,
             clicou_planos = COALESCE(quiz_responses.clicou_planos, FALSE) OR $12,
             clicou_whatsapp = COALESCE(quiz_responses.clicou_whatsapp, FALSE) OR $13,
             last_updated_at = (CURRENT_TIMESTAMP AT TIME ZONE 'America/Sao_Paulo'),
@@ -8962,7 +8969,7 @@ Responda APENAS com JSON válido.`;
             completed = $8,
             clicked_cta = COALESCE($9, quiz_responses.clicked_cta),
             clicked_button = COALESCE($10, quiz_responses.clicked_button)
-        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, planoDoCheckout, viuPlanos, chamouNoZap, anuncio]);
+        `, [sessionId, clientIp, step, q1, q2, q3, q4, completed, clickedCta, clickedButton, planoDoCheckout, viuPlanos, chamouNoZap, anuncio, deuPlay, viuAteOFim]);
 
         return res.status(200).json({ success: true });
       }
@@ -8985,7 +8992,7 @@ Responda APENAS com JSON válido.`;
       // Visitas: created_at já é hora de São Paulo (default da tabela).
       const { rows: visitas } = await pool.query(`
         SELECT EXTRACT(EPOCH FROM (last_updated_at - created_at))::int AS seg,
-               clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio
+               clicked_button, checkout_plan, clicou_planos, clicou_whatsapp, anuncio, deu_play, video_ate_o_fim
           FROM quiz_responses
          WHERE last_step = 0 AND created_at::date BETWEEN $1::date AND $2::date
       `, [de, ate]);
@@ -9003,9 +9010,12 @@ Responda APENAS com JSON válido.`;
       const SEM_ANUNCIO = 'Sem anúncio (direto, Google, orgânico)';
       const porAnuncio = {};
       const doAnuncio = (k) => (porAnuncio[k || SEM_ANUNCIO] ||= { acessos: 0, checkout: 0, compras: 0, valor: 0 });
-      let checkout = 0, viramPlanos = 0, whatsapp = 0;
+      let checkout = 0, viramPlanos = 0, whatsapp = 0, deramPlay = 0, videoAteOFim = 0;
       for (const v of visitas) {
         const p = planoDaVisita(v);
+        // Antes da coluna deu_play só sobrava o play de quem não clicou em mais nada depois.
+        if (v.deu_play || /^video_(play|fim)$/.test(v.clicked_button || '')) deramPlay++;
+        if (v.video_ate_o_fim) videoAteOFim++;
         doAnuncio(v.anuncio).acessos++;
         if (p) { checkout++; linha(p).cliques++; doAnuncio(v.anuncio).checkout++; }
         if (p || v.clicou_planos || /ver planos/i.test(v.clicked_button || '')) viramPlanos++;
@@ -9077,7 +9087,7 @@ Responda APENAS com JSON válido.`;
         acessos: visitas.length,
         ficaram: ficaram.length,
         tempoMedioSeg: tempos.length ? Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length) : 0,
-        viramPlanos, checkout, whatsapp, porPlano, porAnuncio, comprasOk, ...vendas,
+        deramPlay, videoAteOFim, viramPlanos, checkout, whatsapp, porPlano, porAnuncio, comprasOk, ...vendas,
       });
     }
 

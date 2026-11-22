@@ -287,7 +287,7 @@ export default function LandingPage() {
               playsInline
               preload="none"
               controls={videoTocando}
-              onEnded={() => { setVideoTocando(false); setVideoAcabou(true); }}
+              onEnded={() => { setVideoTocando(false); setVideoAcabou(true); handleTrackAndNavigate('video_fim', null); }}
             />
             {!videoTocando && !videoAcabou && (
               <button className="lp-play" onClick={tocarVideo} aria-label="Ver o vídeo">
