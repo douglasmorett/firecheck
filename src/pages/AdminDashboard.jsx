@@ -367,7 +367,8 @@ export default function AdminDashboard() {
     }
     const isMaster = user && (user.role === 'master' || user.email?.toLowerCase() === 'douglas@firecheck.com' || user.email?.toLowerCase() === 'contatohakim@gmail.com');
     if (isMaster) {
-      return ['equipe'].includes(saved) ? saved : 'equipe';
+      // F5 volta para a aba em que o Master estava (Site Principal e Códigos também).
+      return ['equipe', 'quiz', 'codigos'].includes(saved) ? saved : 'equipe';
     }
     const isCameraAllowed = user?.email?.toLowerCase() === 'dugaburguer@gmail.com';
     const allowedTabs = isCameraAllowed 

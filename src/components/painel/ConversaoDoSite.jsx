@@ -33,7 +33,11 @@ const reais = (v) => (Number(v) || 0).toLocaleString('pt-BR', { style: 'currency
 const tempo = (s) => `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`;
 
 export default function ConversaoDoSite() {
-  const [periodo, setPeriodo] = useState('hoje');
+  // O período escolhido sobrevive ao F5.
+  const [periodo, setPeriodoEstado] = useState(() => {
+    try { const p = localStorage.getItem('fc_conv_periodo'); return PERIODOS[p] ? p : 'hoje'; } catch { return 'hoje'; }
+  });
+  const setPeriodo = (p) => { setPeriodoEstado(p); try { localStorage.setItem('fc_conv_periodo', p); } catch { /* sem armazenamento */ } };
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(false);
 
