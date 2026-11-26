@@ -23,7 +23,7 @@ export default function ResellerPage() {
   const navigate = useNavigate();
   const [clientCount, setClientCount] = useState(25);
   const [selectedPlan, setSelectedPlan] = useState(97); // Plano base R$ 97 por padrão
-  const [commissionRate] = useState(30); // 30% de comissão recorrente
+  const [commissionRate] = useState(15); // 15% de comissão recorrente (Douglas, 26/11/2026)
 
   // Cálculo da Renda Recorrente Mensal (MRR) estimada
   const monthlyRevenue = (clientCount * selectedPlan * (commissionRate / 100));
@@ -206,7 +206,7 @@ export default function ResellerPage() {
         <div style={{ maxWidth: '900px', margin: '0 auto', background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%)', border: '1px solid rgb(var(--primary-rgb) / 0.3)', borderRadius: '24px', padding: '40px 6%', boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)' }}>
           
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <span style={{ color: '#FF8800', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Simulador de Renda Recorrente (30% de Comissão)</span>
+            <span style={{ color: '#FF8800', fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px' }}>Simulador de Renda Recorrente (15% de Comissão)</span>
             <h2 style={{ fontSize: '2rem', fontWeight: 800, color: '#FFFFFF', marginTop: '8px' }}>
               Quanto você quer receber todo mês?
             </h2>
@@ -280,7 +280,7 @@ export default function ResellerPage() {
                 R$ {monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style={{ fontSize: '1rem', fontWeight: 500, color: '#9CA3AF' }}>/mês</span>
               </div>
               <div style={{ fontSize: '0.75rem', color: '#10B981', fontWeight: 600, marginTop: '4px' }}>
-                30% de comissão = R$ {(selectedPlan * 0.3).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por cliente/mês
+                15% de comissão = R$ {(selectedPlan * 0.15).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} por cliente/mês
               </div>
             </div>
 
@@ -295,7 +295,7 @@ export default function ResellerPage() {
 
           {/* Aviso sobre a oscilação conforme o plano assinado */}
           <div style={{ marginTop: '20px', padding: '14px 18px', backgroundColor: 'rgb(var(--primary-rgb) / 0.08)', borderRadius: '12px', border: '1px solid rgb(var(--primary-rgb) / 0.25)', fontSize: '0.825rem', color: '#D1D5DB', textAlign: 'center', lineHeight: 1.5 }}>
-            <span style={{ color: '#FF8800', fontWeight: 700 }}>💡 Observação Importante:</span> O valor da sua renda mensal varia de acordo com o plano assinado pelo cliente (R$ 67, R$ 97 ou R$ 197/mês) ou de eventuais upgrades contratados. A sua comissão é sempre fixa em <strong>30% recorrente</strong> em cada mensalidade paga!
+            <span style={{ color: '#FF8800', fontWeight: 700 }}>💡 Observação Importante:</span> O valor da sua renda mensal varia de acordo com o plano assinado pelo cliente (R$ 67, R$ 97 ou R$ 197/mês) ou de eventuais upgrades contratados. A sua comissão é sempre fixa em <strong>15% recorrente</strong> em cada mensalidade paga!
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '28px' }}>
